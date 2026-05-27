@@ -1,6 +1,14 @@
 body { background: #fff; }
 
 /* ══════════════════════════════════════════════
+   모바일: 사이트 헤더 / nav-row 숨김 (전용 mob-pv-header 사용)
+══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .site-header { display: none !important; }
+  .header-nav-row { display: none !important; }
+}
+
+/* ══════════════════════════════════════════════
    PC / 모바일 뷰 전환
 ══════════════════════════════════════════════ */
 .pc-product-view  { display: none; }
