@@ -145,8 +145,8 @@ input, select, textarea { font-family: inherit; }
   .site-header {
     position: sticky;
     top: 0;
-    z-index: 1000;
-    border-bottom: 1px solid #EBEBEB;
+    z-index: 1001;
+    /* border-bottom 제거 — header-nav-row가 아래에 붙어서 선 역할 */
   }
   .mobile-subnav {
     top: 52px;
@@ -423,23 +423,32 @@ input, select, textarea { font-family: inherit; }
   .header-main-inner { gap: 4px; }
   .search-wrap { display: none; }
   .header-logo { flex: 1; font-size: 28px; }
-  .header-actions { display: flex; margin-left: auto; gap: 4px; }
+  .header-actions { display: flex; align-items: center; margin-left: auto; gap: 2px; }
   .header-inner { height: 52px; }
-  /* 모바일 nav-row: sticky 유지, 가로 스크롤 */
+  /* 모바일 nav-row: 헤더(60px) 바로 아래 sticky */
+  .header-nav-row { top: 60px; z-index: 1000; background: #fff; }
   .header-nav-row .container { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
   .header-nav-row .container::-webkit-scrollbar { display: none; }
-  .header-nav { justify-content: flex-start; gap: 4px; min-width: max-content; }
+  .header-nav { justify-content: flex-start; gap: 0; min-width: max-content; width: 100%; }
   .header-nav .mega-nav-wrap { display: none; }
-  .header-nav-link { font-size: 14px !important; padding: 10px 12px !important; }
+  .header-nav-link {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    padding: 10px 14px !important;
+    color: var(--color-ink) !important;
+  }
+  .header-nav-link:hover { color: var(--color-accent) !important; }
 }
 .mob-search-btn { display: none; }
 @media (max-width: 768px) {
   .mob-search-btn {
     display: flex; align-items: center; justify-content: center;
-    width: 36px; height: 36px; border-radius: 8px;
-    color: var(--color-ink); background: none; border: none; cursor: pointer;
-    flex-shrink: 0;
+    width: 40px; height: 40px; border-radius: var(--radius-md);
+    color: var(--color-ink-soft); background: none; border: none; cursor: pointer;
+    flex-shrink: 0; transition: color var(--dur-fast) var(--ease);
   }
+  .mob-search-btn:hover { color: var(--color-accent); }
+  .mob-search-btn svg { width: 24px; height: 24px; }
 }
 
 /* ===== 카테고리 슬라이드 드로어 (풀스크린) ===== */
