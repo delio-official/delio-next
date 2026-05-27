@@ -426,7 +426,7 @@ input, select, textarea { font-family: inherit; }
   .header-actions { display: flex; align-items: center; margin-left: auto; gap: 2px; }
   .header-inner { height: 52px; }
   /* 모바일 nav-row: 헤더(60px) 바로 아래 sticky */
-  .header-nav-row { top: 60px; z-index: 1000; background: #fff; }
+  .header-nav-row { top: 60px; z-index: 1000; background: #fff; border-bottom: 1px solid #EBEBEB; }
   .header-nav-row .container { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
   .header-nav-row .container::-webkit-scrollbar { display: none; }
   .header-nav { justify-content: flex-start; gap: 0; min-width: max-content; width: 100%; }
