@@ -10,10 +10,10 @@ import { StarRating, SingleStar } from '@/components/StarRating';
 
 /* ===== 메인 배너 데이터 ===== */
 const MAIN_SLIDES = [
+  { bg: 'linear-gradient(135deg,#E8F5E9,#C8E6C9)', color: '#1B3A20', eyebrow: 'FRESH PICK', title: '수확 당일 발송\n신선도 보장', sub: '산지 직계약 · 냉장 새벽배송 · 당일 컷', deco: '🍃', href: '/category' },
   { bg: 'linear-gradient(135deg,#FCE8E6,#F5C5C1)', color: '#3A1010', eyebrow: 'MAY SPECIAL', title: '5월 가정의 달\n선물 프로모션', sub: '선물세트 20% 기본할인 + 10% 추가쿠폰', deco: '🎁', href: '/category?cat=gift' },
   { bg: 'linear-gradient(135deg,#F5E8D0,#EDD9B8)', color: '#3A2810', eyebrow: "TODAY'S BRIX", title: '오늘의 당도 1위\n골드키위 18 brix', sub: '압도적 크기 · 47% 할인 · 새벽배송 가능', deco: '🥝', href: '/category?cat=kiwi' },
   { bg: 'linear-gradient(135deg,#F0E8FF,#DDD0F5)', color: '#2A1040', eyebrow: 'NEW MEMBER', title: '신규 회원\n5,000원 할인쿠폰', sub: '친구 추천 시 양쪽 모두 쿠폰 즉시 지급', deco: '🍊', href: '/signup' },
-  { bg: 'linear-gradient(135deg,#E8F5E9,#C8E6C9)', color: '#1B3A20', eyebrow: 'FRESH PICK', title: '수확 당일 발송\n신선도 보장', sub: '산지 직계약 · 냉장 새벽배송 · 당일 컷', deco: '🍃', href: '/category' },
   { bg: 'linear-gradient(135deg,#EDE7F6,#D1C4E9)', color: '#2A1050', eyebrow: 'BRIX CERTIFIED', title: '당도 인증\n샤인머스캣', sub: '영천 직계약 농가 · 17.2 brix 보장', deco: '🍇', href: '/category?cat=grape' },
 ];
 
@@ -474,7 +474,7 @@ export default function HomeClient() {
         .eq('is_best', true)
         .eq('is_active', true)
         .order('review_count', { ascending: false })
-        .limit(4);
+        .limit(3);
       setPickProds((data as PickProduct[]) || []);
     }
     loadPicks();

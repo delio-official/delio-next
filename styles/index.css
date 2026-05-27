@@ -973,6 +973,7 @@
     #pickGrid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
     #section-pick .product-card-img { border-radius: 12px; overflow: hidden; }
     @media(max-width:640px) {
+      #pickGrid { grid-template-columns: 1fr !important; gap: 10px !important; }
       .pick-mobile {
         display: flex !important; overflow-x: auto;
         scroll-snap-type: x mandatory; scrollbar-width: none;
@@ -1335,69 +1336,65 @@
       .qg-icon { display: block; font-size: 28px; line-height: 1; }
       .qg-label { display: block; font-size: 11px; color: var(--color-ink-soft); }
       .qg-tag .qg-inline { display: none; }
-      /* 모바일 qg-products: 3개 세로 + 좌우 슬라이드 */
+      /* 모바일 qg-products: 2열 그리드 (세로 카드) */
       .qg-products {
-        display: flex !important; flex-direction: row !important;
-        overflow-x: auto !important; overflow-y: visible !important;
-        scroll-snap-type: x mandatory !important; scrollbar-width: none !important;
-        scroll-behavior: smooth !important;
-        gap: 0 !important; padding: 0 !important; cursor: default !important;
-        grid-template-rows: unset; grid-auto-flow: unset; grid-auto-columns: unset;
-        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        grid-template-rows: unset !important; grid-auto-flow: unset !important; grid-auto-columns: unset !important;
+        gap: 12px !important;
+        overflow-x: unset !important; overflow-y: unset !important;
+        scroll-snap-type: none !important; scrollbar-width: unset !important;
+        cursor: default !important; padding: 0 !important; width: 100% !important;
       }
-      .qg-products::-webkit-scrollbar { display: none; }
-      .qg-page {
-        min-width: calc(100% - 36px) !important; flex-shrink: 0 !important;
-        scroll-snap-align: start !important;
-        display: flex !important; flex-direction: column !important; gap: 0 !important;
-        margin-right: 0 !important;
-      }
-      /* 카드: 이미지 왼쪽, 정보 오른쪽 */
+      .qg-products::-webkit-scrollbar { display: block; }
+      .qg-page { display: none !important; }
+      /* 카드: 세로 (이미지 위, 정보 아래) */
       .qg-card {
-        width: 100% !important; height: auto !important; min-height: 120px !important;
-        border-radius: 0 !important; border: none !important;
-        border-bottom: 1px solid #F0F0EE !important;
-        box-shadow: none !important; transform: none !important;
-        overflow: visible !important; background: #fff !important;
+        width: 100% !important; height: auto !important; min-height: unset !important;
+        flex-direction: column !important;
+        border-radius: 14px !important; border: none !important;
+        border-bottom: none !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+        overflow: hidden !important; background: #fff !important;
+        transform: none !important;
       }
       .qg-card:last-child { border-bottom: none !important; }
       .qg-card-img {
-        flex: 0 0 110px !important; width: 110px !important;
-        height: 110px !important; margin: 14px 16px 14px 0 !important;
-        font-size: 52px !important; border-radius: 12px !important;
-        align-self: center !important;
+        flex: none !important; width: 100% !important; height: 120px !important;
+        margin: 0 !important; border-radius: 0 !important;
+        align-self: auto !important;
       }
-      .qg-card-img .qg-card-img-inner { font-size: 52px !important; }
+      .qg-card-img .qg-card-img-inner { font-size: 64px !important; }
       .qg-card-body {
-        flex: 1 !important; padding: 12px 0 !important;
+        flex: 1 !important; padding: 10px 10px 12px !important;
         display: flex !important; flex-direction: column !important;
-        min-width: 0 !important; justify-content: center !important;
+        min-width: 0 !important; justify-content: flex-start !important;
         gap: 2px !important; overflow: visible !important;
       }
       .qg-card-tag { display: none !important; }
       .qg-card-name {
-        font-size: 14px !important; font-weight: 500 !important;
-        line-height: 1.4 !important; margin-bottom: 2px !important;
+        font-size: 13px !important; font-weight: 600 !important;
+        line-height: 1.35 !important; margin-bottom: 2px !important;
         display: -webkit-box !important; -webkit-line-clamp: 2 !important;
         line-clamp: 2 !important;
         -webkit-box-orient: vertical !important; overflow: hidden !important;
         color: var(--color-ink) !important;
       }
-      .qg-card-original { display: none !important; }
-      .qg-card-price-row { gap: 4px !important; margin-bottom: 6px !important; align-items: baseline !important; }
-      .qg-card-discount { font-size: 13px !important; font-weight: 700 !important; color: var(--color-accent) !important; display: inline !important; }
-      .qg-card-price { font-size: 15px !important; font-weight: 700 !important; color: var(--color-ink) !important; }
+      .qg-card-original { display: block !important; font-size: 11px !important; color: #aaa !important; text-decoration: line-through !important; margin-bottom: 1px !important; }
+      .qg-card-price-row { gap: 3px !important; margin-bottom: 4px !important; align-items: baseline !important; flex-wrap: wrap !important; }
+      .qg-card-discount { font-size: 12px !important; font-weight: 700 !important; color: var(--color-accent) !important; display: inline !important; }
+      .qg-card-price { font-size: 13px !important; font-weight: 700 !important; color: var(--color-ink) !important; }
       .qg-card-actions { display: none !important; }
       /* 오른쪽 이미지 숨김 */
       .qg-card-img-r { display: none !important; }
       /* 인라인 아이콘 버튼 */
       .qg-card-inline-actions {
-        display: flex !important; align-items: center; gap: 8px; margin-top: 8px;
+        display: flex !important; align-items: center; gap: 6px; margin-top: 6px;
       }
       .qg-card-wish-inline,
       .qg-card-cart-inline {
         display: flex !important; align-items: center; justify-content: center;
-        width: 34px !important; height: 34px !important; border-radius: 50% !important;
+        width: 30px !important; height: 30px !important; border-radius: 50% !important;
         border: 1.5px solid #DCDCDC; background: #fff; color: #555;
         cursor: pointer; flex-shrink: 0; padding: 0 !important;
       }
