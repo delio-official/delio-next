@@ -1,0 +1,103 @@
+.checkout-section {
+      background: var(--color-bg-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: var(--space-4);
+    }
+    .checkout-section h3 {
+      font-size: var(--fs-body-sm);
+      font-weight: 700;
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--color-line-soft);
+    }
+    .form-row { margin-bottom: var(--space-4); }
+    .form-label { font-size: var(--fs-caption); font-weight: 600; color: var(--color-ink-soft); margin-bottom: var(--space-1); display: block; }
+    .form-input {
+      width: 100%; padding: 12px var(--space-4);
+      border: 1.5px solid var(--color-line); border-radius: var(--radius-md);
+      font-size: var(--fs-body-sm); color: var(--color-ink);
+      background: var(--color-bg-white);
+      transition: border-color .15s;
+    }
+    .form-input:focus { outline: none; border-color: var(--color-accent); }
+    .order-item {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) 0; border-bottom: 1px solid var(--color-line-soft);
+    }
+    .order-item:last-child { border-bottom: none; }
+    .order-item-img {
+      width: 60px; height: 60px; flex-shrink: 0;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; background: var(--color-bg);
+    }
+    .point-input-wrap {
+      display: flex; gap: var(--space-2); align-items: center;
+    }
+    .point-input {
+      flex: 1; padding: 10px var(--space-3);
+      border: 1.5px solid var(--color-line); border-radius: var(--radius-md);
+      font-size: var(--fs-body-sm); color: var(--color-ink);
+    }
+    .summary-total-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: var(--space-3) 0; font-size: var(--fs-body-sm); color: var(--color-ink-soft);
+      border-bottom: 1px solid var(--color-line-soft);
+    }
+    .summary-total-row.final {
+      font-size: var(--fs-h3); font-weight: 700; color: var(--color-accent);
+      border-bottom: none; padding-top: var(--space-4);
+    }
+    .terms-box {
+      background: var(--color-bg);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      font-size: var(--fs-caption);
+      color: var(--color-ink-mute);
+      margin-top: var(--space-4);
+      line-height: 1.7;
+    }
+
+
+/* ===== 추가 유틸리티 클래스 ===== */
+.header-nav { gap: 0; }
+.mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
+
+/* 메인 여백 */
+.checkout-main { padding-top: var(--space-5); padding-bottom: var(--space-10); }
+
+/* 주소 섹션 */
+.addr-zip-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-2); }
+.form-input-zip { width: 100px; }
+.form-input-mb2 { margin-bottom: var(--space-2); }
+.form-row-no-mb { margin-bottom: 0; }
+.form-select { appearance: none; }
+.form-select-arrow {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B9389' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* 주문 상품 헤더 */
+.order-items-toggle { cursor: pointer; display: flex; justify-content: space-between; }
+.order-toggle-icon { color: var(--color-ink-mute); font-size: 18px; }
+.order-item-count { font-size: var(--fs-caption); color: var(--color-ink-mute); text-align: right; margin-top: var(--space-3); }
+
+/* 포인트 */
+.point-balance { float: right; color: var(--color-accent); font-weight: 700; }
+
+/* 할인 금액 */
+.calc-discount { color: var(--color-discount); }
+
+/* 약관 동의 */
+.terms-check-all { margin-bottom: var(--space-2); }
+.terms-check-item { margin-bottom: var(--space-1); }
+.terms-all-label { font-weight: 700; color: var(--color-ink); }
+
+/* 결제 버튼 영역 */
+.checkout-pay-wrap { margin-top: var(--space-5); }
+.checkout-notice { text-align: center; font-size: var(--fs-caption); color: var(--color-ink-mute); margin-top: var(--space-3); }

@@ -1,0 +1,364 @@
+body { background: #fff; }
+
+    .su-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 48px 20px 120px;
+    }
+
+    .su-title {
+      font-size: 30px;
+      font-weight: 700;
+      text-align: center;
+      color: var(--color-ink);
+      margin-bottom: 32px;
+    }
+
+    .su-required-note {
+      text-align: right;
+      font-size: 12px;
+      color: var(--color-ink-mute);
+      margin-bottom: 2px;
+    }
+    .su-required-note em { color: var(--color-accent); font-style: normal; }
+
+    /* ── Form rows ── */
+    .su-form {
+      border-top: 1.5px solid var(--color-ink);
+    }
+    .su-row {
+      display: flex;
+      align-items: flex-start;
+      border-bottom: 1px solid #EBEBEB;
+    }
+    .su-row-sep {
+      border-bottom: 1px solid #CCCCCC;
+      margin: 0;
+    }
+    .su-lbl {
+      width: 130px;
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-ink);
+      padding: 18px 12px 18px 0;
+      line-height: 1.4;
+    }
+    .su-lbl em { color: var(--color-accent); font-style: normal; }
+    .su-ctrl {
+      flex: 1;
+      padding: 12px 0 12px 0;
+      min-width: 0;
+    }
+
+    /* ── Input ── */
+    .su-input {
+      display: block;
+      width: 100%;
+      height: 50px; padding: 0 16px;
+      border: 1px solid #DCDCDC;
+      border-radius: 6px;
+      font-size: 15px;
+      color: var(--color-ink);
+      outline: none;
+      transition: border-color .15s;
+      box-sizing: border-box;
+      background: #fff;
+      font-family: inherit;
+    }
+    .su-input:focus { border-color: var(--color-accent); }
+    .su-input::placeholder { color: #BABABA; }
+    .su-input[readonly] { background: #F8F8F6; color: var(--color-ink-mute); }
+
+    /* ── Input + button ── */
+    .su-input-row { display: flex; gap: 8px; align-items: center; }
+    .su-input-row .su-input { flex: 1; }
+    .su-side-btn {
+      flex-shrink: 0;
+      height: 42px;
+      padding: 0 14px;
+      border: 1px solid #AAAAAA;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      background: #fff;
+      color: var(--color-ink);
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: border-color .15s;
+    }
+    .su-side-btn:hover { border-color: var(--color-ink); }
+    .su-side-btn:disabled { color: #AAAAAA; cursor: default; border-color: #DCDCDC; }
+
+    /* ── Email ── */
+    .su-email-row { display: flex; align-items: center; gap: 8px; }
+    .su-email-row .su-input { flex: 1; min-width: 0; }
+    .su-at { font-size: 15px; color: var(--color-ink-soft); flex-shrink: 0; }
+    .su-domain-select {
+      flex: 1; min-width: 0;
+      padding: 10px 8px;
+      border: 1px solid #DCDCDC;
+      border-radius: 4px;
+      font-size: 14px;
+      color: var(--color-ink);
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .su-domain-select:focus { border-color: var(--color-accent); }
+
+    /* ── Address button ── */
+    .su-addr-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      max-width: 340px;
+      padding: 11px 16px;
+      border: 1px solid var(--color-accent);
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--color-accent);
+      background: #fff;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .su-addr-btn:hover { background: var(--color-accent-bg); }
+    .su-addr-detail { display: none; margin-top: 8px; }
+    .su-addr-detail .su-input + .su-input { margin-top: 6px; }
+    .su-addr-hint { font-size: 12px; color: #5087C2; margin-top: 6px; }
+
+    /* ── Gender ── */
+    .su-gender-row { display: flex; align-items: center; gap: 28px; padding-top: 6px; }
+    .su-radio-lbl {
+      display: flex; align-items: center; gap: 6px;
+      cursor: pointer; font-size: 14px; color: var(--color-ink);
+    }
+    .su-radio-lbl input[type="radio"] {
+      width: 18px; height: 18px;
+      accent-color: var(--color-accent);
+      cursor: pointer;
+    }
+
+    /* ── Birthdate ── */
+    .su-birth-row { display: flex; align-items: center; gap: 8px; padding-top: 6px; }
+    .su-birth-in {
+      border: none;
+      border-bottom: 1px solid #DCDCDC;
+      border-radius: 0;
+      padding: 8px 4px;
+      font-size: 14px;
+      text-align: center;
+      color: var(--color-ink);
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+    }
+    .su-birth-in:focus { border-color: var(--color-accent); }
+    .su-birth-yyyy { width: 64px; }
+    .su-birth-mm, .su-birth-dd { width: 42px; }
+    .su-birth-sep { font-size: 16px; color: #CCCCCC; }
+
+    /* ── Referral ── */
+    .su-ref-chk { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .su-ref-chk input[type="checkbox"] {
+      width: 17px; height: 17px;
+      accent-color: var(--color-accent); cursor: pointer;
+    }
+    .su-ref-chk span { font-size: 14px; color: var(--color-ink); }
+    .su-ref-in-wrap { display: none; margin-top: 10px; }
+
+    /* ── Hints / Validation ── */
+    .su-hint { font-size: 12px; margin-top: 4px; }
+    .su-hint.ok { color: #2E7D32; }
+    .su-hint.err { color: var(--color-error); }
+    .su-timer { font-size: 12px; color: var(--color-accent); text-align: right; margin-top: 4px; }
+
+    /* ── Terms ── */
+    .su-terms-all {
+      padding: 16px 0 12px;
+      border-bottom: 1px solid #EBEBEB;
+    }
+    .su-terms-all-lbl {
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+    }
+    .su-terms-all-title { font-size: 16px; font-weight: 700; color: var(--color-ink); }
+    .su-terms-all-sub {
+      font-size: 12px; color: var(--color-ink-mute);
+      margin-top: 4px; padding-left: 32px; line-height: 1.5;
+    }
+
+    .su-terms-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #F4F4F4;
+    }
+    .su-terms-item:last-child { border-bottom: none; }
+    .su-terms-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .su-terms-txt { font-size: 14px; color: var(--color-ink-soft); }
+    .su-terms-view {
+      font-size: 13px; color: var(--color-ink-mute);
+      text-decoration: none; white-space: nowrap; flex-shrink: 0;
+    }
+    .su-terms-view:hover { color: var(--color-accent); }
+    .su-terms-sub-row {
+      display: flex; gap: 20px;
+      padding: 6px 0 10px 32px;
+    }
+    .su-sub-chk-lbl { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; color: var(--color-ink-soft); }
+
+    /* Circle checkbox */
+    .cc {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid #CCCCCC;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .cc.on { border-color: var(--color-accent); background: var(--color-accent); }
+    .cc svg { opacity: 0.25; }
+    .cc.on svg { opacity: 1; }
+    .cc-sm { width: 18px; height: 18px; }
+
+    /* ── Submit ── */
+    .su-submit-wrap { padding: 28px 0 20px; }
+    .su-submit-btn {
+      display: block;
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+      padding: 16px;
+      background: var(--color-accent);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .15s;
+    }
+    .su-submit-btn:hover { background: var(--color-accent-hover); }
+
+    .su-login-link {
+      text-align: center;
+      font-size: 13px;
+      color: var(--color-ink-mute);
+      margin-top: 14px;
+    }
+    .su-login-link a { color: var(--color-accent); font-weight: 600; text-decoration: none; }
+
+    /* ── 회원가입 완료 오버레이 ── */
+    .done-overlay {
+      position: fixed; inset: 0;
+      background: #fff;
+      z-index: 1000;
+      display: flex; flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+    }
+    .done-overlay.show { opacity: 1; pointer-events: all; }
+    .done-inner {
+      width: 100%; max-width: 480px;
+      padding: 52px 24px 80px;
+      text-align: center;
+    }
+    .done-title {
+      font-size: 26px; font-weight: 800;
+      color: var(--color-ink); margin-bottom: 22px;
+    }
+    .done-hr {
+      border: none; border-top: 2px solid var(--color-ink);
+      margin: 0 0 40px;
+    }
+    .done-headline {
+      font-size: 20px; font-weight: 700;
+      line-height: 1.6; color: var(--color-ink);
+      margin-bottom: 36px;
+    }
+    .done-headline em { color: var(--color-accent); font-style: normal; }
+
+    /* 쿠폰 일러스트 */
+    .done-illus {
+      display: flex; align-items: flex-end;
+      justify-content: center; gap: 0;
+      margin-bottom: 36px; position: relative;
+    }
+    .done-envelope {
+      width: 190px;
+      background: linear-gradient(145deg, #D44 0%, var(--color-accent) 60%, #8B1107 100%);
+      border-radius: 14px;
+      padding: 32px 20px 24px;
+      position: relative; overflow: hidden;
+    }
+    .done-envelope::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      border-left: 95px solid transparent;
+      border-right: 95px solid transparent;
+      border-top: 48px solid rgba(255,255,255,0.18);
+    }
+    .done-coupon-amount {
+      font-size: 38px; font-weight: 900;
+      color: #fff; line-height: 1;
+      letter-spacing: -1px;
+    }
+    .done-coupon-sub {
+      font-size: 13px; color: rgba(255,255,255,0.82);
+      margin-top: 8px; font-weight: 500;
+    }
+    .done-truck {
+      font-size: 48px; margin-left: -12px;
+      align-self: flex-end; line-height: 1;
+    }
+
+    /* 안내 */
+    .done-notes {
+      list-style: none; padding: 0;
+      margin: 0 0 44px; text-align: left;
+    }
+    .done-notes li {
+      font-size: 13px; color: var(--color-ink-mute);
+      padding-left: 14px; position: relative;
+      line-height: 1.7; margin-bottom: 2px;
+    }
+    .done-notes li::before { content: '·'; position: absolute; left: 4px; }
+
+    /* 버튼 */
+    .done-btn {
+      display: block; width: 100%;
+      padding: 17px; border-radius: 8px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      margin-bottom: 10px; border: none;
+      transition: opacity .15s;
+    }
+    .done-btn:hover { opacity: 0.88; }
+    .done-btn-dark { background: var(--color-ink); color: #fff; }
+    .done-btn-light { background: #F2F2F2; color: var(--color-ink); }
+
+
+/* ===== 추가 유틸리티 클래스 ===== */
+.header-nav { gap: 0; }
+.mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
+.su-email-direct-wrap { margin-top: 6px; }
+.su-code-wrap { margin-top: 8px; }
+.su-side-btn-accent { border-color: var(--color-accent); color: var(--color-accent); }
+.su-ctrl-pt16 { padding-top: 16px; }
+.su-input-ref { max-width: 320px; }
+.su-row-terms { border-bottom: none; align-items: flex-start; }
+.su-lbl-terms { padding-top: 20px; }
+.su-ctrl-terms { padding-top: 4px; padding-bottom: 0; }
+.su-terms-badge { color: var(--color-ink-mute); }
+.su-terms-required { color: var(--color-ink-mute); }
+.su-terms-item-wrap { flex-wrap: wrap; }

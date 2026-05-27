@@ -1,0 +1,184 @@
+body { background: #fff; }
+    .rf-wrap { max-width: 540px; margin: 0 auto; padding: 20px 16px 120px; }
+
+    .rf-card {
+      background: #fff; border-radius: 16px;
+      border: 1px solid #EBEBEB; margin-bottom: 12px; overflow: hidden;
+    }
+    .rf-card-head { padding: 16px 20px 0; font-size: 13px; font-weight: 700; color: var(--color-ink); }
+    .rf-card-sub  { padding: 4px 20px 0; font-size: 11px; color: var(--color-ink-mute); }
+    .rf-card-body { padding: 14px 20px 18px; }
+
+    /* 주문 상품 선택 */
+    .rf-order-item {
+      display: flex; gap: 12px; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid #F4F4F4;
+      cursor: pointer;
+    }
+    .rf-order-item:last-child { border-bottom: none; }
+    .rf-order-item.selected { background: #FFF3F2; border-radius: 10px; padding: 12px; margin: 0 -12px; }
+    .rf-order-img {
+      width: 52px; height: 52px; border-radius: 10px;
+      background: #F7F7F5; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 24px;
+    }
+    .rf-order-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+    .rf-order-date { font-size: 11px; color: var(--color-ink-mute); }
+    .rf-order-chk {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid #DCDCDC; flex-shrink: 0; margin-left: auto;
+      display: flex; align-items: center; justify-content: center; font-size: 11px;
+      transition: all .15s;
+    }
+    .rf-order-item.selected .rf-order-chk { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+    /* 환불 사유 선택 */
+    .rf-reason-grid { display: flex; flex-direction: column; gap: 8px; }
+    .rf-reason-btn {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 16px; border: 2px solid #EBEBEB; border-radius: 12px;
+      cursor: pointer; transition: all .15s; background: #fff;
+    }
+    .rf-reason-btn:hover { border-color: var(--color-accent); }
+    .rf-reason-btn.selected { border-color: var(--color-accent); background: #FFF3F2; }
+    .rf-reason-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+    .rf-reason-title { font-size: 13px; font-weight: 700; color: var(--color-ink); margin-bottom: 3px; }
+    .rf-reason-desc  { font-size: 11px; color: var(--color-ink-mute); line-height: 1.5; }
+    .rf-reason-result {
+      display: inline-block; font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 999px; margin-top: 5px;
+    }
+    .result-money   { background: #E8F5E9; color: #2E7D32; }
+    .result-point   { background: #E3F2FD; color: #1565C0; }
+    .rf-reason-radio {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid #DCDCDC; flex-shrink: 0; margin-left: auto; margin-top: 2px;
+      display: flex; align-items: center; justify-content: center; font-size: 11px;
+      transition: all .15s;
+    }
+    .rf-reason-btn.selected .rf-reason-radio { background: var(--color-accent); border-color: var(--color-accent); color: #fff; }
+
+    /* 맛불만 한도 표시 */
+    .rf-taste-limit {
+      background: linear-gradient(135deg, #FFF8F0, #FFFBF5);
+      border: 1px solid #FFD180; border-radius: 12px;
+      padding: 14px 16px; margin-top: 10px;
+      display: none;
+    }
+    .rf-taste-limit.show { display: block; }
+    .rf-taste-limit.exhausted {
+      background: #FFF3F2; border-color: var(--color-accent);
+    }
+    .rf-limit-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .rf-limit-icon { font-size: 22px; }
+    .rf-limit-label { font-size: 12px; color: var(--color-ink-mute); margin-bottom: 2px; }
+    .rf-limit-val   { font-size: 16px; font-weight: 800; color: var(--color-ink); }
+    .rf-limit-bar   { height: 8px; background: #F0F0F0; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+    .rf-limit-fill  { height: 100%; border-radius: 4px; transition: width .4s; }
+    .rf-limit-note  { font-size: 11px; color: var(--color-ink-mute); line-height: 1.5; }
+
+    /* 처리 방법 선택 (품질 문제) */
+    .rf-method-grid { display: flex; gap: 10px; margin-top: 10px; display: none; }
+    .rf-method-grid.show { display: flex; }
+    .rf-method-btn {
+      flex: 1; padding: 14px 10px; text-align: center;
+      border: 2px solid #EBEBEB; border-radius: 12px;
+      cursor: pointer; transition: all .15s;
+      font-size: 13px; font-weight: 600; color: var(--color-ink-mute);
+      background: #fff;
+    }
+    .rf-method-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+    .rf-method-btn.selected { border-color: var(--color-accent); background: #FFF3F2; color: var(--color-accent); }
+    .rf-method-icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+    /* 사진 업로드 */
+    .rf-photo-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .rf-photo-add {
+      width: 72px; height: 72px; border-radius: 10px;
+      border: 2px dashed #D0D0D0; background: #F7F7F5;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 10px; color: var(--color-ink-mute); gap: 4px;
+    }
+    .rf-photo-add span { font-size: 20px; }
+    .rf-photo-thumb {
+      width: 72px; height: 72px; border-radius: 10px;
+      background: #F0F0F0; position: relative;
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+    .rf-photo-del {
+      position: absolute; top: 3px; right: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); color: #fff;
+      font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+
+    /* 상세 내용 */
+    .rf-textarea {
+      width: 100%; min-height: 100px; padding: 12px 14px;
+      box-sizing: border-box; border: 1.5px solid #EBEBEB; border-radius: 10px;
+      font-size: 13px; color: var(--color-ink); line-height: 1.6;
+      resize: vertical; outline: none; background: #FAFAFA; font-family: inherit;
+    }
+    .rf-textarea:focus { border-color: var(--color-accent); background: #fff; }
+
+    /* 정책 요약 */
+    .rf-policy {
+      background: #F7F7F5; border-radius: 12px;
+      padding: 14px 16px; margin-bottom: 14px;
+    }
+    .rf-policy-title { font-size: 12px; font-weight: 700; color: var(--color-ink); margin-bottom: 8px; }
+    .rf-policy-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      font-size: 12px; color: var(--color-ink-soft); margin-bottom: 5px; line-height: 1.5;
+    }
+    .rf-policy-dot { flex-shrink: 0; }
+
+    /* 제출 버튼 */
+    .btn-rf-submit {
+      width: 100%; padding: 14px;
+      background: var(--color-accent); color: #fff;
+      border-radius: 12px; border: none;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    .btn-rf-submit:hover { background: var(--color-accent-hover); }
+    .btn-rf-submit:disabled { background: #BDBDBD; cursor: default; }
+
+    /* 완료 화면 */
+    .rf-done { background: #fff; border-radius: 20px; border: 1px solid #EBEBEB; padding: 44px 28px 32px; text-align: center; display: none; }
+    .rf-done.active { display: block; }
+    .rf-done-icon  { font-size: 50px; margin-bottom: 14px; }
+    .rf-done-title { font-size: 19px; font-weight: 700; color: var(--color-ink); margin-bottom: 8px; }
+    .rf-done-sub   { font-size: 13px; color: var(--color-ink-mute); line-height: 1.6; margin-bottom: 20px; }
+    .rf-done-result {
+      background: linear-gradient(135deg, #E8F5E9, #F1F8E9);
+      border: 1px solid #C8E6C9; border-radius: 12px;
+      padding: 16px; margin-bottom: 20px; text-align: left;
+    }
+    .rf-done-result-label { font-size: 11px; color: #2E7D32; font-weight: 700; margin-bottom: 4px; }
+    .rf-done-result-val   { font-size: 18px; font-weight: 800; color: #1B5E20; }
+
+/* ===== 추가 유틸리티 클래스 ===== */
+.header-nav { gap: 0; }
+.mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
+
+/* 플렉스 flex:1 */
+.rf-flex1 { flex: 1; }
+
+/* 사진 그리드 margin-bottom */
+.rf-photo-grid-mb { margin-bottom: 12px; }
+
+/* 완료 화면 버튼 */
+.rf-done-btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--color-accent); color: #fff;
+  border-radius: 12px; border: none;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-bottom: 10px;
+}
+.rf-done-btn-secondary {
+  width: 100%; padding: 12px;
+  background: #fff; color: var(--color-ink-mute);
+  border-radius: 12px; border: 1.5px solid #EBEBEB;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}

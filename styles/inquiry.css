@@ -1,0 +1,277 @@
+body { background: #FAFAF8; }
+    .inq-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 120px; }
+
+    /* ── 2컬럼 그리드 레이아웃 ── */
+    .inq-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      align-items: start;
+      padding-bottom: 80px;
+    }
+    @media (max-width: 860px) {
+      .inq-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 탭 */
+    .inq-tabs {
+      display: flex; background: #fff;
+      border-radius: 14px 14px 0 0;
+      border: 1px solid #EBEBEB; border-bottom: none;
+      overflow: hidden; margin-bottom: 0;
+    }
+    .inq-tab {
+      flex: 1; padding: 14px; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--color-ink-mute);
+      cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s;
+    }
+    .inq-tab.active { color: var(--color-accent); border-bottom-color: var(--color-accent); background: #FFF8F7; }
+    .inq-panel {
+      background: #fff; border: 1px solid #EBEBEB;
+      border-radius: 0 0 14px 14px; padding: 20px;
+      display: none; margin-bottom: 12px;
+    }
+    .inq-panel.active { display: block; }
+
+    /* 카드 */
+    .inq-card {
+      background: #fff; border-radius: 14px;
+      border: 1px solid #EBEBEB; margin-bottom: 12px;
+    }
+    .inq-card-head { padding: 14px 18px 0; font-size: 13px; font-weight: 700; color: var(--color-ink); }
+    .inq-card-sub  { padding: 3px 18px 0; font-size: 11px; color: var(--color-ink-mute); }
+    .inq-card-body { padding: 12px 18px 16px; }
+
+    /* 폼 */
+    .inq-field { margin-bottom: 13px; }
+    .inq-field label {
+      display: block; font-size: 11px; font-weight: 700;
+      color: var(--color-ink-mute); margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .inq-select {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid #EBEBEB; border-radius: 10px;
+      font-size: 14px; color: var(--color-ink);
+      background: #FAFAFA; outline: none; cursor: pointer;
+      box-sizing: border-box;
+    }
+    .inq-select:focus { border-color: var(--color-accent); background: #fff; }
+    .inq-input {
+      width: 100%; padding: 11px 13px;
+      border: 1.5px solid #EBEBEB; border-radius: 10px;
+      font-size: 14px; color: var(--color-ink);
+      background: #FAFAFA; outline: none; box-sizing: border-box;
+      transition: border-color .15s;
+    }
+    .inq-input:focus { border-color: var(--color-accent); background: #fff; }
+    .inq-textarea {
+      width: 100%; min-height: 130px; padding: 12px 13px;
+      border: 1.5px solid #EBEBEB; border-radius: 10px;
+      font-size: 13px; color: var(--color-ink); line-height: 1.6;
+      resize: vertical; outline: none; background: #FAFAFA;
+      font-family: inherit; box-sizing: border-box; transition: border-color .15s;
+    }
+    .inq-textarea:focus { border-color: var(--color-accent); background: #fff; }
+    .char-cnt { text-align: right; font-size: 11px; color: var(--color-ink-mute); margin-top: 4px; }
+
+    /* 사진 첨부 */
+    .inq-photo-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .inq-photo-add {
+      width: 72px; height: 72px; border-radius: 10px;
+      border: 2px dashed #D0D0D0; background: #F7F7F5;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 10px; color: var(--color-ink-mute); gap: 4px;
+    }
+    .inq-photo-add span { font-size: 20px; }
+    .inq-photo-thumb {
+      width: 72px; height: 72px; border-radius: 10px;
+      background: #F0F0F0; position: relative;
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+    }
+    .inq-photo-del {
+      position: absolute; top: 3px; right: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: rgba(0,0,0,0.5); color: #fff;
+      font-size: 11px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .inq-photo-note { font-size: 11px; color: var(--color-ink-mute); margin-top: 6px; }
+
+    /* 빠른 문의 채널 */
+    .quick-channels { display: flex; gap: 10px; }
+    .quick-ch {
+      flex: 1; padding: 14px 10px; text-align: center;
+      border: 1.5px solid #EBEBEB; border-radius: 12px;
+      cursor: pointer; transition: all .15s; background: #fff;
+    }
+    .quick-ch:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
+    .quick-ch-icon { font-size: 26px; margin-bottom: 5px; display: block; }
+    .quick-ch-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+    .quick-ch-sub  { font-size: 10px; color: var(--color-ink-mute); }
+    .quick-ch.kakao { border-color: #FEE500; background: #FFFDE7; }
+    .quick-ch.faq   { border-color: #EBEBEB; }
+
+    /* 문의 내역 */
+    .inq-list-item {
+      padding: 14px 0; border-bottom: 1px solid #F4F4F4;
+      cursor: pointer;
+    }
+    .inq-list-item:last-child { border-bottom: none; }
+    .inq-list-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+    .inq-list-cat {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      background: #F0F0F0; color: #666; flex-shrink: 0; margin-right: 8px;
+    }
+    .inq-list-title { font-size: 13px; font-weight: 600; flex: 1; }
+    .inq-list-status {
+      font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; flex-shrink: 0;
+    }
+    .status-done    { background: #E8F5E9; color: #2D7A4D; }
+    .status-wait    { background: #FFF3E0; color: #C8841C; }
+    .inq-list-bottom { display: flex; justify-content: space-between; align-items: center; }
+    .inq-list-date  { font-size: 11px; color: var(--color-ink-mute); }
+    .inq-list-preview { font-size: 11px; color: var(--color-ink-mute); }
+
+    /* 답변 상세 */
+    .inq-reply {
+      background: #F7F7F5; border-radius: 10px;
+      padding: 12px 14px; margin-top: 8px;
+      font-size: 12px; color: var(--color-ink-soft);
+      line-height: 1.6; display: none;
+    }
+    .inq-list-item.open .inq-reply { display: block; }
+    .inq-reply-header {
+      font-size: 11px; font-weight: 700; color: var(--color-accent);
+      margin-bottom: 6px;
+    }
+
+    /* 제출 버튼 */
+    .btn-inq-submit {
+      width: 100%; padding: 14px;
+      background: var(--color-accent); color: #fff;
+      border-radius: 12px; border: none;
+      font-size: 15px; font-weight: 700;
+      cursor: pointer; transition: background .15s;
+    }
+    .btn-inq-submit:hover { background: var(--color-accent-hover); }
+    .btn-inq-submit:disabled { background: #BDBDBD; cursor: default; }
+
+    /* 완료 배너 */
+    .inq-submitted {
+      background: #E8F5E9; border: 1px solid #C8E6C9; border-radius: 12px;
+      padding: 16px; text-align: center; display: none; margin-bottom: 12px;
+    }
+    .inq-submitted.show { display: block; }
+    .inq-submitted-title { font-size: 15px; font-weight: 700; color: #2E7D32; margin-bottom: 4px; }
+    .inq-submitted-sub   { font-size: 12px; color: #388E3C; }
+
+    /* ===== 최상단 유형 선택 ===== */
+    .inq-type-row {
+      display: flex; gap: 10px; margin-bottom: 16px;
+    }
+    .inq-type-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 16px 10px; border-radius: 14px;
+      border: 2px solid #EBEBEB; background: #fff;
+      cursor: pointer; transition: all .15s; gap: 4px;
+      font-family: inherit;
+    }
+    .inq-type-btn:hover { border-color: var(--color-accent); }
+    .inq-type-btn.active {
+      border-color: var(--color-accent);
+      background: #FFF8F7;
+    }
+    .inq-type-icon { font-size: 26px; margin-bottom: 2px; }
+    .inq-type-name {
+      font-size: 13px; font-weight: 700; color: var(--color-ink);
+    }
+    .inq-type-btn.active .inq-type-name { color: var(--color-accent); }
+    .inq-type-sub {
+      font-size: 10px; color: var(--color-ink-mute);
+    }
+
+    /* ===== 환불 안내 박스 ===== */
+    .inq-refund-notice {
+      background: #FFF8F0; border: 1px solid #FFE0B2;
+      border-radius: 10px; padding: 12px 14px;
+      font-size: 12px; color: #E65100; line-height: 1.7;
+      margin-bottom: 14px;
+    }
+
+    /* ===== 환불 사유 그리드 ===== */
+    .inq-reason-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .inq-reason-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; border-radius: 10px;
+      border: 1.5px solid #EBEBEB; background: #FAFAFA;
+      font-size: 13px; font-weight: 600; color: var(--color-ink);
+      cursor: pointer; transition: all .15s;
+    }
+    .inq-reason-btn:hover { border-color: var(--color-accent); }
+    .inq-reason-btn.active {
+      border-color: var(--color-accent);
+      background: #FFF8F7; color: var(--color-accent);
+    }
+
+    /* ===== 환불 처리방법 ===== */
+    .inq-method-row { display: flex; gap: 8px; }
+    .inq-method-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 14px 8px; border-radius: 12px;
+      border: 1.5px solid #EBEBEB; background: #FAFAFA;
+      cursor: pointer; transition: all .15s; gap: 3px;
+    }
+    .inq-method-btn:hover { border-color: var(--color-accent); }
+    .inq-method-btn.active {
+      border-color: var(--color-accent);
+      background: #FFF8F7;
+    }
+    .inq-method-icon { font-size: 22px; margin-bottom: 2px; }
+    .inq-method-name {
+      font-size: 12px; font-weight: 700; color: var(--color-ink); text-align: center;
+    }
+    .inq-method-btn.active .inq-method-name { color: var(--color-accent); }
+    .inq-method-sub {
+      font-size: 10px; color: var(--color-ink-mute); text-align: center;
+    }
+
+    /* 환불 카테고리 배지 */
+    .inq-cat-refund {
+      background: #FEE2E2 !important; color: #DC2626 !important;
+    }
+
+/* ===== 추가 유틸리티 클래스 ===== */
+.header-nav { gap: 0; }
+.mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
+
+/* 카드 margin-bottom */
+.inq-card-mb16 { margin-bottom: 16px; }
+
+/* 라벨 보조 텍스트 */
+.inq-label-optional {
+  font-weight: 400; color: #bbb; font-size: 10px;
+}
+.inq-label-required {
+  color: var(--color-accent); font-size: 10px;
+}
+.inq-label-accent-optional {
+  font-weight: 400; color: var(--color-accent); font-size: 10px;
+}
+
+/* 문의 내역 타이틀 */
+.inq-history-title {
+  font-size: 13px; font-weight: 700; margin-bottom: 14px; color: var(--color-ink);
+}
+
+/* 안내 박스 */
+.inq-notice-box {
+  margin-top: 16px; padding: 14px;
+  background: #F7F7F5; border-radius: 10px;
+  font-size: 12px; color: var(--color-ink-mute); line-height: 1.7;
+}
