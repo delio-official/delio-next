@@ -418,18 +418,28 @@ input, select, textarea { font-family: inherit; }
 }
 @media (max-width: 768px) {
   .header-utility { display: none; }
-  .header-nav-row { display: none; }
   .header-delivery-btn { display: none; }
   .header-main-row { padding: 10px 0; }
   .header-main-inner { gap: 4px; }
   .search-wrap { display: none; }
   .header-logo { flex: 1; font-size: 28px; }
-  .header-actions { display: flex; margin-left: auto; }
+  .header-actions { display: flex; margin-left: auto; gap: 4px; }
   .header-inner { height: 52px; }
+  /* 모바일 nav-row: sticky 유지, 가로 스크롤 */
+  .header-nav-row .container { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
+  .header-nav-row .container::-webkit-scrollbar { display: none; }
+  .header-nav { justify-content: flex-start; gap: 4px; min-width: max-content; }
+  .header-nav .mega-nav-wrap { display: none; }
+  .header-nav-link { font-size: 14px !important; padding: 10px 12px !important; }
 }
 .mob-search-btn { display: none; }
 @media (max-width: 768px) {
-  .mob-search-btn { display: flex; }
+  .mob-search-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    color: var(--color-ink); background: none; border: none; cursor: pointer;
+    flex-shrink: 0;
+  }
 }
 
 /* ===== 카테고리 슬라이드 드로어 (풀스크린) ===== */

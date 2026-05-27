@@ -169,6 +169,11 @@ export default function Header() {
               <Link href="/faq" className="header-delivery-btn">새벽·택배 배송안내</Link>
 
               <div className="header-actions">
+                <button className="mob-search-btn" onClick={() => router.push('/search')} title="검색">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+                  </svg>
+                </button>
                 <Link href="/cart" className="cart-icon-wrap header-icon-btn" title="장바구니">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
