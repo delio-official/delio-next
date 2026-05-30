@@ -71,7 +71,7 @@ export default function InquiryClient() {
               홈으로
             </button>
             <button onClick={() => { setDone(false); setCompany(''); setContact(''); setEmail(''); setMessage(''); }}
-              style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background:'var(--color-accent)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
               추가 문의하기
             </button>
           </div>

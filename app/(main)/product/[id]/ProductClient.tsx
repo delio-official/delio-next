@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart } from '@/lib/cart';
+import { addToCart, showCartToast } from '@/lib/cart';
 import { useAuth } from '@/hooks/useAuth';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -14,7 +14,8 @@ interface Product {
   id: string; sku: string; name: string;
   origin: string; category: string;
   price: number; discount_rate: number; discounted_price: number;
-  thumbnail_url: string | null; badge: string | null;
+  thumbnail_url: string | null; image_urls: string[] | null;
+  dispatch_cutoff: string | null; badge: string | null;
   short_desc: string | null; brix: number | null;
   is_new: boolean; is_best: boolean; is_dawn: boolean;
   avg_rating: number; review_count: number;
@@ -28,9 +29,23 @@ interface Farm {
   id: string; name: string; region: string; farm_type: string;
   intro: string | null; slug: string;
 }
+interface ProductInquiry {
+  id: string;
+  user_id: string | null;
+  category: string;
+  content: string;
+  is_private: boolean;
+  password?: string | null;
+  answer: string | null;
+  answered_at: string | null;
+  created_at: string;
+  profiles?: { name: string | null } | null;
+}
+
 interface Review {
   id: string; rating: number; content: string; created_at: string;
-  image_urls: string[] | null; likes_count: number; is_best: boolean;
+  image_urls: string[] | null; video_url: string | null;
+  likes_count: number; is_best: boolean;
   profiles: { name: string | null } | null;
 }
 interface DetailSection {
@@ -73,7 +88,7 @@ const DEFAULT_SELLER_SCORE: Record<string, Record<TasteKey, number>> = {
 };
 
 const DOT_COLOR_HEX: Record<string, string> = {
-  red: '#CB1D11', gray: '#9E9E9E', orange: '#F5A623',
+  red: '#1A1A1A', gray: '#888', orange: '#1A1A1A',
 };
 
 function scoreLabel(v: number) {
@@ -104,6 +119,14 @@ function ratingLabel(r: number) {
 
 type SortKey = 'latest' | 'helpful' | 'rating';
 
+const INFO_KEYS = [
+  ['제품명', '식품의 유형'],
+  ['생산자 및 소재지 (수입품의 경우 생산지, 수입자 및 제조국)', '제조연월일, 소비기한 또는 품질유지기한'],
+  ['포장단위별 내용물의 용량(중량), 수량', '원재료명 및 함량 (원산지 표시 포함)'],
+  ['영양성분 (영양성분 표시대상 식품에 한함)', '유전자변형식품에 해당하는 경우의 표시'],
+  ['소비자 안전을 위한 주의사항', '소비자 상담 관련 전화번호'],
+] as const;
+
 export default function ProductClient() {
   const { id }    = useParams() as { id: string };
   const router    = useRouter();
@@ -112,8 +135,21 @@ export default function ProductClient() {
   const [product,    setProduct]    = useState<Product | null>(null);
   const [options,    setOptions]    = useState<ProductOption[]>([]);
   const [farm,       setFarm]       = useState<Farm | null>(null);
+  const [farmWishCount, setFarmWishCount] = useState(0);
   const [reviews,    setReviews]    = useState<Review[]>([]);
-  const [sections,   setSections]   = useState<DetailSection[]>([]);
+  const [inquiries,  setInquiries]  = useState<ProductInquiry[]>([]);
+  const [inqPage,    setInqPage]    = useState(0);
+  const [inqModal,   setInqModal]   = useState(false);
+  const [inqContent, setInqContent] = useState('');
+  const [inqCategory, setInqCategory] = useState('문의');
+  const [inqPrivate, setInqPrivate] = useState(false);
+  const [inqSubmitting, setInqSubmitting] = useState(false);
+  const [inqPassword, setInqPassword] = useState('');
+  const [expandedInq, setExpandedInq] = useState<string | null>(null);
+  const [pwInput, setPwInput] = useState<Record<string, string>>({});
+  const [unlockedInq, setUnlockedInq] = useState<Set<string>>(new Set());
+  const [sections,      setSections]      = useState<DetailSection[]>([]);
+  const [detailImages,  setDetailImages]  = useState<string[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [selThumb,   setSelThumb]   = useState(0);
   const [selOption,  setSelOption]  = useState('');
@@ -122,12 +158,74 @@ export default function ProductClient() {
   const [activeTab,  setActiveTab]  = useState(0);
   const [wishlisted,       setWishlisted]       = useState(false);
   const [reviewSort,       setReviewSort]       = useState<SortKey>('latest');
+  const [reviewPage,       setReviewPage]       = useState(0);
   const [reviewModalOpen,  setReviewModalOpen]  = useState(false);
   const [newRating,        setNewRating]        = useState(5);
   const [newContent,       setNewContent]       = useState('');
+  const [newImages,        setNewImages]        = useState<File[]>([]);
+  const [newVideo,         setNewVideo]         = useState<File | null>(null);
+  const [mediaUploading,   setMediaUploading]   = useState(false);
   const [submitting,       setSubmitting]       = useState(false);
-  const [tastePanelActive, setTastePanelActive] = useState<'delio' | 'buyers'>('delio');
-  const [photoFilterOn,    setPhotoFilterOn]    = useState(false);
+  const [tastePanelActive,    setTastePanelActive]    = useState<'delio' | 'buyers'>('delio');
+  const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
+  const [photoGalleryOpen,    setPhotoGalleryOpen]    = useState(false);
+  const [selectedGalleryIdx,  setSelectedGalleryIdx]  = useState<number | null>(null);
+  const [isMobile,            setIsMobile]            = useState(false);
+  const [siteDispatchCutoff,  setSiteDispatchCutoff]  = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  }
+  const [csPhone,             setCsPhone]             = useState('02-6925-2311');
+  const [signupCoupon,        setSignupCoupon]        = useState(5000);
+  const [pointRate,           setPointRate]           = useState(1);
+  const [bestCoupon,       setBestCoupon]       = useState<{
+    name: string; discountAmt: number; finalPrice: number; totalRate: number;
+  } | null | 'loading'>('loading');
+
+  /* ── 상세정보 표시용 데이터 ── */
+  const [infoData, setInfoData] = useState<{
+    tableRows?: { k1: string; v1: string; k2: string; v2: string }[];
+    tableValues?: string[][];
+    table?: string[][];
+    tableExtra?: { k1: string; v1: string; k2: string; v2: string }[];
+    shipping: string[];
+    return_: string[];
+    cs: string[];
+  } | null>(null);
+
+  /* 모바일 감지 */
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  /* Q&A 탭 진입 시 최신 데이터 로드 */
+  const refreshInquiries = useCallback(async () => {
+    const { data } = await createClient()
+      .from('product_inquiries')
+      .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
+      .eq('product_id', id)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (data) setInquiries(data as unknown as ProductInquiry[]);
+  }, [id]); // eslint-disable-line
+
+  useEffect(() => {
+    if (activeTab === 3) refreshInquiries();
+  }, [activeTab, refreshInquiries]);
+
+  /* 어드민 여부 */
+  useEffect(() => {
+    if (!user) return;
+    createClient().rpc('is_current_user_admin').then(({ data }) => setIsAdmin(data === true));
+  }, [user]);
 
   useEffect(() => {
     async function load() {
@@ -135,24 +233,79 @@ export default function ProductClient() {
       setLoading(true);
       const supabase = createClient();
 
-      const [{ data: prod }, { data: opts }, { data: revs }, { data: secs }] =
+      const [{ data: prod }, { data: opts }, { data: revs }, { data: secs }, { data: infoSec }, { data: inqs }] =
         await Promise.all([
           supabase.from('products').select('*').eq('id', id).single(),
           supabase.from('product_options').select('*').eq('product_id', id).order('sort_order'),
           supabase.from('reviews')
             .select('*, profiles(name)')
             .eq('product_id', id)
+            .order('is_best', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(50),
           supabase.from('product_detail_sections')
             .select('*').eq('product_id', id).order('sort_order'),
+          supabase.from('product_detail_sections')
+            .select('*').eq('product_id', id).eq('section_type', 'info_content').maybeSingle(),
+          supabase.from('product_inquiries')
+            .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
+            .eq('product_id', id)
+            .order('created_at', { ascending: true })
+            .limit(100),
         ]);
 
       if (!prod) { router.push('/'); return; }
       setProduct(prod as Product);
       setOptions((opts as ProductOption[]) || []);
       setReviews((revs as Review[]) || []);
-      setSections((secs as DetailSection[]) || []);
+      setInquiries((inqs as unknown as ProductInquiry[]) || []);
+      const allSecs = (secs as DetailSection[]) || [];
+      setSections(allSecs.filter(s => s.section_type !== 'info_content' && s.section_type !== 'detail_images'));
+
+      /* 상품설명 이미지 */
+      const imgSec = allSecs.find(s => s.section_type === 'detail_images');
+      if (imgSec) {
+        try {
+          const parsed = JSON.parse(imgSec.content);
+          setDetailImages(Array.isArray(parsed.images) ? parsed.images : []);
+        } catch { /* 파싱 실패 무시 */ }
+      }
+
+      /* 상세정보 편집 데이터 */
+      const defaultInfoData = {
+        table: [
+          [(prod as Product).name, '과일'],
+          ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
+          ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
+          ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
+          ['상품설명 및 이미지 참조', csPhone || '고객센터 문의'],
+        ],
+        shipping: [
+          '기상 악화 및 교통 상황에 따라 부득이하게 배송이 지연될 수 있습니다.',
+          '당사는 CJ 대한통운을 이용하고 있으며, 상황에 따라 타 택배사를 통해 배송될 수 있습니다.',
+          '신선 식품 특성 상 제주 및 도서 산간 지역은 배송이 불가합니다.',
+          '주소 오기재 등으로 인한 반송·미배송 시에도 일정 기간 소요 시 자동 배송완료 처리됩니다.',
+          '주말 및 공휴일은 상품을 출고하지 않습니다.',
+          '단체 및 다량 주문 시 고객센터로 별도 문의 후 주문 바랍니다.',
+        ],
+        return_: [
+          '신선 식품 특성 상 단순 변심 / 주문 착오 / 개인 정보 오기재 / 수취인 연락 부재의 경우 교환 및 반품이 불가합니다.',
+          '품질 및 배송 관련 문제가 있는 경우 수령 후 1~2일 이내, 이미지를 첨부하여 고객센터로 문의바랍니다.',
+          '교환 및 반품 희망 시 상담원에게 먼저 문의해 주세요.',
+        ],
+        cs: [
+          `고객센터 전화: ${csPhone}`,
+          '운영시간: 평일 09:00~18:00 (주말·공휴일 휴무)',
+          '상품 관련 문의는 수령 후 1~2일 이내에 접수해 주세요.',
+          '이미지 첨부 시 보다 빠른 처리가 가능합니다.',
+        ],
+      };
+      if (infoSec) {
+        try { setInfoData(JSON.parse((infoSec as any).content)); }
+        catch { setInfoData(defaultInfoData); }
+      } else {
+        setInfoData(defaultInfoData);
+      }
 
       const def = (opts as ProductOption[])?.find(o => o.is_default);
       if (def) setSelOption(def.id);
@@ -174,10 +327,31 @@ export default function ProductClient() {
         localStorage.setItem(RECENT_KEY, JSON.stringify([item, ...filtered].slice(0, 20)));
       } catch { /* ignore */ }
 
+      // site_settings 한번에 로드
+      const { data: settingRows } = await supabase
+        .from('site_settings')
+        .select('key, value')
+        .in('key', ['dispatch_cutoff', 'cs_phone', 'signup_coupon', 'point_rate']);
+      (settingRows || []).forEach((s: { key: string; value: string }) => {
+        if (s.key === 'dispatch_cutoff' && s.value) setSiteDispatchCutoff(s.value);
+        if (s.key === 'cs_phone'        && s.value) setCsPhone(s.value);
+        if (s.key === 'signup_coupon'   && s.value) setSignupCoupon(Number(s.value));
+        if (s.key === 'point_rate'      && s.value) setPointRate(Number(s.value));
+      });
+
       if (prod.farm_id) {
         const { data: farmData } = await supabase
           .from('farms').select('*').eq('id', prod.farm_id).single();
         setFarm(farmData as Farm);
+
+        // 농가 위시 수: 이 농가 상품을 찜한 유니크 사용자 수
+        const { count: wishCount } = await supabase
+          .from('wishlist')
+          .select('user_id', { count: 'exact', head: true })
+          .in('product_id',
+            (await supabase.from('products').select('id').eq('farm_id', prod.farm_id)).data?.map((p: {id: string}) => p.id) || []
+          );
+        setFarmWishCount(wishCount || 0);
       }
 
       if (user) {
@@ -189,6 +363,73 @@ export default function ProductClient() {
     }
     load();
   }, [id, user, router]);
+
+  /* ── 쿠폰 연동: 로그인 사용자의 최대 적용 가능 쿠폰 계산 ── */
+  useEffect(() => {
+    if (!product) return;
+    if (!user) { setBestCoupon(null); return; }
+
+    async function loadCoupons() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('user_coupons')
+        .select(`
+          id,
+          coupon:coupon_id (
+            id, title, discount_type, discount_value,
+            min_order_amt, max_discount,
+            target_type, target_ids, expires_at
+          )
+        `)
+        .eq('user_id', user!.id)
+        .eq('used', false);
+
+      if (!data || data.length === 0) { setBestCoupon(null); return; }
+
+      const now       = new Date();
+      const bp        = product!.discounted_price ?? product!.price;
+      let best: typeof bestCoupon & object | null = null;
+
+      for (const uc of data as any[]) {
+        const c = uc.coupon;
+        if (!c || !c.discount_value) continue;
+
+        // 만료 체크
+        if (c.expires_at && new Date(c.expires_at) < now) continue;
+
+        // 최소 주문금액
+        if ((c.min_order_amt ?? 0) > bp) continue;
+
+        // 적용 대상 제한 (target_type: 'all' | 'category' | 'product')
+        if (c.target_type === 'category' && c.target_ids?.length &&
+            !c.target_ids.includes(product!.category)) continue;
+        if (c.target_type === 'product' && c.target_ids?.length &&
+            !c.target_ids.includes(product!.id)) continue;
+
+        // 할인 금액 계산
+        let discountAmt = 0;
+        if (c.discount_type === 'percent') {
+          discountAmt = Math.round(bp * c.discount_value / 100);
+          if (c.max_discount) discountAmt = Math.min(discountAmt, c.max_discount);
+        } else { // 'amount'
+          discountAmt = Math.min(c.discount_value, bp);
+        }
+
+        if (!best || discountAmt > best.discountAmt) {
+          best = {
+            name:        c.title,
+            discountAmt,
+            finalPrice:  bp - discountAmt,
+            totalRate:   Math.round((1 - (bp - discountAmt) / product!.price) * 100),
+          };
+        }
+      }
+
+      setBestCoupon(best);
+    }
+
+    loadCoupons();
+  }, [product, user]);
 
   async function toggleWishlist() {
     if (!user) { router.push('/login'); return; }
@@ -202,7 +443,7 @@ export default function ProductClient() {
     }
   }
 
-  function handleAddCart() {
+  function addCartItem() {
     if (!product) return;
     const opt = options.find(o => o.id === selOption);
     addToCart({
@@ -212,21 +453,60 @@ export default function ProductClient() {
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
       optionId: selOption || undefined,
+      deliveryType: product.is_dawn ? '산지직송' : '자사배송',
     });
-    alert('장바구니에 담겼습니다!');
   }
-  function handleBuyNow() { handleAddCart(); router.push('/cart'); }
+  function handleAddCart() {
+    addCartItem();
+    showCartToast();
+  }
+  function handleBuyNow() { addCartItem(); router.push('/cart'); }
 
   async function handleSubmitReview() {
     if (!user) { router.push('/login'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     setSubmitting(true);
     const supabase = createClient();
+
+    /* ── 파일명 안전하게 변환 ── */
+    const safeName = (name: string) => {
+      const ext = name.split('.').pop() ?? '';
+      return `${Date.now()}.${ext}`;
+    };
+
+    /* ── 이미지 업로드 ── */
+    const uploadedImageUrls: string[] = [];
+    if (newImages.length > 0) {
+      setMediaUploading(true);
+      for (const file of newImages) {
+        const path = `reviews/${user.id}/${safeName(file.name)}`;
+        const { error: upErr } = await supabase.storage.from('products').upload(path, file, { upsert: true });
+        if (upErr) { setSubmitting(false); setMediaUploading(false); alert(`사진 업로드 실패: ${upErr.message}`); return; }
+        const { data } = supabase.storage.from('products').getPublicUrl(path);
+        uploadedImageUrls.push(data.publicUrl);
+      }
+      setMediaUploading(false);
+    }
+
+    /* ── 영상 업로드 ── */
+    let uploadedVideoUrl: string | null = null;
+    if (newVideo) {
+      setMediaUploading(true);
+      const path = `reviews/${user.id}/${safeName(newVideo.name)}`;
+      const { error: upErr } = await supabase.storage.from('products').upload(path, newVideo, { upsert: true });
+      if (upErr) { setSubmitting(false); setMediaUploading(false); alert(`영상 업로드 실패: ${upErr.message}`); return; }
+      const { data } = supabase.storage.from('products').getPublicUrl(path);
+      uploadedVideoUrl = data.publicUrl;
+      setMediaUploading(false);
+    }
+
     const { error } = await supabase.from('reviews').insert({
       product_id: product!.id,
       user_id: user.id,
       rating: newRating,
       content: newContent.trim(),
+      image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
+      video_url: uploadedVideoUrl,
       is_best: false,
     });
     setSubmitting(false);
@@ -255,6 +535,50 @@ export default function ProductClient() {
     setReviewModalOpen(false);
     setNewRating(5);
     setNewContent('');
+    setNewImages([]);
+    setNewVideo(null);
+  }
+
+  /* ── 리뷰 도움됐어요 ── */
+  async function toggleReviewLike(reviewId: string, currentCount: number) {
+    const already = likedReviews.has(reviewId);
+    const newCount = already ? Math.max(0, currentCount - 1) : currentCount + 1;
+    setLikedReviews(prev => {
+      const next = new Set(prev);
+      already ? next.delete(reviewId) : next.add(reviewId);
+      return next;
+    });
+    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, likes_count: newCount } : r));
+    const supabase = createClient();
+    await supabase.from('reviews').update({ likes_count: newCount }).eq('id', reviewId);
+    showToast(already ? '취소되었습니다.' : '도움이 됐어요! 👍');
+  }
+
+  /* ── 상품 문의 제출 ── */
+  async function submitInquiry() {
+    if (!user) { router.push('/login'); return; }
+    if (!inqContent.trim()) { alert('문의 내용을 입력해주세요.'); return; }
+    setInqSubmitting(true);
+    const supabase = createClient();
+    if (inqPrivate && !inqPassword.trim()) { alert('비밀 문의는 비밀번호를 설정해야 합니다.'); setInqSubmitting(false); return; }
+    const { data, error } = await supabase.from('product_inquiries').insert({
+      product_id: product!.id,
+      user_id: user.id,
+      category: inqCategory,
+      content: inqContent.trim(),
+      is_private: inqPrivate,
+      password: inqPrivate ? inqPassword.trim() : null,
+    }).select('id, category, content, is_private, answer, answered_at, created_at').single();
+    setInqSubmitting(false);
+    if (error) { alert('문의 등록 실패: ' + error.message); return; }
+    const newInquiry: ProductInquiry = { ...(data as unknown as ProductInquiry), profiles: { name: user.user_metadata?.name || null } };
+    setInquiries(prev => [newInquiry, ...prev]);
+    setInqModal(false);
+    setInqContent('');
+    setInqCategory('문의');
+    setInqPrivate(false);
+    setInqPassword('');
+    alert('문의가 등록되었습니다.');
   }
 
   if (loading) {
@@ -278,12 +602,18 @@ export default function ProductClient() {
     (DEFAULT_SELLER_SCORE[product.category] as Record<TasteKey, number>) ||
     DEFAULT_SELLER_SCORE.default as Record<TasteKey, number>;
 
-  /* 리뷰 정렬 */
-  const sortedReviews = [...reviews].sort((a, b) => {
+  /* 리뷰 필터 + 정렬 + 페이지네이션 */
+  const REVIEWS_PER_PAGE = 5;
+  const filteredReviews = photoFilterOn
+    ? reviews.filter(r => r.image_urls && r.image_urls.length > 0)
+    : reviews;
+  const sortedReviews = [...filteredReviews].sort((a, b) => {
     if (reviewSort === 'rating')  return b.rating - a.rating;
     if (reviewSort === 'helpful') return (b.likes_count || 0) - (a.likes_count || 0);
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+  const reviewTotalPages = Math.max(1, Math.ceil(sortedReviews.length / REVIEWS_PER_PAGE));
+  const pagedReviews = sortedReviews.slice(reviewPage * REVIEWS_PER_PAGE, (reviewPage + 1) * REVIEWS_PER_PAGE);
 
   /* 평점 분포 */
   const ratingDist = [
@@ -295,23 +625,349 @@ export default function ProductClient() {
   ].map(({ label, star }) => ({
     label, count: reviews.filter(r => r.rating === star).length,
   }));
-  const maxDist = Math.max(...ratingDist.map(r => r.count), 1);
-
   const TABS = [
     '상품설명',
     '상세정보',
     `후기 ${product.review_count > 0 ? product.review_count + '+' : '0'}`,
-    '문의 17',
+    `문의 ${inquiries.length > 0 ? inquiries.length : ''}`,
   ];
 
-  const thumbIcons = [emoji, '🌿', '📦', '🌾', '✨', '🎁'];
+  // 상품 이미지 6슬롯: 0번 = thumbnail_url, 1~5번 = image_urls[0..4]
+  const extraUrls = product.image_urls ?? [];
+  const productImages: (string | null)[] = [
+    product.thumbnail_url ?? null,
+    extraUrls[0] ?? null,
+    extraUrls[1] ?? null,
+    extraUrls[2] ?? null,
+    extraUrls[3] ?? null,
+    extraUrls[4] ?? null,
+  ];
 
-  /* 포토리뷰 수 (원본 기준) */
-  const photoReviewCount = Math.round(product.review_count * 0.27);
+  /* 포토리뷰 수 (실제 이미지 있는 리뷰) */
+  const photoReviewCount = reviews.filter(r => r.image_urls && r.image_urls.length > 0).length;
   const photoColors = [bg, '#E8F0E8', '#FFF3E0', '#F0E8FF', '#E8F4FF', '#FFE8E8', '#F0F8E8', bg];
+
+  /* 포토/영상 갤러리 아이템 */
+  type GalleryItem = {
+    url: string | null;          // 이미지 URL (영상이면 null)
+    videoUrl: string | null;     // 영상 URL (이미지면 null)
+    isVideo: boolean;
+    color: string;
+    review: Review | null;
+    photoIdx: number;
+    siblingUrls: (string | null)[];  // 같은 리뷰 이미지들
+    siblingVideoUrl: string | null;  // 같은 리뷰 영상
+  };
+  const allPhotoItems: GalleryItem[] = (() => {
+    const fromReviews: GalleryItem[] = [];
+    for (const r of reviews) {
+      const imgs = r.image_urls ?? [];
+      const vid  = r.video_url ?? null;
+      if (imgs.length === 0 && !vid) continue;
+      const siblingUrls = imgs as (string | null)[];
+      imgs.forEach((url, photoIdx) => {
+        fromReviews.push({
+          url, videoUrl: null, isVideo: false,
+          color: photoColors[photoIdx % photoColors.length],
+          review: r, photoIdx, siblingUrls, siblingVideoUrl: vid,
+        });
+      });
+      if (vid) {
+        fromReviews.push({
+          url: null, videoUrl: vid, isVideo: true,
+          color: photoColors[fromReviews.length % photoColors.length],
+          review: r, photoIdx: imgs.length, siblingUrls, siblingVideoUrl: vid,
+        });
+      }
+    }
+    if (fromReviews.length > 0) return fromReviews;
+    /* 더미 */
+    return Array.from({ length: photoReviewCount }, (_, i) => ({
+      url: null, videoUrl: null, isVideo: false,
+      color: photoColors[i % photoColors.length],
+      review: null, photoIdx: 0, siblingUrls: [null], siblingVideoUrl: null,
+    }));
+  })();
 
   return (
     <>
+      {/* ══ 포토 후기 갤러리 모달 ══ */}
+      {photoGalleryOpen && (() => {
+        const closeAll = () => { setPhotoGalleryOpen(false); setSelectedGalleryIdx(null); };
+        const selItem  = selectedGalleryIdx !== null ? allPhotoItems[selectedGalleryIdx] : null;
+
+        return (
+          <div onClick={closeAll} style={{
+            position: 'fixed', inset: 0, zIndex: 3000,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}>
+            <div onClick={e => e.stopPropagation()} style={{
+              background: '#fff', borderRadius: isMobile ? 10 : 12,
+              width: '100%', maxWidth: 760,
+              height: isMobile ? '78vh' : '88vh',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden',
+            }}>
+
+              {/* ── 공통 헤더 ── */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 20px', borderBottom: '1px solid #EBEBEB', flexShrink: 0,
+              }}>
+                <span style={{ fontSize: 16, fontWeight: 700 }}>
+                  {selItem ? '사진 후기' : '사진 후기 전체보기'}
+                </span>
+                <button onClick={closeAll} style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 22, color: '#888', lineHeight: 1, padding: '0 4px',
+                }}>✕</button>
+              </div>
+
+              {selItem ? (
+                /* ────── 상세 뷰 ────── */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+                  {/* 본문: 모바일=세로, 데스크탑=좌우 */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
+
+                    {/* ── 좌(데스크탑)/상(모바일): 큰 사진 + 썸네일 ── */}
+                    <div style={{
+                      width: isMobile ? '100%' : '46%',
+                      height: isMobile ? '55%' : 'auto',
+                      flexShrink: 0,
+                      display: 'flex', flexDirection: 'column',
+                      borderRight: isMobile ? 'none' : '1px solid #EBEBEB',
+                      borderBottom: isMobile ? '1px solid #EBEBEB' : 'none',
+                    }}>
+                      {/* 큰 사진 */}
+                      <div style={{
+                        flex: 1, position: 'relative', background: '#F4F4F2',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}>
+                        {selItem.isVideo && selItem.videoUrl ? (
+                          <video src={selItem.videoUrl} controls
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        ) : selItem.url ? (
+                          <img src={selItem.url} alt=""
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        ) : (
+                          <div style={{
+                            width: '100%', height: '100%',
+                            background: `linear-gradient(135deg,${selItem.color},#fff)`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 72,
+                          }}>{emoji}</div>
+                        )}
+                        {/* 이전 */}
+                        {selectedGalleryIdx! > 0 && (
+                          <button onClick={() => setSelectedGalleryIdx(i => i! - 1)} style={{
+                            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.92)', border: '1px solid #DDD',
+                            cursor: 'pointer', fontSize: 18, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                          }}>‹</button>
+                        )}
+                        {/* 다음 */}
+                        {selectedGalleryIdx! < allPhotoItems.length - 1 && (
+                          <button onClick={() => setSelectedGalleryIdx(i => i! + 1)} style={{
+                            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.92)', border: '1px solid #DDD',
+                            cursor: 'pointer', fontSize: 18, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                          }}>›</button>
+                        )}
+                      </div>
+
+                      {/* 썸네일 스트립 (이 리뷰의 다른 사진들) */}
+                      <div style={{
+                        flexShrink: 0, padding: '8px 10px',
+                        display: 'flex', gap: 6, overflowX: 'auto',
+                        borderTop: '1px solid #EBEBEB', minHeight: 68,
+                        alignItems: 'center',
+                      }}>
+                        {selItem.siblingUrls.map((thumbUrl, ti) => {
+                          const gIdx = allPhotoItems.findIndex(
+                            p => p.review?.id === selItem.review?.id && p.photoIdx === ti
+                          );
+                          const isActive = selItem.photoIdx === ti;
+                          return (
+                            <div key={ti}
+                              onClick={() => gIdx >= 0 && setSelectedGalleryIdx(gIdx)}
+                              style={{
+                                width: 50, height: 50, flexShrink: 0, borderRadius: 6,
+                                overflow: 'hidden', cursor: 'pointer',
+                                outline: isActive ? '2px solid #1A1A1A' : '2px solid transparent',
+                                outlineOffset: 1,
+                                background: thumbUrl ? '#EEE' : `linear-gradient(135deg,${selItem.color},#fff)`,
+                              }}>
+                              {thumbUrl
+                                ? <img src={thumbUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{emoji}</div>
+                              }
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ── 우: 리뷰 정보 ── */}
+                    <div style={{
+                      flex: 1, minWidth: 0,
+                      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                    }}>
+                      {selItem.review ? (
+                        <>
+                          {/* ① 상단 배지 행: BEST | 이름 | 평점텍스트 */}
+                          <div style={{
+                            flexShrink: 0, padding: '14px 16px 10px',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            borderBottom: '1px solid #F0F0F0',
+                          }}>
+                            {selItem.review.is_best && (
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, padding: '4px 10px',
+                                background: '#1A1A1A', color: '#fff', borderRadius: 4,
+                                flexShrink: 0,
+                              }}>BEST</span>
+                            )}
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#222', flexShrink: 0 }}>
+                              {selItem.review.profiles?.name
+                                ? `${selItem.review.profiles.name.charAt(0)}**`
+                                : '익명'}
+                            </span>
+                            <span style={{ fontSize: 13, color: '#888', flexShrink: 0 }}>
+                              {['', '아쉬워요', '그냥 그래요', '괜찮아요', '정말 좋아요', '최고에요'][selItem.review.rating]}
+                            </span>
+                          </div>
+
+                          {/* ② 구매 상품명 */}
+                          <div style={{
+                            flexShrink: 0, padding: '10px 16px',
+                            borderBottom: '1px solid #F0F0F0',
+                            fontSize: 12, color: '#888',
+                          }}>
+                            구매상품 : <span style={{ color: '#444', fontWeight: 600 }}>{product.name}</span>
+                          </div>
+
+                          {/* ③ 리뷰 내용 */}
+                          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+                            <p style={{
+                              fontSize: 13, color: '#333', lineHeight: 1.85,
+                              whiteSpace: 'pre-wrap', margin: 0,
+                            }}>{selItem.review.content}</p>
+                          </div>
+
+                          {/* ④ 날짜 + 도움돼요 */}
+                          <div style={{
+                            flexShrink: 0, padding: '10px 16px',
+                            borderTop: '1px solid #F0F0F0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          }}>
+                            <span style={{
+                              fontSize: 12, color: '#AAA',
+                              padding: '5px 10px', border: '1px solid #EBEBEB',
+                              borderRadius: 4,
+                            }}>
+                              {new Date(selItem.review.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                            <button onClick={() => toggleReviewLike(selItem.review!.id, selItem.review!.likes_count || 0)} style={{
+                              display: 'flex', alignItems: 'center', gap: 5,
+                              background: likedReviews.has(selItem.review!.id) ? '#FFF5F5' : '#fff',
+                              border: `1px solid ${likedReviews.has(selItem.review!.id) ? '#E53935' : '#D8D8D8'}`,
+                              borderRadius: 99, padding: '6px 14px',
+                              fontSize: 12, color: likedReviews.has(selItem.review!.id) ? '#E53935' : '#555', cursor: 'pointer', fontWeight: 600,
+                            }}>
+                              {likedReviews.has(selItem.review!.id) ? '♥' : '👍'} 도움돼요 {selItem.review.likes_count || 0}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color: '#BBB', fontSize: 13, textAlign: 'center', padding: '40px 20px' }}>
+                          리뷰 정보 없음
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── 사진 목록 보기 (모달 하단 전체 너비) ── */}
+                  <div style={{
+                    flexShrink: 0, padding: '12px 20px',
+                    borderTop: '1px solid #EBEBEB', textAlign: 'center',
+                  }}>
+                    <button onClick={() => setSelectedGalleryIdx(null)} style={{
+                      padding: '10px 32px', border: '1.5px solid #D0D0D0',
+                      borderRadius: 8, background: '#fff', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600, color: '#555',
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                      </svg>
+                      사진 목록 보기
+                    </button>
+                  </div>
+                </div>
+
+              ) : (
+                /* ────── 그리드 뷰 ────── */
+                <div style={{ overflowY: 'auto', padding: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 3 : 6}, 1fr)`, gap: 4 }}>
+                    {allPhotoItems.map((item, i) => (
+                      <div key={i}
+                        onClick={() => setSelectedGalleryIdx(i)}
+                        style={{
+                          position: 'relative', aspectRatio: '1',
+                          borderRadius: 4, overflow: 'hidden', cursor: 'pointer',
+                          background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
+                        }}>
+                        {item.isVideo && item.videoUrl ? (
+                          <>
+                            <video src={item.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ fontSize: 22, color: '#fff', filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }}>▶</span>
+                            </div>
+                          </>
+                        ) : item.url ? (
+                          <img src={item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,3vw,24px)' }}>{emoji}</div>
+                        )}
+                        {item.photoIdx === 0 && item.siblingUrls.length > 1 && (
+                          <span style={{
+                            position: 'absolute', bottom: 5, right: 5,
+                            background: 'rgba(0,0,0,0.55)', color: '#fff',
+                            fontSize: 11, fontWeight: 700, borderRadius: 4,
+                            padding: '1px 5px', lineHeight: 1.5,
+                          }}>{item.siblingUrls.length}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {allPhotoItems.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '60px 0', color: '#BBB', fontSize: 14 }}>
+                      포토 리뷰가 없습니다
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ══ 상단: 이미지 + 정보 ══ */}
       <div className="pd-above">
         <div className="container">
@@ -323,10 +979,10 @@ export default function ProductClient() {
               {/* 메인 이미지 */}
               <div className="img-main"
                 style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 65%)` }}>
-                {product.thumbnail_url
-                  ? <img src={product.thumbnail_url} alt={product.name}
+                {productImages[selThumb]
+                  ? <img src={productImages[selThumb]!} alt={product.name}
                       style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:16 }} />
-                  : <span>{thumbIcons[selThumb] ?? emoji}</span>
+                  : <span>{emoji}</span>
                 }
                 <div className="trust-overlay">
                   {farm            && <span className="trust-pill">🌿 산지직송</span>}
@@ -335,14 +991,21 @@ export default function ProductClient() {
                 </div>
               </div>
 
-              {/* 썸네일 6개 */}
+              {/* 썸네일 6개: 이미지 있으면 사진, 없으면 빈 칸 */}
               <div className="thumb-row">
-                {thumbIcons.map((t, i) => (
+                {productImages.map((imgUrl, i) => (
                   <div key={i}
                     className={`thumb${selThumb === i ? ' active' : ''}`}
-                    onClick={() => setSelThumb(i)}
-                    style={{ background:`linear-gradient(135deg,${bg},#fff)` }}>
-                    {t}
+                    onClick={() => { if (imgUrl) setSelThumb(i); }}
+                    style={{
+                      background: imgUrl ? '#fff' : `linear-gradient(135deg,${bg},#fff)`,
+                      cursor: imgUrl ? 'pointer' : 'default',
+                      opacity: imgUrl ? 1 : 0.35,
+                    }}>
+                    {imgUrl
+                      ? <img src={imgUrl} alt=""
+                          style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:4 }} />
+                      : null}
                   </div>
                 ))}
               </div>
@@ -367,7 +1030,7 @@ export default function ProductClient() {
                       style={{ color: wishlisted ? '#E55A4B' : undefined }}>
                       {wishlisted ? '♥' : '♡'}
                     </button>
-                    <span className="brand-card-wish-count">319</span>
+                    <span className="brand-card-wish-count">{farmWishCount.toLocaleString()}</span>
                   </div>
                 </Link>
               )}
@@ -387,11 +1050,16 @@ export default function ProductClient() {
 
               <h1 className="product-name">{product.name}</h1>
 
-              {/* 메타: brix + 배송타입 + 별점 */}
+              {/* 메타: 배송타입 → brix → badge → 별점 */}
               <div className="product-meta">
+                <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
+                  background: product.is_dawn ? '#FFF9E0' : '#FFF0EE',
+                  color:      product.is_dawn ? '#7A5C2E' : '#CB1D11' }}>
+                  {product.is_dawn ? '산지직송' : '자사배송'}
+                </span>
                 {product.brix != null && (
-                  <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px',
-                    background:'var(--color-accent-bg)', color:'var(--color-accent)',
+                  <span style={{ fontSize:12, fontWeight:600, padding:'3px 8px',
+                    background:'#F4F4F4', color:'#666',
                     borderRadius:6 }}>
                     🍬 {product.brix} brix
                   </span>
@@ -403,11 +1071,6 @@ export default function ProductClient() {
                     {product.badge}
                   </span>
                 )}
-                <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
-                  background: product.is_dawn ? '#FFF9E0' : '#FFF0EE',
-                  color:      product.is_dawn ? '#7A5C2E' : '#CB1D11' }}>
-                  {product.is_dawn ? '새벽배송' : '택배배송'}
-                </span>
                 {product.avg_rating > 0 && (
                   <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
                     <SingleStar size={13} />
@@ -422,64 +1085,66 @@ export default function ProductClient() {
 
               {/* 가격 */}
               <div className="price-block">
-                {product.discount_rate > 0 ? (
-                  <>
-                    <div style={{ fontSize:14, color:'var(--color-ink-mute)',
-                      textDecoration:'line-through', marginBottom:4 }}>
-                      {fmtPrice(product.price)}원
-                    </div>
-                    <div className="price-line" style={{ marginBottom:4 }}>
-                      <span className="price-discount-rate">{product.discount_rate}%</span>
-                      <span className="price-discount-val">{fmtPrice(basePrice)}원~</span>
-                    </div>
-                    <div className="price-line">
-                      <span className="price-coupon-rate">
-                        {Math.round(product.discount_rate + 15)}%
-                      </span>
-                      <span className="price-coupon-val">
-                        {fmtPrice(Math.round(basePrice * 0.85))}원~
-                      </span>
-                      <span className="price-coupon-tag">쿠폰 최대혜택가 ∨</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="price-line">
-                    <span className="price-discount-val">{fmtPrice(basePrice)}원</span>
+                {product.discount_rate > 0 && (
+                  <div style={{ fontSize:14, color:'var(--color-ink-mute)',
+                    textDecoration:'line-through', marginBottom:4 }}>
+                    {fmtPrice(product.price)}원
                   </div>
                 )}
-              </div>
-
-              {/* 회원가입 쿠폰 배너 */}
-              <Link href="/signup" className="signup-coupon-banner">
-                <div className="signup-coupon-banner-left">
-                  <span className="signup-coupon-icon">🎁</span>
-                  <span className="signup-coupon-text">
-                    회원가입하고 <span>5,000원 쿠폰</span> 받기
+                <div className="price-line" style={{ marginBottom:4 }}>
+                  {product.discount_rate > 0 && (
+                    <span className="price-discount-rate">{product.discount_rate}%</span>
+                  )}
+                  <span className="price-discount-val">
+                    {fmtPrice(basePrice)}<span className="price-won-suffix">원{product.discount_rate > 0 ? '~' : ''}</span>
                   </span>
                 </div>
-                <span className="signup-coupon-arrow">›</span>
-              </Link>
+                {/* 쿠폰 최대혜택가 — 실제 보유 쿠폰 기반 */}
+                {bestCoupon === 'loading' ? null
+                : bestCoupon ? (
+                  <div className="price-line">
+                    <span className="price-coupon-rate">{bestCoupon.totalRate}%</span>
+                    <span className="price-coupon-val">
+                      {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원~</span>
+                    </span>
+                    <span className="price-coupon-tag">{bestCoupon.name}</span>
+                  </div>
+                ) : !user ? (
+                  <div style={{ fontSize:12, color:'var(--color-ink-mute)', marginTop:2 }}>
+                    🎟 <span style={{ textDecoration:'underline', cursor:'pointer' }}
+                      onClick={() => router.push('/login')}>로그인</span> 시 쿠폰 혜택 확인
+                  </div>
+                ) : null}
+              </div>
+
+              {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
+              {!user && (
+                <Link href="/signup" className="signup-coupon-banner">
+                  <div className="signup-coupon-banner-left">
+                    <span className="signup-coupon-icon">🎁</span>
+                    <span className="signup-coupon-text">
+                      회원가입하고 <span>{fmtPrice(signupCoupon)}원 쿠폰</span> 받기
+                    </span>
+                  </div>
+                  <span className="signup-coupon-arrow">›</span>
+                </Link>
+              )}
 
               {/* 배송 정보 테이블 */}
               <table className="pd-info-table">
                 <tbody>
                   <tr>
                     <th>배송방법</th>
-                    <td>{product.is_dawn ? '새벽배송' : '택배'}</td>
+                    <td>{product.is_dawn ? '산지직송' : '자사배송'}</td>
                   </tr>
                   <tr>
                     <th>배송비</th>
-                    <td>
-                      무료{' '}
-                      <span style={{ color:'var(--color-ink-mute)', fontSize:12 }}>
-                        (30,000원 이상)
-                      </span>
-                    </td>
+                    <td>무료</td>
                   </tr>
                   <tr>
                     <th>적립금</th>
-                    <td style={{ color:'var(--color-accent)' }}>
-                      1% ({fmtPrice(Math.round(basePrice * 0.01))}원)
+                    <td style={{ color:'#1A1A1A', fontWeight:700 }}>
+                      {pointRate}% ({fmtPrice(Math.round(basePrice * pointRate / 100))}원)
                     </td>
                   </tr>
                 </tbody>
@@ -529,7 +1194,7 @@ export default function ProductClient() {
                             color:'var(--color-ink)', flex:1, lineHeight:1.45 }}>
                             {optObj.label}
                             {optObj.add_price > 0 && (
-                              <span style={{ fontSize:12, color:'var(--color-accent)',
+                              <span style={{ fontSize:12, color:'#1A1A1A',
                                 marginLeft:6, fontWeight:700 }}>
                                 +{fmtPrice(optObj.add_price)}원
                               </span>
@@ -576,7 +1241,7 @@ export default function ProductClient() {
                             </button>
                           </div>
                           <span style={{ fontSize:16, fontWeight:800,
-                            color:'var(--color-accent)' }}>
+                            color:'#1A1A1A' }}>
                             {fmtPrice((basePrice + (optObj.add_price ?? 0)) * qty)}원
                           </span>
                         </div>
@@ -615,22 +1280,26 @@ export default function ProductClient() {
                   </>
                 )}
 
-                {/* 출발 안내 */}
-                <div className="pd-dispatch-notice">
-                  <svg viewBox="0 0 24 24" width="18" height="18"
-                    fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <rect x="1" y="3" width="15" height="13" rx="1"/>
-                    <path d="M16 8h4l3 5v4h-7V8z"/>
-                    <circle cx="5.5" cy="18.5" r="2.5"/>
-                    <circle cx="18.5" cy="18.5" r="2.5"/>
-                  </svg>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:600 }}>오늘 출발 14:00 마감</div>
-                    <div style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
-                      지금 주문 시 내일 발송됩니다
+                {/* 출발 안내 — 상품별 설정 우선, 없으면 전체 설정, 둘 다 없으면 숨김 */}
+                {(product.dispatch_cutoff || siteDispatchCutoff) && (
+                  <div className="pd-dispatch-notice">
+                    <svg viewBox="0 0 24 24" width="18" height="18"
+                      fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <rect x="1" y="3" width="15" height="13" rx="1"/>
+                      <path d="M16 8h4l3 5v4h-7V8z"/>
+                      <circle cx="5.5" cy="18.5" r="2.5"/>
+                      <circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600 }}>
+                        오늘 출발 {product.dispatch_cutoff || siteDispatchCutoff} 마감
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
+                        지금 주문 시 내일 발송됩니다
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* 총 상품금액 */}
                 <div className="total-row">
@@ -639,14 +1308,26 @@ export default function ProductClient() {
                     <span style={{ fontSize:13, color:'var(--color-ink-mute)', marginRight:6 }}>
                       {qty}개
                     </span>
-                    <span style={{ fontSize:22, fontWeight:700, color:'var(--color-accent)' }}>
+                    <span style={{ fontSize:22, fontWeight:700, color:'#1A1A1A' }}>
                       {fmtPrice(totalPrice)}원
                     </span>
                   </span>
                 </div>
 
                 {/* PC CTA */}
-                <div className="cta-bar-pc">
+                <div className="cta-bar-pc" style={{ alignItems:'stretch' }}>
+                  <button onClick={() => showToast('선물하기 기능은 준비 중입니다.')}
+                    style={{ flexShrink:0, width:50, border:'1.5px solid #DDDDD9',
+                      background:'#fff', borderRadius:8, cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
+                      <polyline points="20 12 20 22 4 22 4 12"/>
+                      <rect x="2" y="7" width="20" height="5"/>
+                      <line x1="12" y1="22" x2="12" y2="7"/>
+                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 3 12 7 12 7z"/>
+                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 3 12 7 12 7z"/>
+                    </svg>
+                  </button>
                   <button className="btn btn-secondary btn-flex-1" onClick={handleAddCart}>
                     장바구니
                   </button>
@@ -654,15 +1335,9 @@ export default function ProductClient() {
                     바로 구매
                   </button>
                 </div>
-                <button onClick={() => alert('선물하기 준비 중입니다 🎁')}
-                  style={{ width:'100%', marginTop:8, border:'1.5px solid #DDDDD9',
-                    background:'#fff', color:'var(--color-ink)', borderRadius:8,
-                    padding:'13px 0', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                  🎁 선물하기
-                </button>
 
-                {/* ✅ 네이버페이 (원본과 동일) */}
-                <div style={{ marginTop:16, borderTop:'1px solid #EBEBEB', paddingTop:14 }}>
+                {/* ✅ 네이버페이 */}
+                <div style={{ marginTop:16, paddingTop:14 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:11, fontWeight:800, color:'#03C75A',
@@ -671,7 +1346,7 @@ export default function ProductClient() {
                         네이버ID로 간편구매<br/>네이버페이
                       </div>
                     </div>
-                    <button onClick={() => alert('네이버페이로 연결합니다')}
+                    <button onClick={() => showToast('네이버페이 연동은 준비 중입니다.')}
                       style={{ display:'flex', alignItems:'center', gap:7,
                         background:'#03C75A', color:'#fff', border:'none',
                         borderRadius:6, padding:'13px 22px', fontSize:15, fontWeight:700,
@@ -822,14 +1497,30 @@ export default function ProductClient() {
         {/* ① 상품설명 */}
         {activeTab === 0 && (
           <div id="tabDesc" className="tab-content container">
-            {sections.length > 0 ? (
-              sections.map(s => (
-                <div key={s.id}
-                  dangerouslySetInnerHTML={{ __html: s.content }}
-                  style={{ marginBottom:20 }} />
-              ))
+            {detailImages.length > 0 ? (
+              /* 어드민에서 업로드한 상품설명 이미지 */
+              <div style={{ width:'100%' }}>
+                {detailImages.map((url, i) => (
+                  <img
+                    key={i}
+                    src={url}
+                    alt=""
+                    style={{ display:'block', width:'100%', height:'auto' }}
+                  />
+                ))}
+              </div>
+            ) : sections.length > 0 ? (
+              /* 기존 HTML 섹션 */
+              <div className="container">
+                {sections.map(s => (
+                  <div key={s.id}
+                    dangerouslySetInnerHTML={{ __html: s.content }}
+                    style={{ marginBottom:20 }} />
+                ))}
+              </div>
             ) : (
-              <>
+              /* 기본 fallback */
+              <div className="container">
                 <div style={{ background:'var(--color-bg)', borderRadius:12,
                   padding:20, marginBottom:16 }}>
                   <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>🌿 농가 정보</div>
@@ -856,98 +1547,119 @@ export default function ProductClient() {
                     </p>
                   </div>
                 </div>
-              </>
+                {/* 이모지 배경 */}
+                <div style={{ fontSize:72, textAlign:'center', lineHeight:1,
+                  opacity:0.3, padding:'12px 0 4px' }}>
+                  {emoji}{emoji}{emoji}
+                </div>
+              </div>
             )}
-            {/* 이모지 배경 */}
-            <div style={{ fontSize:72, textAlign:'center', lineHeight:1,
-              opacity:0.3, padding:'12px 0 4px' }}>
-              {emoji}{emoji}{emoji}
-            </div>
           </div>
         )}
 
         {/* ② 상세정보 */}
         {activeTab === 1 && (
           <div id="tabInfo" className="tab-content container">
+
+            {/* 상품고시정보 */}
             <div style={{ marginBottom:40 }}>
               <div style={{ fontSize:18, fontWeight:700, textAlign:'center', marginBottom:24 }}>
                 상품고시정보
               </div>
-              <table style={{ width:'100%', borderCollapse:'collapse',
-                fontSize:13, tableLayout:'fixed' }}>
-                <tbody>
-                  {[
-                    ['제품명', product.name, '식품의 유형', '과일'],
-                    ['생산자 및 소재지 (수입품의 경우 생산지, 수입자 및 제조국)',
-                     '상품설명 및 이미지 참조',
-                     '제조연월일, 소비기한 또는 품질유지기한',
-                     '상품설명 및 이미지 참조'],
-                    ['포장단위별 내용물의 용량(중량), 수량',
-                     '상품설명 및 이미지 참조',
-                     '원재료명 및 함량 (원산지 표시 포함)',
-                     '상품설명 및 이미지 참조'],
-                    ['영양성분 (영양성분 표시대상 식품에 한함)',
-                     '상품설명 및 이미지 참조',
-                     '유전자변형식품에 해당하는 경우의 표시',
-                     '상품설명 및 이미지 참조'],
-                    ['소비자 안전을 위한 주의사항',
-                     '상품설명 및 이미지 참조',
-                     '소비자 상담 관련 전화번호',
-                     '02-6925-2311'],
-                  ].map(([k1,v1,k2,v2], i) => (
-                    <tr key={i}>
-                      <td style={{ background:'#F8F8F6', padding:'12px 14px', fontWeight:600,
-                        color:'var(--color-ink-soft)', width:'20%', verticalAlign:'top',
-                        lineHeight:1.6 }}>{k1}</td>
-                      <td style={{ padding:'12px 14px', color:'var(--color-ink-soft)',
-                        width:'30%', verticalAlign:'top', lineHeight:1.6 }}>{v1}</td>
-                      <td style={{ background:'#F8F8F6', padding:'12px 14px', fontWeight:600,
-                        color:'var(--color-ink-soft)', width:'20%', verticalAlign:'top',
-                        lineHeight:1.6 }}>{k2}</td>
-                      <td style={{ padding:'12px 14px', color:'var(--color-ink-soft)',
-                        width:'30%', verticalAlign:'top', lineHeight:1.6 }}>{v2}</td>
-                    </tr>
+              {infoData && (() => {
+                /* 새 형식(tableRows) 우선, 구 형식 fallback */
+                const rows: { k1: string; v1: string; k2: string; v2: string }[] =
+                  infoData.tableRows
+                    ? infoData.tableRows
+                    : [
+                        ...INFO_KEYS.map(([k1, k2], ri) => {
+                          const vals = infoData.tableValues ?? infoData.table ?? [];
+                          return { k1, v1: vals[ri]?.[0] ?? '', k2, v2: vals[ri]?.[1] ?? '' };
+                        }),
+                        ...(infoData.tableExtra ?? []),
+                      ];
+                return (
+                  <table style={{ width:'100%', borderCollapse:'collapse',
+                    fontSize:13, tableLayout:'fixed', border:'1px solid #E4E2DE' }}>
+                    <tbody>
+                      {rows.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ background:'#F8F8F6', padding:'12px 14px', fontWeight:600,
+                            color:'var(--color-ink-soft)', width:'20%', verticalAlign:'top',
+                            lineHeight:1.8, border:'1px solid #E4E2DE' }}>{row.k1}</td>
+                          <td style={{ padding:'12px 14px', color:'var(--color-ink-soft)',
+                            width:'30%', verticalAlign:'top', lineHeight:1.8,
+                            border:'1px solid #E4E2DE' }}>{row.v1}</td>
+                          <td style={{ background:'#F8F8F6', padding:'12px 14px', fontWeight:600,
+                            color:'var(--color-ink-soft)', width:'20%', verticalAlign:'top',
+                            lineHeight:1.8, border:'1px solid #E4E2DE' }}>{row.k2}</td>
+                          <td style={{ padding:'12px 14px', color:'var(--color-ink-soft)',
+                            width:'30%', verticalAlign:'top', lineHeight:1.8,
+                            border:'1px solid #E4E2DE' }}>{row.v2}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            {/* 배송안내 */}
+            {infoData && (
+              <div style={{ marginBottom:32 }}>
+                <div style={{ fontSize:14, fontWeight:700, paddingBottom:12,
+                  borderBottom:'1.5px solid var(--color-ink)', marginBottom:16 }}>
+                  배송안내
+                </div>
+                <ul style={{ fontSize:13, color:'var(--color-ink-soft)', lineHeight:1.9,
+                  listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:6 }}>
+                  {infoData.shipping.map((txt, i) => (
+                    <li key={i} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                      <span style={{ flexShrink:0, marginTop:2, color:'var(--color-ink-mute)' }}>•</span>
+                      <span style={{ flex:1 }}>{txt}</span>
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ marginBottom:32 }}>
-              <div style={{ fontSize:14, fontWeight:700, paddingBottom:12,
-                borderBottom:'1.5px solid var(--color-ink)', marginBottom:16 }}>
-                배송안내
+                </ul>
               </div>
-              <p style={{ fontSize:13, color:'var(--color-ink-soft)', lineHeight:1.9 }}>
-                기상 악화 및 교통 상황에 따라 부득이하게 배송이 지연될 수 있습니다.<br/>
-                당사는 CJ 대한통운을 이용하고 있으며, 상황에 따라 타 택배사를 통해 배송될 수 있습니다.<br/>
-                신선 식품 특성 상 제주 및 도서 산간 지역은 배송이 불가합니다.<br/>
-                주소 오기재 등으로 인한 반송·미배송 시에도 일정 기간 소요 시 자동 배송완료 처리됩니다.<br/>
-                주말 및 공휴일은 상품을 출고하지 않습니다.<br/>
-                단체 및 다량 주문 시 고객센터로 별도 문의 후 주문 바랍니다.
-              </p>
-            </div>
+            )}
 
-            <div style={{ marginBottom:32 }}>
-              <div style={{ fontSize:14, fontWeight:700, paddingBottom:12,
-                borderBottom:'1.5px solid var(--color-ink)', marginBottom:16 }}>
-                교환 및 반품정보
+            {/* 교환 및 반품정보 */}
+            {infoData && (
+              <div style={{ marginBottom:32 }}>
+                <div style={{ fontSize:14, fontWeight:700, paddingBottom:12,
+                  borderBottom:'1.5px solid var(--color-ink)', marginBottom:16 }}>
+                  교환 및 반품정보
+                </div>
+                <ul style={{ fontSize:13, color:'var(--color-ink-soft)', lineHeight:1.9,
+                  listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:6 }}>
+                  {infoData.return_.map((txt, i) => (
+                    <li key={i} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                      <span style={{ flexShrink:0, marginTop:2, color:'var(--color-ink-mute)' }}>•</span>
+                      <span style={{ flex:1 }}>{txt}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <p style={{ fontSize:13, color:'var(--color-ink-soft)', lineHeight:1.9 }}>
-                신선 식품 특성 상 단순 변심 / 주문 착오 / 개인 정보 오기재 / 수취인 연락 부재의 경우
-                교환 및 반품이 불가합니다.<br/>
-                품질 및 배송 관련 문제가 있는 경우 수령 후 1~2일 이내, 이미지를 첨부하여
-                고객센터로 문의바랍니다.<br/>
-                교환 및 반품 희망 시 상담원에게 먼저 문의해 주세요.
-              </p>
-            </div>
+            )}
 
-            <div style={{ background:'var(--color-bg)', borderRadius:12,
-              padding:16, textAlign:'center' }}>
-              <div style={{ fontSize:13, fontWeight:700, marginBottom:6 }}>고객센터</div>
-              <div style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
-                02-6925-2311 · 평일 09:00~18:00
+            {/* 고객센터 */}
+            {infoData && (
+              <div style={{ marginBottom:32 }}>
+                <div style={{ fontSize:14, fontWeight:700, paddingBottom:12,
+                  borderBottom:'1.5px solid var(--color-ink)', marginBottom:16 }}>
+                  고객센터
+                </div>
+                <ul style={{ fontSize:13, color:'var(--color-ink-soft)', lineHeight:1.9,
+                  listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:6 }}>
+                  {infoData.cs.map((txt, i) => (
+                    <li key={i} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                      <span style={{ flexShrink:0, marginTop:2, color:'var(--color-ink-mute)' }}>•</span>
+                      <span style={{ flex:1 }}>{txt}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -959,7 +1671,7 @@ export default function ProductClient() {
             {/* 헤더 */}
             <div style={{ display:'flex', alignItems:'center',
               justifyContent:'space-between', marginBottom:20 }}>
-              <span style={{ fontSize:18, fontWeight:700 }}>리뷰</span>
+              <span style={{ fontSize:18, fontWeight:700 }}>리뷰 <span style={{ fontSize:15, color:'var(--color-ink-mute)', fontWeight:500 }}>({product.review_count})</span></span>
               <button
                 onClick={() => { if (!user) { router.push('/login'); return; } setReviewModalOpen(true); }}
                 style={{ padding:'8px 16px', border:'1.5px solid #D0D0CC', borderRadius:8,
@@ -974,42 +1686,28 @@ export default function ProductClient() {
               <div style={{ display:'flex', border:'1px solid #E8E8E6', borderRadius:12,
                 overflow:'hidden', marginBottom:20 }}>
 
-                {/* 좌: 평점 수치 — 총평점 | 전체리뷰 좌우 2열 */}
-                <div style={{ width:'28%', flexShrink:0, padding:'18px 16px',
-                  borderRight:'1px solid #E8E8E6',
-                  display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
-                  {/* 레이블 행 */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr',
-                    gap:'0 8px' }}>
-                    <div style={{ textAlign:'center', fontSize:11,
-                      color:'var(--color-ink-mute)', fontWeight:600 }}>총 평점</div>
-                    <div style={{ textAlign:'center', fontSize:11,
-                      color:'var(--color-ink-mute)', fontWeight:600 }}>전체 리뷰 수</div>
-                  </div>
-                  {/* 수치 행 */}
-                  <div style={{ flex:1, display:'flex', alignItems:'center',
-                    justifyContent:'center', marginTop:8 }}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr',
-                      gap:'0 8px', width:'100%' }}>
-                      <div style={{ textAlign:'center' }}>
-                        <div style={{ display:'flex', alignItems:'baseline',
-                          justifyContent:'center', gap:2 }}>
-                          <SingleStar size={18} color="#CB1D11" />
-                          <span style={{ fontSize:26, fontWeight:800, lineHeight:1,
-                            color:'var(--color-ink)' }}>
-                            {product.avg_rating.toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ textAlign:'center' }}>
-                        <span style={{ fontSize:24, fontWeight:700, lineHeight:1,
-                          color:'var(--color-ink)' }}>
-                          {product.review_count.toLocaleString()}
+                {/* 좌: 평점 + 만족도 */}
+                {(() => {
+                  const satisfiedCount = reviews.filter(r => r.rating >= 4).length;
+                  const satisfiedPct = product.review_count > 0
+                    ? Math.round(satisfiedCount / product.review_count * 100) : 0;
+                  return (
+                    <div style={{ width:'32%', flexShrink:0, padding:'18px 14px',
+                      borderRight:'1px solid #E8E8E6',
+                      display:'flex', flexDirection:'column', alignItems:'center',
+                      justifyContent:'center', gap:8 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        <SingleStar size={22} />
+                        <span style={{ fontSize:30, fontWeight:800, lineHeight:1, color:'var(--color-ink)' }}>
+                          {product.avg_rating.toFixed(1)}
                         </span>
                       </div>
+                      <p style={{ fontSize:11, color:'var(--color-ink-mute)', textAlign:'center', lineHeight:1.5, margin:0 }}>
+                        <strong style={{ color:'var(--color-ink)', fontSize:12 }}>{satisfiedPct}%</strong>의 구매자가<br />만족했어요
+                      </p>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* 우: 바 차트 */}
                 <div style={{ flex:1, minWidth:0, padding:'16px 20px',
@@ -1027,7 +1725,7 @@ export default function ProductClient() {
                           borderRadius:99, overflow:'hidden' }}>
                           <div style={{
                             width:`${pct}%`, height:'100%', borderRadius:99,
-                            background: pct > 50 ? '#CB1D11' : '#C8C8C4',
+                            background: '#1A1A1A',
                           }} />
                         </div>
                         <span style={{ fontSize:12, color:'var(--color-ink-mute)',
@@ -1048,7 +1746,7 @@ export default function ProductClient() {
                 const val: SortKey = (['latest','helpful','rating'] as SortKey[])[i];
                 const active = reviewSort === val;
                 return (
-                  <button key={label} onClick={() => setReviewSort(val)}
+                  <button key={label} onClick={() => { setReviewSort(val); setReviewPage(0); }}
                     style={{ padding:'5px 12px', borderRadius:99,
                       border:`1px solid ${active ? 'var(--color-ink)' : '#DDDDD9'}`,
                       background: active ? 'var(--color-ink)' : '#fff',
@@ -1066,36 +1764,44 @@ export default function ProductClient() {
                 <div style={{ display:'flex', alignItems:'center',
                   justifyContent:'space-between', marginBottom:12 }}>
                   <span style={{ fontSize:13, fontWeight:700 }}>
-                    고객님들의 포토/영상 리뷰 ({photoReviewCount.toLocaleString()})
+                    포토/영상리뷰 ({photoReviewCount.toLocaleString()})
                   </span>
-                  <button onClick={() => alert('전체보기')}
+                  <span
+                    onClick={() => setPhotoGalleryOpen(true)}
                     style={{ fontSize:12, color:'var(--color-ink-mute)',
-                      background:'none', border:'none', cursor:'pointer', padding:0,
-                      textDecoration:'none' }}>
+                      display:'flex', alignItems:'center', gap:2, cursor:'pointer' }}>
                     전체보기
-                  </button>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </span>
                 </div>
-                <div style={{ display:'flex', gap:4, width:'100%' }}>
-                  {photoColors.slice(0, 7).map((c, i) => (
+                <div style={{ display:'flex', gap:8, flexWrap:'nowrap' }}>
+                  {allPhotoItems.slice(0, 7).map((item, i) => (
                     <div key={i}
-                      onClick={() => alert('사진 미리보기')}
-                      style={{ flex:1, aspectRatio:'1', borderRadius:6, cursor:'pointer',
-                        background:`linear-gradient(135deg,${c},#fff)`,
+                      onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(i); }}
+                      style={{ width:80, height:80, flexShrink:0, borderRadius:6, cursor:'pointer',
+                        background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
                         display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:'clamp(18px,3vw,28px)',
+                        fontSize:28,
                         border:'1px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
-                      {emoji}
+                      {item.url
+                        ? <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : emoji}
                     </div>
                   ))}
-                  {photoReviewCount > 8 && (
-                    <div onClick={() => alert('전체보기')}
-                      style={{ flex:1, aspectRatio:'1', position:'relative',
+                  {allPhotoItems.length > 7 && (
+                    <div
+                      onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(null); }}
+                      style={{ width:80, height:80, flexShrink:0, position:'relative',
                         borderRadius:6, overflow:'hidden', cursor:'pointer' }}>
                       <div style={{ width:'100%', height:'100%',
-                        background:`linear-gradient(135deg,${bg},#fff)`,
+                        background: allPhotoItems[7]?.url ? '#F0F0F0' : `linear-gradient(135deg,${bg},#fff)`,
                         display:'flex', alignItems:'center', justifyContent:'center',
                         fontSize:'clamp(18px,3vw,28px)' }}>
-                        {emoji}
+                        {allPhotoItems[7]?.url
+                          ? <img src={allPhotoItems[7].url!} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : emoji}
                       </div>
                       <div style={{ position:'absolute', inset:0,
                         background:'rgba(0,0,0,0.45)',
@@ -1141,7 +1847,7 @@ export default function ProductClient() {
                 아직 리뷰가 없습니다.
               </p>
             ) : (
-              sortedReviews.map(r => (
+              pagedReviews.map(r => (
                 <div key={r.id} style={{ padding:'20px 0', borderBottom:'1px solid #EBEBEB' }}>
                   <div style={{ display:'flex', alignItems:'flex-start',
                     justifyContent:'space-between', marginBottom:6 }}>
@@ -1162,7 +1868,7 @@ export default function ProductClient() {
                   </div>
                   {r.is_best && (
                     <span style={{ display:'inline-block', marginBottom:8,
-                      fontSize:11, fontWeight:700, background:'var(--color-accent)',
+                      fontSize:11, fontWeight:700, background:'#1A1A1A',
                       color:'#fff', borderRadius:4, padding:'2px 8px' }}>
                       BEST
                     </span>
@@ -1174,11 +1880,12 @@ export default function ProductClient() {
                   <div style={{ display:'flex', alignItems:'center',
                     justifyContent:'space-between' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                      <button onClick={() => alert('도움이 됐어요!')}
+                      <button onClick={() => toggleReviewLike(r.id, r.likes_count || 0)}
                         style={{ display:'flex', alignItems:'center', gap:5,
-                          background:'none', border:'1px solid #DDDDD9',
+                          background: likedReviews.has(r.id) ? '#FFF5F5' : 'none',
+                          border:`1px solid ${likedReviews.has(r.id) ? '#E53935' : '#DDDDD9'}`,
                           borderRadius:99, padding:'5px 12px',
-                          fontSize:12, color:'var(--color-ink-mute)', cursor:'pointer' }}>
+                          fontSize:12, color: likedReviews.has(r.id) ? '#E53935' : 'var(--color-ink-mute)', cursor:'pointer' }}>
                         <svg viewBox="0 0 24 24" width="13" height="13"
                           fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
@@ -1186,31 +1893,48 @@ export default function ProductClient() {
                         </svg>
                         리뷰가 도움 됐어요 {r.likes_count || 0}
                       </button>
-                      <button onClick={() => alert('댓글 기능 준비 중')}
-                        style={{ background:'none', border:'none', fontSize:12,
-                          color:'var(--color-ink-mute)', cursor:'pointer' }}>
-                        댓글 0 ∨
-                      </button>
                     </div>
                     <div style={{ display:'flex', gap:12 }}>
-                      <button onClick={() => alert('신고 완료')}
+                      <button onClick={async () => {
+                          if (!user) { router.push('/login'); return; }
+                          const supabase = createClient();
+                          const { error } = await supabase.from('review_reports').insert({ review_id: r.id, reporter_id: user.id });
+                          showToast(error?.code === '23505' ? '이미 신고한 리뷰입니다.' : error ? '오류가 발생했습니다.' : '신고가 접수되었습니다.');
+                        }}
                         style={{ background:'none', border:'none', fontSize:12,
                           color:'var(--color-ink-mute)', cursor:'pointer' }}>신고</button>
-                      <button onClick={() => alert('차단 완료')}
-                        style={{ background:'none', border:'none', fontSize:12,
-                          color:'var(--color-ink-mute)', cursor:'pointer' }}>차단</button>
+                      {isAdmin && (
+                        <button onClick={() => router.push('/admin?panel=members')}
+                          style={{ background:'none', border:'none', fontSize:12,
+                            color:'#DC2626', cursor:'pointer' }}>차단</button>
+                      )}
                     </div>
                   </div>
                 </div>
               ))
             )}
 
-            <div className="pd-pagination">
-              {[1,2,3,4,5].map(n => (
-                <button key={n}
-                  className={`pd-page-btn${n === 1 ? ' active' : ''}`}>{n}</button>
-              ))}
-            </div>
+            <div className="pagination">
+                <button className="page-btn"
+                  disabled={reviewPage === 0}
+                  onClick={() => setReviewPage(0)}>«</button>
+                <button className="page-btn"
+                  disabled={reviewPage === 0}
+                  onClick={() => setReviewPage(p => p - 1)}>‹</button>
+                {Array.from({ length: reviewTotalPages }, (_, i) => (
+                  <button key={i}
+                    className={`page-num${reviewPage === i ? ' active' : ''}`}
+                    onClick={() => setReviewPage(i)}>
+                    {i + 1}
+                  </button>
+                ))}
+                <button className="page-btn"
+                  disabled={reviewPage === reviewTotalPages - 1}
+                  onClick={() => setReviewPage(p => p + 1)}>›</button>
+                <button className="page-btn"
+                  disabled={reviewPage === reviewTotalPages - 1}
+                  onClick={() => setReviewPage(reviewTotalPages - 1)}>»</button>
+              </div>
           </div>
         )}
 
@@ -1218,69 +1942,207 @@ export default function ProductClient() {
         {activeTab === 3 && (
           <div id="tabQna" className="tab-content container">
             <div className="qna-header">
-              <div className="qna-header-title">Q&A</div>
-              <div className="qna-header-sub">상품의 궁금한 점을 해결해 드립니다.</div>
-            </div>
-
-            {/* Q&A 목록 (원본 테이블 구조) */}
-            {[
-              { no:26, answered:false, category:'배송관련', user:'이****', date:'2026-04-29', time:'14:21:22', count:1 },
-              { no:25, answered:true,  category:'배송관련', user:'뉴지트',  date:'2026-04-29', time:'17:43:25', count:0 },
-              { no:24, answered:false, category:'문의',     user:'이****', date:'2026-04-03', time:'04:54:21', count:4 },
-              { no:23, answered:true,  category:'문의',     user:'뉴지트',  date:'2026-04-03', time:'09:07:55', count:1 },
-              { no:22, answered:false, category:'리뷰 🔒', user:'윤****', date:'2026-03-28', time:'07:43:58', count:2 },
-            ].map(q => (
-              <div key={q.no} className="qna-row">
-                <div className="qna-no">{q.no}</div>
-                <div className="qna-content">
-                  {q.answered && <span className="qna-badge-ans">답변</span>}
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
-                    stroke="currentColor" strokeWidth="2"
-                    style={{ flexShrink:0, color:'var(--color-ink-soft)' }}>
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                  <span className="qna-category">{q.category}</span>
-                </div>
-                <div className="qna-user">{q.user}</div>
-                <div className="qna-datetime">{q.date}<br/>{q.time}</div>
-                <div className="qna-count">{q.count}</div>
+              <div>
+                <div className="qna-header-title">Q&A</div>
+                <div className="qna-header-sub">상품의 궁금한 점을 해결해 드립니다.</div>
               </div>
-            ))}
-
-            <div className="qna-actions">
               <button className="qna-btn-filled"
-                onClick={() => { if (!user) { router.push('/login'); return; }
-                  alert('문의 기능은 준비 중입니다.'); }}>
+                onClick={() => { if (!user) { router.push('/login'); return; } setInqModal(true); }}>
                 상품문의하기
               </button>
             </div>
 
-            <div className="pd-pagination">
-              <button className="pd-page-btn arrow">«</button>
-              <button className="pd-page-btn arrow">‹</button>
-              {[1,2,3,4,5].map(n => (
-                <button key={n}
-                  className={`pd-page-btn${n === 1 ? ' active' : ''}`}>{n}</button>
-              ))}
-              <button className="pd-page-btn arrow">›</button>
-              <button className="pd-page-btn arrow">»</button>
-            </div>
+            {/* Q&A 목록 */}
+            {inquiries.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:14 }}>
+                아직 등록된 문의가 없습니다.
+              </div>
+            ) : (() => {
+              const INQ_PER = 10;
+              const totalPages = Math.ceil(inquiries.length / INQ_PER);
+              const paged = inquiries.slice(inqPage * INQ_PER, (inqPage + 1) * INQ_PER);
+              return (
+                <>
+                  {paged.map((q, i) => {
+                    const isMe = user?.id === q.user_id;
+                    const maskedName = q.profiles?.name
+                      ? q.profiles.name.charAt(0) + '****'
+                      : isMe ? (user?.user_metadata?.name?.charAt(0) || '나') + '****' : '익명';
+                    const isLocked = q.is_private;
+                    const isExpanded = expandedInq === q.id;
+                    const isUnlocked = unlockedInq.has(q.id);
+                    const canView = !q.is_private || isUnlocked || isAdmin || (q.is_private && !q.password);
+                    return (
+                      <div key={q.id}>
+                        <div className="qna-row" style={{ cursor: 'pointer' }}
+                          onClick={() => setExpandedInq(isExpanded ? null : q.id)}>
+                          <div className="qna-no">{inqPage * INQ_PER + i + 1}</div>
+                          <div className="qna-content">
+                            {q.answer && <span className="qna-badge-ans">답변</span>}
+                            {q.is_private && (
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
+                                stroke="currentColor" strokeWidth="2"
+                                style={{ flexShrink:0, color:'var(--color-ink-soft)' }}>
+                                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                <path d="M7 11V7a5 5 0 0110 0v4"/>
+                              </svg>
+                            )}
+                            <span className="qna-category">
+                              {isLocked ? '비밀 문의입니다.' : q.content.slice(0, 40) + (q.content.length > 40 ? '...' : '')}
+                            </span>
+                          </div>
+                          <div className="qna-user">{maskedName}</div>
+                          <div className="qna-datetime">{q.created_at.slice(0,10)}</div>
+                          <div className="qna-count">{q.answer ? '답변완료' : '대기중'}</div>
+                        </div>
+                        {isExpanded && isLocked && !isUnlocked && q.password && (
+                          <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
+                            <div style={{ fontSize:13, color:'#555', marginBottom:10 }}>🔒 비밀 문의입니다. 비밀번호를 입력하세요.</div>
+                            <div style={{ display:'flex', gap:8 }}>
+                              <input type="password" placeholder="비밀번호" maxLength={20}
+                                value={pwInput[q.id] || ''}
+                                onChange={e => setPwInput(prev => ({ ...prev, [q.id]: e.target.value }))}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') {
+                                    if (pwInput[q.id] === q.password) {
+                                      setUnlockedInq(prev => new Set([...prev, q.id]));
+                                    } else {
+                                      alert('비밀번호가 틀렸습니다.');
+                                    }
+                                  }
+                                }}
+                                style={{ flex:1, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
+                              <button
+                                style={{ height:36, padding:'0 16px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer' }}
+                                onClick={() => {
+                                  if (pwInput[q.id] === q.password) {
+                                    setUnlockedInq(prev => new Set([...prev, q.id]));
+                                  } else {
+                                    alert('비밀번호가 틀렸습니다.');
+                                  }
+                                }}>확인</button>
+                            </div>
+                          </div>
+                        )}
+                        {isExpanded && canView && (
+                          <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
+                            {/* 문의 전문 */}
+                            <div style={{ fontSize:13, color:'#333', lineHeight:1.8, marginBottom: q.answer ? 16 : 0, whiteSpace:'pre-wrap' }}>
+                              {q.content}
+                            </div>
+                            {/* 답변 */}
+                            {q.answer && (
+                              <div style={{ borderTop:'1px solid #E8E8E6', paddingTop:14 }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                                  <span style={{ fontSize:12, fontWeight:700, background:'#1A1A1A', color:'#fff', borderRadius:4, padding:'2px 8px' }}>답변</span>
+                                  {q.answered_at && (
+                                    <span style={{ fontSize:11, color:'#94A3B8' }}>{q.answered_at.slice(0,10)}</span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize:13, color:'#444', lineHeight:1.8, whiteSpace:'pre-wrap' }}>
+                                  {q.answer}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="pd-pagination">
+                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => setInqPage(0)}>«</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => setInqPage(p => p - 1)}>‹</button>
+                    {Array.from({ length: totalPages }, (_, n) => (
+                      <button key={n} className={`pd-page-btn${inqPage === n ? ' active' : ''}`}
+                        onClick={() => { setInqPage(n); setExpandedInq(null); }}>{n + 1}</button>
+                    ))}
+                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => setInqPage(p => p + 1)}>›</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => setInqPage(totalPages - 1)}>»</button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
+
+      {/* ── 상품 문의 모달 ── */}
+      {inqModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
+          display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center',
+          padding: isMobile ? 0 : 16 }}
+          onClick={() => setInqModal(false)}>
+          <div style={{ background:'#fff', width:'100%', maxWidth:480,
+            borderRadius: isMobile ? '16px 16px 0 0' : 16, padding:24, maxHeight:'80vh', overflowY:'auto' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+              <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
+              <button onClick={() => setInqModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>카테고리</label>
+              <select value={inqCategory} onChange={e => setInqCategory(e.target.value)}
+                style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }}>
+                {['문의','배송관련','취소/교환/반품','상품','기타'].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>문의 내용 *</label>
+              <textarea rows={5} value={inqContent} onChange={e => setInqContent(e.target.value)}
+                placeholder="문의 내용을 입력해주세요."
+                style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #E2E8F0', borderRadius:8,
+                  fontSize:14, fontFamily:'inherit', resize:'vertical', outline:'none', boxSizing:'border-box' }} />
+            </div>
+            <div style={{ marginBottom:18 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, cursor:'pointer', marginBottom: inqPrivate ? 10 : 0 }}>
+                <input type="checkbox" checked={inqPrivate} onChange={e => { setInqPrivate(e.target.checked); if (!e.target.checked) setInqPassword(''); }} />
+                비밀 문의로 등록
+              </label>
+              {inqPrivate && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8 }}>
+                  <span style={{ fontSize:13, color:'#64748B', flexShrink:0 }}>비밀번호</span>
+                  <input type="password" maxLength={20} placeholder="비밀번호 설정 (필수)"
+                    value={inqPassword} onChange={e => setInqPassword(e.target.value)}
+                    style={{ flex:1, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
+                </div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setInqModal(false)}
+                style={{ flex:1, height:44, border:'1.5px solid #E2E8F0', borderRadius:8, background:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                취소
+              </button>
+              <button onClick={submitInquiry} disabled={inqSubmitting}
+                style={{ flex:2, height:44, border:'none', borderRadius:8, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+                {inqSubmitting ? '등록 중...' : '문의 등록'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 리뷰 작성 모달 ── */}
       {reviewModalOpen && (
         <div
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
-            display:'flex', alignItems:'flex-end', justifyContent:'center' }}
+            display:'flex',
+            alignItems: isMobile ? 'flex-end' : 'center',
+            justifyContent:'center',
+            padding: isMobile ? 0 : 16,
+          }}
           onClick={() => setReviewModalOpen(false)}
         >
           <div
-            style={{ background:'#fff', width:'100%', maxWidth:600,
-              borderRadius:'20px 20px 0 0',
-              padding:'28px 24px 40px', boxShadow:'0 -8px 40px rgba(0,0,0,.15)' }}
+            style={{
+              background:'#fff',
+              width: isMobile ? '100%' : '100%',
+              maxWidth: isMobile ? 600 : 540,
+              maxHeight: isMobile ? 'none' : '90vh',
+              overflowY: isMobile ? 'visible' : 'auto',
+              borderRadius: isMobile ? '20px 20px 0 0' : 16,
+              padding:'28px 24px 40px',
+              boxShadow: isMobile ? '0 -8px 40px rgba(0,0,0,.15)' : '0 24px 64px rgba(0,0,0,0.28)',
+            }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display:'flex', alignItems:'center',
@@ -1321,6 +2183,114 @@ export default function ProductClient() {
               </div>
             </div>
 
+            {/* 사진/영상 첨부 */}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:8,
+                color:'var(--color-ink-soft)' }}>
+                사진/영상 첨부
+                <span style={{ fontSize:11, color:'#BBB', fontWeight:400, marginLeft:6 }}>
+                  사진 최대 5장 + 영상 1개 (선택)
+                </span>
+              </div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                {/* 이미지 프리뷰 */}
+                {newImages.map((file, i) => (
+                  <div key={i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt=""
+                      style={{ width:'100%', height:'100%', objectFit:'cover',
+                        borderRadius:8, border:'1px solid #E8E8E6' }}
+                    />
+                    <button
+                      onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))}
+                      style={{ position:'absolute', top:-6, right:-6,
+                        width:20, height:20, borderRadius:'50%',
+                        background:'#1A1A1A', color:'#fff', border:'none',
+                        fontSize:12, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                {/* 영상 프리뷰 */}
+                {newVideo && (
+                  <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                    <video
+                      src={URL.createObjectURL(newVideo)}
+                      style={{ width:'100%', height:'100%', objectFit:'cover',
+                        borderRadius:8, border:'1px solid #E8E8E6' }}
+                    />
+                    <div style={{ position:'absolute', inset:0, display:'flex',
+                      alignItems:'center', justifyContent:'center',
+                      background:'rgba(0,0,0,0.25)', borderRadius:8 }}>
+                      <span style={{ fontSize:20 }}>▶</span>
+                    </div>
+                    <button
+                      onClick={() => setNewVideo(null)}
+                      style={{ position:'absolute', top:-6, right:-6,
+                        width:20, height:20, borderRadius:'50%',
+                        background:'#1A1A1A', color:'#fff', border:'none',
+                        fontSize:12, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                      ×
+                    </button>
+                  </div>
+                )}
+                {/* 사진 추가 버튼 */}
+                {newImages.length < 5 && (() => {
+                  const imgRef = { current: null as HTMLInputElement | null };
+                  return (
+                    <>
+                      <button
+                        onClick={() => imgRef.current?.click()}
+                        style={{ width:64, height:64, flexShrink:0, borderRadius:8,
+                          border:'1.5px dashed #D0D0CC', background:'#FAFAFA',
+                          cursor:'pointer', display:'flex', flexDirection:'column',
+                          alignItems:'center', justifyContent:'center', gap:3,
+                          fontSize:10, color:'#AAA', fontWeight:600 }}>
+                        <span style={{ fontSize:20 }}>🖼</span>사진
+                      </button>
+                      <input
+                        ref={imgRef}
+                        type="file" accept="image/*" multiple style={{ display:'none' }}
+                        onChange={e => {
+                          if (!e.target.files) return;
+                          const files = Array.from(e.target.files).slice(0, 5 - newImages.length);
+                          setNewImages(prev => [...prev, ...files]);
+                          e.target.value = '';
+                        }}
+                      />
+                    </>
+                  );
+                })()}
+                {/* 영상 추가 버튼 */}
+                {!newVideo && (() => {
+                  const vidRef = { current: null as HTMLInputElement | null };
+                  return (
+                    <>
+                      <button
+                        onClick={() => vidRef.current?.click()}
+                        style={{ width:64, height:64, flexShrink:0, borderRadius:8,
+                          border:'1.5px dashed #D0D0CC', background:'#FAFAFA',
+                          cursor:'pointer', display:'flex', flexDirection:'column',
+                          alignItems:'center', justifyContent:'center', gap:3,
+                          fontSize:10, color:'#AAA', fontWeight:600 }}>
+                        <span style={{ fontSize:20 }}>🎬</span>영상
+                      </button>
+                      <input
+                        ref={vidRef}
+                        type="file" accept="video/*" style={{ display:'none' }}
+                        onChange={e => {
+                          if (e.target.files?.[0]) { setNewVideo(e.target.files[0]); e.target.value = ''; }
+                        }}
+                      />
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
             <div style={{ marginBottom:20 }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:8,
                 color:'var(--color-ink-soft)' }}>
@@ -1342,13 +2312,13 @@ export default function ProductClient() {
 
             <button
               onClick={handleSubmitReview}
-              disabled={submitting || newContent.trim().length < 10}
-              style={{ width:'100%', padding:'15px', background:'var(--color-accent)',
+              disabled={submitting || mediaUploading || newContent.trim().length < 10}
+              style={{ width:'100%', padding:'15px', background:'#1A1A1A',
                 color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-                cursor: (submitting || newContent.trim().length < 10) ? 'not-allowed' : 'pointer',
-                opacity: (submitting || newContent.trim().length < 10) ? 0.6 : 1,
+                cursor: (submitting || mediaUploading || newContent.trim().length < 10) ? 'not-allowed' : 'pointer',
+                opacity: (submitting || mediaUploading || newContent.trim().length < 10) ? 0.6 : 1,
                 transition:'opacity .15s' }}>
-              {submitting ? '등록 중...' : '리뷰 등록하기'}
+              {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '리뷰 등록하기'}
             </button>
           </div>
         </div>
@@ -1356,6 +2326,18 @@ export default function ProductClient() {
 
       {/* ── 모바일 고정 CTA ── */}
       <div className="mobile-cta-bar">
+        <button onClick={() => showToast('선물하기 기능은 준비 중입니다.')}
+          style={{ flexShrink:0, width:46, border:'1.5px solid #DDDDD9',
+            background:'#fff', borderRadius:8, cursor:'pointer',
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
+            <polyline points="20 12 20 22 4 22 4 12"/>
+            <rect x="2" y="7" width="20" height="5"/>
+            <line x1="12" y1="22" x2="12" y2="7"/>
+            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 3 12 7 12 7z"/>
+            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 3 12 7 12 7z"/>
+          </svg>
+        </button>
         <button className="btn btn-secondary btn-flex-1" onClick={handleAddCart}>
           장바구니
         </button>
@@ -1363,6 +2345,19 @@ export default function ProductClient() {
           바로 구매하기
         </button>
       </div>
+      {/* ── 토스트 알림 ── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'rgba(26,26,26,0.92)', color: '#fff',
+          padding: '10px 20px', borderRadius: 99,
+          fontSize: 13, fontWeight: 600, zIndex: 9999,
+          pointerEvents: 'none', whiteSpace: 'nowrap',
+          animation: 'fadeInUp .2s ease',
+        }}>
+          {toast}
+        </div>
+      )}
     </>
   );
 }

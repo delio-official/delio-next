@@ -12,6 +12,7 @@ interface Event {
   title: string;
   subtitle: string | null;
   thumbnail_url: string | null;
+  image_url: string | null;
   content: string | null;
   badge: string | null;
   starts_at: string;
@@ -116,16 +117,21 @@ export default function EventDetailClient() {
           }}>🎁</div>
         )}
 
-        {/* 본문 */}
-        {event.content ? (
+        {/* 본문 이미지 */}
+        {event.image_url && (
+          <img
+            src={event.image_url}
+            alt=""
+            style={{ width: '100%', maxWidth: 960, display: 'block', margin: '0 auto 32px', borderRadius: 8 }}
+          />
+        )}
+
+        {/* 본문 텍스트 */}
+        {event.content && (
           <div
             style={{ fontSize: 15, lineHeight: 1.9, color: '#333' }}
             dangerouslySetInnerHTML={{ __html: event.content }}
           />
-        ) : (
-          <p style={{ fontSize: 15, color: '#999', textAlign: 'center', padding: '40px 0' }}>
-            이벤트 내용이 없습니다.
-          </p>
         )}
 
         {/* 목록으로 */}

@@ -108,10 +108,9 @@ body { background: #fff; }
     .mp-order-step {
       flex: 1; text-align: center; cursor: pointer;
     }
-    .mp-order-step:hover .mp-order-num { color: var(--color-accent); }
     .mp-order-num {
       font-size: 32px; font-weight: 700; color: #111;
-      margin-bottom: 8px; transition: color .15s;
+      margin-bottom: 8px;
     }
     .mp-order-label { font-size: 12px; color: #888; }
     .mp-order-arrow {
@@ -160,7 +159,7 @@ body { background: #fff; }
       gap: 12px; padding-top: 16px;
     }
     .mp-wish-item {
-      border-radius: 10px; overflow: hidden;
+      border-radius: 10px; overflow: visible;
       border: 1px solid #eee; cursor: pointer;
       transition: box-shadow .15s;
     }
@@ -179,7 +178,7 @@ body { background: #fff; }
     }
     .mp-wish-body { padding: 10px; }
     .mp-wish-name { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
-    .mp-wish-price { font-size: 13px; font-weight: 700; color: var(--color-accent); }
+    .mp-wish-price { font-size: 13px; font-weight: 700; color: #1A1A1A; }
 
     /* ===== 혜택 ===== */
     .mp-benefit-row {

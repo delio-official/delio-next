@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +16,7 @@ type Axis3  = 'vitamin' | 'healing';
 
 interface Opt {
   text: string;
+  emoji?: string;
   a1?:          Axis1;
   a2?:          Axis2;
   strongScore?: number;
@@ -37,68 +38,68 @@ interface ResultData {
 // ════════════════════════════════════════════════
 const QS: Q[] = [
   { id:'q1', axis:'a1', text:'오랜만에 생긴\n온전한 하루, 당신은?', opts:[
-    { text:'일찍 일어나서 계획대로 움직여\n— 이게 제일 개운해', a1:'routine' },
-    { text:'할 일 목록 써놓고 하나씩 해\n— 다 해야 뿌듯해', a1:'routine' },
-    { text:'특별한 계획 없이 흘러가는 대로\n— 이런 날은 그냥 쉬어야 해', a1:'free' },
-    { text:'하고 싶은 거 생각나면 바로\n— 계획 없는 게 더 설레', a1:'free' },
+    { text:'일찍 일어나서 계획대로 움직여\n— 이게 제일 개운해', a1:'routine', emoji:'⏰' },
+    { text:'할 일 목록 써놓고 하나씩 해\n— 다 해야 뿌듯해', a1:'routine', emoji:'📝' },
+    { text:'특별한 계획 없이 흘러가는 대로\n— 이런 날은 그냥 쉬어야 해', a1:'free', emoji:'☁️' },
+    { text:'하고 싶은 거 생각나면 바로\n— 계획 없는 게 더 설레', a1:'free', emoji:'✨' },
   ]},
   { id:'q4', axis:'a2', text:'긴 연휴가 생겼을 때\n나는?', opts:[
-    { text:'가족이나 친구랑 가득 채워\n— 같이 있어야 충전돼', a2:'care' },
-    { text:'소중한 사람들 만나는 약속 잡아\n— 사람이 있어야 에너지가 나', a2:'care' },
-    { text:'혼자만의 시간으로 채워\n— 이래야 진짜 쉬는 거야', a2:'self' },
-    { text:'나를 위한 것들로만\n— 나를 채워야 다시 달릴 수 있어', a2:'self' },
+    { text:'가족이나 친구랑 가득 채워\n— 같이 있어야 충전돼', a2:'care', emoji:'👨‍👩‍👧' },
+    { text:'소중한 사람들 만나는 약속 잡아\n— 사람이 있어야 에너지가 나', a2:'care', emoji:'🤝' },
+    { text:'혼자만의 시간으로 채워\n— 이래야 진짜 쉬는 거야', a2:'self', emoji:'🧘' },
+    { text:'나를 위한 것들로만\n— 나를 채워야 다시 달릴 수 있어', a2:'self', emoji:'💆' },
   ]},
   { id:'q2', axis:'a1', text:'건강을 챙기는\n나만의 방식은?', opts:[
-    { text:'정해진 루틴대로\n— 규칙적이어야 효과가 있어', a1:'routine' },
-    { text:'목표 세우고 기록하면서\n— 관리해야 느는 거지', a1:'routine' },
-    { text:'그날 컨디션에 맞게\n— 몸이 원하는 걸 해야지', a1:'free' },
-    { text:'하고 싶을 때 집중적으로\n— 억지로 하면 오래 못 가', a1:'free' },
+    { text:'정해진 루틴대로\n— 규칙적이어야 효과가 있어', a1:'routine', emoji:'🏃' },
+    { text:'목표 세우고 기록하면서\n— 관리해야 느는 거지', a1:'routine', emoji:'📊' },
+    { text:'그날 컨디션에 맞게\n— 몸이 원하는 걸 해야지', a1:'free', emoji:'🌈' },
+    { text:'하고 싶을 때 집중적으로\n— 억지로 하면 오래 못 가', a1:'free', emoji:'⚡' },
   ]},
   { id:'q6', axis:'a3', text:'과일의 단맛,\n나는 이 정도가 딱 좋아', opts:[
-    { text:'달달할수록 좋아\n— 당도 높을수록 행복해', strongScore:2, gentleScore:0 },
-    { text:'적당히 달달한 정도가 딱\n— 너무 달면 느끼해', strongScore:1, gentleScore:0 },
-    { text:'단 건 별로야\n— 담백한 게 좋아', strongScore:0, gentleScore:2 },
+    { text:'달달할수록 좋아\n— 당도 높을수록 행복해', strongScore:2, gentleScore:0, emoji:'🍯' },
+    { text:'적당히 달달한 정도가 딱\n— 너무 달면 느끼해', strongScore:1, gentleScore:0, emoji:'🍬' },
+    { text:'단 건 별로야\n— 담백한 게 좋아', strongScore:0, gentleScore:2, emoji:'🍃' },
   ]},
   { id:'q5', axis:'a2', text:'스트레스 받을 때\n나는?', opts:[
-    { text:'사람 만나면서 풀어\n— 혼자 있으면 더 힘들어', a2:'care' },
-    { text:'누군가와 함께 맛있는 거 먹으면서\n— 같이 먹어야 더 맛있어', a2:'care' },
-    { text:'혼자 조용히 있어야 풀려\n— 나만의 공간이 필요해', a2:'self' },
-    { text:'혼자 운동하면서 날려버려\n— 땀 흘리면 다 풀려', a2:'self' },
+    { text:'사람 만나면서 풀어\n— 혼자 있으면 더 힘들어', a2:'care', emoji:'🫂' },
+    { text:'누군가와 함께 맛있는 거 먹으면서\n— 같이 먹어야 더 맛있어', a2:'care', emoji:'🍽️' },
+    { text:'혼자 조용히 있어야 풀려\n— 나만의 공간이 필요해', a2:'self', emoji:'🌙' },
+    { text:'혼자 운동하면서 날려버려\n— 땀 흘리면 다 풀려', a2:'self', emoji:'💪' },
   ]},
   { id:'q7', axis:'a3', text:'새콤한 맛이 느껴질 때\n당신은?', opts:[
-    { text:'새콤할수록 좋아\n— 입이 살아나는 느낌', strongScore:2, gentleScore:0 },
-    { text:'살짝 새콤한 정도면 딱 좋아\n— 적당한 게 최고야', strongScore:1, gentleScore:0 },
-    { text:'신 건 별로야\n— 단게 훨씬 나아', strongScore:0, gentleScore:2 },
+    { text:'새콤할수록 좋아\n— 입이 살아나는 느낌', strongScore:2, gentleScore:0, emoji:'🍋' },
+    { text:'살짝 새콤한 정도면 딱 좋아\n— 적당한 게 최고야', strongScore:1, gentleScore:0, emoji:'🍊' },
+    { text:'신 건 별로야\n— 단게 훨씬 나아', strongScore:0, gentleScore:2, emoji:'🍑' },
   ]},
   { id:'q3', axis:'a1', text:'새로운 걸 시작할 때\n나는?', opts:[
-    { text:'정보 충분히 모으고 나서\n— 알고 시작해야 실패가 없어', a1:'routine' },
-    { text:'계획부터 세우고 단계적으로\n— 준비가 돼야 시작하지', a1:'routine' },
-    { text:'일단 해보고 맞춰가\n— 해보면서 배우는 거지', a1:'free' },
-    { text:'영감 생길 때 바로\n— 그 순간 지나면 흥미가 식어', a1:'free' },
+    { text:'정보 충분히 모으고 나서\n— 알고 시작해야 실패가 없어', a1:'routine', emoji:'📚' },
+    { text:'계획부터 세우고 단계적으로\n— 준비가 돼야 시작하지', a1:'routine', emoji:'🗺️' },
+    { text:'일단 해보고 맞춰가\n— 해보면서 배우는 거지', a1:'free', emoji:'🚀' },
+    { text:'영감 생길 때 바로\n— 그 순간 지나면 흥미가 식어', a1:'free', emoji:'💡' },
   ]},
   { id:'q8', axis:'a3tie', text:'과일 먹을 때\n식감은?', opts:[
-    { text:'아삭아삭 씹히는 게 최고야\n— 식감이 살아있어야 해', a3tie:'vitamin' },
-    { text:'과즙이 팡 터지는 느낌\n— 이게 진짜 과일이지', a3tie:'vitamin' },
-    { text:'부드럽고 촉촉한 게 좋아\n— 편하게 먹어야지', a3tie:'healing' },
+    { text:'아삭아삭 씹히는 게 최고야\n— 식감이 살아있어야 해', a3tie:'vitamin', emoji:'🥕' },
+    { text:'과즙이 팡 터지는 느낌\n— 이게 진짜 과일이지', a3tie:'vitamin', emoji:'💦' },
+    { text:'부드럽고 촉촉한 게 좋아\n— 편하게 먹어야지', a3tie:'healing', emoji:'🌸' },
   ]},
   { id:'q9', axis:'mkt', text:'우리 집 냉장고\n과일 칸은?', opts:[
-    { text:'항상 가득 채워져 있어\n— 떨어지면 바로 사', mktVal:'주2회이상' },
-    { text:'일주일에 한 번 정도 채워놔', mktVal:'주1회' },
-    { text:'2주에 한 번? 생각날 때 사는 편', mktVal:'격주' },
-    { text:'사실 거의 비어있어\n— 과일 잘 안 사게 되더라고', mktVal:'비정기' },
+    { text:'항상 가득 채워져 있어\n— 떨어지면 바로 사', mktVal:'주2회이상', emoji:'🧺' },
+    { text:'일주일에 한 번 정도 채워놔', mktVal:'주1회', emoji:'📅' },
+    { text:'2주에 한 번? 생각날 때 사는 편', mktVal:'격주', emoji:'🗓️' },
+    { text:'사실 거의 비어있어\n— 과일 잘 안 사게 되더라고', mktVal:'비정기', emoji:'🪴' },
   ]},
   { id:'q10', axis:'mkt', text:'우리 집에서 과일이\n사라지는 이유는?', opts:[
-    { text:'애들 간식으로 가족이 다 먹어\n— 없으면 서운해해', mktVal:'가족용' },
-    { text:'운동하고 나서 내가 챙겨먹어\n— 이게 진짜 루틴이지', mktVal:'건강관리용' },
-    { text:'다이어트 한다고 열심히 먹어\n— 건강하게 빼야지', mktVal:'다이어트용' },
-    { text:'소중한 사람한테 선물할 때 주로 사', mktVal:'선물용' },
-    { text:'그냥 맛있어서 혼자 다 먹어\n— 먹는 게 행복이지', mktVal:'본인취식' },
+    { text:'애들 간식으로 가족이 다 먹어\n— 없으면 서운해해', mktVal:'가족용', emoji:'👨‍👩‍👧' },
+    { text:'운동하고 나서 내가 챙겨먹어\n— 이게 진짜 루틴이지', mktVal:'건강관리용', emoji:'🏋️' },
+    { text:'다이어트 한다고 열심히 먹어\n— 건강하게 빼야지', mktVal:'다이어트용', emoji:'🥗' },
+    { text:'소중한 사람한테 선물할 때 주로 사', mktVal:'선물용', emoji:'🎁' },
+    { text:'그냥 맛있어서 혼자 다 먹어\n— 먹는 게 행복이지', mktVal:'본인취식', emoji:'😋' },
   ]},
   { id:'q11', axis:'mkt', text:'과일 고를 때\n가장 먼저 마음이 가는 건?', opts:[
-    { text:'맛있을 것 같은 느낌\n— 이게 제일 중요해', mktVal:'품질중시형' },
-    { text:'믿을 수 있는 곳인지\n— 신뢰가 먼저야', mktVal:'신뢰중시형' },
-    { text:'신선하게 올 것 같은지\n— 신선함이 생명이지', mktVal:'배송중시형' },
-    { text:'가격이 납득되는지\n— 가성비가 맞아야 해', mktVal:'가성비형' },
+    { text:'맛있을 것 같은 느낌\n— 이게 제일 중요해', mktVal:'품질중시형', emoji:'👅' },
+    { text:'믿을 수 있는 곳인지\n— 신뢰가 먼저야', mktVal:'신뢰중시형', emoji:'🛡️' },
+    { text:'신선하게 올 것 같은지\n— 신선함이 생명이지', mktVal:'배송중시형', emoji:'🌿' },
+    { text:'가격이 납득되는지\n— 가성비가 맞아야 해', mktVal:'가성비형', emoji:'💰' },
   ]},
 ];
 
@@ -242,6 +243,37 @@ export default function SurveyClient() {
   const [sharingInsta, setSharingInsta] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
 
+  /* 맞춤 상품 */
+  interface RecProduct {
+    id: string; name: string; price: number; discounted_price: number;
+    discount_rate: number; thumbnail_url: string | null; category: string; avg_rating: number;
+  }
+  const [recProducts, setRecProducts] = useState<RecProduct[]>([]);
+
+  useEffect(() => {
+    if (!result) return;
+    async function loadRecs() {
+      const supabase = createClient();
+      /* axis3: vitamin→강한맛 과일, healing→부드러운 과일 */
+      const cats = result!.axis3 === 'vitamin'
+        ? ['citrus', 'berry', 'apple']
+        : ['melon', 'grape', 'kiwi'];
+      /* axis1: routine→베스트 우선, free→신상 우선 */
+      const order = result!.axis1 === 'routine'
+        ? { col: 'is_best', asc: false }
+        : { col: 'created_at', asc: false };
+      const { data } = await supabase
+        .from('products')
+        .select('id,name,price,discounted_price,discount_rate,thumbnail_url,category,avg_rating')
+        .in('category', cats)
+        .eq('is_active', true)
+        .order(order.col, { ascending: order.asc })
+        .limit(6);
+      if (data) setRecProducts(data as RecProduct[]);
+    }
+    loadRecs();
+  }, [result]);
+
   const TOTAL = QS.length;
   const currentQ = QS[step];
 
@@ -364,7 +396,7 @@ export default function SurveyClient() {
         <p style={{ fontSize:13, color:'#AAA', marginBottom:36 }}>총 11문항 · 3분 소요</p>
         <button
           onClick={() => setPhase('info')}
-          style={{ padding:'16px 48px', background:'var(--color-accent)', color:'#fff', border:'none', borderRadius:12, fontSize:17, fontWeight:800, cursor:'pointer', boxShadow:'0 4px 20px rgba(180,100,40,0.25)' }}>
+          style={{ padding:'16px 48px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:12, fontSize:17, fontWeight:800, cursor:'pointer', boxShadow:'0 4px 20px rgba(0,0,0,0.15)' }}>
           테스트 시작하기 →
         </button>
         <p style={{ fontSize:12, color:'#BBB', marginTop:20 }}>비회원도 참여 가능 · 회원가입 시 상세 결과 공개</p>
@@ -374,17 +406,13 @@ export default function SurveyClient() {
 
   // ════════ INFO ════════
   if (phase === 'info') {
-    const infoComplete = info.gender && info.age && info.family;
     const S: React.CSSProperties = { padding:'12px 16px', border:'1.5px solid #EBEBEB', borderRadius:10, fontSize:14, width:'100%', outline:'none', background:'#fff', fontFamily:'inherit', cursor:'pointer', appearance:'none', WebkitAppearance:'none' };
     return (
       <div style={{ minHeight:'100vh', background:'#FAFAF8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px' }}>
         <div style={{ width:'100%', maxWidth:420 }}>
-          <button onClick={() => setPhase('intro')} style={{ background:'none', border:'none', cursor:'pointer', color:'#AAA', fontSize:13, marginBottom:24, display:'flex', alignItems:'center', gap:4 }}>
-            ← 처음으로
-          </button>
-          <p style={{ fontSize:12, letterSpacing:2, color:'#A08060', fontWeight:700, marginBottom:8 }}>STEP 0 / 11</p>
+          <p style={{ fontSize:12, letterSpacing:2, color:'#888', fontWeight:700, marginBottom:8 }}>STEP 0 / 11</p>
           <h2 style={{ fontSize:22, fontWeight:800, marginBottom:6 }}>시작 전,<br />간단히 알려주세요 👋</h2>
-          <p style={{ fontSize:13, color:'#999', marginBottom:28 }}>선택하지 않아도 진행 가능해요.</p>
+          <p style={{ fontSize:13, color:'#999', marginBottom:28 }}>모두 선택하면 진단을 시작할 수 있어요.</p>
 
           <div style={{ display:'flex', flexDirection:'column', gap:16, marginBottom:36 }}>
             <div>
@@ -392,7 +420,7 @@ export default function SurveyClient() {
               <div style={{ display:'flex', gap:8 }}>
                 {[['male','남성'],['female','여성'],['none','선택 안 할게요']].map(([v,l]) => (
                   <button key={v} onClick={() => setInfo(p => ({...p, gender:v}))}
-                    style={{ flex:1, padding:'11px 0', border:`1.5px solid ${info.gender===v?'var(--color-accent)':'#EBEBEB'}`, borderRadius:10, background:info.gender===v?'var(--color-accent-bg)':'#fff', color:info.gender===v?'var(--color-accent)':'#555', fontSize:13, fontWeight:info.gender===v?700:400, cursor:'pointer' }}>
+                    style={{ flex:1, padding:'11px 0', border:`1.5px solid ${info.gender===v?'#1A1A1A':'#EBEBEB'}`, borderRadius:10, background:info.gender===v?'#F4F4F4':'#fff', color:info.gender===v?'#1A1A1A':'#555', fontSize:13, fontWeight:info.gender===v?700:400, cursor:'pointer' }}>
                     {l}
                   </button>
                 ))}
@@ -410,7 +438,7 @@ export default function SurveyClient() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 {[['1','1인 가구'],['2','2인 가구'],['3-4','3~4인 가구'],['5plus','5인 이상']].map(([v,l]) => (
                   <button key={v} onClick={() => setInfo(p => ({...p, family:v}))}
-                    style={{ padding:'11px 0', border:`1.5px solid ${info.family===v?'var(--color-accent)':'#EBEBEB'}`, borderRadius:10, background:info.family===v?'var(--color-accent-bg)':'#fff', color:info.family===v?'var(--color-accent)':'#555', fontSize:13, fontWeight:info.family===v?700:400, cursor:'pointer' }}>
+                    style={{ padding:'11px 0', border:`1.5px solid ${info.family===v?'#1A1A1A':'#EBEBEB'}`, borderRadius:10, background:info.family===v?'#F4F4F4':'#fff', color:info.family===v?'#1A1A1A':'#555', fontSize:13, fontWeight:info.family===v?700:400, cursor:'pointer' }}>
                     {l}
                   </button>
                 ))}
@@ -418,10 +446,28 @@ export default function SurveyClient() {
             </div>
           </div>
 
-          <button onClick={() => setPhase('quiz')}
-            style={{ width:'100%', padding:'16px', background:'var(--color-accent)', color:'#fff', border:'none', borderRadius:12, fontSize:16, fontWeight:800, cursor:'pointer' }}>
-            {infoComplete ? '진단 시작하기 →' : '건너뛰고 시작하기 →'}
-          </button>
+          {(() => {
+            const allFilled = info.gender !== '' && info.age !== '' && info.family !== '';
+            return (
+              <button
+                onClick={() => { if (allFilled) setPhase('quiz'); }}
+                disabled={!allFilled}
+                style={{ width:'100%', padding:'16px', background: allFilled ? '#1A1A1A' : '#CFCFCF',
+                  color:'#fff', border:'none', borderRadius:12, fontSize:16, fontWeight:800,
+                  cursor: allFilled ? 'pointer' : 'not-allowed', transition:'background .2s' }}>
+                진단 시작하기 →
+              </button>
+            );
+          })()}
+
+          <div style={{ marginTop:16, textAlign:'center' }}>
+            <button onClick={() => setPhase('intro')}
+              style={{ background:'none', border:'1.5px solid #E0E0E0', borderRadius:10,
+                padding:'11px 32px', cursor:'pointer', color:'#888', fontSize:14,
+                fontWeight:600, fontFamily:'inherit' }}>
+              ← 처음으로
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -437,28 +483,25 @@ export default function SurveyClient() {
 
         {/* 진행바 */}
         <div style={{ padding:'16px 20px 0', maxWidth:520, width:'100%', margin:'0 auto' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-            <button onClick={handleBack} style={{ background:'none', border:'none', cursor:'pointer', color:'#AAA', fontSize:13, display:'flex', alignItems:'center', gap:4, padding:0 }}>
-              ← 이전
-            </button>
+          <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', marginBottom:8 }}>
             <span style={{ fontSize:13, fontWeight:700, color:'#888' }}>{step + 1} / {TOTAL}</span>
           </div>
           <div style={{ height:6, background:'#E8E8E8', borderRadius:99, overflow:'hidden' }}>
-            <div style={{ height:'100%', width:`${progress}%`, background:'var(--color-accent)', borderRadius:99, transition:'width .3s' }} />
+            <div style={{ height:'100%', width:`${progress}%`, background:'#1A1A1A', borderRadius:99, transition:'width .3s' }} />
           </div>
         </div>
 
         {/* 중간 흥미 유발 */}
         {isMidPoint && (
           <div style={{ textAlign:'center', padding:'10px', marginTop:8 }}>
-            <span style={{ fontSize:13, color:'var(--color-accent)', fontWeight:700, background:'var(--color-accent-bg)', padding:'4px 14px', borderRadius:20 }}>
+            <span style={{ fontSize:13, color:'#7050C0', fontWeight:700, background:'#EDE0FF', padding:'4px 14px', borderRadius:20 }}>
               🎉 거의 다 왔어요! 조금만 더!
             </span>
           </div>
         )}
 
         {/* 질문 카드 */}
-        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 20px 40px', maxWidth:520, width:'100%', margin:'0 auto' }}>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'28px 20px 40px', maxWidth:520, width:'100%', margin:'0 auto' }}>
           <div style={{
             width:'100%', opacity: transitioning ? 0 : 1,
             transform: transitioning ? 'translateY(10px)' : 'none',
@@ -466,7 +509,7 @@ export default function SurveyClient() {
           }}>
             {/* 질문 텍스트 */}
             <div style={{ textAlign:'center', marginBottom:32 }}>
-              <p style={{ fontSize:11, letterSpacing:2, color:'#A08060', fontWeight:700, marginBottom:10 }}>
+              <p style={{ fontSize:11, letterSpacing:2, color:'#888', fontWeight:700, marginBottom:10 }}>
                 Q{step + 1}
               </p>
               <h2 style={{ fontSize:'clamp(20px,4vw,26px)', fontWeight:800, lineHeight:1.4, color:'#1A1A1A', whiteSpace:'pre-line' }}>
@@ -476,25 +519,54 @@ export default function SurveyClient() {
 
             {/* 선택지 */}
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {currentQ.opts.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelect(i)}
-                  style={{
-                    width:'100%', textAlign:'left', padding:'16px 20px',
-                    border:`1.5px solid ${selected===i ? 'var(--color-accent)' : '#E8E8E8'}`,
-                    borderRadius:14, background: selected===i ? 'var(--color-accent-bg)' : '#fff',
-                    cursor:'pointer', transition:'all .15s',
-                    boxShadow: selected===i ? '0 2px 12px rgba(180,100,40,0.15)' : 'none',
-                  }}
-                  onMouseEnter={e => { if (selected===null) (e.currentTarget as HTMLButtonElement).style.borderColor='var(--color-accent)'; }}
-                  onMouseLeave={e => { if (selected===null) (e.currentTarget as HTMLButtonElement).style.borderColor='#E8E8E8'; }}
-                >
-                  <p style={{ fontSize:14, fontWeight: selected===i ? 700 : 500, color: selected===i ? 'var(--color-accent)' : '#1A1A1A', lineHeight:1.6, margin:0, whiteSpace:'pre-line' }}>
-                    {opt.text}
-                  </p>
-                </button>
-              ))}
+              {currentQ.opts.map((opt, i) => {
+                const [headline, sub] = opt.text.split('\n');
+                const isActive = selected === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleSelect(i)}
+                    style={{
+                      width:'100%', textAlign:'left',
+                      padding:'18px 20px',
+                      border:`1.5px solid ${isActive ? '#1A1A1A' : '#EBEBEB'}`,
+                      borderRadius:16,
+                      background: isActive ? '#F5F5F5' : '#fff',
+                      cursor:'pointer', transition:'border-color .15s, background .15s',
+                      display:'flex', alignItems:'center', justifyContent:'space-between', gap:16,
+                      fontFamily:'inherit',
+                    }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor='#AAAAAA'; }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.borderColor='#EBEBEB'; }}
+                  >
+                    {/* 텍스트 */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:16, fontWeight:700, color:'#1A1A1A', lineHeight:1.3, marginBottom: sub ? 4 : 0 }}>
+                        {headline}
+                      </div>
+                      {sub && (
+                        <div style={{ fontSize:13, color:'#888', lineHeight:1.5 }}>
+                          {sub.replace(/^—\s*/, '')}
+                        </div>
+                      )}
+                    </div>
+                    {/* 이모지 */}
+                    <div style={{ fontSize:30, flexShrink:0, lineHeight:1 }}>
+                      {opt.emoji}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 이전 버튼 */}
+            <div style={{ marginTop:20, textAlign:'center' }}>
+              <button onClick={handleBack}
+                style={{ background:'none', border:'1.5px solid #E0E0E0', borderRadius:10,
+                  padding:'11px 32px', cursor:'pointer', color:'#888', fontSize:14,
+                  fontWeight:600, fontFamily:'inherit' }}>
+                ← 이전
+              </button>
             </div>
           </div>
         </div>
@@ -508,29 +580,46 @@ export default function SurveyClient() {
 
   const isLoggedIn = !!user;
 
+  const tags = [
+    result.axis1 === 'routine' ? '루틴형' : '자유형',
+    result.axis2 === 'care'    ? '케어형' : '자기충전형',
+    result.axis3 === 'vitamin' ? '비타민형' : '힐링형',
+  ];
+
   return (
     <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
 
       {/* 히어로 */}
-      <div style={{ background: res.bg, padding:'48px 20px 40px', textAlign:'center' }}>
-        <p style={{ fontSize:11, letterSpacing:3, color: res.color, fontWeight:700, marginBottom:12 }}>MY WELLNESS TYPE</p>
-        <div style={{ fontSize:80, marginBottom:16 }}>{res.emoji}</div>
-        <h1 style={{ fontSize:'clamp(28px,6vw,44px)', fontWeight:900, color: res.color, marginBottom:8 }}>
-          {res.name}
-        </h1>
-        <p style={{ fontSize:16, color:'#444', fontWeight:600, marginBottom:20 }}>{res.tagline}</p>
+      <div style={{ background: res.bg, padding:'36px 20px 28px' }}>
+        <p style={{ fontSize:11, letterSpacing:3, color: res.color, fontWeight:700, marginBottom:18, textAlign:'center' }}>MY WELLNESS TYPE</p>
 
-        {/* 유형 뱃지 */}
-        <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap' }}>
-          {[
-            result.axis1 === 'routine' ? '루틴형' : '자유형',
-            result.axis2 === 'care'    ? '케어형' : '자기충전형',
-            result.axis3 === 'vitamin' ? '비타민형' : '힐링형',
-          ].map(tag => (
-            <span key={tag} style={{ fontSize:12, fontWeight:700, background:'rgba(255,255,255,0.7)', color: res.color, padding:'4px 12px', borderRadius:20, border:`1px solid ${res.color}` }}>
-              {tag}
-            </span>
-          ))}
+        {/* 결과 카드 — 이미지 스타일 */}
+        <div style={{
+          background:'#fff', borderRadius:18,
+          border:`2px solid ${res.color}`,
+          padding:'20px 20px 20px 24px',
+          display:'flex', justifyContent:'space-between', alignItems:'center',
+          boxShadow:`0 6px 24px ${res.color}25`,
+          maxWidth:560, margin:'0 auto',
+        }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <h1 style={{ fontSize:28, fontWeight:900, color: res.color, marginBottom:6, letterSpacing:-0.5 }}>
+              {res.name}
+            </h1>
+            <p style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:12 }}>{res.tagline}</p>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {tags.map(tag => (
+                <span key={tag} style={{
+                  fontSize:11, fontWeight:700,
+                  background:`${res.color}18`, color: res.color,
+                  padding:'3px 10px', borderRadius:20,
+                }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize:56, marginLeft:20, flexShrink:0, lineHeight:1 }}>{res.emoji}</div>
         </div>
       </div>
 
@@ -546,10 +635,10 @@ export default function SurveyClient() {
               나에게 딱 맞는 분석을 확인해보세요.
             </p>
             <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
-              <Link href="/signup" style={{ padding:'12px 28px', background:'var(--color-accent)', color:'#fff', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
+              <Link href="/signup" style={{ padding:'12px 28px', background:'#1A1A1A', color:'#fff', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
                 회원가입하고 결과 보기
               </Link>
-              <Link href="/login" style={{ padding:'12px 28px', border:'1.5px solid var(--color-accent)', color:'var(--color-accent)', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
+              <Link href="/login" style={{ padding:'12px 28px', border:'1.5px solid #1A1A1A', color:'#1A1A1A', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
                 로그인
               </Link>
             </div>
@@ -592,7 +681,7 @@ export default function SurveyClient() {
                 {[
                   { icon:'✅', label:'잘 하고 있어요', text: res.doingWell, bg:'#F0FAF3', border:'#B2DFCC', labelColor:'#2D7A4D' },
                   { icon:'⚠️', label:'놓치기 쉬운 것', text: res.missing,   bg:'#FFFBE6', border:'#FFE08A', labelColor:'#8A6000' },
-                  { icon:'💡', label:'이렇게 해보세요', text: res.tryThis,   bg:'#F4EFE6', border:'#E0C89A', labelColor:'var(--color-accent)' },
+                  { icon:'💡', label:'이렇게 해보세요', text: res.tryThis,   bg:'#F4EFE6', border:'#E0C89A', labelColor:'#1A1A1A' },
                 ].map(item => (
                   <div key={item.label} style={{ padding:'16px', background: item.bg, borderRadius:12, border:`1px solid ${item.border}` }}>
                     <p style={{ fontSize:12, fontWeight:700, color: item.labelColor, marginBottom:6 }}>{item.icon} {item.label}</p>
@@ -603,7 +692,7 @@ export default function SurveyClient() {
             </section>
 
             {/* ④ 추천 과일 */}
-            <section style={{ marginBottom:28, padding:'24px', background: res.bg, borderRadius:16 }}>
+            <section style={{ marginBottom:28, padding:'24px', background:'#FAFAF8', borderRadius:16 }}>
               <h2 style={{ fontSize:16, fontWeight:800, marginBottom:14, color: res.color }}>🍑 당신에게 맞는 과일</h2>
               <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
                 <span style={{ fontSize:32 }}>{res.emoji}</span>
@@ -612,9 +701,82 @@ export default function SurveyClient() {
                   <p style={{ fontSize:13, color:'#666' }}>{res.fruitTime}</p>
                 </div>
               </div>
-              <Link href="/category" style={{ display:'inline-block', marginTop:12, padding:'11px 24px', background:'var(--color-accent)', color:'#fff', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
-                지금 나에게 맞는 과일 만나보세요 →
-              </Link>
+            </section>
+
+            {/* ⑤ 맞춤 상품 추천 */}
+            <section style={{ marginBottom:28 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                <h2 style={{ fontSize:16, fontWeight:800 }}>🛒 나를 위한 추천 상품</h2>
+                <Link href="/category" style={{ fontSize:12, color:'#888', textDecoration:'none', fontWeight:600 }}>
+                  전체보기 →
+                </Link>
+              </div>
+
+              {recProducts.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13,
+                  background:'#F7F7F5', borderRadius:12 }}>
+                  상품을 불러오는 중...
+                </div>
+              ) : (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12 }}>
+                  {recProducts.map(p => {
+                    const EMOJI_MAP: Record<string,string> = {
+                      apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
+                      kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
+                    };
+                    const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
+                    const price = p.discounted_price ?? p.price;
+                    const rating = p.avg_rating ? p.avg_rating.toFixed(1) : null;
+                    return (
+                      <Link key={p.id} href={`/product/${p.id}`}
+                        style={{ textDecoration:'none', color:'inherit' }}>
+                        <div style={{ borderRadius:14, border:'1px solid #EBEBEB',
+                          overflow:'hidden', background:'#fff',
+                          transition:'box-shadow .15s', cursor:'pointer',
+                          display:'flex', flexDirection:'column', height:'100%' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'}
+                          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow='none'}>
+                          {/* 이미지 — 고정 높이 */}
+                          <div style={{ height:140, flexShrink:0, background:'#F7F7F5',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            fontSize:44, overflow:'hidden' }}>
+                            {p.thumbnail_url
+                              ? <img src={p.thumbnail_url} alt={p.name}
+                                  style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                              : emoji}
+                          </div>
+                          {/* 텍스트 — flex-grow로 높이 균일 */}
+                          <div style={{ padding:'10px 12px 12px', flex:1,
+                            display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A',
+                              marginBottom:6, lineHeight:1.4, height:'2.8em',
+                              overflow:'hidden' }}>
+                              {p.name}
+                            </div>
+                            <div>
+                              {rating && (
+                                <div style={{ fontSize:11, color:'#F5A623', marginBottom:3 }}>
+                                  ★ {rating}
+                                </div>
+                              )}
+                              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                                {p.discount_rate > 0 && (
+                                  <span style={{ fontSize:11, fontWeight:700, color:'var(--color-accent)' }}>
+                                    {p.discount_rate}%
+                                  </span>
+                                )}
+                                <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>
+                                  {price.toLocaleString('ko-KR')}원
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           </>
         )}
@@ -625,21 +787,50 @@ export default function SurveyClient() {
           <p style={{ fontSize:18, fontWeight:800, color: res.color, fontStyle:'italic', lineHeight:1.5 }}>{res.wellness}</p>
         </div>
 
-        {/* ⑧ 공유 버튼 */}
-        <div style={{ marginBottom:40 }}>
-          <p style={{ fontSize:13, color:'#888', textAlign:'center', marginBottom:14 }}>결과 공유하기</p>
-          <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
-            <button onClick={shareKakao}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'11px 20px', background:'#FEE500', border:'none', borderRadius:10, color:'#3C1E1E', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-              💬 카카오톡
-            </button>
+        {/* ⑧ 공유 섹션 */}
+        <div style={{ marginBottom:40, background:'#F7F7F5', borderRadius:16, padding:'24px' }}>
+          <div style={{ fontSize:15, fontWeight:800, marginBottom:2 }}>결과 공유하기</div>
+          <div style={{ fontSize:12, color:'#aaa', marginBottom:20 }}>나의 웰니스 유형을 친구에게 알려보세요</div>
+
+          {/* 미니 프리뷰 카드 */}
+          <div style={{
+            background: res.bg, borderRadius:14, padding:'16px 18px',
+            display:'flex', alignItems:'center', gap:14, marginBottom:16,
+            border:`1.5px solid ${res.color}30`,
+          }}>
+            <div style={{ fontSize:36, flexShrink:0 }}>{res.emoji}</div>
+            <div>
+              <div style={{ fontSize:18, fontWeight:900, color: res.color }}>{res.name}</div>
+              <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{res.tagline}</div>
+            </div>
+          </div>
+
+          {/* 버튼 그리드 */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <button onClick={copyLink}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'11px 20px', background: copied ? '#2D7A4D' : '#F4F4F2', border:'none', borderRadius:10, color: copied ? '#fff' : '#333', fontSize:13, fontWeight:700, cursor:'pointer', transition:'all .2s' }}>
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                padding:'13px 0', background: copied ? '#2D7A4D' : '#fff',
+                border:'1.5px solid #E0E0E0', borderRadius:12,
+                color: copied ? '#fff' : '#333', fontSize:13, fontWeight:700,
+                cursor:'pointer', transition:'all .2s', fontFamily:'inherit' }}>
               {copied ? '✓ 복사됨' : '🔗 링크 복사'}
             </button>
+            <button onClick={shareKakao}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                padding:'13px 0', background:'#FEE500', border:'none', borderRadius:12,
+                color:'#3C1E1E', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
+              </svg>
+              카카오톡
+            </button>
             <button onClick={shareInstagram} disabled={sharingInsta}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'11px 20px', background: sharingInsta ? '#ccc' : 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', border:'none', borderRadius:10, color:'#fff', fontSize:13, fontWeight:700, cursor: sharingInsta ? 'not-allowed' : 'pointer', transition:'all .2s' }}>
-              {sharingInsta ? '⏳ 생성 중...' : '📸 인스타 스토리'}
+              style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+                padding:'14px 0',
+                background: sharingInsta ? '#ccc' : 'linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',
+                border:'none', borderRadius:12, color:'#fff', fontSize:14, fontWeight:700,
+                cursor: sharingInsta ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
+              {sharingInsta ? '⏳ 이미지 생성 중...' : '📸 인스타 스토리로 저장'}
             </button>
           </div>
         </div>

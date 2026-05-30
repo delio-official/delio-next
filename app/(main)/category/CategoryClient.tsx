@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart } from '@/lib/cart';
+import { addToCart, showCartToast } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
@@ -70,7 +70,7 @@ function ProductCard({ p }: { p: Product }) {
   const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
   const bg    = BG_MAP[p.category]   || '#F4EFE6';
   const deliveryClass = p.is_dawn ? 'tag-dawn' : 'tag-regular';
-  const deliveryLabel = p.is_dawn ? '새벽배송' : '택배배송';
+  const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
 
   useEffect(() => {
@@ -80,11 +80,9 @@ function ProductCard({ p }: { p: Product }) {
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
     addToCart({ id: p.id, name: p.name, price: p.discounted_price ?? p.price,
-      thumbnail: p.thumbnail_url || '', quantity: 1 });
-    const btn = e.currentTarget as HTMLButtonElement;
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓ 담겼습니다';
-    setTimeout(() => { btn.innerHTML = orig; }, 1200);
+      thumbnail: p.thumbnail_url || '', quantity: 1,
+      deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
+    showCartToast();
   }
 
   async function handleWish(e: React.MouseEvent) {
@@ -107,9 +105,8 @@ function ProductCard({ p }: { p: Product }) {
         }
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
-          <button className="product-card-wish" onClick={handleWish}
-            style={{ color: wished ? '#E53935' : undefined }}>
-            <span>{wished ? '♥' : '♡'}</span> 찜
+          <button className="product-card-wish" onClick={handleWish}>
+            <span style={{ color: wished ? '#E53935' : undefined }}>{wished ? '♥' : '♡'}</span> 찜
           </button>
           <span className="product-card-actions-divider" />
           <button className="cart-btn" onClick={handleCart}>
@@ -125,18 +122,15 @@ function ProductCard({ p }: { p: Product }) {
       {/* 카드 본문 */}
       <div className="product-card-body">
         <div className="product-brix-wrap">
-          {p.brix ? <span className="product-brix">🍬 {p.brix} brix</span> : null}
+          {p.is_new  && <span className="product-badge badge-new">NEW</span>}
+          {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
         {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
         <div className="product-price-row">
-          {p.discount_rate > 0 && (
-            <>
-              <span className="price-original">{fmtPrice(p.price)}원</span>
-              <span className="price-discount">{p.discount_rate}%</span>
-            </>
-          )}
+          {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
           <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
+          {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
         </div>
         {p.review_count > 0 && (
           <div className="product-rating-row">
@@ -189,7 +183,6 @@ export default function CategoryClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortOpen, setSortOpen] = useState(false);
-  const [filterDawn, setFilterDawn] = useState(false);
   const [page, setPage] = useState(0);
 
   /* 현재 정렬 라벨 */
@@ -203,7 +196,6 @@ export default function CategoryClient() {
     if (catParam)    q = q.eq('category', catParam);
     if (originParam) q = q.eq('origin', originParam);
     if (newParam)    q = q.eq('is_new', true);
-    if (filterDawn)  q = q.eq('is_dawn', true);
 
     switch (sortParam) {
       case 'best':       q = q.order('is_best', { ascending: false }).order('sort_order'); break;
@@ -217,11 +209,11 @@ export default function CategoryClient() {
     const { data } = await q.limit(200);
     setProducts((data as Product[]) || []);
     setLoading(false);
-  }, [catParam, originParam, sortParam, newParam, filterDawn]);
+  }, [catParam, originParam, sortParam, newParam]);
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
   /* 필터/정렬 바뀌면 첫 페이지로 리셋 */
-  useEffect(() => { setPage(0); }, [catParam, originParam, sortParam, newParam, filterDawn]);
+  useEffect(() => { setPage(0); }, [catParam, originParam, sortParam, newParam]);
 
   function setSort(val: string) {
     const p = new URLSearchParams(sp.toString());
@@ -230,41 +222,41 @@ export default function CategoryClient() {
     setSortOpen(false);
   }
 
+  /* 카테고리 변경 — origin(국산/수입) · new(신상품) 모두 유지 */
   function setCat(val: string) {
-    const p = new URLSearchParams(sp.toString());
-    if (val) p.set('cat', val); else p.delete('cat');
-    p.delete('origin'); p.delete('new');
+    const p = new URLSearchParams();
+    if (val) p.set('cat', val);
+    if (originParam) p.set('origin', originParam);
+    if (newParam)    p.set('new', 'true');
+    if (sortParam)   p.set('sort', sortParam);
     router.push(`/category?${p.toString()}`);
   }
 
-  /* 페이지 제목 */
-  let pageTitle = '전체 상품';
-  if (originParam === 'domestic') pageTitle = '국산과일';
-  else if (originParam === 'import') pageTitle = '수입과일';
-  else if (newParam) pageTitle = '신상품';
-  else if (catParam) pageTitle = CAT_TABS.find(t => t.value === catParam)?.label.replace(/^./, '') || catParam;
+  /* 신상품 전용 탭 — origin/cat 초기화 */
+  function setNew() {
+    const p = new URLSearchParams();
+    p.set('new', 'true');
+    if (sortParam) p.set('sort', sortParam);
+    router.push(`/category?${p.toString()}`);
+  }
 
   return (
     <>
       {/* ── 모바일 뷰 ── */}
       <div className="mob-product-view active">
-        <div className="mob-pv-header">
-          <button className="mob-pv-header-btn" onClick={() => router.back()}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-          <span className="mob-pv-title">{pageTitle}</span>
-        </div>
-
         <div className="mob-pv-filter">
           {CAT_TABS.map(tab => (
             <button key={tab.value}
-              className={`mob-pv-chip${catParam === tab.value && !originParam ? ' active' : ''}`}
+              className={`mob-pv-chip${catParam === tab.value ? ' active' : ''}`}
               onClick={() => setCat(tab.value)}>
               {tab.label}
             </button>
           ))}
+          <button
+            className={`mob-pv-chip mob-pv-chip-new${newParam ? ' active' : ''}`}
+            onClick={() => setNew()}>
+            ✨ 신상품
+          </button>
         </div>
 
         <div className="mob-pv-result-bar">
@@ -291,16 +283,25 @@ export default function CategoryClient() {
           <div className="pc-cat-tabs">
             {CAT_TABS.map(tab => (
               <a key={tab.value}
-                className={`pc-cat-tab${catParam === tab.value && !originParam && !newParam ? ' active' : ''}`}
+                className={`pc-cat-tab${catParam === tab.value ? ' active' : ''}`}
                 href="#" onClick={e => { e.preventDefault(); setCat(tab.value); }}>
                 {tab.label}
               </a>
             ))}
+            {/* 신상품 — 구분선 후 별도 배치 */}
+            <span className="pc-cat-tab-sep" />
+            <a
+              className={`pc-cat-tab pc-cat-tab-new${newParam ? ' active' : ''}`}
+              href="#" onClick={e => { e.preventDefault(); setNew(); }}>
+              ✨ 신상품
+            </a>
           </div>
 
           {/* 필터 바 */}
           <div className="pc-filter-bar">
-            <div className={`custom-select${sortOpen ? ' open' : ''}`}>
+            <span className="result-count">총 {products.length}개</span>
+
+            <div className={`custom-select${sortOpen ? ' open' : ''}`} style={{ marginLeft: 'auto' }}>
               <button className="custom-select-btn" onClick={() => setSortOpen(v => !v)}>
                 <span>{sortLabel}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -317,13 +318,6 @@ export default function CategoryClient() {
                 ))}
               </ul>
             </div>
-
-            <button className={`filter-chip${filterDawn ? ' active' : ''}`}
-              onClick={() => setFilterDawn(v => !v)}>
-              🌙 새벽배송
-            </button>
-
-            <span className="result-count">총 {products.length}개</span>
           </div>
 
           {/* 상품 그리드 */}

@@ -38,8 +38,8 @@ body { background: #fff; }
   transition: all .15s;
 }
 .lounge-filter.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: #1A1A1A;
+  border-color: #1A1A1A;
   color: #fff;
   font-weight: 700;
 }
@@ -130,10 +130,11 @@ body { background: #fff; }
   display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
-  background: var(--color-accent);
-  color: #fff;
+  background: transparent;
+  border: 1.5px solid #1A1A1A;
+  color: #1A1A1A;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   flex-shrink: 0;
 }
 .lounge-card-date {
@@ -204,18 +205,16 @@ body { background: #fff; }
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 500;
   border: 1.5px solid #E0E0E0; color: #888;
-  cursor: pointer; transition: all .15s; background: #fff;
+  cursor: pointer; background: #fff;
 }
-.page-btn:hover:not(:disabled) { border-color: #bbb; color: #333; }
 .page-btn:disabled { opacity: 0.35; cursor: default; }
 .page-num {
   min-width: 32px; height: 36px; padding: 0 4px;
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 500; color: #aaa;
-  background: none; border: none; cursor: pointer; transition: all .15s;
+  background: none; border: none; cursor: pointer;
 }
 .page-num.active { color: #000; font-weight: 700; }
-.page-num:hover:not(.active) { color: #555; }
 
 /* ===== 추가 유틸리티 클래스 ===== */
 .header-nav { gap: 0; }

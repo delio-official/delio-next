@@ -42,7 +42,7 @@ body { background: #fff; }
     .delivery-group-badge {
       font-size: 11px; font-weight: 700;
       padding: 3px 8px; border-radius: 999px;
-      background: var(--color-accent); color: #fff;
+      background: #1A1A1A; color: #fff;
     }
     .delivery-group-title {
       font-size: 12px; font-weight: 700; color: var(--color-ink);
@@ -54,7 +54,7 @@ body { background: #fff; }
 
     /* 상품 아이템 */
     .cart-item {
-      display: flex; align-items: flex-start; gap: 12px;
+      display: flex; align-items: center; gap: 0;
       padding: 16px;
       border-bottom: 1px solid #F4F4F4;
     }
@@ -97,7 +97,7 @@ body { background: #fff; }
       border-top: 2px solid #EBEBEB; margin-top: 8px; padding-top: 14px;
       border-bottom: none;
     }
-    .summary-row.total span:last-child { color: var(--color-accent); font-family: 'Pretendard', sans-serif; font-size: 18px; }
+    .summary-row.total span:last-child { color: var(--color-ink); font-family: 'Pretendard', sans-serif; font-size: 18px; }
 
     /* 쿠폰/포인트 입력 */
     .coupon-row {
@@ -108,7 +108,7 @@ body { background: #fff; }
       border: 1.5px solid #EBEBEB; border-radius: 8px;
       font-size: 13px; color: var(--color-ink); outline: none;
     }
-    .coupon-input:focus { border-color: var(--color-accent); }
+    .coupon-input:focus { border-color: #333; }
 
     /* CTA 버튼 */
     .cta-group {
@@ -160,9 +160,16 @@ body { background: #fff; }
 .header-nav { gap: 0; }
 .mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
 .search-drop-title-mb { margin-bottom: 14px; }
-.cart-empty-box { text-align: center; padding: 80px 0; }
-.cart-empty-icon { font-size: 56px; margin-bottom: 16px; }
-.cart-empty-text { font-size: 15px; color: var(--color-ink-mute); margin-bottom: 20px; }
+.cart-empty-box { text-align: center; padding: 100px 24px; max-width: 400px; margin: 0 auto; }
+.cart-empty-icon-svg { display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+.cart-empty-text { font-size: 14px; font-weight: 500; color: #666; margin-bottom: 24px; }
+.cart-empty-btn {
+  display: inline-block; padding: 13px 32px;
+  background: #3D6358; color: #fff;
+  border-radius: 8px; font-size: 14px; font-weight: 600;
+  text-decoration: none; transition: opacity .15s;
+}
+.cart-empty-btn:hover { opacity: 0.88; }
 .select-bar-label { font-size: 13px; font-weight: 600; }
 .select-bar-delete-btn { font-size: 12px; color: var(--color-ink-mute); padding: 5px 10px; border-radius: 6px; border: 1px solid #EBEBEB; }
 .coupon-section { margin-bottom: 14px; }
@@ -188,7 +195,7 @@ body { background: #fff; }
 .cart-delivery-text { font-size: 11px; color: var(--color-ink-soft); line-height: 1.8; }
 .mobile-cta-total-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .mobile-cta-total-label { font-size: 13px; color: var(--color-ink-mute); }
-.mobile-cta-total-val { font-family: 'Pretendard', sans-serif; font-size: 18px; font-weight: 700; color: var(--color-accent); }
+.mobile-cta-total-val { font-family: 'Pretendard', sans-serif; font-size: 18px; font-weight: 700; color: var(--color-ink); }
 .mobile-cta-btns { display: flex; gap: 8px; }
 .btn-purchase-flex { flex: 1; }
 .btn-npay-flex { flex: 1; }

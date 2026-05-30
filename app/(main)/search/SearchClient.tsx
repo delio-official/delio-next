@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart } from '@/lib/cart';
+import { addToCart, showCartToast } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/category.css';
 import '@/styles/search.css';
@@ -27,7 +27,7 @@ const BG_MAP: Record<string, string> = {
   kiwi: '#F1F8E9', mango: '#FFF9E6', grape: '#EDE7F6', gift: '#E8EAF6',
 };
 
-const POPULAR_KEYWORDS = ['한라봉', '샤인머스캣', '골드키위', '블루베리', '참외'];
+const POPULAR_FALLBACK = ['한라봉', '샤인머스캣', '골드키위', '블루베리', '참외'];
 const RECENT_KEY = 'delio_recent_searches';
 
 const SORT_OPTIONS = [
@@ -47,7 +47,7 @@ function SearchProductCard({ p }: { p: Product }) {
   const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
   const bg    = BG_MAP[p.category]   || '#F4EFE6';
   const deliveryClass = p.is_dawn ? 'tag-dawn' : 'tag-regular';
-  const deliveryLabel = p.is_dawn ? '새벽배송' : '택배배송';
+  const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
 
   useEffect(() => {
@@ -61,11 +61,9 @@ function SearchProductCard({ p }: { p: Product }) {
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
     addToCart({ id: p.id, name: p.name, price: p.discounted_price ?? p.price,
-      thumbnail: p.thumbnail_url || '', quantity: 1 });
-    const btn = e.currentTarget as HTMLButtonElement;
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓ 담겼습니다';
-    setTimeout(() => { btn.innerHTML = orig; }, 1200);
+      thumbnail: p.thumbnail_url || '', quantity: 1,
+      deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
+    showCartToast();
   }
 
   async function handleWish(e: React.MouseEvent) {
@@ -83,9 +81,8 @@ function SearchProductCard({ p }: { p: Product }) {
         }
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
-          <button className="product-card-wish" onClick={handleWish}
-            style={{ color: wished ? '#E53935' : undefined }}>
-            <span>{wished ? '♥' : '♡'}</span> 찜
+          <button className="product-card-wish" onClick={handleWish}>
+            <span style={{ color: wished ? '#E53935' : undefined }}>{wished ? '♥' : '♡'}</span> 찜
           </button>
           <span className="product-card-actions-divider" />
           <button className="cart-btn" onClick={handleCart}>
@@ -99,17 +96,18 @@ function SearchProductCard({ p }: { p: Product }) {
       </div>
       <div className="product-card-body">
         <div className="product-brix-wrap">
-          {p.brix ? <span className="product-brix">🍬 {p.brix} brix</span> : null}
+          {p.is_best && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
         <div className="product-price-row">
-          {p.discount_rate > 0 && (
-            <>
-              <span className="price-original">{fmtPrice(p.price)}원</span>
-              <span className="price-discount">{p.discount_rate}%</span>
-            </>
-          )}
+          {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
           <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
+          {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
+        </div>
+        <div>
+          <span className={`product-delivery-tag${p.is_dawn ? ' farm' : ''}`}>
+            {p.is_dawn ? '산지직송' : '자사배송'}
+          </span>
         </div>
         {p.review_count > 0 && (
           <div className="product-rating-row">
@@ -144,6 +142,7 @@ export default function SearchClient() {
   const [autocomplete, setAutocomplete] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const loggedQRef = useRef('');
 
   /* ── 결과 화면 상태 ── */
   const [products, setProducts] = useState<Product[]>([]);
@@ -163,6 +162,20 @@ export default function SearchClient() {
     brix: 0, sour: 0, priceMin: '', priceMax: '', delivery: 'all',
   });
 
+  /* ── 인기 검색어 ── */
+  const [popularKeywords, setPopularKeywords] = useState<string[]>(POPULAR_FALLBACK);
+
+  useEffect(() => {
+    createClient()
+      .from('site_settings').select('value').eq('key', 'popular_keywords').single()
+      .then(({ data }) => {
+        if (data?.value) {
+          const kws = data.value.split(',').map((s: string) => s.trim()).filter(Boolean);
+          if (kws.length > 0) setPopularKeywords(kws);
+        }
+      });
+  }, []);
+
   /* ── 최근검색어 로드 ── */
   useEffect(() => { setRecent(getRecent()); }, []);
 
@@ -172,6 +185,7 @@ export default function SearchClient() {
     sort: string,
     f: typeof filters,
     ff: typeof fruitFilter,
+    shouldLog = false,
   ) => {
     if (!q.trim()) return;
     setLoading(true);
@@ -202,14 +216,25 @@ export default function SearchClient() {
     }
 
     const { data } = await req.limit(40);
-    setProducts((data as Product[]) || []);
+    const results = (data as Product[]) || [];
+    setProducts(results);
     setLoading(false);
+
+    // 새 검색어일 때만 로그 기록 (정렬/필터 변경은 제외)
+    if (shouldLog) {
+      createClient()
+        .from('search_logs')
+        .insert({ keyword: q.trim(), result_count: results.length })
+        .then(() => {});
+    }
   }, []);
 
   useEffect(() => {
     if (urlQ) {
       setInputVal(urlQ);
-      doSearch(urlQ, currentSort, filters, fruitFilter);
+      const isNewQuery = urlQ !== loggedQRef.current;
+      if (isNewQuery) loggedQRef.current = urlQ;
+      doSearch(urlQ, currentSort, filters, fruitFilter, isNewQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlQ, currentSort, filters, fruitFilter]);
@@ -342,7 +367,7 @@ export default function SearchClient() {
             <div className="search-popular-section">
               <div className="search-popular-label">인기검색어</div>
               <div className="search-popular-pills">
-                {POPULAR_KEYWORDS.map((kw, i) => (
+                {popularKeywords.map((kw, i) => (
                   <button
                     key={i}
                     onClick={() => handleSearch(kw)}
@@ -433,9 +458,9 @@ export default function SearchClient() {
               </p>
               <p style={{ color: '#AAA', fontSize: 14, marginTop: 8 }}>다른 키워드로 검색해보세요</p>
               <div style={{ marginTop: 20, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                {POPULAR_KEYWORDS.map(kw => (
+                {popularKeywords.map(kw => (
                   <button key={kw}
-                    onClick={() => router.push(`/search?q=${encodeURIComponent(kw)}`)}
+                    onClick={() => handleSearch(kw)}
                     style={{ padding: '7px 16px', border: '1.5px solid #EBEBEB', borderRadius: 999, fontSize: 13, cursor: 'pointer', background: '#fff' }}
                   >{kw}</button>
                 ))}

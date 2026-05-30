@@ -10,8 +10,8 @@
       align-items: start;
       padding: 32px 0 40px;
     }
-    .pd-left { position: sticky; top: 72px; }
-    .pd-right { padding-right: 8px; }
+    .pd-left { position: static; }
+    .pd-right { padding-right: 8px; position: sticky; top: 72px; }
 
     /* 모바일: 단일 컬럼 */
     @media (max-width: 768px) {
@@ -30,17 +30,8 @@
       position: relative; overflow: hidden;
       background: #fff;
     }
-    .trust-overlay {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%);
-      padding: 20px 20px 16px;
-      display: flex; gap: 6px; flex-wrap: wrap;
-    }
-    .trust-pill {
-      background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.45);
-      color: #fff; font-size: 11px; font-weight: 700;
-      padding: 4px 10px; border-radius: 99px; backdrop-filter: blur(6px);
-    }
+    .trust-overlay { display: none; }
+    .trust-pill { display: none; }
     .thumb-row {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
@@ -51,14 +42,14 @@
       aspect-ratio: 1;
       width: 100%;
       border-radius: 10px;
-      border: 2px solid transparent;
+      border: 1px solid transparent;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       font-size: clamp(18px, 3vw, 28px);
       transition: border-color .15s;
       overflow: hidden;
     }
-    .thumb.active { border-color: var(--color-accent); }
+    .thumb.active { border-color: #1A1A1A; }
 
     /* ===== 상품 정보 (우측 컬럼) ===== */
     .breadcrumb { font-size: 11px; color: var(--color-ink-mute); margin-bottom: 10px; }
@@ -77,10 +68,11 @@
     .price-line { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
     .price-label { font-size: 12px; color: var(--color-ink-mute); width: 64px; flex-shrink: 0; }
     .price-original-text { font-size: 15px; color: var(--color-ink-mute); text-decoration: line-through; }
-    .price-discount-val { font-size: clamp(20px,3vw,26px); font-weight: 700; color: var(--color-accent); }
-    .price-discount-rate { font-size: 16px; font-weight: 700; color: var(--color-accent); }
+    .price-discount-val { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #1A1A1A; }
+    .price-discount-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #CB1D11; }
     .price-coupon-val { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #7B3FF2; }
-    .price-coupon-rate { font-size: 16px; font-weight: 700; color: #7B3FF2; }
+    .price-coupon-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #7B3FF2; }
+    .price-won-suffix { font-size: 14px; font-weight: 600; }
     .price-coupon-tag { font-size: 11px; font-weight: 700; background: #EDE7F6; color: #7B3FF2; border-radius: 4px; padding: 2px 6px; margin-left: 4px; }
 
     /* 회원가입 쿠폰 배너 */
@@ -103,10 +95,8 @@
       border: 1.5px solid #EEECEA; border-radius: 12px;
       padding: 14px 16px; margin-top: 8px;
       cursor: pointer; text-decoration: none;
-      transition: border-color .15s, box-shadow .15s;
       background: #fff;
     }
-    .brand-card:hover { border-color: var(--color-accent-soft); box-shadow: 0 2px 12px rgba(0,0,0,.06); }
     .brand-card-logo {
       width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0;
       background: var(--color-bg); display: flex; align-items: center;
@@ -118,8 +108,7 @@
     .brand-card-desc { font-size: 12px; color: var(--color-ink-mute); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .brand-card-sub { font-size: 11px; color: var(--color-ink-mute); margin-top: 1px; }
     .brand-card-wish { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
-    .brand-card-wish-btn { font-size: 18px; background: none; border: none; cursor: pointer; color: var(--color-ink-mute); transition: color .15s; }
-    .brand-card-wish-btn:hover { color: #E55A4B; }
+    .brand-card-wish-btn { font-size: 18px; background: none; border: none; cursor: pointer; color: var(--color-ink-mute); }
     .brand-card-wish-count { font-size: 11px; color: var(--color-ink-mute); font-weight: 600; }
 
     /* ===== 맛 점수 ===== */
@@ -139,7 +128,6 @@
 
     /* ===== 옵션 ===== */
     .option-section {
-      border-top: 1px solid var(--color-line-soft);
       padding-top: 20px; margin-top: 4px;
     }
     @media (max-width: 768px) {
@@ -165,6 +153,13 @@
 
     /* ===== CTA ===== */
     .cta-bar-pc { display: flex; gap: 12px; margin-top: 16px; }
+    /* CTA 버튼 hover 효과 제거 */
+    .cta-bar-pc .btn,
+    .mobile-cta-bar .btn { transition: none !important; }
+    .cta-bar-pc .btn-secondary:hover,
+    .mobile-cta-bar .btn-secondary:hover { background: var(--color-bg-white) !important; border-color: var(--color-line) !important; }
+    .cta-bar-pc .btn-primary:hover,
+    .mobile-cta-bar .btn-primary:hover { background: #1A1A1A !important; border-color: #1A1A1A !important; }
     .mobile-cta-bar {
       display: none;
       position: fixed; bottom: 58px; left: 0; right: 0; z-index: 800;
@@ -189,11 +184,16 @@
       cursor: pointer; border-bottom: 2px solid transparent;
       transition: color .15s, border-color .15s; white-space: nowrap;
     }
-    .pd-tab.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+    .pd-tab.active { color: #1A1A1A; border-bottom-color: #1A1A1A; }
     .tab-content { padding: 24px 20px; background: #fff; }
     @media (min-width: 769px) {
       .tab-content { padding: 32px 0; }
+      /* container와 함께 쓸 때 — 이중 클래스로 우선순위 확보 */
+      .tab-content.container { padding: 32px 60px; }
       .pd-tabs-section { background: #fff; }
+    }
+    @media (min-width: 1100px) {
+      .tab-content.container { padding: 32px 80px; }
     }
 
     /* ===== 후기 ===== */
@@ -212,8 +212,8 @@
     .info-table td:last-child { color: var(--color-ink); }
 
     /* ===== 문의 ===== */
-    .qna-header { text-align: center; padding: 32px 0 24px; border-bottom: 1px solid #EEECEA; }
-    .qna-header-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .qna-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 0; border-bottom: 1px solid #EEECEA; }
+    .qna-header-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
     .qna-header-sub { font-size: 13px; color: var(--color-ink-mute); }
     .qna-row {
       display: grid;
@@ -240,19 +240,23 @@
       padding: 9px 22px; background: #1A1A1A; border: none;
       border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; color: #fff;
     }
-    .pd-page-btn.arrow { border-color: transparent; background: transparent; }
-
     /* ===== 페이지네이션 ===== */
     .pd-pagination {
-      display: flex; justify-content: center; gap: 4px; margin-top: 24px;
+      display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 24px;
     }
     .pd-page-btn {
-      width: 32px; height: 32px; border-radius: 6px;
-      font-size: 13px; font-weight: 600;
-      border: 1.5px solid #EBEBEB; background: #fff;
-      color: var(--color-ink-mute); cursor: pointer; transition: all .15s;
+      min-width: 32px; height: 36px; padding: 0 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 500; color: #aaa;
+      background: none; border: none; cursor: pointer;
     }
-    .pd-page-btn.active { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+    .pd-page-btn.active { color: #000; font-weight: 700; }
+    .pd-page-btn.arrow {
+      width: 36px; height: 36px; padding: 0;
+      border-radius: 50%; border: 1.5px solid #E0E0E0;
+      background: #fff; color: #888; font-size: 12px;
+    }
+    .pd-page-btn.arrow:disabled { opacity: 0.35; cursor: default; }
 
     /* ===== 배송 정보 테이블 ===== */
     .pd-info-table {
@@ -270,11 +274,11 @@
     /* ===== 출발 안내 ===== */
     .pd-dispatch-notice {
       display: flex; align-items: center; gap: 10px;
-      background: #F0FAF3; border: 1px solid #B2DFCC; border-radius: 8px;
-      padding: 12px 14px; margin-bottom: 16px;
-      color: var(--color-ink-soft);
+      background: #E0F2FE; border: 1px solid #BAE6FD; border-radius: 8px;
+      padding: 12px 14px; margin-top: 20px; margin-bottom: 16px;
+      color: #0369A1;
     }
-    .pd-dispatch-notice svg { flex-shrink: 0; color: #2E7D52; }
+    .pd-dispatch-notice svg { flex-shrink: 0; color: #0284C7; }
 
     /* ===== 맛 프로파일 VS ===== */
     .taste-profile-vs {
@@ -304,8 +308,8 @@
     .taste-vs-tab-slider {
       position: absolute; top: 3px; left: 3px;
       width: calc(50% - 3px); height: calc(100% - 6px);
-      background: var(--color-accent); border-radius: 99px;
-      box-shadow: 0 1px 5px rgba(203,29,17,0.3);
+      background: #1A1A1A; border-radius: 99px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.15);
       transition: transform .28s cubic-bezier(.4,0,.2,1);
       pointer-events: none;
     }

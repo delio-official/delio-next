@@ -6,8 +6,12 @@ import { useRouter } from 'next/navigation';
 import { useCartCount } from '@/hooks/useCartCount';
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
+import { createClient } from '@/lib/supabase';
 
-const POPULAR = ['한라봉', '샤인머스캣', '제스프리 골드키위', '충주 사과', '블루베리'];
+const POPULAR_FALLBACK = [
+  '한라봉', '샤인머스캣', '제스프리 골드키위', '충주 사과', '블루베리',
+  '제주 감귤', '거봉 포도', '국산 딸기', '망고', '키위',
+];
 const RECENT_KEY = 'delio_recent_searches';
 
 function getRecent(): string[] {
@@ -27,8 +31,10 @@ export default function Header() {
   const [dropOpen, setDropOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
+  const [popular, setPopular] = useState<string[]>(POPULAR_FALLBACK);
 
   const searchWrapRef = useRef<HTMLDivElement>(null);
+  const popularLoadedRef = useRef(false);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -39,12 +45,31 @@ export default function Header() {
     return () => document.removeEventListener('click', handleClick);
   }, [megaOpen]);
 
+  // 인기 검색어 DB에서 로드 (최초 1회)
+  useEffect(() => {
+    async function loadPopular() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'popular_keywords')
+        .single();
+      if (data?.value) {
+        const kws = data.value.split(',').map((s: string) => s.trim()).filter(Boolean);
+        if (kws.length > 0) setPopular(kws);
+      }
+    }
+    loadPopular();
+  }, []);
+
   const openDrop = useCallback(() => {
     setRecent(getRecent());
     setDropOpen(true);
+    // 드롭다운 열릴 때 아직 안 로드됐으면 재시도 (fallback으로 이미 채워져 있음)
+    if (!popularLoadedRef.current) popularLoadedRef.current = true;
   }, []);
 
-  function handleSearch(e: React.FormEvent<HTMLFormElement>) {
+  function handleSearch(e: { preventDefault(): void }) {
     e.preventDefault();
     const q = query.trim();
     if (q) {
@@ -111,7 +136,9 @@ export default function Header() {
                 </svg>
               </button>
 
-              <Link href="/" className="header-logo">Delio</Link>
+              <Link href="/" className="header-logo">
+                <img src="/DelioLogo.png" alt="Delio" style={{ height:52, width:'auto', display:'block', objectFit:'contain' }} />
+              </Link>
 
               {/* 검색 */}
               <div className="search-wrap" ref={searchWrapRef}>
@@ -154,10 +181,10 @@ export default function Header() {
                     <div className="search-drop-section">
                       <div className="search-drop-title search-drop-title-mb">인기 검색어</div>
                       <div className="search-popular-grid">
-                        {POPULAR.map((q, i) => (
-                          <div key={i} className="search-popular-item" onClick={() => { router.push(`/search?q=${encodeURIComponent(q)}`); setDropOpen(false); }}>
-                            <span className={`search-popular-num${i < 3 ? ' top3' : ''}`}>{i + 1}</span>
-                            <span className="search-popular-text">{q}</span>
+                        {popular.map((kw, i) => (
+                          <div key={i} className="search-popular-item" onClick={() => { router.push(`/search?q=${encodeURIComponent(kw)}`); setDropOpen(false); }}>
+                            <span className="search-popular-num">{i + 1}</span>
+                            <span className="search-popular-text">{kw}</span>
                           </div>
                         ))}
                       </div>
@@ -166,7 +193,7 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/faq" className="header-delivery-btn">새벽·택배 배송안내</Link>
+              <Link href="/shipping" className="header-delivery-btn">배송안내</Link>
 
               <div className="header-actions">
                 <button className="mob-search-btn" onClick={() => router.push('/search')} title="검색">
@@ -206,21 +233,22 @@ export default function Header() {
                   <div className="mega-card">
                     <div className="mega-inner">
                       <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/category?origin=domestic">국산과일</Link></div>
+                        <div className="mega-col-title"><Link href="/domestic">국산과일</Link></div>
                         <Link href="/category?origin=domestic" className="mega-link">전체보기</Link>
                       </div>
                       <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/category?origin=import">수입과일</Link></div>
+                        <div className="mega-col-title"><Link href="/import">수입과일</Link></div>
                         <Link href="/category?origin=import" className="mega-link">전체보기</Link>
                       </div>
                       <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/brand">브랜드 소개관</Link></div>
+                        <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
+                        <Link href="/brand-direct" className="mega-link">브랜드 직송관</Link>
                         <Link href="/brand" className="mega-link">브랜드 소개</Link>
-                        <Link href="/brand" className="mega-link">파트너농가</Link>
+                        <Link href="/farms" className="mega-link">파트너 농가</Link>
                       </div>
                       <div className="mega-col mega-col-last">
-                        <div className="mega-col-title"><Link href="/faq">서비스</Link></div>
-                        <Link href="/faq" className="mega-link">배송안내</Link>
+                        <div className="mega-col-title"><Link href="/service">서비스</Link></div>
+                        <Link href="/shipping" className="mega-link">배송안내</Link>
                         <Link href="/inquiry" className="mega-link">입점/협업문의</Link>
                         <Link href="/faq" className="mega-link">고객센터</Link>
                       </div>
@@ -230,7 +258,7 @@ export default function Header() {
               </div>
             </div>
             <Link href="/category?new=true" className="header-nav-link">신상품</Link>
-            <Link href="/brand" className="header-nav-link">브랜드소개관</Link>
+            <Link href="/brand-intro" className="header-nav-link">브랜드소개관</Link>
             <Link href="/event" className="header-nav-link">이벤트</Link>
             <Link href="/lounge" className="header-nav-link">라운지</Link>
             <Link href="/survey" className="header-nav-link">취향진단</Link>
@@ -243,7 +271,9 @@ export default function Header() {
         <div className="drawer-overlay" onClick={() => setDrawerOpen(false)} />
         <div className="drawer-panel">
           <button className="drawer-close" onClick={() => setDrawerOpen(false)}>✕</button>
-          <div className="drawer-logo">Delio</div>
+          <div className="drawer-logo">
+            <img src="/DelioLogo.png" alt="Delio" style={{ height:26, width:'auto', display:'block', objectFit:'contain' }} />
+          </div>
           <nav className="drawer-nav">
             <Link href="/" onClick={() => setDrawerOpen(false)}>홈</Link>
             <Link href="/category" onClick={() => setDrawerOpen(false)}>카테고리</Link>

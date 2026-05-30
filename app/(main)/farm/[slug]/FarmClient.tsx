@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart } from '@/lib/cart';
+import { addToCart, showCartToast } from '@/lib/cart';
 
 interface Farm {
   id: string; slug: string; name: string; region: string; farm_type: string;
@@ -86,15 +86,6 @@ export default function FarmClient() {
           background:'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 60%)',
         }} />
         <div className="container" style={{ position:'relative', paddingBottom:36, paddingTop:36 }}>
-          <button onClick={() => router.back()}
-            style={{ background:'rgba(255,255,255,0.2)', border:'1.5px solid rgba(255,255,255,0.4)',
-              borderRadius:8, color:'#fff', padding:'8px 14px', fontSize:13, cursor:'pointer',
-              marginBottom:20, display:'flex', alignItems:'center', gap:6 }}>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            뒤로
-          </button>
           <div style={{ display:'flex', alignItems:'center', gap:16 }}>
             <div style={{
               width:72, height:72, borderRadius:16, background:'rgba(255,255,255,0.15)',
@@ -153,7 +144,7 @@ export default function FarmClient() {
         {/* ── 농부 스토리 ── */}
         {farm.story && (
           <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid var(--color-accent)', paddingLeft:12 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
               농가 이야기
             </h2>
             {farm.farmer_name && (
@@ -170,7 +161,7 @@ export default function FarmClient() {
         {/* ── 인증 ── */}
         {certs.length > 0 && (
           <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid var(--color-accent)', paddingLeft:12 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
               품질 인증
             </h2>
             <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
@@ -194,7 +185,7 @@ export default function FarmClient() {
         {/* ── 갤러리 ── */}
         {gallery.length > 0 && (
           <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid var(--color-accent)', paddingLeft:12 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
               농장 갤러리
             </h2>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:8 }}>
@@ -216,7 +207,7 @@ export default function FarmClient() {
         {/* ── 농가 상품 ── */}
         {products.length > 0 && (
           <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid var(--color-accent)', paddingLeft:12 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
               {farm.name} 상품
             </h2>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:16 }}>
@@ -241,7 +232,7 @@ export default function FarmClient() {
                       </div>
                       <div style={{ padding:'10px 12px' }}>
                         {p.badge && (
-                          <span style={{ fontSize:11, background:'var(--color-accent)', color:'#fff',
+                          <span style={{ fontSize:11, background:'#1A1A1A', color:'#fff',
                             padding:'2px 6px', borderRadius:4, marginBottom:4, display:'inline-block' }}>
                             {p.badge}
                           </span>
@@ -249,18 +240,18 @@ export default function FarmClient() {
                         <div style={{ fontSize:13, fontWeight:600, lineHeight:1.4, marginBottom:4 }}>{p.name}</div>
                         <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
                           {p.discount_rate > 0 && (
-                            <span style={{ fontSize:12, fontWeight:700, color:'var(--color-accent)' }}>{p.discount_rate}%</span>
+                            <span style={{ fontSize:12, fontWeight:700, color:'#E53E3E' }}>{p.discount_rate}%</span>
                           )}
                           <span style={{ fontSize:15, fontWeight:800 }}>{fmtPrice(p.discounted_price ?? p.price)}원</span>
                         </div>
                         <button
                           onClick={e => {
                             e.preventDefault();
-                            addToCart({ id:p.id, name:p.name, price:p.discounted_price??p.price, quantity:1, thumbnail:p.thumbnail_url||'' });
-                            alert('장바구니에 담겼습니다!');
+                            addToCart({ id:p.id, name:p.name, price:p.discounted_price??p.price, quantity:1, thumbnail:p.thumbnail_url||'', deliveryType: '산지직송' });
+                            showCartToast();
                           }}
-                          style={{ marginTop:8, width:'100%', padding:'7px', border:'1.5px solid var(--color-accent)',
-                            borderRadius:6, color:'var(--color-accent)', background:'#fff',
+                          style={{ marginTop:8, width:'100%', padding:'7px', border:'1.5px solid #1A1A1A',
+                            borderRadius:6, color:'#1A1A1A', background:'#fff',
                             fontSize:12, fontWeight:700, cursor:'pointer' }}>
                           담기
                         </button>
@@ -283,7 +274,7 @@ export default function FarmClient() {
           </p>
           <Link href="/inquiry"
             style={{ display:'inline-block', padding:'12px 28px',
-              background:'var(--color-accent)', color:'#fff', borderRadius:8,
+              background:'#1A1A1A', color:'#fff', borderRadius:8,
               fontWeight:700, textDecoration:'none', fontSize:14 }}>
             협업 문의하기
           </Link>

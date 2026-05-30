@@ -28,7 +28,7 @@ body { background: #fff; }
       font-family: inherit;
       margin-bottom: 8px;
     }
-    .login-input:focus { border-color: var(--color-accent); }
+    .login-input:focus { border-color: #333; }
     .login-input::placeholder { color: #BABABA; }
 
     /* 아이디/비번 찾기 */
@@ -40,7 +40,7 @@ body { background: #fff; }
       font-size: 13px; color: var(--color-ink-mute);
       text-decoration: none;
     }
-    .login-find-row a:hover { color: var(--color-accent); }
+    .login-find-row a:hover { color: var(--color-ink-mute); }
     .login-find-sep { font-size: 12px; color: #DCDCDC; margin: 0 6px; }
 
     /* 버튼 공통 */
@@ -50,7 +50,7 @@ body { background: #fff; }
       border-radius: 6px;
       font-size: 16px; font-weight: 700;
       cursor: pointer; text-align: center;
-      font-family: inherit; transition: background .15s, color .15s;
+      font-family: inherit;
       margin-bottom: 10px; text-decoration: none;
       box-sizing: border-box;
     }
@@ -58,47 +58,38 @@ body { background: #fff; }
       background: var(--color-accent); color: #fff;
       border: none;
     }
-    .login-btn-solid:hover { background: var(--color-accent-hover); }
     .login-btn-outline {
-      background: #fff; color: var(--color-accent);
-      border: 1px solid var(--color-accent);
+      background: #fff; color: var(--color-ink);
+      border: 1px solid #DCDCDC;
     }
-    .login-btn-outline:hover { background: var(--color-accent-bg); }
 
     /* 간편 로그인 구분 */
     .login-divider {
       display: flex; align-items: center; gap: 14px;
-      margin: 24px 0 16px;
+      margin: 24px 0 20px;
     }
     .login-divider::before, .login-divider::after {
       content: ''; flex: 1; height: 1px; background: #E8E8E8;
     }
     .login-divider span { font-size: 14px; font-weight: 700; color: var(--color-ink); white-space: nowrap; }
 
-    /* SNS 버튼 */
-    .sns-full {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; height: 54px;
-      border-radius: 6px; border: none;
-      font-size: 15px; font-weight: 700;
-      cursor: pointer; font-family: inherit;
-      margin-bottom: 10px; transition: opacity .15s;
-      box-sizing: border-box;
+    /* SNS 버튼 — 동그라미 아이콘 */
+    .sns-icon-row {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      margin-bottom: 10px;
     }
-    .sns-full:hover { opacity: 0.88; }
-    .sns-naver-btn { background: #03C75A; color: #fff; }
-    .sns-kakao-btn { background: #FEE500; color: #3C1E1E; }
-    .sns-icon-n {
-      width: 26px; height: 26px;
-      background: #fff; border-radius: 4px;
+    .sns-circle {
+      width: 54px; height: 54px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-family: Arial, sans-serif; font-size: 15px; font-weight: 900;
-      color: #03C75A; flex-shrink: 0;
+      border: none; cursor: pointer;
+      transition: opacity .15s, transform .15s; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
     }
-
+    .sns-circle:hover { opacity: 0.88; transform: translateY(-2px); }
+    .sns-naver-btn { background: #03C75A; }
+    .sns-kakao-btn { background: #FEE500; }
 
 /* ===== 추가 유틸리티 클래스 ===== */
 .header-nav { gap: 0; }
 .mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
 .login-input-pw { margin-bottom: 6px; }
-.sns-kakao-icon { font-size: 20px; line-height: 1; }

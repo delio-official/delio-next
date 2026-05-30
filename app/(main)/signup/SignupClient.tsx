@@ -51,14 +51,25 @@ export default function SignupClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  /* ── 필드별 에러 ── */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   const fBmRef = useRef<HTMLInputElement>(null);
   const fBdRef = useRef<HTMLInputElement>(null);
+
+  /* 자동 스크롤용 row refs */
+  const rowNameRef  = useRef<HTMLDivElement>(null);
+  const rowEmailRef = useRef<HTMLDivElement>(null);
+  const rowPwRef    = useRef<HTMLDivElement>(null);
+  const rowPw2Ref   = useRef<HTMLDivElement>(null);
+  const rowTermsRef = useRef<HTMLDivElement>(null);
 
   /* 전체 동의 */
   const allOn = t1 && t2 && t3 && t4 && t4s && t4e && t5;
   function toggleAll() {
     const v = !allOn;
     setT1(v); setT2(v); setT3(v); setT4(v); setT4s(v); setT4e(v); setT5(v);
+    if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' }));
   }
 
   /* 도메인 셀렉트 */
@@ -82,17 +93,60 @@ export default function SignupClient() {
   const pwOk = pw.length >= 8;
   const pw2Ok = pw === pw2 && pw2.length > 0;
 
+  /* 비밀번호 강도 */
+  function getPwStrength(p: string): { level: 0 | 1 | 2 | 3; label: string; color: string } {
+    if (p.length === 0) return { level: 0, label: '', color: '' };
+    let score = 0;
+    if (p.length >= 8)  score++;
+    if (p.length >= 12) score++;
+    if (/[0-9]/.test(p)) score++;
+    if (/[^a-zA-Z0-9]/.test(p)) score++;
+    if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+    if (score <= 1) return { level: 1, label: '약함',  color: '#EF4444' };
+    if (score <= 3) return { level: 2, label: '보통',  color: '#F59E0B' };
+    return              { level: 3, label: '강함',  color: '#22C55E' };
+  }
+  const pwStrength = getPwStrength(pw);
+
   async function completeSignup() {
     const email = getEmail();
-    if (!email) return setError('이메일을 입력해주세요.');
-    if (!name.trim()) return setError('이름을 입력해주세요.');
-    if (!pwOk) return setError('비밀번호를 8자 이상 입력해주세요.');
-    if (!pw2Ok) return setError('비밀번호가 일치하지 않습니다.');
-    if (!t1 || !t2 || !t5) return setError('필수 약관에 동의해주세요.');
+    const errs: Record<string, string> = {};
+    let firstRef: React.RefObject<HTMLDivElement | null> | null = null;
 
+    if (!name.trim()) {
+      errs.name = '이름을 입력해주세요.';
+      if (!firstRef) firstRef = rowNameRef;
+    }
+    if (!email) {
+      errs.email = '이메일을 입력해주세요.';
+      if (!firstRef) firstRef = rowEmailRef;
+    }
+    if (!pwOk) {
+      errs.pw = '비밀번호를 8자 이상 입력해주세요.';
+      if (!firstRef) firstRef = rowPwRef;
+    }
+    if (!pw2Ok) {
+      errs.pw2 = '비밀번호가 일치하지 않습니다.';
+      if (!firstRef) firstRef = rowPw2Ref;
+    }
+    if (!t1 || !t2 || !t5) {
+      errs.terms = '필수 약관에 동의해주세요.';
+      if (!firstRef) firstRef = rowTermsRef;
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      if (firstRef?.current) {
+        const top = firstRef.current.getBoundingClientRect().top + window.scrollY - 90;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
+      return;
+    }
+
+    setFieldErrors({});
     setLoading(true);
     setError('');
-    const { error: err } = await signUp(email, pw, name.trim());
+    const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined);
     setLoading(false);
     if (err) {
       if (err.message.includes('already')) setError('이미 가입된 이메일입니다.');
@@ -111,21 +165,22 @@ export default function SignupClient() {
         <div className="su-form">
 
           {/* 이름 */}
-          <div className="su-row">
+          <div className="su-row" ref={rowNameRef}>
             <div className="su-lbl">이름<em>*</em></div>
             <div className="su-ctrl">
-              <input type="text" className="su-input" placeholder="이름을 입력해주세요"
-                value={name} onChange={e => setName(e.target.value)} />
+              <input type="text" className={`su-input${fieldErrors.name ? ' su-err' : ''}`} placeholder="이름을 입력해주세요"
+                value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: '' })); }} />
+              {fieldErrors.name && <div className="su-field-error">{fieldErrors.name}</div>}
             </div>
           </div>
 
           {/* 이메일 */}
-          <div className="su-row">
+          <div className="su-row" ref={rowEmailRef}>
             <div className="su-lbl">이메일<em>*</em></div>
             <div className="su-ctrl">
               <div className="su-email-row">
-                <input type="text" className="su-input" placeholder="예: delio"
-                  value={emailUser} onChange={e => setEmailUser(e.target.value)} />
+                <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`} placeholder="예: delio"
+                  value={emailUser} onChange={e => { setEmailUser(e.target.value); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 <span className="su-at">@</span>
                 <select className="su-domain-select" defaultValue=""
                   onChange={e => onDomainChange(e.target.value)}>
@@ -143,37 +198,68 @@ export default function SignupClient() {
               {showDirect && (
                 <div className="su-email-direct-wrap">
                   <input type="text" className="su-input" placeholder="도메인을 직접 입력해주세요"
-                    value={emailDirect} onChange={e => setEmailDirect(e.target.value)} />
+                    value={emailDirect} onChange={e => { setEmailDirect(e.target.value); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 </div>
               )}
+              {fieldErrors.email && <div className="su-field-error">{fieldErrors.email}</div>}
             </div>
           </div>
 
           {/* 비밀번호 */}
-          <div className="su-row">
+          <div className="su-row" ref={rowPwRef}>
             <div className="su-lbl">비밀번호<em>*</em></div>
             <div className="su-ctrl">
-              <input type="password" className="su-input" placeholder="8자 이상 입력해주세요"
-                value={pw} onChange={e => setPw(e.target.value)} />
+              <input type="password" className={`su-input${fieldErrors.pw ? ' su-err' : ''}`} placeholder="8자 이상 입력해주세요"
+                value={pw} onChange={e => { setPw(e.target.value); if (fieldErrors.pw) setFieldErrors(p => ({ ...p, pw: '' })); }} />
               {pw.length > 0 && (
-                <div className={`su-hint ${pwOk ? 'ok' : 'err'}`}>
-                  {pwOk ? '사용 가능한 비밀번호입니다.' : '8자 이상 입력해주세요.'}
-                </div>
+                <>
+                  {/* 강도 바 */}
+                  <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                    {([1, 2, 3] as const).map(lv => (
+                      <div key={lv} style={{
+                        flex: 1, height: 4, borderRadius: 2,
+                        background: pwStrength.level >= lv ? pwStrength.color : '#E5E7EB',
+                        transition: 'background .2s',
+                      }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4, color: pwStrength.color, fontWeight: 600 }}>
+                    {pwStrength.label}
+                  </div>
+                  {/* 조건 체크리스트 */}
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {[
+                      { ok: pw.length >= 8,                                   text: '8자 이상' },
+                      { ok: pw.length >= 12,                                  text: '12자 이상' },
+                      { ok: /[0-9]/.test(pw),                                 text: '숫자 포함' },
+                      { ok: /[^a-zA-Z0-9]/.test(pw),                         text: '특수문자 포함 (!@#$...)' },
+                      { ok: /[A-Z]/.test(pw) && /[a-z]/.test(pw),            text: '영문 대·소문자 혼합' },
+                    ].map(({ ok, text }) => (
+                      <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11,
+                        color: ok ? '#22C55E' : '#94A3B8' }}>
+                        <span style={{ fontSize: 12 }}>{ok ? '✓' : '○'}</span>
+                        {text}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
+              {fieldErrors.pw && <div className="su-field-error">{fieldErrors.pw}</div>}
             </div>
           </div>
 
           {/* 비밀번호 확인 */}
-          <div className="su-row">
+          <div className="su-row" ref={rowPw2Ref}>
             <div className="su-lbl">비밀번호확인<em>*</em></div>
             <div className="su-ctrl">
-              <input type="password" className="su-input" placeholder="비밀번호를 한번 더 입력해주세요"
-                value={pw2} onChange={e => setPw2(e.target.value)} />
+              <input type="password" className={`su-input${fieldErrors.pw2 ? ' su-err' : ''}`} placeholder="비밀번호를 한번 더 입력해주세요"
+                value={pw2} onChange={e => { setPw2(e.target.value); if (fieldErrors.pw2) setFieldErrors(p => ({ ...p, pw2: '' })); }} />
               {pw2.length > 0 && (
                 <div className={`su-hint ${pw2Ok ? 'ok' : 'err'}`}>
                   {pw2Ok ? '비밀번호가 일치합니다.' : '비밀번호가 일치하지 않습니다.'}
                 </div>
               )}
+              {fieldErrors.pw2 && <div className="su-field-error">{fieldErrors.pw2}</div>}
             </div>
           </div>
 
@@ -240,10 +326,10 @@ export default function SignupClient() {
           <div className="su-row">
             <div className="su-lbl">추가입력사항</div>
             <div className="su-ctrl su-ctrl-pt16">
-              <label className="su-ref-chk">
-                <input type="checkbox" checked={showRef} onChange={e => setShowRef(e.target.checked)} />
-                <span>친구초대 추천인 코드</span>
-              </label>
+              <div className="su-ref-chk">
+                <CircleCheck on={showRef} onClick={e => { e?.stopPropagation(); setShowRef(v => !v); }} />
+                <span onClick={() => setShowRef(v => !v)}>친구초대 추천인 코드</span>
+              </div>
               {showRef && (
                 <div style={{ marginTop: 10 }}>
                   <input type="text" className="su-input su-input-ref" placeholder="추천인 코드를 입력해주세요"
@@ -257,9 +343,10 @@ export default function SignupClient() {
           <div className="su-row-sep" />
 
           {/* 약관 */}
-          <div className="su-row su-row-terms">
+          <div className="su-row su-row-terms" ref={rowTermsRef}>
             <div className="su-lbl su-lbl-terms">이용약관동의<em>*</em></div>
             <div className="su-ctrl su-ctrl-terms">
+              {fieldErrors.terms && <div className="su-field-error" style={{ marginBottom: 8 }}>{fieldErrors.terms}</div>}
 
               {/* 전체동의 */}
               <div className="su-terms-all">
@@ -272,7 +359,7 @@ export default function SignupClient() {
 
               <div className="su-terms-item">
                 <div className="su-terms-left">
-                  <CircleCheck on={t1} onClick={() => setT1(v => !v)} />
+                  <CircleCheck on={t1} onClick={() => { setT1(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">이용약관 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
                 <a href="#" className="su-terms-view" onClick={e => e.preventDefault()}>약관보기 ›</a>
@@ -280,7 +367,7 @@ export default function SignupClient() {
 
               <div className="su-terms-item">
                 <div className="su-terms-left">
-                  <CircleCheck on={t2} onClick={() => setT2(v => !v)} />
+                  <CircleCheck on={t2} onClick={() => { setT2(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">개인정보 수집·이용 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
                 <a href="#" className="su-terms-view" onClick={e => e.preventDefault()}>약관보기 ›</a>
@@ -301,11 +388,11 @@ export default function SignupClient() {
                 </div>
                 <div className="su-terms-sub-row">
                   <label className="su-sub-chk-lbl">
-                    <CircleCheck sm on={t4s} onClick={e => { e?.stopPropagation(); setT4s(v => !v); }} />
+                    <CircleCheck on={t4s} onClick={e => { e?.stopPropagation(); setT4s(v => !v); }} />
                     문자
                   </label>
                   <label className="su-sub-chk-lbl">
-                    <CircleCheck sm on={t4e} onClick={e => { e?.stopPropagation(); setT4e(v => !v); }} />
+                    <CircleCheck on={t4e} onClick={e => { e?.stopPropagation(); setT4e(v => !v); }} />
                     이메일
                   </label>
                 </div>
@@ -313,7 +400,7 @@ export default function SignupClient() {
 
               <div className="su-terms-item">
                 <div className="su-terms-left">
-                  <CircleCheck on={t5} onClick={() => setT5(v => !v)} />
+                  <CircleCheck on={t5} onClick={() => { setT5(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">본인은 만 14세 이상입니다. <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
               </div>

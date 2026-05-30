@@ -9,12 +9,14 @@ import '@/styles/review.css';
 interface LoungePost {
   id: number;
   filter: string;
-  bg: string;
-  emoji: string;
+  bg: string | null;
+  emoji: string | null;
   title: string;
-  badge: string;
-  date: string;
-  content: string;
+  badge: string | null;
+  date: string | null;
+  thumbnail_url: string | null;
+  image_url: string | null;
+  content: string | null;
 }
 
 export default function LoungeDetailClient() {
@@ -77,21 +79,30 @@ export default function LoungeDetailClient() {
         </h1>
         <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32 }}>📅 {post.date}</div>
 
-        {/* 썸네일 배너 */}
-        <div style={{
-          width: '100%', height: 220, borderRadius: 12, marginBottom: 32,
-          background: post.bg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 80,
-        }}>
-          {post.emoji}
-        </div>
+        {/* 헤더 배너 — 이미지 없으면 이모지 */}
+        {!post.thumbnail_url && (
+          <div style={{
+            width: '100%', height: 220, borderRadius: 12, marginBottom: 32,
+            background: post.bg ?? '#F4EFE6',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 80,
+          }}>
+            {post.emoji || '🍑'}
+          </div>
+        )}
 
-        {/* 본문 */}
-        <div
-          style={{ fontSize: 15, lineHeight: 1.9, color: '#333' }}
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
+        {/* 본문 이미지 (image_url) */}
+        {post.image_url && (
+          <img src={post.image_url} alt=""
+            style={{ width: '100%', maxWidth: 960, display: 'block', margin: '0 auto 32px', borderRadius: 8 }} />
+        )}
+
+        {/* 본문 내용 */}
+        {post.content && (
+          <div
+            style={{ fontSize: 15, lineHeight: 1.9, color: '#333' }}
+            dangerouslySetInnerHTML={{ __html: post.content ?? '' }}
+          />
+        )}
 
         {/* 목록으로 */}
         <div style={{ marginTop: 48, textAlign: 'center' }}>

@@ -1,249 +1,143 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase';
 import '@/styles/index.css';
 
-interface Farm {
-  id: string; slug: string; name: string; region: string;
-  farm_type: string; intro: string | null; thumbnail_url: string | null;
-}
-interface Product {
-  id: string; name: string; price: number; discounted_price: number;
-  discount_rate: number; thumbnail_url: string | null; category: string;
-  farm_id: string;
-}
+const VALUES = [
+  { emoji: '🌱', title: '산지 직계약', desc: '중간 유통 없이 농가와 직접 계약합니다. 농부의 정성이 그대로 식탁에 전해져요.' },
+  { emoji: '🔬', title: '당도 검수 시스템', desc: '모든 상품은 출하 전 당도 측정을 거칩니다. 기준 미달 시 전량 반품합니다.' },
+  { emoji: '❄️', title: '콜드체인 배송', desc: '수확부터 배송까지 저온을 유지합니다. 신선함을 문 앞까지 그대로 보냅니다.' },
+  { emoji: '♻️', title: '지속가능한 농업', desc: '친환경 재배 농가를 우선 선정합니다. 맛있는 과일과 환경, 모두 지킵니다.' },
+];
 
-const EMOJI_MAP: Record<string, string> = {
-  apple: '🍎', citrus: '🍊', berry: '🫐', melon: '🍈',
-  kiwi: '🥝', mango: '🥭', grape: '🍇', gift: '🎁', default: '🍑',
-};
-
-const BANNER_MAP: Record<string, string> = {
-  citrus: 'bdc-banner-citrus', grape: 'bdc-banner-grape',
-  berry:  'bdc-banner-berry',  apple:  'bdc-banner-apple',
-};
-const LOGO_MAP: Record<string, string> = {
-  citrus: 'bdc-logo-citrus', grape: 'bdc-logo-grape',
-  berry:  'bdc-logo-berry',  apple:  'bdc-logo-apple',
-};
-const THUMB_MAP: Record<string, string> = {
-  citrus: 'bdc-thumb-citrus', grape: 'bdc-thumb-grape',
-  berry:  'bdc-thumb-berry',  apple:  'bdc-thumb-apple',
-};
-
-function getBannerClass(type: string) { return BANNER_MAP[type] || 'bdc-banner-citrus'; }
-function getLogoClass(type: string)   { return LOGO_MAP[type]   || 'bdc-logo-citrus';   }
-function getThumbClass(type: string)  { return THUMB_MAP[type]  || 'bdc-thumb-citrus';  }
+const TIMELINE = [
+  { year: '2020', title: '델리오 창업', desc: '제주 감귤 직거래로 시작, 농가와 소비자 사이의 거리를 줄이겠다는 다짐' },
+  { year: '2021', title: '파트너 농가 10곳 돌파', desc: '사과, 포도, 베리류로 카테고리 확장. 당도 보장 시스템 도입' },
+  { year: '2022', title: '새벽배송 서비스 시작', desc: '콜드체인 배송망 구축. 전국 익일 새벽 배송 가능' },
+  { year: '2023', title: '누적 주문 10만 건 달성', desc: '회원 기반 구독 서비스 출시. VIP/VVIP 멤버십 운영' },
+  { year: '2024', title: '글로벌 파트너십', desc: '뉴질랜드 제스프리, 칠레 포도 산지와 직수입 계약 체결' },
+  { year: '2025', title: '지금 이 순간', desc: '여러분의 식탁에 신선한 과일을 전하기 위해 오늘도 달립니다' },
+];
 
 export default function BrandClient() {
-  const [farms, setFarms] = useState<Farm[]>([]);
-  const [prodMap, setProdMap] = useState<Record<string, Product>>({});
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-
-      // 전체 농가 조회
-      const { data: farmData } = await supabase
-        .from('farms')
-        .select('id, slug, name, region, farm_type, intro, thumbnail_url')
-        .order('name');
-
-      if (!farmData || farmData.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const farms = farmData as Farm[];
-      setFarms(farms);
-
-      // 각 농가의 대표 상품 1개씩 조회
-      const farmIds = farms.map(f => f.id);
-      const { data: prodData } = await supabase
-        .from('products')
-        .select('id, name, price, discounted_price, discount_rate, thumbnail_url, category, farm_id')
-        .in('farm_id', farmIds)
-        .eq('is_active', true)
-        .order('discount_rate', { ascending: false });
-
-      // farm_id별 첫 번째 상품만 map으로 저장
-      const map: Record<string, Product> = {};
-      (prodData as Product[] || []).forEach(p => {
-        if (!map[p.farm_id]) map[p.farm_id] = p;
-      });
-      setProdMap(map);
-      setLoading(false);
-    }
-    load();
-  }, []);
-
   return (
     <main style={{ background: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
 
       {/* 히어로 */}
-      <div style={{
-        background: 'linear-gradient(135deg,#F4EFE6 0%,#EDE8DC 100%)',
-        padding: '48px 0 36px', borderBottom: '1px solid #E8E2D8',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg,#1A1A1A 0%,#2D2D2D 100%)',
+        padding: '72px 0 60px', textAlign: 'center', color: '#fff' }}>
         <div className="container">
-          <p style={{ fontSize: 11, color: '#A08060', fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>
-            BRAND DIRECT SHOP
-          </p>
-          <h1 style={{ fontSize: 'clamp(24px,4vw,34px)', fontWeight: 800, marginBottom: 10 }}>
-            브랜드 소개관
+          <p style={{ fontSize: 11, letterSpacing: 4, color: 'rgba(255,255,255,0.5)',
+            fontWeight: 700, marginBottom: 16 }}>DELI'O BRAND STORY</p>
+          <div style={{ fontSize: 64, marginBottom: 20 }}>🍑</div>
+          <h1 style={{ fontSize: 'clamp(28px,5vw,44px)', fontWeight: 900, marginBottom: 16,
+            lineHeight: 1.25, letterSpacing: -0.5 }}>
+            과일을 대하는<br />우리의 방식
           </h1>
-          <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7 }}>
-            델리오 파트너 농가가 직접 보내는 신선한 과일.<br />
-            산지에서 내 식탁까지, 믿을 수 있는 브랜드를 소개합니다.
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.65)', lineHeight: 1.8,
+            maxWidth: 440, margin: '0 auto 28px' }}>
+            맛있는 과일이 제철에, 신선하게,<br />
+            합리적인 가격으로 식탁에 올라야 한다고 믿습니다.
           </p>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 16 }}>
-            <Link href="/" style={{ color: '#aaa', textDecoration: 'none' }}>홈</Link>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
+            <Link href="/" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>홈</Link>
             <span style={{ margin: '0 6px' }}>/</span>
-            <span style={{ color: '#555' }}>브랜드 소개관</span>
+            <Link href="/brand-intro" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>브랜드 소개관</Link>
+            <span style={{ margin: '0 6px' }}>/</span>
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>브랜드 소개</span>
           </div>
         </div>
       </div>
 
-      {/* 카드 그리드 */}
-      <section className="brand-direct-section" style={{ paddingTop: 40 }}>
-        <div className="container">
+      <div className="container" style={{ maxWidth: 780 }}>
 
-          {loading ? (
-            /* 스켈레톤 */
-            <div className="brand-direct-grid">
-              {[0, 1, 2, 3].map(i => (
-                <div key={i} className="brand-direct-card" style={{ opacity: 0.35 }}>
-                  <div className="bdc-banner-wrap">
-                    <div className="bdc-banner" style={{ background: '#E8E8E6' }} />
-                  </div>
-                  <div className="bdc-body">
-                    <div style={{ height: 14, background: '#E8E8E6', borderRadius: 4, marginBottom: 10 }} />
-                    <div style={{ height: 40, background: '#E8E8E6', borderRadius: 8 }} />
-                  </div>
+        {/* 브랜드 철학 */}
+        <section style={{ padding: '64px 0 48px', textAlign: 'center', borderBottom: '1px solid #F0F0EE' }}>
+          <p style={{ fontSize: 11, letterSpacing: 3, color: '#A08060', fontWeight: 700, marginBottom: 16 }}>
+            OUR PHILOSOPHY
+          </p>
+          <h2 style={{ fontSize: 'clamp(20px,3vw,28px)', fontWeight: 800, lineHeight: 1.4, marginBottom: 20 }}>
+            &ldquo;좋은 과일은 좋은 땅에서,<br />좋은 관계에서 옵니다&rdquo;
+          </h2>
+          <p style={{ fontSize: 15, color: '#555', lineHeight: 1.9, maxWidth: 540, margin: '0 auto' }}>
+            델리오는 단순히 과일을 파는 게 아니라<br />
+            농부의 이야기와 땅의 가치를 전달합니다.<br />
+            소비자가 과일 하나를 고를 때,<br />
+            그 뒤에 있는 농가와 계절을 느낄 수 있도록.
+          </p>
+        </section>
+
+        {/* 핵심 가치 */}
+        <section style={{ padding: '56px 0', borderBottom: '1px solid #F0F0EE' }}>
+          <p style={{ fontSize: 11, letterSpacing: 3, color: '#A08060', fontWeight: 700,
+            marginBottom: 8, textAlign: 'center' }}>OUR VALUES</p>
+          <h2 style={{ fontSize: 22, fontWeight: 800, textAlign: 'center', marginBottom: 36 }}>
+            델리오가 지키는 것들
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 20 }}>
+            {VALUES.map(v => (
+              <div key={v.title} style={{ padding: '28px 24px', borderRadius: 16,
+                border: '1.5px solid #F0F0EE', background: '#FAFAF8' }}>
+                <div style={{ fontSize: 36, marginBottom: 14 }}>{v.emoji}</div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 10 }}>{v.title}</h3>
+                <p style={{ fontSize: 13, color: '#666', lineHeight: 1.7 }}>{v.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 타임라인 */}
+        <section style={{ padding: '56px 0', borderBottom: '1px solid #F0F0EE' }}>
+          <p style={{ fontSize: 11, letterSpacing: 3, color: '#A08060', fontWeight: 700,
+            marginBottom: 8, textAlign: 'center' }}>OUR JOURNEY</p>
+          <h2 style={{ fontSize: 22, fontWeight: 800, textAlign: 'center', marginBottom: 40 }}>
+            델리오의 걸어온 길
+          </h2>
+          <div style={{ position: 'relative', paddingLeft: 28 }}>
+            {/* 세로 라인 */}
+            <div style={{ position: 'absolute', left: 8, top: 0, bottom: 0,
+              width: 2, background: '#E8E8E6', borderRadius: 2 }} />
+            {TIMELINE.map((t, i) => (
+              <div key={t.year} style={{ position: 'relative', marginBottom: i < TIMELINE.length - 1 ? 36 : 0 }}>
+                {/* 점 */}
+                <div style={{ position: 'absolute', left: -24, top: 4, width: 12, height: 12,
+                  borderRadius: '50%', background: i === TIMELINE.length - 1 ? '#1A1A1A' : '#D4C9B0',
+                  border: '2px solid #fff', boxShadow: '0 0 0 2px #E8E8E6' }} />
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#A08060', minWidth: 36 }}>
+                    {t.year}
+                  </span>
+                  <span style={{ fontSize: 16, fontWeight: 800 }}>{t.title}</span>
                 </div>
-              ))}
-            </div>
-          ) : farms.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 0', color: '#bbb' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🌱</div>
-              <p>등록된 파트너 농가가 없습니다.</p>
-            </div>
-          ) : (
-            <div className="brand-direct-grid">
-              {farms.map(farm => {
-                const type    = farm.farm_type?.toLowerCase() || 'default';
-                const emoji   = EMOJI_MAP[type] || EMOJI_MAP.default;
-                const banner  = getBannerClass(type);
-                const logo    = getLogoClass(type);
-                const thumb   = getThumbClass(type);
-                const repProd = prodMap[farm.id];
+                <p style={{ fontSize: 13, color: '#666', lineHeight: 1.6, marginLeft: 48 }}>
+                  {t.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-                return (
-                  <div key={farm.id} className="brand-direct-card">
-                    {/* 배너 */}
-                    <div className="bdc-banner-wrap">
-                      <div className={`bdc-banner ${banner}`}>
-                        {farm.thumbnail_url
-                          ? <img src={farm.thumbnail_url} alt={farm.name}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} />
-                          : <span className="bdc-emoji">{emoji}</span>
-                        }
-                      </div>
-                    </div>
-
-                    {/* 바디 */}
-                    <div className="bdc-body">
-                      {/* 브랜드 행 */}
-                      <Link href={`/farm/${farm.slug}`} className="bdc-brand-row">
-                        <div className={`bdc-brand-logo ${logo}`}><span>{emoji}</span></div>
-                        <span className="bdc-brand-name">{farm.name}</span>
-                        <svg className="bdc-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polyline points="9 18 15 12 9 6"/>
-                        </svg>
-                      </Link>
-
-                      {/* 한 줄 설명 */}
-                      {farm.intro && (
-                        <p style={{ fontSize: 12, color: '#888', lineHeight: 1.6, margin: '8px 0 12px',
-                          display: '-webkit-box', WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {farm.intro}
-                        </p>
-                      )}
-
-                      {/* 지역 태그 */}
-                      {farm.region && (
-                        <div style={{ marginBottom: 12 }}>
-                          <span style={{
-                            fontSize: 11, fontWeight: 700,
-                            background: '#F4EFE6', color: '#A06030',
-                            padding: '2px 8px', borderRadius: 20,
-                          }}>
-                            📍 {farm.region}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 대표 상품 행 */}
-                      {repProd ? (
-                        <Link href={`/product/${repProd.id}`} className="bdc-product-row">
-                          <div className={`bdc-product-thumb ${thumb}`}>
-                            {repProd.thumbnail_url
-                              ? <img src={repProd.thumbnail_url} alt={repProd.name}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
-                              : (EMOJI_MAP[repProd.category] || emoji)
-                            }
-                          </div>
-                          <div className="bdc-product-info">
-                            <div className="bdc-product-name">{repProd.name}</div>
-                            <div className="bdc-product-price">
-                              {repProd.discount_rate > 0 && (
-                                <span className="bdc-discount">{repProd.discount_rate}%</span>
-                              )}
-                              {(repProd.discounted_price ?? repProd.price).toLocaleString()}원
-                            </div>
-                          </div>
-                        </Link>
-                      ) : (
-                        <div className="bdc-product-row" style={{ opacity: 0.4, pointerEvents: 'none' }}>
-                          <div className={`bdc-product-thumb ${thumb}`}>{emoji}</div>
-                          <div className="bdc-product-info">
-                            <div className="bdc-product-name">상품 준비 중</div>
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 하단 CTA */}
-          <div style={{
-            marginTop: 56, borderRadius: 20, padding: '40px 32px', textAlign: 'center',
-            background: 'linear-gradient(135deg,#F4EFE6,#EDE8DC)',
-          }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>🌱</div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>파트너 농가 입점 문의</h2>
-            <p style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 22 }}>
-              좋은 농산물을 키우고 계신가요?<br />
-              델리오와 함께 더 많은 소비자에게 소개해보세요.
-            </p>
-            <Link href="/inquiry" style={{
-              display: 'inline-block', padding: '12px 30px',
-              background: 'var(--color-accent)', color: '#fff',
-              borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: 'none',
-            }}>
-              입점/협업 문의하기 →
+        {/* CTA */}
+        <section style={{ padding: '56px 0', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🤝</div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 12 }}>함께 만들어가요</h2>
+          <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7, marginBottom: 28 }}>
+            좋은 농산물을 키우는 농가,<br />
+            신선한 과일을 찾는 소비자와 함께 성장합니다.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/farms" style={{ padding: '13px 28px', background: '#1A1A1A', color: '#fff',
+              borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+              파트너 농가 보기 →
+            </Link>
+            <Link href="/inquiry" style={{ padding: '13px 28px', border: '1.5px solid #1A1A1A',
+              color: '#1A1A1A', borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: 'none',
+              background: '#fff' }}>
+              입점 문의하기
             </Link>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

@@ -326,31 +326,154 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
 .adm-sms-text { font-size: 13px; font-weight: 500; color: var(--text); }
 
 /* ===== 모바일 반응형 ===== */
+
+/* ── 태블릿 이하 (900px) ── */
 @media (max-width: 900px) {
-  .adm-sidebar {
-    transform: translateX(-100%);
-  }
-  .adm-sidebar.open {
-    transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
-  }
-  .adm-main { margin-left: 0; }
+  /* 사이드바 */
+  .adm-sidebar { transform: translateX(-100%); }
+  .adm-sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.3); }
+  .adm-main { margin-left: 0; overflow-x: hidden; max-width: 100vw; }
   .adm-hamburger { display: flex; }
-  .adm-kpi-grid { grid-template-columns: repeat(2,1fr); }
-  .adm-kpi-5 { grid-template-columns: repeat(3,1fr); }
+
+  /* 레이아웃 */
+  .adm-content { padding: 10px; max-width: 100%; }
   .adm-row { flex-direction: column; }
   .adm-card-sm { width: 100%; }
-  .adm-content { padding: 16px; }
-  .adm-toolbar { flex-direction: column; align-items: flex-start; }
-  .adm-toolbar-right { width: 100%; justify-content: flex-end; }
+  .adm-sidebar-cards { width: 100% !important; flex-shrink: 1; }
+  .adm-card-lg { width: 100% !important; flex-shrink: 1; }
+  .adm-row > .adm-card { width: 100% !important; }
+  .adm-sidebar-cards > .adm-card { width: 100% !important; }
+
+  /* KPI 그리드 */
+  .adm-kpi-grid,
+  .adm-kpi-3,
+  .adm-kpi-4,
+  .adm-kpi-5 { grid-template-columns: repeat(2, 1fr); }
+
+  /* 툴바 */
+  .adm-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .adm-toolbar-left { flex-wrap: wrap; }
+  .adm-toolbar-right { flex-wrap: wrap; justify-content: flex-start; width: 100%; }
+  .adm-toolbar-right .adm-btn { flex: 1; justify-content: center; min-width: 120px; }
+
+  /* 입력 너비 */
+  .adm-select { width: auto; min-width: 0; max-width: 100%; }
+  .adm-toolbar .adm-input-text { width: 100%; min-width: 0; }
+  .adm-form .adm-input-text { width: 100%; min-width: 0; }
+  .adm-input-w80,
+  .adm-input-w100,
+  .adm-input-w140 { width: 80px; max-width: 80px; }
+
+  /* 테이블 */
+  .adm-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    display: block;
+  }
+  .adm-table { min-width: 560px; width: max-content; }
+  .adm-table td,
+  .adm-table th { padding: 10px 10px; font-size: 12px; white-space: nowrap; }
+
+  /* 탭 스크롤 */
+  .adm-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+  .adm-tab { white-space: nowrap; padding: 10px 14px; font-size: 12px; }
+
+  /* 모달 */
+  .adm-modal { max-width: 100vw !important; max-height: 95dvh; border-radius: 0; }
+  .adm-modal-bg { align-items: flex-end; }
+  .adm-modal-farm { max-width: 100vw; }
+
+  /* 폼 */
+  .adm-form { padding: 14px; }
+  .adm-form-actions { flex-wrap: wrap; }
+  .adm-form-actions .adm-btn { flex: 1; justify-content: center; }
+
+  /* 행 버튼 터치 영역 */
+  .adm-row-btn { padding: 6px 10px; font-size: 11px; }
+
+  /* 버튼 그룹 */
+  td > .adm-btn { font-size: 12px; padding: 0 10px; }
+
+  /* ── 농가/상품/상세 모달 그리드 ── */
+  .adm-farm-grid,
+  .adm-detail-grid { grid-template-columns: 1fr; }
+  .adm-modal-body { padding: 14px; }
+
+  /* ── 주문 상태 변경 버튼 ── */
+  .adm-status-btns { flex-wrap: wrap; }
+  .adm-status-btns .adm-btn { flex: 1; min-width: 80px; justify-content: center; }
+
+  /* ── 정산 그래프 ── */
+  .adm-chart-pad { overflow-x: auto; }
+
+  /* ── 배너/팝업 그리드 ── */
+  .adm-banner-grid { grid-template-columns: 1fr; }
+
+  /* ── 상품 등록 모달 이미지 썸네일 행 ── */
+  .adm-img-row { flex-wrap: wrap; }
+  .adm-img-row > div { width: calc(33.333% - 4px); }
 }
 
+/* ── 모바일 (480px 이하) ── */
 @media (max-width: 480px) {
-  .adm-kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .adm-kpi-value { font-size: 18px; }
-  .adm-topbar { padding: 0 14px; }
-  .adm-content { padding: 12px; }
+  /* 탑바 */
+  .adm-topbar { padding: 0 12px; }
   .adm-topbar-date { display: none; }
+  .adm-page-title { font-size: 14px; }
+
+  /* 콘텐츠 */
+  .adm-content { padding: 8px; }
+
+  /* KPI */
+  .adm-kpi-grid,
+  .adm-kpi-3,
+  .adm-kpi-4,
+  .adm-kpi-5 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .adm-kpi-card { padding: 12px 14px; }
+  .adm-kpi-value { font-size: 17px; }
+  .adm-kpi-label { font-size: 10px; }
+
+  /* 테이블 */
+  .adm-table { min-width: 480px; }
+  .adm-table td,
+  .adm-table th { padding: 9px 8px; font-size: 11px; white-space: nowrap; }
+
+  /* 모달 */
+  .adm-modal-bg { align-items: flex-end; padding: 0; }
+  .adm-modal {
+    border-radius: 16px 16px 0 0 !important;
+    max-height: 92dvh;
+  }
+  .adm-detail-grid,
+  .adm-farm-grid { grid-template-columns: 1fr; }
+  .adm-modal-body { padding: 12px; }
+
+  /* float 모달 패딩 */
+  .adm-float-modal { padding: 16px !important; }
+
+  /* 정산 테이블 최소 너비 */
+  .adm-table { min-width: 400px; }
+
+  /* 테이블 내 버튼 그룹 세로 */
+  td [style*="display:'flex'"],
+  td [style*="display: flex"] { flex-wrap: wrap; gap: 4px; }
+
+  /* 탭 */
+  .adm-tab { padding: 8px 12px; font-size: 11px; }
+
+  /* 버튼 */
+  .adm-btn { height: 36px; font-size: 12px; }
+  .adm-btn-icon { margin-right: 2px; }
+
+  /* SMS 패널 */
+  .adm-sms-row,
+  .adm-keyword-row,
+  .adm-pending-row { padding: 10px 14px; }
+
+  /* 차트 */
+  .adm-chart-pad { padding: 10px 12px; }
+  .adm-chart { height: 120px; }
 }
 
 /* ===== KPI 섹션 라벨 ===== */
@@ -617,3 +740,35 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
 
 /* SMS 히스토리 카운트 */
 .adm-sms-count { font-size: 12px; margin-top: 2px; }
+
+/* ===== 플로팅 모달 (인라인 스타일 모달 공통) ===== */
+.adm-float-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.adm-float-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .adm-float-overlay { padding: 10px; align-items: flex-end; }
+  .adm-float-modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 92dvh;
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .adm-float-overlay { padding: 0; }
+  .adm-float-modal {
+    border-radius: 16px 16px 0 0;
+    max-height: 94dvh;
+  }
+}

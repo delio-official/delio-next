@@ -1,42 +1,36 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import '@/styles/faq.css';
 
 interface FaqItem {
   id: string; category: string; question: string; answer: string; sort_order: number;
 }
 
 const CATS = [
-  { value: 'order',    label: '주문', emoji: '📦' },
-  { value: 'delivery', label: '배송', emoji: '🚚' },
-  { value: 'return',   label: '교환/환불', emoji: '↩️' },
-  { value: 'product',  label: '상품', emoji: '🍎' },
-  { value: 'member',   label: '회원', emoji: '👤' },
-  { value: 'etc',      label: '기타', emoji: '❓' },
+  { value: '',        label: '자주 묻는 질문' },
+  { value: 'delivery',label: '배송' },
+  { value: 'return',  label: '취소/교환/반품' },
+  { value: 'order',   label: '결제/주문' },
+  { value: 'product', label: '상품' },
+  { value: 'member',  label: '회원관련' },
+  { value: 'etc',     label: '기타' },
 ];
 
-export default function FaqClient() {
-  const sp = useSearchParams();
+/* 카테고리값 → 표시 레이블 */
+const CAT_LABEL: Record<string, string> = {
+  delivery:'배송', return:'취소/교환/반품', order:'결제/주문',
+  product:'상품', member:'회원관련', etc:'기타',
+};
 
+export default function FaqClient() {
+  const router = useRouter();
   const [items,   setItems]   = useState<FaqItem[]>([]);
-  const [cat,     setCat]     = useState(sp.get('tab') || '');
+  const [cat,     setCat]     = useState('');
   const [q,       setQ]       = useState('');
   const [open,    setOpen]    = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [catOpen, setCatOpen] = useState(false);
-  const catRef = useRef<HTMLDivElement>(null);
-
-  /* 드롭다운 외부 클릭 시 닫기 */
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (!catRef.current?.contains(e.target as Node)) setCatOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   useEffect(() => {
     async function load() {
@@ -49,132 +43,188 @@ export default function FaqClient() {
     load();
   }, []);
 
+  /* 필터 */
   const filtered = items.filter(i => {
     if (cat && i.category !== cat) return false;
     if (q.trim() && !i.question.includes(q.trim()) && !i.answer.includes(q.trim())) return false;
     return true;
   });
 
-  return (
-    <div>
-      <div className="faq-search-section">
-        <div className="container">
-          <h1 className="faq-search-title">고객센터 · FAQ</h1>
-          <div className="faq-search-row">
-            {/* 커스텀 드롭다운 — 카테고리 페이지 정렬 드롭다운과 동일한 스타일 */}
-            <div className={`faq-custom-select${catOpen ? ' open' : ''}`} ref={catRef}>
-              <button type="button" className="faq-custom-select-btn" onClick={() => setCatOpen(v => !v)}>
-                <span>
-                  {cat
-                    ? `${CATS.find(c => c.value === cat)?.emoji} ${CATS.find(c => c.value === cat)?.label}`
-                    : '전체 카테고리'}
-                </span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
-              <ul className="faq-custom-select-list">
-                <li className={`faq-custom-select-item${cat === '' ? ' selected' : ''}`}
-                  onClick={() => { setCat(''); setCatOpen(false); }}>
-                  전체 카테고리
-                </li>
-                {CATS.map(c => (
-                  <li key={c.value}
-                    className={`faq-custom-select-item${cat === c.value ? ' selected' : ''}`}
-                    onClick={() => { setCat(c.value); setCatOpen(false); }}>
-                    {c.emoji} {c.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="faq-search-input-wrap">
-              <input type="text" placeholder="궁금한 내용을 검색해보세요" value={q} onChange={e => setQ(e.target.value)} />
-            </div>
-            <button className="faq-search-btn">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
-              </svg>
-            </button>
-          </div>
+  /* 전체 탭일 때 카테고리별 그룹핑 */
+  const grouped: { cat: string; items: FaqItem[] }[] = [];
+  if (!cat) {
+    const order = ['delivery','return','order','product','member','etc'];
+    order.forEach(c => {
+      const list = filtered.filter(i => i.category === c);
+      if (list.length) grouped.push({ cat: c, items: list });
+    });
+  }
 
-          <div className="faq-cat-grid">
-            {CATS.map(c => (
-              <button key={c.value} className={`faq-cat-btn${cat === c.value ? ' active' : ''}`}
-                onClick={() => setCat(prev => prev === c.value ? '' : c.value)}>
-                <span style={{ fontSize:22 }}>{c.emoji}</span>
-                <span style={{ fontSize:12, fontWeight:600 }}>{c.label}</span>
-              </button>
-            ))}
+  return (
+    <div style={{ background:'#fff', minHeight:'100vh' }}>
+      <div style={{ maxWidth:720, margin:'0 auto', padding:'32px 20px 100px' }}>
+
+        {/* 검색창 */}
+        <div style={{ position:'relative', marginBottom:20 }}>
+          <input
+            type="text"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="검색어를 입력해 보세요."
+            style={{
+              width:'100%', padding:'14px 48px 14px 18px',
+              border:'1.5px solid #E0E0E0', borderRadius:12,
+              fontSize:14, color:'#1A1A1A', outline:'none',
+              background:'#fff', boxSizing:'border-box',
+              fontFamily:'inherit',
+            }}
+            onFocus={e => (e.target.style.borderColor = '#1A1A1A')}
+            onBlur={e  => (e.target.style.borderColor = '#E0E0E0')}
+          />
+          <div style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', color:'#888', pointerEvents:'none' }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+            </svg>
           </div>
         </div>
-      </div>
 
-      <div className="container" style={{ paddingTop:24, paddingBottom:80 }}>
+        {/* 카테고리 pill 탭 */}
+        <div style={{ display:'flex', gap:8, overflowX:'auto', marginBottom:32,
+          paddingBottom:4, scrollbarWidth:'none' }}>
+          {CATS.map(c => {
+            const isActive = cat === c.value;
+            return (
+              <button key={c.value} onClick={() => { setCat(c.value); setOpen(null); }}
+                style={{
+                  flexShrink:0, padding:'8px 16px',
+                  borderRadius:999, border:'1.5px solid #E0E0E0',
+                  background: isActive ? '#1A1A1A' : '#fff',
+                  color: isActive ? '#fff' : '#444',
+                  fontSize:13, fontWeight: isActive ? 700 : 500,
+                  cursor:'pointer', transition:'all .15s', fontFamily:'inherit',
+                  whiteSpace:'nowrap',
+                }}>
+                {c.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 콘텐츠 */}
         {loading ? (
-          <p style={{ textAlign:'center', color:'#999', padding:'40px 0' }}>불러오는 중...</p>
+          <p style={{ textAlign:'center', color:'#aaa', padding:'60px 0', fontSize:14 }}>불러오는 중...</p>
         ) : filtered.length === 0 ? (
-          <p style={{ textAlign:'center', color:'#999', padding:'60px 0' }}>
-            검색 결과가 없습니다.
-          </p>
+          <p style={{ textAlign:'center', color:'#aaa', padding:'60px 0', fontSize:14 }}>검색 결과가 없습니다.</p>
+        ) : cat ? (
+          /* ── 특정 카테고리 선택 ── */
+          <>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <span style={{ fontSize:16, fontWeight:800, color:'#1A1A1A' }}>
+                {CATS.find(c2 => c2.value === cat)?.label}
+              </span>
+              <span style={{ fontSize:13, color:'#888' }}>{filtered.length}건</span>
+            </div>
+            <FaqList items={filtered} open={open} setOpen={setOpen} />
+          </>
         ) : (
-          <div style={{ maxWidth:720, margin:'0 auto' }}>
-            {filtered.map(item => (
-              <div key={item.id} style={{ borderBottom:'1px solid #F0F0EE' }}>
-                <button
-                  onClick={() => setOpen(prev => prev === item.id ? null : item.id)}
-                  style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-                    padding:'18px 4px', background:'none', border:'none', cursor:'pointer',
-                    textAlign:'left', gap:12 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:'#fff', background:'var(--color-accent)',
-                      padding:'2px 8px', borderRadius:4, whiteSpace:'nowrap', flexShrink:0 }}>
-                      Q
-                    </span>
-                    <span style={{ fontSize:14, fontWeight:600, color:'var(--color-ink)', lineHeight:1.5 }}>
-                      {item.question}
-                    </span>
-                  </div>
-                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2"
-                    style={{ flexShrink:0, transform: open === item.id ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </button>
-                {open === item.id && (
-                  <div style={{ padding:'0 4px 18px 34px', background:'#FAFAF8', borderRadius:8,
-                    marginBottom:4 }}>
-                    <p style={{ fontSize:14, lineHeight:1.8, color:'#444', whiteSpace:'pre-line' }}>
-                      {item.answer}
-                    </p>
-                  </div>
-                )}
+          /* ── 전체 — 카테고리별 그룹 ── */
+          <>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <span style={{ fontSize:16, fontWeight:800, color:'#1A1A1A' }}>자주 묻는 질문</span>
+              <span style={{ fontSize:13, color:'#888' }}>{filtered.length}건</span>
+            </div>
+            {grouped.map(g => (
+              <div key={g.cat} style={{ marginBottom:8 }}>
+                {/* 카테고리 섹션 헤더 */}
+                <div style={{ fontSize:12, fontWeight:700, color:'#888',
+                  padding:'10px 0 6px', borderBottom:'1px solid #F0F0F0', marginBottom:0 }}>
+                  {CAT_LABEL[g.cat] ?? g.cat}
+                </div>
+                <FaqList items={g.items} open={open} setOpen={setOpen} />
               </div>
             ))}
-          </div>
+          </>
         )}
 
         {/* 추가 문의 */}
-        <div style={{ maxWidth:720, margin:'40px auto 0',
-          background:'#F7F7F5', borderRadius:16, padding:'24px', textAlign:'center' }}>
-          <h3 style={{ fontSize:16, fontWeight:700, marginBottom:8 }}>원하는 답변을 찾지 못하셨나요?</h3>
-          <p style={{ fontSize:13, color:'#666', marginBottom:16 }}>
+        <div style={{ marginTop:48, background:'#F7F7F5', borderRadius:16,
+          padding:'28px 24px', textAlign:'center' }}>
+          <div style={{ fontSize:15, fontWeight:700, marginBottom:6 }}>원하는 답변을 찾지 못하셨나요?</div>
+          <p style={{ fontSize:13, color:'#888', lineHeight:1.7, marginBottom:20 }}>
             1:1 문의 또는 카카오 채널로 빠르게 도움 드립니다.
           </p>
           <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
-            <a href="mailto:hello@delio.co.kr"
-              style={{ padding:'10px 20px', border:'1.5px solid var(--color-accent)',
-                borderRadius:8, color:'var(--color-accent)', textDecoration:'none',
-                fontSize:13, fontWeight:700 }}>
-              이메일 문의
-            </a>
-            <button onClick={() => alert('카카오 채널로 이동합니다.')}
-              style={{ padding:'10px 20px', background:'#FEE500', border:'none',
-                borderRadius:8, color:'#3C1E1E', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-              💬 카카오 채널
+            <button onClick={() => router.push('/mypage?panel=cs')}
+              style={{ padding:'11px 22px', background:'#1A1A1A', border:'none',
+                borderRadius:10, color:'#fff', fontSize:13, fontWeight:700,
+                cursor:'pointer', fontFamily:'inherit' }}>
+              1:1 문의하기
+            </button>
+            <button onClick={() => alert('카카오 채널: @델리오')}
+              style={{ padding:'11px 22px', background:'#FEE500', border:'none',
+                borderRadius:10, color:'#3C1E1E', fontSize:13, fontWeight:700,
+                cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:6 }}>
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
+              </svg>
+              카카오 채널
             </button>
           </div>
         </div>
+
       </div>
+    </div>
+  );
+}
+
+/* ── 아코디언 리스트 컴포넌트 ── */
+function FaqList({ items, open, setOpen }: {
+  items: FaqItem[];
+  open: string | null;
+  setOpen: (id: string | null) => void;
+}) {
+  return (
+    <div>
+      {items.map(item => {
+        const isOpen = open === item.id;
+        return (
+          <div key={item.id} style={{ borderBottom:'1px solid #F4F4F4' }}>
+            <button
+              onClick={() => setOpen(isOpen ? null : item.id)}
+              style={{
+                width:'100%', display:'flex', alignItems:'center',
+                justifyContent:'space-between', padding:'16px 0',
+                background:'none', border:'none', cursor:'pointer',
+                textAlign:'left', gap:12, fontFamily:'inherit',
+              }}>
+              <span style={{
+                display:'inline-flex', alignItems:'center', justifyContent:'center',
+                width:24, height:24, borderRadius:6,
+                background:'#1A1A1A', color:'#fff',
+                fontSize:12, fontWeight:800, flexShrink:0,
+                letterSpacing:'-0.5px',
+              }}>Q</span>
+              <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', lineHeight:1.5, flex:1 }}>
+                {item.question}
+              </span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                stroke="#888" strokeWidth="2.2" style={{ flexShrink:0,
+                  transform: isOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            {isOpen && (
+              <div style={{ padding:'0 0 18px 0' }}>
+                <p style={{ fontSize:13, lineHeight:1.9, color:'#555',
+                  whiteSpace:'pre-line', margin:0,
+                  padding:'14px 16px', background:'#F7F7F5', borderRadius:10 }}>
+                  {item.answer}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

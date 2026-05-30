@@ -5,6 +5,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   thumbnail: string;
+  deliveryType?: '산지직송' | '자사배송'; // 배송 구분
   optionId?: string;
   // 구 필드 (호환성 유지)
   qty?: number;
@@ -66,4 +67,9 @@ export function clearCart(): void {
 
 export function getCartCount(): number {
   return getCart().reduce((sum, item) => sum + (item.quantity ?? item.qty ?? 1), 0);
+}
+
+export function showCartToast(name?: string): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('cartToast', { detail: { name } }));
 }

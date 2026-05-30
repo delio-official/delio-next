@@ -66,7 +66,7 @@ body { background: #fff; }
       background: #fff;
       font-family: inherit;
     }
-    .su-input:focus { border-color: var(--color-accent); }
+    .su-input:focus { border-color: #333; }
     .su-input::placeholder { color: #BABABA; }
     .su-input[readonly] { background: #F8F8F6; color: var(--color-ink-mute); }
 
@@ -107,7 +107,7 @@ body { background: #fff; }
       cursor: pointer;
       font-family: inherit;
     }
-    .su-domain-select:focus { border-color: var(--color-accent); }
+    .su-domain-select:focus { border-color: #333; }
 
     /* ── Address button ── */
     .su-addr-btn {
@@ -158,17 +158,13 @@ body { background: #fff; }
       background: transparent;
       font-family: inherit;
     }
-    .su-birth-in:focus { border-color: var(--color-accent); }
+    .su-birth-in:focus { border-color: #333; }
     .su-birth-yyyy { width: 64px; }
     .su-birth-mm, .su-birth-dd { width: 42px; }
     .su-birth-sep { font-size: 16px; color: #CCCCCC; }
 
     /* ── Referral ── */
-    .su-ref-chk { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .su-ref-chk input[type="checkbox"] {
-      width: 17px; height: 17px;
-      accent-color: var(--color-accent); cursor: pointer;
-    }
+    .su-ref-chk { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
     .su-ref-chk span { font-size: 14px; color: var(--color-ink); }
     .su-ref-in-wrap { display: none; margin-top: 10px; }
 
@@ -177,6 +173,18 @@ body { background: #fff; }
     .su-hint.ok { color: #2E7D32; }
     .su-hint.err { color: var(--color-error); }
     .su-timer { font-size: 12px; color: var(--color-accent); text-align: right; margin-top: 4px; }
+    .su-field-error {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 12px; color: #C44; margin-top: 6px; line-height: 1.4;
+    }
+    .su-field-error::before {
+      content: '!';
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #C44; color: #fff;
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+    }
+    .su-input.su-err { border-color: #C44 !important; }
 
     /* ── Terms ── */
     .su-terms-all {
@@ -215,7 +223,7 @@ body { background: #fff; }
 
     /* Circle checkbox */
     .cc {
-      width: 22px; height: 22px;
+      width: 20px; height: 20px;
       border-radius: 50%;
       border: 1.5px solid #CCCCCC;
       background: #fff;
@@ -223,10 +231,9 @@ body { background: #fff; }
       flex-shrink: 0; cursor: pointer;
       transition: border-color .15s, background .15s;
     }
-    .cc.on { border-color: var(--color-accent); background: var(--color-accent); }
+    .cc.on { border-color: #1A1A1A; background: #1A1A1A; }
     .cc svg { opacity: 0.25; }
     .cc.on svg { opacity: 1; }
-    .cc-sm { width: 18px; height: 18px; }
 
     /* ── Submit ── */
     .su-submit-wrap { padding: 28px 0 20px; }

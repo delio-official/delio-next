@@ -1,14 +1,6 @@
 body { background: #fff; }
 
 /* ══════════════════════════════════════════════
-   모바일: 사이트 헤더 / nav-row 숨김 (전용 mob-pv-header 사용)
-══════════════════════════════════════════════ */
-@media (max-width: 768px) {
-  .site-header { display: none !important; }
-  .header-nav-row { display: none !important; }
-}
-
-/* ══════════════════════════════════════════════
    PC / 모바일 뷰 전환
 ══════════════════════════════════════════════ */
 .pc-product-view  { display: none; }
@@ -35,7 +27,7 @@ body { background: #fff; }
   display: flex; gap: 8px; padding: 10px 14px;
   overflow-x: auto; scrollbar-width: none;
   border-bottom: 1px solid #F4F4F4; background: #fff;
-  position: sticky; top: 52px; z-index: 99;
+  position: sticky; top: 103px; z-index: 99;
 }
 .mob-pv-filter::-webkit-scrollbar { display: none; }
 .mob-pv-chip {
@@ -45,8 +37,8 @@ body { background: #fff; }
   background: #fff; cursor: pointer; transition: all .15s; white-space: nowrap;
 }
 .mob-pv-chip.active {
-  border-color: var(--color-accent); color: var(--color-accent);
-  background: var(--color-accent-bg); font-weight: 700;
+  border-color: #1A1A1A; color: #1A1A1A;
+  background: #F4F4F4; font-weight: 700;
 }
 .mob-pv-result-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -74,13 +66,38 @@ body { background: #fff; }
   margin-bottom: 24px;
 }
 .pc-cat-tab {
-  padding: 12px 20px; font-size: 14px; font-weight: 600; color: #000;
+  position: relative;
+  flex: 1; text-align: center;
+  padding: 12px 8px; font-size: 14px; font-weight: 600; color: #666;
   cursor: pointer; border-bottom: 2px solid transparent;
-  margin-bottom: -2px; transition: all .15s;
+  margin-bottom: -2px; transition: color .15s;
   white-space: nowrap; text-decoration: none;
 }
-.pc-cat-tab.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
-.pc-cat-tab:hover  { color: #000; font-weight: 900; }
+.pc-cat-tab::after {
+  content: '';
+  position: absolute; bottom: -2px; left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 2px;
+  background: #1A1A1A;
+  transition: width .2s ease;
+}
+.pc-cat-tab.active { color: #1A1A1A; }
+.pc-cat-tab.active::after { width: calc(100% - 16px); }
+.pc-cat-tab:hover  { color: #1A1A1A; }
+
+/* 신상품 구분선 */
+.pc-cat-tab-sep {
+  display: block; width: 1px; background: #EBEBEB;
+  align-self: stretch; margin: 8px 4px; flex-shrink: 0;
+}
+/* 신상품 탭 — flex:none (균등분배 제외) */
+.pc-cat-tab-new { flex: none; padding: 12px 20px; color: #2D7A4D; }
+.pc-cat-tab-new.active { color: #2D7A4D; }
+.pc-cat-tab-new::after { background: #2D7A4D; }
+
+/* 모바일 신상품 칩 */
+.mob-pv-chip-new { color: #2D7A4D !important; border-color: #2D7A4D !important; }
+.mob-pv-chip-new.active { background: #EAF4EC !important; border-color: #2D7A4D !important; color: #1E8A4C !important; font-weight: 700 !important; }
 
 .product-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; }
 @media (max-width: 1024px) { .product-grid { grid-template-columns: repeat(3,1fr); } }
@@ -96,22 +113,22 @@ body { background: #fff; }
   cursor: pointer; white-space: nowrap; transition: border-color .15s;
 }
 .custom-select-btn:hover,
-.custom-select.open .custom-select-btn { border-color: var(--color-accent); }
+.custom-select.open .custom-select-btn { border-color: #333; }
 .custom-select-list {
   display: none; position: absolute; top: calc(100% + 4px); left: 0;
   min-width: 140px; background: #fff;
   border: 1.5px solid #EBEBEB; border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,.08);
-  list-style: none; padding: 4px 0; margin: 0; z-index: 200;
+  list-style: none; padding: 6px 0; margin: 0; z-index: 200;
 }
 .custom-select.open .custom-select-list { display: block; }
 .custom-select-item {
-  padding: 9px 14px; font-size: 13px; color: #000;
+  padding: 10px 16px; font-size: 13px; color: #333;
   cursor: pointer; transition: background .1s;
 }
 .custom-select-item:hover { background: #F7F7F7; }
-.custom-select-item.selected { font-weight: 700; color: var(--color-accent); }
-.result-count { font-size: 13px; color: var(--color-ink-mute); margin-left: auto; }
+.custom-select-item.selected { font-weight: 700; color: #1A1A1A; }
+.result-count { font-size: 13px; color: var(--color-ink-mute); }
 
 .filter-chip {
   display: inline-flex; align-items: center; gap: 5px;
@@ -121,8 +138,8 @@ body { background: #fff; }
   color: var(--color-ink);
 }
 .filter-chip.active {
-  background: var(--color-accent-bg); border-color: var(--color-accent);
-  color: var(--color-accent); font-weight: 700;
+  background: #F4F4F4; border-color: #333;
+  color: #1A1A1A; font-weight: 700;
 }
 
 /* 페이지네이션 */
@@ -135,18 +152,16 @@ body { background: #fff; }
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 500;
   border: 1.5px solid #E0E0E0; color: #888;
-  cursor: pointer; transition: all .15s; background: #fff;
+  cursor: pointer; background: #fff;
 }
-.page-btn:hover:not(:disabled) { border-color: #bbb; color: #333; }
 .page-btn:disabled { opacity: 0.35; cursor: default; }
 .page-num {
   min-width: 32px; height: 36px; padding: 0 4px;
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 500; color: #aaa;
-  background: none; border: none; cursor: pointer; transition: all .15s;
+  background: none; border: none; cursor: pointer;
 }
 .page-num.active { color: #000; font-weight: 700; }
-.page-num:hover:not(.active) { color: #555; }
 
 .pc-cat-container { padding-top: 24px; padding-bottom: 60px; }
 .header-nav { gap: 0; }
@@ -182,9 +197,9 @@ body { background: #fff; }
   font-size: 12px; font-weight: 700;
   padding: 3px 7px; border-radius: 4px; letter-spacing: 0.3px;
 }
-.tag-dawn    { background: #FFF3D0; color: #7A5C2E; }
-.tag-regular { background: #FFE5E5; color: #C0392B; }
-.tag-special { background: #FFF0E0; color: #A0522D; }
+.tag-dawn    { background: #F0FBF4; color: #1E8A4C; border: 1px solid #7BD4A0; }
+.tag-regular { background: #FFF6EE; color: #D9600A; border: 1px solid #F4A96A; }
+.tag-special { background: #FFF0E0; color: #A0522D; border: 1px solid #E8C8A0; }
 
 /* hover 시 찜/담기 액션 버튼 */
 .product-card-actions {
@@ -220,13 +235,21 @@ body { background: #fff; }
 
 .product-brix-wrap {
   height: 22px; display: flex; align-items: center;
-  margin-bottom: 6px; flex-shrink: 0;
+  margin-bottom: 6px; flex-shrink: 0; gap: 4px;
 }
+/* 이전 brix 뱃지 — 중립 스타일 유지 */
 .product-brix {
   display: inline-flex; align-items: center; gap: 3px;
-  font-size: 12px; font-weight: 700; color: var(--color-accent);
-  background: var(--color-accent-bg); border-radius: 4px; padding: 2px 6px;
+  font-size: 11px; font-weight: 600; color: #888;
+  background: #F4F4F4; border-radius: 4px; padding: 2px 6px;
 }
+.product-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; line-height: 1.4;
+}
+.badge-new  { background: #1A1A1A; color: #fff; }
+.badge-best { background: #1A1A1A; color: #fff; font-weight: 800; }
 
 .product-card-name {
   font-size: 15px; font-weight: 600; color: var(--color-ink);
@@ -235,17 +258,29 @@ body { background: #fff; }
   -webkit-box-orient: vertical; overflow: hidden;
 }
 .product-card-desc {
-  font-size: 12px; color: var(--color-ink-mute); margin-bottom: 8px;
+  font-size: 13px; color: var(--color-ink-mute); margin-bottom: 6px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.5;
 }
 
 .product-price-row {
-  display: flex; align-items: baseline; gap: 5px;
-  flex-wrap: wrap; margin-bottom: 6px;
+  display: flex; align-items: baseline; gap: 4px;
+  flex-wrap: wrap; margin-bottom: 4px;
 }
-.price-original  { font-size: 13px; color: #bbb; text-decoration: line-through; }
-.price-discount  { font-size: 18px; font-weight: 800; color: var(--color-accent); }
+.price-discount  { font-size: 15px; font-weight: 800; color: #E53E3E; }
 .price-current   { font-size: 18px; font-weight: 800; color: var(--color-ink); }
+.price-original  { font-size: 12px; color: #bbb; text-decoration: line-through; }
+
+/* 배송 태그 (카드 본문 하단) */
+.product-delivery-tag {
+  display: inline-block;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 7px; border-radius: 4px;
+  background: #FFF6EE; color: #D9600A;
+  border: 1px solid #F4A96A;
+  margin-top: 2px;
+}
+.product-delivery-tag.farm { background: #F0FBF4; color: #1E8A4C; border-color: #7BD4A0; }
 
 .product-rating-row { display: flex; align-items: center; }
 .rating-stars {

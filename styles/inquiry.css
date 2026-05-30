@@ -151,12 +151,12 @@ body { background: #FAFAF8; }
     /* 제출 버튼 */
     .btn-inq-submit {
       width: 100%; padding: 14px;
-      background: var(--color-accent); color: #fff;
+      background: #1A1A1A; color: #fff;
       border-radius: 12px; border: none;
       font-size: 15px; font-weight: 700;
       cursor: pointer; transition: background .15s;
     }
-    .btn-inq-submit:hover { background: var(--color-accent-hover); }
+    .btn-inq-submit:hover { background: #333; }
     .btn-inq-submit:disabled { background: #BDBDBD; cursor: default; }
 
     /* 완료 배너 */
@@ -179,16 +179,16 @@ body { background: #FAFAF8; }
       cursor: pointer; transition: all .15s; gap: 4px;
       font-family: inherit;
     }
-    .inq-type-btn:hover { border-color: var(--color-accent); }
+    .inq-type-btn:hover { border-color: #1A1A1A; }
     .inq-type-btn.active {
-      border-color: var(--color-accent);
-      background: #FFF8F7;
+      border-color: #1A1A1A;
+      background: #F5F5F5;
     }
     .inq-type-icon { font-size: 26px; margin-bottom: 2px; }
     .inq-type-name {
       font-size: 13px; font-weight: 700; color: var(--color-ink);
     }
-    .inq-type-btn.active .inq-type-name { color: var(--color-accent); }
+    .inq-type-btn.active .inq-type-name { color: #1A1A1A; }
     .inq-type-sub {
       font-size: 10px; color: var(--color-ink-mute);
     }
