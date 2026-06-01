@@ -608,23 +608,37 @@ export default function HomeClient() {
     });
   }
 
-  /* 리뷰 카드 상품 ID 조회 (상품명 → id 매핑) */
+  /* 리뷰 카드 상품 ID 조회 (상품명 → id, 카테고리 → 대표 상품 id 매핑) */
   const [reviewProdMap, setReviewProdMap] = useState<Record<string, string>>({});
+  const [catProdMap, setCatProdMap] = useState<Record<string, string>>({});
   useEffect(() => {
     async function fetchReviewProds() {
       const supabase = createClient();
       const { data } = await supabase
         .from('products')
-        .select('id, name')
+        .select('id, name, category')
         .eq('is_active', true);
       if (data) {
         const map: Record<string, string> = {};
-        data.forEach((p: { id: string; name: string }) => { map[p.name] = p.id; });
+        const cmap: Record<string, string> = {};
+        data.forEach((p: { id: string; name: string; category: string }) => {
+          map[p.name] = p.id;
+          if (p.category && !cmap[p.category]) cmap[p.category] = p.id; // 카테고리별 대표 상품
+        });
         setReviewProdMap(map);
+        setCatProdMap(cmap);
       }
     }
     fetchReviewProds();
   }, []);
+
+  /* category= 쿼리에서 카테고리 추출 → 실제 상품 링크 (없으면 원래 링크) */
+  const productHref = (fallbackHref: string, prodName?: string) => {
+    if (prodName && reviewProdMap[prodName]) return `/product/${reviewProdMap[prodName]}`;
+    const cat = fallbackHref.includes('cat=') ? fallbackHref.split('cat=')[1].split('&')[0] : '';
+    if (cat && catProdMap[cat]) return `/product/${catProdMap[cat]}`;
+    return fallbackHref;
+  };
 
   const reviews = [
     { photo: 'review-photo-orange', emoji: '🍊', stars: 5, text: '정말 달아요. 이렇게 달콤한 한라봉은 처음 먹어봐요. 당도가 기대 이상이라 가족들이 다 좋아해요.', prodName: '제주 황금 한라봉', prodRating: '4.9 (2,847)', prodHref: '/category?cat=citrus', reviewHref: '/review' },
@@ -770,8 +784,8 @@ export default function HomeClient() {
             <h2 className="g-section-title">
               <small>믿을 수 있는 농가에서 직접 보냅니다</small>
               <div className="g-title-main">
-                <Link href="/brand-direct" style={{ textDecoration:'none', color:'inherit' }}>브랜드 직송관</Link>
-                <Link href="/brand-direct" className="g-section-link">전체보기</Link>
+                <Link href="/brand-intro" style={{ textDecoration:'none', color:'inherit' }}>브랜드 직송관</Link>
+                <Link href="/brand-intro" className="g-section-link">전체보기</Link>
               </div>
             </h2>
           </div>
@@ -791,7 +805,7 @@ export default function HomeClient() {
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </Link>
-                  <Link href={b.catHref} className="bdc-product-row">
+                  <Link href={productHref(b.catHref, b.prodName)} className="bdc-product-row">
                     <div className={`bdc-product-thumb ${b.logo.replace('logo','thumb')}`}>{b.emoji}</div>
                     <div className="bdc-product-info">
                       <div className="bdc-product-name">{b.prodName}</div>
@@ -839,7 +853,7 @@ export default function HomeClient() {
                     </div>
                   </Link>
                   {/* 상품 정보 → 상품 상세 페이지 */}
-                  <Link href={reviewProdMap[r.prodName] ? `/product/${reviewProdMap[r.prodName]}` : r.prodHref} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
+                  <Link href={productHref(r.prodHref, r.prodName)} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
                     <div className={`review-prod-icon ${r.photo}`}>{r.emoji}</div>
                     <div className="review-prod-info">
                       <div className="review-prod-name">{r.prodName}</div>

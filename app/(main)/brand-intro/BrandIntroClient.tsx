@@ -121,25 +121,6 @@ export default function BrandIntroClient() {
 
           </div>
 
-          {/* 브랜드 직송관 배너 */}
-          <Link href="/brand-direct" style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginTop: 24 }}>
-            <div style={{ borderRadius: 20, background: 'linear-gradient(135deg,#EEF5FF,#D8E9FF)',
-              padding: '32px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              border: '1.5px solid #C8DCF8', transition: 'box-shadow .2s' }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)')}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-              <div>
-                <p style={{ fontSize: 11, letterSpacing: 2, color: '#3A6AB0', fontWeight: 700, marginBottom: 8 }}>
-                  BRAND DIRECT SHOP
-                </p>
-                <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>브랜드 직송관</h3>
-                <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>
-                  파트너 농가의 신선한 상품을 직접 만나보세요
-                </p>
-              </div>
-              <div style={{ fontSize: 48, flexShrink: 0, marginLeft: 20 }}>🚚</div>
-            </div>
-          </Link>
         </div>
       </section>
     </main>

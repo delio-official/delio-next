@@ -242,7 +242,6 @@ export default function Header() {
                       </div>
                       <div className="mega-col">
                         <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
-                        <Link href="/brand-direct" className="mega-link">브랜드 직송관</Link>
                         <Link href="/brand" className="mega-link">브랜드 소개</Link>
                         <Link href="/farms" className="mega-link">파트너 농가</Link>
                       </div>
