@@ -57,3 +57,16 @@ export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }
+
+/** 비밀번호 재설정 메일 발송 */
+export async function sendPasswordReset(email: string) {
+  const supabase = createClient();
+  const redirectTo = `${window.location.origin}/reset-password`;
+  return supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+}
+
+/** 새 비밀번호로 변경 (재설정 링크 진입 후) */
+export async function updatePassword(newPassword: string) {
+  const supabase = createClient();
+  return supabase.auth.updateUser({ password: newPassword });
+}
