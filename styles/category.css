@@ -62,38 +62,26 @@ body { background: #fff; }
   padding: 20px 0 16px; flex-wrap: wrap;
 }
 .pc-cat-tabs {
-  display: flex; gap: 0; border-bottom: 2px solid #EBEBEB;
-  margin-bottom: 24px;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; margin-bottom: 24px;
 }
 .pc-cat-tab {
-  position: relative;
-  flex: 1; text-align: center;
-  padding: 12px 8px; font-size: 14px; font-weight: 600; color: #666;
-  cursor: pointer; border-bottom: 2px solid transparent;
-  margin-bottom: -2px; transition: color .15s;
-  white-space: nowrap; text-decoration: none;
+  flex: none;
+  padding: 9px 18px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: #888;
+  cursor: pointer; white-space: nowrap; text-decoration: none;
+  border: 1px solid #E5E5E5; background: #F4F4F4;
+  transition: all .15s;
 }
-.pc-cat-tab::after {
-  content: '';
-  position: absolute; bottom: -2px; left: 50%;
-  transform: translateX(-50%);
-  width: 0; height: 2px;
-  background: #1A1A1A;
-  transition: width .2s ease;
-}
-.pc-cat-tab.active { color: #1A1A1A; }
-.pc-cat-tab.active::after { width: calc(100% - 16px); }
+.pc-cat-tab::after { display: none; }
 .pc-cat-tab:hover  { color: #1A1A1A; }
+.pc-cat-tab.active { color: #fff; background: #1A1A1A; border-color: #1A1A1A; }
 
-/* 신상품 구분선 */
-.pc-cat-tab-sep {
-  display: block; width: 1px; background: #EBEBEB;
-  align-self: stretch; margin: 8px 4px; flex-shrink: 0;
-}
-/* 신상품 탭 — flex:none (균등분배 제외) */
-.pc-cat-tab-new { flex: none; padding: 12px 20px; color: #2D7A4D; }
-.pc-cat-tab-new.active { color: #2D7A4D; }
-.pc-cat-tab-new::after { background: #2D7A4D; }
+/* 신상품 구분선 — 필탭에선 숨김 */
+.pc-cat-tab-sep { display: none; }
+/* 신상품 탭 */
+.pc-cat-tab-new { color: #2D7A4D; }
+.pc-cat-tab-new.active { color: #fff; background: #2D7A4D; border-color: #2D7A4D; }
 
 /* 모바일 신상품 칩 */
 .mob-pv-chip-new { color: #2D7A4D !important; border-color: #2D7A4D !important; }
