@@ -162,6 +162,14 @@ export default function MypageClient() {
   const [addrEditing,  setAddrEditing]  = useState<Address | null>(null);
   const [addrForm,     setAddrForm]     = useState({ ...EMPTY_ADDR });
   const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
+  const [isMobileView, setIsMobileView] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobileView(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   /* 친구 추천 */
   const [referralCode,    setReferralCode]    = useState('');
@@ -1644,11 +1652,25 @@ export default function MypageClient() {
               <div className="mp-section">
 
                 {/* 타이틀 */}
-                <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
-                  <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>
-                    {addrFormOpen ? (addrEditing ? '배송지 수정' : '배송지 추가') : '배송지 목록'}
+                {addrFormOpen ? (
+                  <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>{addrEditing ? '배송지 수정' : '배송지 추가'}</div>
                   </div>
-                </div>
+                ) : isMobileView ? (
+                  <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>배송지 목록</div>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
+                    <div style={{ fontSize:20, fontWeight:700, color:'#111' }}>배송지 관리</div>
+                    {addresses.length < 5 && (
+                      <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
+                        style={{ padding:'10px 18px', background:'#fff', border:'1px solid #CFCFCF', borderRadius:8, fontSize:14, fontWeight:600, color:'#333', cursor:'pointer', fontFamily:'inherit' }}>
+                        + 배송지 추가
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {addrLoading ? (
                   <div className="mp-empty">불러오는 중...</div>
@@ -1740,45 +1762,67 @@ export default function MypageClient() {
                         return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0);
                       }).map(a => (
                         <div key={a.id} style={{ border:'1px solid #E5E5E5', borderRadius:10, padding:'18px', marginBottom:12 }}>
-                          {/* 상단: 배송명 + 기본배송지 + 선택됨 */}
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                          {/* 상단: 배송명 + 기본배송지 / (모바일)선택됨 (PC)수정·삭제 */}
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, gap:10 }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
                               <span style={{ fontSize:15, fontWeight:700, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.label || '배송지'}</span>
                               {a.is_default && (
                                 <span style={{ fontSize:11, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px', flexShrink:0 }}>기본배송지</span>
                               )}
                             </div>
-                            {a.is_default ? (
-                              <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:13, color:'#111', fontWeight:600, flexShrink:0 }}>
-                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                선택됨
-                              </span>
+                            {isMobileView ? (
+                              a.is_default ? (
+                                <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:13, color:'#111', fontWeight:600, flexShrink:0 }}>
+                                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                  선택됨
+                                </span>
+                              ) : (
+                                <button onClick={() => setDefaultAddress(a.id)}
+                                  style={{ fontSize:13, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
+                                  선택
+                                </button>
+                              )
                             ) : (
-                              <button onClick={() => setDefaultAddress(a.id)}
-                                style={{ fontSize:13, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
-                                선택
-                              </button>
+                              /* PC: 우측 박스 버튼 */
+                              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                                {!a.is_default && (
+                                  <button onClick={() => setDefaultAddress(a.id)}
+                                    style={{ padding:'6px 12px', fontSize:13, color:'#555', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
+                                    기본 설정
+                                  </button>
+                                )}
+                                <button onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
+                                  style={{ padding:'6px 14px', fontSize:13, color:'#333', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
+                                  수정
+                                </button>
+                                <button onClick={() => deleteAddress(a.id)}
+                                  style={{ padding:'6px 14px', fontSize:13, color:'#333', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
+                                  삭제
+                                </button>
+                              </div>
                             )}
                           </div>
                           {/* 받는분 + 전화 */}
                           <div style={{ fontSize:14, color:'#333', marginBottom:6 }}>{a.recipient} {a.phone}</div>
                           {/* 주소 */}
-                          <div style={{ fontSize:13, color:'#777', lineHeight:1.5, marginBottom:14 }}>
+                          <div style={{ fontSize:13, color:'#777', lineHeight:1.5, marginBottom: isMobileView ? 14 : 0 }}>
                             {a.zipcode && <span style={{ color:'#aaa' }}>[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
                           </div>
-                          {/* 수정 / 삭제 */}
-                          <div style={{ display:'flex', gap:12, fontSize:13, color:'#888' }}>
-                            <span onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
-                              style={{ cursor:'pointer' }}>수정</span>
-                            <span style={{ color:'#E0E0E0' }}>|</span>
-                            <span onClick={() => deleteAddress(a.id)} style={{ cursor:'pointer' }}>삭제</span>
-                          </div>
+                          {/* 모바일 전용: 하단 수정 / 삭제 */}
+                          {isMobileView && (
+                            <div style={{ display:'flex', gap:12, fontSize:13, color:'#888' }}>
+                              <span onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
+                                style={{ cursor:'pointer' }}>수정</span>
+                              <span style={{ color:'#E0E0E0' }}>|</span>
+                              <span onClick={() => deleteAddress(a.id)} style={{ cursor:'pointer' }}>삭제</span>
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
 
-                    {/* + 배송지 추가 */}
-                    {addresses.length < 5 && (
+                    {/* + 배송지 추가 (모바일 전용: 하단 알약 / PC는 상단 우측 버튼) */}
+                    {isMobileView && addresses.length < 5 && (
                       <div style={{ display:'flex', justifyContent:'center', marginTop:24 }}>
                         <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
                           style={{ padding:'15px 44px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
