@@ -948,6 +948,7 @@ export default function AdminClient() {
   /* ── 환불 관리 ── */
   const [refundReqs, setRefundReqs] = useState<AdminRefundReq[]>([]);
   const [refundLoading, setRefundLoading] = useState(false);
+  const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
@@ -1456,6 +1457,7 @@ export default function AdminClient() {
     setRefundReqs(prev => prev.map(r => r.id === req.id
       ? { ...r, status: newStatus, orders: r.orders && (newStatus !== 'rejected') ? { ...r.orders, status: newStatus === 'completed' ? 'refunded' : 'refunding' } : r.orders }
       : r));
+    setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus } : prev);
   }
 
   async function loadReviews() {
@@ -4779,24 +4781,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               </td>
                               <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
                               <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
-                              <td style={{ minWidth:240, maxWidth:360 }}>
-                                <div style={{ fontWeight:600, marginBottom: r.detail ? 4 : 0 }}>{r.reason}</div>
-                                {r.detail && <div style={{ fontSize:12, color:'#475569', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{r.detail}</div>}
-                              </td>
+                              <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                               <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                               <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>
                               <td>
-                                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                                  {(r.status === 'pending' || r.status === 'rejected') && (
-                                    <button className="adm-row-btn" onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
-                                  )}
-                                  {r.status !== 'completed' && (
-                                    <button className="adm-row-btn" onClick={() => { if (confirm('환불 완료 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불완료</button>
-                                  )}
-                                  {r.status !== 'rejected' && r.status !== 'completed' && (
-                                    <button className="adm-row-btn adm-row-btn-danger" onClick={() => { if (confirm('이 환불 신청을 거절하시겠습니까?')) updateRefundStatus(r, 'rejected'); }}>거절</button>
-                                  )}
-                                </div>
+                                <button className="adm-row-btn" onClick={() => setRefundDetail(r)}>상세</button>
                               </td>
                             </tr>
                           );
@@ -4806,6 +4795,61 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 )}
               </div>
+
+              {/* 환불 상세 모달 */}
+              {refundDetail && (() => {
+                const r = refundDetail;
+                const stLabel: Record<string,string> = { pending:'신청 대기', processing:'처리중', completed:'환불완료', rejected:'거절' };
+                const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
+                const rows: [string, string][] = [
+                  ['신청자', `${r.profiles?.name || '(탈퇴)'}${r.profiles?.email ? ` · ${r.profiles.email}` : ''}`],
+                  ['주문번호', r.orders?.order_no || '-'],
+                  ['결제금액', r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'],
+                  ['신청일', fmtDateShort(r.created_at)],
+                  ['사유', r.reason],
+                ];
+                return (
+                  <div className="adm-float-overlay" onClick={() => setRefundDetail(null)}>
+                    <div className="adm-float-modal" style={{ maxWidth:480, padding:28 }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+                        <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>환불 신청 상세</h3>
+                        <button onClick={() => setRefundDetail(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+                      </div>
+
+                      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+                        {rows.map(([label, val]) => (
+                          <div key={label} style={{ display:'flex', gap:12, fontSize:13 }}>
+                            <span style={{ width:64, flexShrink:0, color:'#94A3B8', fontWeight:600 }}>{label}</span>
+                            <span style={{ color:'#1A1A1A', fontWeight:500 }}>{val}</span>
+                          </div>
+                        ))}
+                        <div style={{ display:'flex', gap:12, fontSize:13, alignItems:'center' }}>
+                          <span style={{ width:64, flexShrink:0, color:'#94A3B8', fontWeight:600 }}>상태</span>
+                          <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize:12, color:'#94A3B8', fontWeight:600, marginBottom:6 }}>상세 내용</div>
+                      <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'14px 16px',
+                        fontSize:13, color:'#334155', lineHeight:1.7, whiteSpace:'pre-wrap', minHeight:60, marginBottom:20 }}>
+                        {r.detail || '(상세 내용 없음)'}
+                      </div>
+
+                      <div style={{ display:'flex', gap:8 }}>
+                        {(r.status === 'pending' || r.status === 'rejected') && (
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중으로</button>
+                        )}
+                        {r.status !== 'completed' && (
+                          <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { if (confirm('환불 완료 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불완료</button>
+                        )}
+                        {r.status !== 'rejected' && r.status !== 'completed' && (
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { if (confirm('이 환불 신청을 거절하시겠습니까?')) updateRefundStatus(r, 'rejected'); }}>거절</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
