@@ -15,6 +15,7 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
   // 1. 최신 배송 상태 조회 → 우리 주문 상태로 매핑
   const code = await fetchLastStatusCode(carrierId, trackingNumber);
   const mapped = mapTrackerCodeToOrderStatus(code);
+  console.log(`[tracking/webhook] carrier=${carrierId} tno=${trackingNumber} code=${code} mapped=${mapped}`);
   if (!mapped) {
     return NextResponse.json({ ok: true, skipped: true, code }, { status: 202 });
   }
