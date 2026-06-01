@@ -132,6 +132,10 @@ export default function MypageClient() {
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
   const [editSaving,     setEditSaving]     = useState(false);
+  const [editImages,     setEditImages]     = useState<string[]>([]);   // 유지할 기존 이미지
+  const [editVideo,      setEditVideo]      = useState<string | null>(null); // 유지할 기존 영상
+  const [editNewImages,  setEditNewImages]  = useState<File[]>([]);     // 새로 추가한 이미지
+  const [editNewVideo,   setEditNewVideo]   = useState<File | null>(null);
   const [reviewPhotoModal, setReviewPhotoModal] = useState<MyReview | null>(null);
   const [reviewPhotoIdx,   setReviewPhotoIdx]   = useState(0);
   const [recentPage,       setRecentPage]       = useState(0);
@@ -538,19 +542,49 @@ export default function MypageClient() {
     setEditingId(r.id);
     setEditRating(r.rating);
     setEditContent(r.content);
+    setEditImages(r.image_urls || []);
+    setEditVideo(r.video_url || null);
+    setEditNewImages([]);
+    setEditNewVideo(null);
   }
 
-  /* ── 리뷰 수정 저장 ── */
+  /* ── 리뷰 수정 저장 (이미지/영상 편집 포함) ── */
   async function handleUpdateReview(id: string) {
     if (!editContent.trim()) { alert('내용을 입력해주세요.'); return; }
     setEditSaving(true);
     const supabase = createClient();
+    const safeName = (n: string) => `${Date.now()}_${Math.random().toString(36).slice(2,8)}_${n.replace(/[^a-zA-Z0-9._-]/g, '')}`;
+
+    // 새 이미지 업로드
+    const uploadedImgs: string[] = [];
+    for (const f of editNewImages) {
+      const path = `reviews/${user!.id}/${safeName(f.name)}`;
+      const { error: upErr } = await supabase.storage.from('products').upload(path, f, { upsert: true });
+      if (upErr) { setEditSaving(false); alert('사진 업로드 실패: ' + upErr.message); return; }
+      uploadedImgs.push(supabase.storage.from('products').getPublicUrl(path).data.publicUrl);
+    }
+    // 새 영상 업로드 (있으면 기존 영상 대체)
+    let finalVideo: string | null = editVideo;
+    if (editNewVideo) {
+      const path = `reviews/${user!.id}/${safeName(editNewVideo.name)}`;
+      const { error: upErr } = await supabase.storage.from('products').upload(path, editNewVideo, { upsert: true });
+      if (upErr) { setEditSaving(false); alert('영상 업로드 실패: ' + upErr.message); return; }
+      finalVideo = supabase.storage.from('products').getPublicUrl(path).data.publicUrl;
+    }
+    const finalImages = [...editImages, ...uploadedImgs];
+
     const { error } = await supabase.from('reviews')
-      .update({ rating: editRating, content: editContent.trim() })
+      .update({
+        rating: editRating, content: editContent.trim(),
+        image_urls: finalImages.length ? finalImages : null,
+        video_url: finalVideo,
+      })
       .eq('id', id);
     setEditSaving(false);
     if (error) { alert('수정 실패: ' + error.message); return; }
-    setMyReviews(prev => prev.map(r => r.id === id ? { ...r, rating: editRating, content: editContent.trim() } : r));
+    setMyReviews(prev => prev.map(r => r.id === id
+      ? { ...r, rating: editRating, content: editContent.trim(), image_urls: finalImages.length ? finalImages : null, video_url: finalVideo }
+      : r));
     setEditingId(null);
   }
 
@@ -1317,6 +1351,59 @@ export default function MypageClient() {
                                     outline:'none', fontFamily:'inherit', lineHeight:1.6,
                                     boxSizing:'border-box' }}
                                 />
+
+                                {/* 사진/영상 편집 */}
+                                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                                  {/* 기존 이미지 */}
+                                  {editImages.map((url, i) => (
+                                    <div key={'ei'+i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                      <img src={url} alt="" style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee' }} />
+                                      <button type="button" onClick={() => setEditImages(prev => prev.filter((_, j) => j !== i))}
+                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                    </div>
+                                  ))}
+                                  {/* 새 이미지 */}
+                                  {editNewImages.map((f, i) => (
+                                    <div key={'ni'+i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                      <img src={URL.createObjectURL(f)} alt="" style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee' }} />
+                                      <button type="button" onClick={() => setEditNewImages(prev => prev.filter((_, j) => j !== i))}
+                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                    </div>
+                                  ))}
+                                  {/* 기존 영상 */}
+                                  {editVideo && (
+                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                      <video src={editVideo} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
+                                      <button type="button" onClick={() => setEditVideo(null)}
+                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                    </div>
+                                  )}
+                                  {/* 새 영상 */}
+                                  {editNewVideo && (
+                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                      <video src={URL.createObjectURL(editNewVideo)} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
+                                      <button type="button" onClick={() => setEditNewVideo(null)}
+                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                    </div>
+                                  )}
+                                  {/* 사진 추가 (최대 5장) */}
+                                  {(editImages.length + editNewImages.length) < 5 && (
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1.5px dashed #D0D0CC', background:'#FAFAFA', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:10, color:'#aaa', fontWeight:600 }}>
+                                      ＋사진
+                                      <input type="file" accept="image/*" multiple hidden
+                                        onChange={e => { if (!e.target.files) return; const files = Array.from(e.target.files).slice(0, 5 - editImages.length - editNewImages.length); setEditNewImages(prev => [...prev, ...files]); e.target.value=''; }} />
+                                    </label>
+                                  )}
+                                  {/* 영상 추가 */}
+                                  {!editVideo && !editNewVideo && (
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1.5px dashed #D0D0CC', background:'#FAFAFA', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:10, color:'#aaa', fontWeight:600 }}>
+                                      ＋영상
+                                      <input type="file" accept="video/*" hidden
+                                        onChange={e => { const f = e.target.files?.[0]; if (f) setEditNewVideo(f); e.target.value=''; }} />
+                                    </label>
+                                  )}
+                                </div>
+
                                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
                                   <button
                                     onClick={() => handleUpdateReview(r.id)}
