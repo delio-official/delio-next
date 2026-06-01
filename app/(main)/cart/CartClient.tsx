@@ -239,7 +239,7 @@ export default function CartClient() {
 
             {/* 금액 */}
             <div className="summary-row"><span>상품 합계</span><span>{fmtPrice(subtotal)}원</span></div>
-            <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span></div>
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
             {bestCouponDisc > 0 && (
               <div className="summary-row total" style={{ borderTop:'none', marginTop:0, paddingTop:4 }}>

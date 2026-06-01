@@ -338,9 +338,9 @@ export default function CheckoutClient() {
         <div style={{ flex:1, minWidth:280 }}>
 
           {/* 배송지 */}
-          <div style={{ border:'1px solid #EBEBEB', borderRadius:12, padding:'20px', marginBottom:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <h2 style={{ fontSize:16, fontWeight:700 }}>배송지 정보</h2>
+          <div style={{ marginBottom:28 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>
+              <h2 style={{ fontSize:18, fontWeight:800 }}>배송지 설정</h2>
               {savedAddresses.length > 0 && (
                 <button type="button" onClick={() => setShowAddrList(v => !v)}
                   style={{ fontSize:13, fontWeight:600, color:'#2563EB', background:'none', border:'1.5px solid #DBEAFE', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}>
@@ -397,34 +397,39 @@ export default function CheckoutClient() {
                 style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#FAFAFA' }} />
               <input placeholder="상세 주소" value={addr2} onChange={e => setAddr2(e.target.value)}
                 style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
-              <input placeholder="배송 메모 (예: 문 앞에 놓아주세요)" value={memo} onChange={e => setMemo(e.target.value)}
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
+              <select value={memo} onChange={e => setMemo(e.target.value)}
+                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#fff', color: memo ? '#1A1A1A' : '#94A3B8' }}>
+                <option value="">배송 요청사항을 선택해주세요</option>
+                <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
+                <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
+                <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
+                <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
+              </select>
             </div>
           </div>
 
           {/* 결제 수단 */}
-          <div style={{ border:'1px solid #EBEBEB', borderRadius:12, padding:'20px', marginBottom:16 }}>
-            <h2 style={{ fontSize:16, fontWeight:700, marginBottom:16 }}>결제 수단</h2>
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:18 }}>결제수단</h2>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
               {PAYMENT_METHODS.map(m => (
-                <label key={m.value}
-                  style={{ padding:'10px 16px',
-                    border:`1.5px solid ${payMethod===m.value?'#1A1A1A':'#EBEBEB'}`,
-                    borderRadius:8, cursor:'pointer', fontSize:13,
+                <button type="button" key={m.value} onClick={() => setPayMethod(m.value)}
+                  style={{ padding:'18px 8px', borderRadius:8, cursor:'pointer', fontSize:14,
+                    fontFamily:'inherit',
+                    border:`1.5px solid ${payMethod===m.value?'#1A1A1A':'#E2E2E2'}`,
                     fontWeight:payMethod===m.value?700:500,
-                    color:payMethod===m.value?'#1A1A1A':'#555',
-                    background:payMethod===m.value?'#F5F5F5':'#fff' }}>
-                  <input type="radio" name="pay" value={m.value} checked={payMethod===m.value}
-                    onChange={() => setPayMethod(m.value)} style={{ display:'none' }} />
+                    color:payMethod===m.value?'#1A1A1A':'#666',
+                    background:payMethod===m.value?'#F7F7F5':'#fff' }}>
                   {m.label}
-                </label>
+                </button>
               ))}
             </div>
           </div>
 
           {/* 주문 상품 */}
-          <div style={{ border:'1px solid #EBEBEB', borderRadius:12, padding:'20px' }}>
-            <h2 style={{ fontSize:16, fontWeight:700, marginBottom:16 }}>주문 상품 ({items.length})</h2>
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>주문상품 ({items.length})</h2>
             {items.map(i => (
               <div key={i.idx} style={{ display:'flex', gap:10, marginBottom:12 }}>
                 <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5',
@@ -446,8 +451,8 @@ export default function CheckoutClient() {
 
         {/* 오른쪽: 결제 요약 */}
         <div style={{ width:300, flexShrink:0, position:'sticky', top:80 }}>
-          <div style={{ border:'1px solid #EBEBEB', borderRadius:12, padding:'20px' }}>
-            <h2 style={{ fontSize:16, fontWeight:700, marginBottom:16 }}>결제 요약</h2>
+          <div style={{ border:'1px solid #E2E2E2', borderRadius:12, padding:'22px' }}>
+            <h2 style={{ fontSize:17, fontWeight:800, marginBottom:18 }}>결제 금액</h2>
 
             {/* 쿠폰 선택 */}
             <div style={{ marginBottom:12 }}>
@@ -485,7 +490,7 @@ export default function CheckoutClient() {
             </div>
 
             <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
-              <span>상품 합계</span><span>{fmtPrice(subtotal)}원</span>
+              <span>상품금액</span><span>{fmtPrice(subtotal)}원</span>
             </div>
             {couponDisc > 0 && (
               <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
@@ -504,15 +509,15 @@ export default function CheckoutClient() {
               <span>포인트 적립 예정</span>
               <span style={{ color:'#1A1A1A', fontWeight:600 }}>+{fmtPrice(Math.floor(total*0.01))}P</span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'14px 0', fontSize:16, fontWeight:800 }}>
-              <span>최종 결제금액</span>
-              <span>{fmtPrice(total)}원</span>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 0 18px', marginTop:4, borderTop:'2px solid #1A1A1A', fontWeight:800 }}>
+              <span style={{ fontSize:15 }}>총 결제 예정 금액</span>
+              <span style={{ fontSize:20 }}>{fmtPrice(total)}원</span>
             </div>
             <button onClick={handleOrder} disabled={loading}
-              style={{ width:'100%', padding:'16px', background: loading ? '#ccc' : '#1A1A1A',
+              style={{ width:'100%', padding:'16px', background: loading ? '#9CB3AC' : '#3E6E64',
                 color:'#fff', border:'none', borderRadius:8, fontSize:16, fontWeight:700,
                 cursor: loading ? 'not-allowed' : 'pointer', transition:'background .2s' }}>
-              {loading ? '결제창 열리는 중...' : `${fmtPrice(total)}원 결제하기`}
+              {loading ? '결제창 열리는 중...' : '결제하기'}
             </button>
             <p style={{ fontSize:11, color:'#AAA', textAlign:'center', marginTop:10, lineHeight:1.6 }}>
               결제 완료 후 결제금액의 1%가<br />포인트로 적립됩니다

@@ -52,6 +52,7 @@ interface Order {
   created_at: string;
   courier: string | null;
   tracking_number: string | null;
+  delivery_memo: string | null;
   order_items?: OrderItem[];
 }
 
@@ -2393,7 +2394,7 @@ export default function AdminClient() {
           '전화번호':    o.phone,
           '우편번호':    o.zipcode || '',
           '주소':        o.address1 + (o.address2 ? ' ' + o.address2 : ''),
-          '배송메모':    '',
+          '배송메모':    o.delivery_memo || '',
           '상품명':      i.product_name,
           '수량':        i.quantity,
           '단가':        i.unit_price,
@@ -3064,6 +3065,7 @@ export default function AdminClient() {
                   ['주문자', selectedOrder.recipient],
                   ['연락처', selectedOrder.phone],
                   ['배송지', `${selectedOrder.address1}${selectedOrder.address2 ? ' ' + selectedOrder.address2 : ''}`],
+                  ['배송 요청사항', selectedOrder.delivery_memo || '-'],
                   ['결제금액', `${fmtPrice(selectedOrder.final_amount)}원 (${selectedOrder.payment_method})`],
                   ['주문일시', fmtDate(selectedOrder.created_at)],
                   ['현재 상태', STATUS_LABEL[selectedOrder.status] || selectedOrder.status],
