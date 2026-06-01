@@ -9,41 +9,37 @@ import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK } f
  */
 async function handle(carrierId: string | null, trackingNumber: string | null) {
   if (!carrierId || !trackingNumber) {
-    return NextResponse.json({ error: 'carrierId / trackingNumber 누락' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'carrierId / trackingNumber 누락' }, { status: 400 });
   }
 
   // 1. 최신 배송 상태 조회 → 우리 주문 상태로 매핑
   const code = await fetchLastStatusCode(carrierId, trackingNumber);
   const mapped = mapTrackerCodeToOrderStatus(code);
   if (!mapped) {
-    return NextResponse.json({ ok: true, skipped: true, code });
+    return NextResponse.json({ ok: true, skipped: true, code }, { status: 202 });
   }
 
-  // 2. 해당 운송장의 주문 조회
+  // 2. 해당 운송장의 주문들 조회 (중복 가능성 대비, 단건 가정 X)
   const supabase = createAdminSupabaseClient();
-  const { data: order, error } = await supabase
+  const { data: orders } = await supabase
     .from('orders')
     .select('id, status')
-    .eq('tracking_number', trackingNumber)
-    .maybeSingle();
-  if (error || !order) {
-    return NextResponse.json({ ok: true, skipped: true, reason: '주문 없음' });
+    .eq('tracking_number', trackingNumber);
+  if (!orders || orders.length === 0) {
+    return NextResponse.json({ ok: true, skipped: true, reason: '주문 없음', code }, { status: 202 });
   }
 
-  // 3. 취소/환불 주문은 건드리지 않음 + 앞으로만 진행(역행 방지)
-  const cur = order.status as string;
-  if (['cancelled', 'refunding', 'refunded'].includes(cur)) {
-    return NextResponse.json({ ok: true, skipped: true, reason: `상태 ${cur}` });
-  }
-  const curRank = ORDER_STATUS_RANK[cur] ?? 0;
+  // 3. 취소/환불 제외 + 앞으로만 진행(역행 방지) → 갱신 (delivered 시 추천 보상 트리거 자동)
   const newRank = ORDER_STATUS_RANK[mapped] ?? 0;
-  if (newRank <= curRank) {
-    return NextResponse.json({ ok: true, skipped: true, reason: '역행/동일' });
+  let updated = false;
+  for (const o of orders) {
+    const cur = o.status as string;
+    if (['cancelled', 'refunding', 'refunded'].includes(cur)) continue;
+    if ((ORDER_STATUS_RANK[cur] ?? 0) >= newRank) continue;
+    await supabase.from('orders').update({ status: mapped }).eq('id', o.id);
+    updated = true;
   }
-
-  // 4. 갱신 (delivered 로 바뀌면 추천 보상 트리거가 자동 동작)
-  await supabase.from('orders').update({ status: mapped }).eq('id', order.id);
-  return NextResponse.json({ ok: true, updated: mapped });
+  return NextResponse.json({ ok: true, updated: updated ? mapped : null, code }, { status: 202 });
 }
 
 export async function POST(req: NextRequest) {
