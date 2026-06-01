@@ -20,7 +20,7 @@ interface OrderItem {
 }
 interface Order {
   id: string; order_no: string; status: string;
-  final_amount: number; created_at: string;
+  final_amount: number; created_at: string; delivered_at?: string | null;
   courier: string | null; tracking_number: string | null;
   order_items: OrderItem[];
 }
@@ -236,7 +236,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,courier,tracking_number,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,courier,tracking_number,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(20),
@@ -2037,10 +2037,16 @@ export default function MypageClient() {
                 </div>
                 {/* 환불 가능 주문 (이미 환불 신청한 주문은 제외) */}
                 {(() => {
+                const REFUND_DAYS = 7;
                 const requestedOrderIds = new Set(
                   myRefundReqs.filter(r => r.status !== 'rejected').map(r => r.order_id).filter(Boolean) as string[]
                 );
-                const refundable = orders.filter(o => o.status === 'delivered' && !requestedOrderIds.has(o.id));
+                // 배송완료 후 N일 이내만 환불 가능 (delivered_at 없으면(레거시) 허용)
+                const withinWindow = (o: Order) => {
+                  if (!o.delivered_at) return true;
+                  return (Date.now() - new Date(o.delivered_at).getTime()) <= REFUND_DAYS * 86400000;
+                };
+                const refundable = orders.filter(o => o.status === 'delivered' && !requestedOrderIds.has(o.id) && withinWindow(o));
                 return (
                 <div style={{ paddingTop:16 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>환불 신청 가능한 주문</div>

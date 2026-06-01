@@ -1909,7 +1909,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { error } = await supabase
       .from('orders')
-      .update({ status: newStatus })
+      .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
       .eq('id', orderId);
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));

@@ -42,7 +42,9 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
     const cur = o.status as string;
     if (['cancelled', 'refunding', 'refunded'].includes(cur)) continue;
     if ((ORDER_STATUS_RANK[cur] ?? 0) >= newRank) continue;
-    await supabase.from('orders').update({ status: mapped }).eq('id', o.id);
+    await supabase.from('orders')
+      .update({ status: mapped, ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+      .eq('id', o.id);
     updated = true;
   }
   return NextResponse.json({ ok: true, updated: updated ? mapped : null, code }, { status: 202 });
