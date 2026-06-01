@@ -107,14 +107,6 @@ function calcAgreePct(sk: number) {
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 
-function ratingLabel(r: number) {
-  if (r >= 5) return '최고에요';
-  if (r >= 4) return '정말 좋아요';
-  if (r >= 3) return '괜찮아요';
-  if (r >= 2) return '그냥 그래요';
-  return '아쉬워요';
-}
-
 // Stars → StarRating 공유 컴포넌트 사용
 
 type SortKey = 'latest' | 'helpful' | 'rating';
@@ -1491,7 +1483,7 @@ export default function ProductClient() {
           {TABS.map((t, i) => (
             <div key={t} className={`pd-tab${activeTab === i ? ' active' : ''}`}
               onClick={() => setActiveTab(i)}>
-              {t}
+              <span className="pd-tab-label">{t}</span>
             </div>
           ))}
         </div>
@@ -1839,7 +1831,7 @@ export default function ProductClient() {
                     cursor:'pointer' }}>
                   ✓
                 </span>
-                포토 리뷰 먼저 보기
+                포토 리뷰만 보기
               </label>
             </div>
 
@@ -1855,9 +1847,6 @@ export default function ProductClient() {
                     justifyContent:'space-between', marginBottom:6 }}>
                     <div>
                       <StarRating rating={r.rating} size={15} />
-                      <span style={{ fontSize:14, fontWeight:700, marginLeft:6 }}>
-                        {ratingLabel(r.rating)}
-                      </span>
                     </div>
                     <span style={{ fontSize:12, color:'var(--color-ink-mute)',
                       textAlign:'right', flexShrink:0, marginLeft:8 }}>

@@ -179,12 +179,18 @@
       border-bottom: 1px solid #EBEBEB;
     }
     .pd-tab {
-      flex: 1; text-align: center; padding: 14px 4px;
+      flex: 1; display: flex; justify-content: center; align-items: stretch;
+      padding: 0 4px;
       font-size: 13px; font-weight: 600; color: var(--color-ink-mute);
-      cursor: pointer; border-bottom: 2px solid transparent;
-      transition: color .15s, border-color .15s; white-space: nowrap;
+      cursor: pointer; transition: color .15s; white-space: nowrap;
     }
-    .pd-tab.active { color: #1A1A1A; border-bottom-color: #1A1A1A; }
+    .pd-tab-label {
+      display: inline-flex; align-items: center; padding: 14px 18px;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: border-color .15s;
+    }
+    .pd-tab.active { color: #1A1A1A; }
+    .pd-tab.active .pd-tab-label { border-bottom-color: #1A1A1A; }
     .tab-content { padding: 24px 20px; background: #fff; }
     @media (min-width: 769px) {
       .tab-content { padding: 32px 0; }
