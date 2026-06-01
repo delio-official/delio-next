@@ -81,7 +81,9 @@ export async function registerTrackWebhook(carrierId: string, trackingNumber: st
     mutation RegisterTrackWebhook($input: RegisterTrackWebhookInput!) {
       registerTrackWebhook(input: $input)
     }`;
-  const expirationTime = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14일 후 만료
+  // 만료시각은 tracker.delivery 허용 최대치를 넘으면 거부됨. 환경변수로 시간(시) 지정 가능, 기본 47시간.
+  const hours = Number(process.env.TRACKER_WEBHOOK_HOURS) || 47;
+  const expirationTime = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
   const res = await fetch(TRACKER_GQL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
