@@ -1676,7 +1676,7 @@ export default function ProductClient() {
               <span style={{ fontSize:18, fontWeight:700 }}>리뷰 <span style={{ fontSize:15, color:'var(--color-ink-mute)', fontWeight:500 }}>({product.review_count})</span></span>
               <button
                 onClick={() => { if (!user) { router.push('/login'); return; } setReviewModalOpen(true); }}
-                style={{ padding:'8px 16px', border:'1.5px solid #D0D0CC', borderRadius:8,
+                style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
                   background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer',
                   color:'var(--color-ink)' }}>
                 리뷰 작성하기
@@ -1879,6 +1879,22 @@ export default function ProductClient() {
                     lineHeight:1.75, marginBottom:10 }}>
                     {r.content}
                   </p>
+                  {/* 리뷰 첨부 사진/영상 */}
+                  {((r.image_urls && r.image_urls.length > 0) || r.video_url) && (
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                      {(r.image_urls ?? []).map((url, ii) => (
+                        <img key={ii} src={url} alt="" loading="lazy"
+                          onClick={() => { setPhotoGalleryOpen(true); }}
+                          style={{ width:92, height:92, objectFit:'cover', borderRadius:8,
+                            border:'1px solid #EEE', cursor:'pointer' }} />
+                      ))}
+                      {r.video_url && (
+                        <video src={r.video_url} controls preload="metadata"
+                          style={{ width:92, height:92, objectFit:'cover', borderRadius:8,
+                            border:'1px solid #EEE', background:'#000' }} />
+                      )}
+                    </div>
+                  )}
                   <div style={{ display:'flex', alignItems:'center',
                     justifyContent:'space-between' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:14 }}>
@@ -2169,9 +2185,10 @@ export default function ProductClient() {
                       padding:2, lineHeight:1, transition:'opacity .1s' }}>
                     <svg width={32} height={32} viewBox="0 0 20 20"
                       style={{ display:'block' }}>
-                      <polygon
-                        points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18"
-                        fill={s <= newRating ? '#F5A623' : '#E0DFDB'}
+                      <path
+                        d="M10 1L12.6 6.4L18.6 7.2L14.3 11.4L15.3 17.3L10 14.5L4.7 17.3L5.7 11.4L1.4 7.2L7.4 6.4Z"
+                        fill={s <= newRating ? '#FFCA28' : '#E0E0E0'}
+                        stroke={s <= newRating ? '#FFCA28' : '#E0E0E0'} strokeWidth={1.5}
                         strokeLinejoin="round" strokeLinecap="round"
                         style={{ transition:'fill .1s' }}
                       />
@@ -2251,7 +2268,7 @@ export default function ProductClient() {
                           cursor:'pointer', display:'flex', flexDirection:'column',
                           alignItems:'center', justifyContent:'center', gap:3,
                           fontSize:10, color:'#AAA', fontWeight:600 }}>
-                        <span style={{ fontSize:20 }}>🖼</span>사진
+                        사진
                       </button>
                       <input
                         ref={imgRef}
@@ -2278,7 +2295,7 @@ export default function ProductClient() {
                           cursor:'pointer', display:'flex', flexDirection:'column',
                           alignItems:'center', justifyContent:'center', gap:3,
                           fontSize:10, color:'#AAA', fontWeight:600 }}>
-                        <span style={{ fontSize:20 }}>🎬</span>영상
+                        영상
                       </button>
                       <input
                         ref={vidRef}
