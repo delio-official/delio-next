@@ -337,33 +337,83 @@ export default function CheckoutClient() {
         {/* 왼쪽 */}
         <div style={{ flex:1, minWidth:280 }}>
 
-          {/* 배송지 */}
+          {/* ① 주문상품 */}
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>주문상품 ({items.length})</h2>
+            {items.map(i => (
+              <div key={i.idx} style={{ display:'flex', gap:12, alignItems:'center', padding:'12px 0', borderBottom:'1px solid #F2F2F2' }}>
+                <div style={{ width:60, height:60, borderRadius:8, background:'#F7F7F5',
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:24, overflow:'hidden' }}>
+                  {i.thumbnail
+                    ? <img src={i.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : '🍑'}
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:600, lineHeight:1.4 }}>{i.name}</div>
+                  {i.options && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>ㄴ {i.options}</div>}
+                  <div style={{ fontSize:12, color:'#888', marginTop:2 }}>수량 {i.quantity??1}개</div>
+                </div>
+                <div style={{ textAlign:'right', flexShrink:0 }}>
+                  <div style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(i.price*(i.quantity??1))}원</div>
+                  <div style={{ fontSize:11, color:'#2D7A4D', fontWeight:600 }}>무료배송</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ② 할인혜택 */}
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:8 }}>할인혜택</h2>
+            {/* 쿠폰 */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 0', borderBottom:'1px solid #F0F0F0', gap:10, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:14, fontWeight:600 }}>쿠폰</span>
+                <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
+                  style={{ padding:'7px 14px', border:'1px solid #1A1A1A', borderRadius:6, background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                  쿠폰선택
+                </button>
+              </div>
+              <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
+                {coupon ? `${coupon.name} · −${fmtPrice(couponDisc)}원` : `${coupons.length}장 보유`}
+              </span>
+            </div>
+            {/* 적립금 */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 0', gap:10, flexWrap:'wrap' }}>
+              <span style={{ fontSize:14, fontWeight:600 }}>
+                적립금 <span style={{ fontSize:12, color:'#94A3B8', fontWeight:400 }}>(사용가능 {fmtPrice(pointBalance)}원)</span>
+              </span>
+              <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                <button onClick={() => setPointUsed(maxPoint)}
+                  style={{ padding:'0 12px', height:38, border:'1px solid #1A1A1A', background:'#fff', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  전액 사용
+                </button>
+                <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
+                  onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))} placeholder="0"
+                  style={{ width:90, height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none', textAlign:'right' }} />
+                <span style={{ fontSize:13, color:'#666' }}>원</span>
+              </div>
+            </div>
+            <p style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 0' }}>* 적립금은 상품판매가에 먼저 적용됩니다.</p>
+          </div>
+
+          {/* ③ 배송지 설정 */}
           <div style={{ marginBottom:28 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>
               <h2 style={{ fontSize:18, fontWeight:800 }}>배송지 설정</h2>
               {savedAddresses.length > 0 && (
                 <button type="button" onClick={() => setShowAddrList(v => !v)}
-                  style={{ fontSize:13, fontWeight:600, color:'#2563EB', background:'none', border:'1.5px solid #DBEAFE', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}>
+                  style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', background:'none', border:'1px solid #CFCFCF', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}>
                   배송지 선택 ({savedAddresses.length})
                 </button>
               )}
             </div>
 
-            {/* 저장된 배송지 목록 */}
             {showAddrList && savedAddresses.length > 0 && (
               <div style={{ marginBottom:16, border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden' }}>
                 {savedAddresses.map(a => (
                   <div key={a.id}
-                    onClick={() => {
-                      setRecipient(a.recipient);
-                      setPhone(a.phone);
-                      setZipcode(a.zipcode || '');
-                      setAddr1(a.address1);
-                      setAddr2(a.address2 || '');
-                      setShowAddrList(false);
-                    }}
-                    style={{ padding:'12px 16px', borderBottom:'1px solid #F1F5F9', cursor:'pointer', background:'#fff',
-                      transition:'background .1s' }}
+                    onClick={() => { setRecipient(a.recipient); setPhone(a.phone); setZipcode(a.zipcode || ''); setAddr1(a.address1); setAddr2(a.address2 || ''); setShowAddrList(false); }}
+                    style={{ padding:'12px 16px', borderBottom:'1px solid #F1F5F9', cursor:'pointer', background:'#fff' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
@@ -387,9 +437,7 @@ export default function CheckoutClient() {
                 <input placeholder="우편번호" value={zipcode} readOnly
                   style={{ flex:1, height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#FAFAFA' }} />
                 <button type="button" onClick={openDaumPostcode}
-                  style={{ height:46, padding:'0 14px', border:'1.5px solid #1A1A1A',
-                    borderRadius:8, background:'#fff', color:'#1A1A1A',
-                    fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                  style={{ height:46, padding:'0 14px', border:'1.5px solid #1A1A1A', borderRadius:8, background:'#fff', color:'#1A1A1A', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
                   주소 검색
                 </button>
               </div>
@@ -397,26 +445,31 @@ export default function CheckoutClient() {
                 style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#FAFAFA' }} />
               <input placeholder="상세 주소" value={addr2} onChange={e => setAddr2(e.target.value)}
                 style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
-              <select value={memo} onChange={e => setMemo(e.target.value)}
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#fff', color: memo ? '#1A1A1A' : '#94A3B8' }}>
-                <option value="">배송 요청사항을 선택해주세요</option>
-                <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
-                <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
-                <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
-                <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
-                <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
-              </select>
             </div>
           </div>
 
-          {/* 결제 수단 */}
+          {/* ④ 배송 요청사항 */}
+          <div style={{ marginBottom:28 }}>
+            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>배송 요청사항</h2>
+            <select value={memo} onChange={e => setMemo(e.target.value)}
+              style={{ width:'100%', height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#fff', color: memo ? '#1A1A1A' : '#94A3B8' }}>
+              <option value="">배송 요청사항을 선택해주세요</option>
+              <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+              <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
+              <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
+              <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
+              <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
+            </select>
+            <p style={{ fontSize:12, color:'#94A3B8', marginTop:8 }}>배송일자 지정 등 출고관련 요청은 불가합니다.</p>
+          </div>
+
+          {/* ⑤ 결제수단 */}
           <div style={{ marginBottom:28 }}>
             <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:18 }}>결제수단</h2>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
               {PAYMENT_METHODS.map(m => (
                 <button type="button" key={m.value} onClick={() => setPayMethod(m.value)}
-                  style={{ padding:'18px 8px', borderRadius:8, cursor:'pointer', fontSize:14,
-                    fontFamily:'inherit',
+                  style={{ padding:'18px 8px', borderRadius:8, cursor:'pointer', fontSize:14, fontFamily:'inherit',
                     border:`1.5px solid ${payMethod===m.value?'#1A1A1A':'#E2E2E2'}`,
                     fontWeight:payMethod===m.value?700:500,
                     color:payMethod===m.value?'#1A1A1A':'#666',
@@ -426,68 +479,12 @@ export default function CheckoutClient() {
               ))}
             </div>
           </div>
-
-          {/* 주문 상품 */}
-          <div style={{ marginBottom:28 }}>
-            <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>주문상품 ({items.length})</h2>
-            {items.map(i => (
-              <div key={i.idx} style={{ display:'flex', gap:10, marginBottom:12 }}>
-                <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5',
-                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>
-                  {i.thumbnail
-                    ? <img src={i.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:8 }} />
-                    : '🍑'}
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600, lineHeight:1.4 }}>{i.name}</div>
-                  {i.options && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>ㄴ {i.options}</div>}
-                  <div style={{ fontSize:12, color:'#888' }}>{fmtPrice(i.price)}원 × {i.quantity??1}개</div>
-                </div>
-                <div style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(i.price*(i.quantity??1))}원</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* 오른쪽: 결제 요약 */}
         <div style={{ width:300, flexShrink:0, position:'sticky', top:80 }}>
           <div style={{ border:'1px solid #E2E2E2', borderRadius:12, padding:'22px' }}>
             <h2 style={{ fontSize:17, fontWeight:800, marginBottom:18 }}>결제 금액</h2>
-
-            {/* 쿠폰 선택 */}
-            <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:12, fontWeight:600, color:'#555', display:'block', marginBottom:6 }}>쿠폰</label>
-              <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
-                style={{ width:'100%', minHeight:40, padding:'8px 12px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, textAlign:'left' }}>
-                {coupon ? (
-                  <span style={{ fontWeight:600, color:'#1A1A1A' }}>
-                    {coupon.name} <span style={{ color:'#CB1D11' }}>−{fmtPrice(couponDisc)}원</span>
-                  </span>
-                ) : (
-                  <span style={{ color:'#94A3B8' }}>쿠폰 선택하기 ({coupons.length}장 보유)</span>
-                )}
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* 적립금 사용 */}
-            <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, fontWeight:600, color:'#555', display:'block', marginBottom:6 }}>
-                적립금 <span style={{ color:'#94A3B8', fontWeight:400 }}>(보유 {fmtPrice(pointBalance)}P)</span>
-              </label>
-              <div style={{ display:'flex', gap:6 }}>
-                <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
-                  onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))}
-                  placeholder="0"
-                  style={{ flex:1, height:40, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
-                <button onClick={() => setPointUsed(maxPoint)}
-                  style={{ padding:'0 14px', border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                  전액 사용
-                </button>
-              </div>
-            </div>
 
             <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
               <span>상품금액</span><span>{fmtPrice(subtotal)}원</span>
@@ -514,7 +511,7 @@ export default function CheckoutClient() {
               <span style={{ fontSize:20 }}>{fmtPrice(total)}원</span>
             </div>
             <button onClick={handleOrder} disabled={loading}
-              style={{ width:'100%', padding:'16px', background: loading ? '#9CB3AC' : '#3E6E64',
+              style={{ width:'100%', padding:'16px', background: loading ? '#ccc' : '#1A1A1A',
                 color:'#fff', border:'none', borderRadius:8, fontSize:16, fontWeight:700,
                 cursor: loading ? 'not-allowed' : 'pointer', transition:'background .2s' }}>
               {loading ? '결제창 열리는 중...' : '결제하기'}
