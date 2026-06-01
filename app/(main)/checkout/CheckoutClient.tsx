@@ -36,8 +36,20 @@ export default function CheckoutClient() {
   const [memo, setMemo]           = useState('');
   const [payMethod, setPayMethod] = useState('card');
   const [loading, setLoading]     = useState(false);
-  const [savedAddresses, setSavedAddresses] = useState<{id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean}[]>([]);
-  const [showAddrList, setShowAddrList] = useState(false);
+  interface Addr { id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean; created_at?:string; }
+  const [savedAddresses, setSavedAddresses] = useState<Addr[]>([]);
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
+  const [safeNumber, setSafeNumber] = useState(false); // 안심번호 사용(표시용)
+  /* 주문하시는 분(계정) */
+  const [ordererName, setOrdererName] = useState('');
+  const [ordererPhone, setOrdererPhone] = useState('');
+  /* 배송지 모달 */
+  const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false };
+  const [addrListModal, setAddrListModal] = useState(false);
+  const [addrFormModal, setAddrFormModal] = useState(false);
+  const [addrEditing, setAddrEditing] = useState<Addr | null>(null);
+  const [addrForm, setAddrForm] = useState({ ...EMPTY_ADDR });
+  const [addrSort, setAddrSort] = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
 
   /* 쿠폰 / 적립금 */
   interface UserCoupon { ucId: string; couponId: string; name: string; discount_type: 'percent'|'fixed'; discount_value: number; min_order_amount: number; max_discount_amount: number | null; starts_at: string | null; expires_at: string | null; }
@@ -50,19 +62,40 @@ export default function CheckoutClient() {
   const [pointBalance, setPointBalance] = useState(0);
   const [pointUsed, setPointUsed]   = useState(0);
 
-  /* 주소 검색 */
-  function openDaumPostcode() {
+  /* 배송지 모달 폼용 주소검색 */
+  function openAddrFormPost() {
     const open = () => new (window as any).daum.Postcode({
-      oncomplete: (d: any) => {
-        setZipcode(d.zonecode);
-        setAddr1(d.roadAddress || d.jibunAddress);
-      },
+      oncomplete: (d: any) => setAddrForm(f => ({ ...f, zipcode: d.zonecode, address1: d.roadAddress || d.jibunAddress })),
     }).open();
     if ((window as any).daum?.Postcode) { open(); return; }
     const s = document.createElement('script');
     s.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
     s.onload = open;
     document.head.appendChild(s);
+  }
+  function openAddAddr() { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormModal(true); }
+  function openEditAddr(a: Addr) { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2 || '', is_default:a.is_default }); setAddrFormModal(true); }
+  async function saveAddr() {
+    if (!addrForm.recipient.trim() || !addrForm.phone.trim() || !addrForm.address1.trim()) { alert('필수 항목을 입력해주세요.'); return; }
+    const supabase = createClient();
+    const makeDefault = addrForm.is_default || savedAddresses.length === 0;
+    const payload = { label:addrForm.label, recipient:addrForm.recipient, phone:addrForm.phone, zipcode:addrForm.zipcode, address1:addrForm.address1, address2:addrForm.address2 };
+    if (makeDefault) await supabase.from('shipping_addresses').update({ is_default:false }).eq('user_id', user!.id);
+    let savedId = addrEditing?.id;
+    if (addrEditing) {
+      await supabase.from('shipping_addresses').update({ ...payload, is_default: makeDefault }).eq('id', addrEditing.id);
+    } else {
+      const { data } = await supabase.from('shipping_addresses').insert({ ...payload, user_id:user!.id, is_default:makeDefault }).select('id').single();
+      savedId = data?.id as string | undefined;
+    }
+    setAddrFormModal(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR });
+    await loadAddresses(savedId);
+  }
+  async function deleteAddr(id: string) {
+    if (!confirm('이 배송지를 삭제하시겠습니까?')) return;
+    await createClient().from('shipping_addresses').delete().eq('id', id);
+    if (selectedAddrId === id) setSelectedAddrId(null);
+    await loadAddresses();
   }
 
   useEffect(() => {
@@ -71,23 +104,38 @@ export default function CheckoutClient() {
     setItems(cart);
   }, [router]);
 
-  useEffect(() => {
+  /* 배송지 선택 → 주문 배송정보 반영 */
+  function applyAddr(a: Addr) {
+    setSelectedAddrId(a.id);
+    setRecipient(a.recipient);
+    setPhone(a.phone);
+    setZipcode(a.zipcode || '');
+    setAddr1(a.address1);
+    setAddr2(a.address2 || '');
+  }
+
+  async function loadAddresses(selectId?: string) {
     if (!user) return;
-    createClient()
+    const { data } = await createClient()
       .from('shipping_addresses')
-      .select('id, label, recipient, phone, zipcode, address1, address2, is_default')
+      .select('id, label, recipient, phone, zipcode, address1, address2, is_default, created_at')
       .eq('user_id', user.id)
       .order('is_default', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return;
-        setSavedAddresses(data);
-        const def = data.find(a => a.is_default) || data[0];
-        setRecipient(def.recipient);
-        setPhone(def.phone);
-        setZipcode(def.zipcode || '');
-        setAddr1(def.address1);
-        setAddr2(def.address2 || '');
-      });
+      .order('created_at', { ascending: false });
+    const list = (data as Addr[]) || [];
+    setSavedAddresses(list);
+    if (list.length) {
+      const target = (selectId && list.find(a => a.id === selectId)) || list.find(a => a.id === selectedAddrId) || list.find(a => a.is_default) || list[0];
+      applyAddr(target);
+    }
+  }
+
+  useEffect(() => {
+    if (!user) return;
+    loadAddresses();
+    // 주문하시는 분(계정 정보)
+    createClient().from('profiles').select('name, phone').eq('id', user.id).maybeSingle()
+      .then(({ data }) => { setOrdererName(data?.name || ''); setOrdererPhone(data?.phone || ''); });
   }, [user]); // eslint-disable-line
 
   /* 보유 쿠폰 로드 (+최대할인 자동선택) */
@@ -342,8 +390,8 @@ export default function CheckoutClient() {
             <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>주문상품 ({items.length})</h2>
             {items.map(i => (
               <div key={i.idx} style={{ display:'flex', gap:12, alignItems:'center', padding:'12px 0', borderBottom:'1px solid #F2F2F2' }}>
-                <div style={{ width:60, height:60, borderRadius:8, background:'#F7F7F5',
-                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:24, overflow:'hidden' }}>
+                <div style={{ width:74, height:74, borderRadius:8, background:'#F7F7F5',
+                  display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:30, overflow:'hidden' }}>
                   {i.thumbnail
                     ? <img src={i.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     : '🍑'}
@@ -397,56 +445,67 @@ export default function CheckoutClient() {
           </div>
 
           {/* ③ 배송지 설정 */}
-          <div style={{ marginBottom:28 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>
-              <h2 style={{ fontSize:18, fontWeight:800 }}>배송지 설정</h2>
-              {savedAddresses.length > 0 && (
-                <button type="button" onClick={() => setShowAddrList(v => !v)}
-                  style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', background:'none', border:'1px solid #CFCFCF', borderRadius:8, padding:'5px 12px', cursor:'pointer' }}>
-                  배송지 선택 ({savedAddresses.length})
+          {(() => {
+            const selAddr = savedAddresses.find(a => a.id === selectedAddrId);
+            return (
+            <div style={{ marginBottom:28 }}>
+              <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:0 }}>배송지 설정</h2>
+
+              {/* 주문하시는 분 */}
+              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, padding:'16px 0', borderBottom:'1px solid #F0F0F0' }}>
+                <div style={{ display:'flex', gap:24, minWidth:0, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:14, fontWeight:700, flexShrink:0 }}>주문하시는 분</span>
+                  <span style={{ fontSize:14, color:'#555' }}>
+                    {ordererName || recipient || '-'} {ordererPhone ? ` ${ordererPhone}` : ''} {user?.email ? ` ${user.email}` : ''}
+                  </span>
+                </div>
+                <a href="/mypage?panel=info" style={{ fontSize:13, color:'#888', textDecoration:'none', flexShrink:0 }}>수정</a>
+              </div>
+
+              {/* 배송지 추가 */}
+              <div style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 0', borderBottom:'1px solid #F0F0F0' }}>
+                <span style={{ fontSize:14, fontWeight:700 }}>배송지</span>
+                <button type="button" onClick={openAddAddr}
+                  style={{ padding:'9px 18px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:6, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                  배송지 추가
                 </button>
+              </div>
+
+              {/* 받으시는 분 (선택된 배송지) */}
+              {selAddr && (
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, padding:'18px 0 4px' }}>
+                  <div style={{ display:'flex', gap:24, flex:1, minWidth:0 }}>
+                    <span style={{ fontSize:14, fontWeight:700, flexShrink:0, paddingTop:1 }}>받으시는 분</span>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                        <span style={{ fontSize:15, fontWeight:700 }}>{selAddr.label || '배송지'}</span>
+                        {selAddr.is_default && <span style={{ fontSize:11, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px' }}>기본배송지</span>}
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13, color:'#777', marginBottom:6 }}>
+                        <span>{selAddr.recipient}  {selAddr.phone}</span>
+                        <label style={{ display:'flex', alignItems:'center', gap:5, color:'#888', cursor:'pointer', fontSize:12 }}>
+                          <input type="checkbox" checked={safeNumber} onChange={e => setSafeNumber(e.target.checked)} style={{ width:14, height:14, accentColor:'#1A1A1A' }} />
+                          안심번호 사용
+                        </label>
+                      </div>
+                      <div style={{ fontSize:13, color:'#555', lineHeight:1.5 }}>
+                        {selAddr.zipcode && <span style={{ color:'#aaa' }}>[{selAddr.zipcode}] </span>}{selAddr.address1}
+                        {selAddr.address2 && <div>{selAddr.address2}</div>}
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setAddrListModal(true)}
+                    style={{ padding:'6px 14px', border:'1px solid #CFCFCF', borderRadius:6, background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
+                    변경
+                  </button>
+                </div>
+              )}
+              {!selAddr && (
+                <p style={{ fontSize:13, color:'#94A3B8', padding:'16px 0' }}>배송지를 추가해주세요.</p>
               )}
             </div>
-
-            {showAddrList && savedAddresses.length > 0 && (
-              <div style={{ marginBottom:16, border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden' }}>
-                {savedAddresses.map(a => (
-                  <div key={a.id}
-                    onClick={() => { setRecipient(a.recipient); setPhone(a.phone); setZipcode(a.zipcode || ''); setAddr1(a.address1); setAddr2(a.address2 || ''); setShowAddrList(false); }}
-                    style={{ padding:'12px 16px', borderBottom:'1px solid #F1F5F9', cursor:'pointer', background:'#fff' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#F8FAFC')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                      <span style={{ fontSize:13, fontWeight:700 }}>{a.recipient}</span>
-                      {a.is_default && <span style={{ fontSize:10, fontWeight:700, background:'#1A1A1A', color:'#fff', borderRadius:4, padding:'1px 6px' }}>기본</span>}
-                      {a.label && <span style={{ fontSize:11, color:'#94A3B8' }}>{a.label}</span>}
-                    </div>
-                    <div style={{ fontSize:12, color:'#64748B' }}>{a.address1} {a.address2 || ''}</div>
-                    <div style={{ fontSize:12, color:'#94A3B8', marginTop:1 }}>{a.phone}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              <input placeholder="받는 분 이름 *" value={recipient} onChange={e => setRecipient(e.target.value)}
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
-              <input placeholder="연락처 *" value={phone} onChange={e => setPhone(e.target.value)}
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
-              <div style={{ display:'flex', gap:8 }}>
-                <input placeholder="우편번호" value={zipcode} readOnly
-                  style={{ flex:1, height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#FAFAFA' }} />
-                <button type="button" onClick={openDaumPostcode}
-                  style={{ height:46, padding:'0 14px', border:'1.5px solid #1A1A1A', borderRadius:8, background:'#fff', color:'#1A1A1A', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-                  주소 검색
-                </button>
-              </div>
-              <input placeholder="기본 주소 *" value={addr1} readOnly
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#FAFAFA' }} />
-              <input placeholder="상세 주소" value={addr2} onChange={e => setAddr2(e.target.value)}
-                style={{ height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit' }} />
-            </div>
-          </div>
+            );
+          })()}
 
           {/* ④ 배송 요청사항 */}
           <div style={{ marginBottom:28 }}>
@@ -522,6 +581,134 @@ export default function CheckoutClient() {
           </div>
         </div>
       </div>
+
+      {/* 배송지 목록 모달 */}
+      {addrListModal && (
+        <div onClick={() => setAddrListModal(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:560, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>배송지 목록</span>
+              <button onClick={() => setAddrListModal(false)} style={{ position:'absolute', right:18, background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                <span style={{ fontSize:14, color:'#333' }}>전체 <b style={{ fontWeight:700 }}>{savedAddresses.length}</b>건</span>
+                <div style={{ display:'flex', gap:14, fontSize:13 }}>
+                  {([['recent_use','최근 사용순'],['recent_reg','최근 등록순'],['name','가나다순']] as const).map(([k, l]) => (
+                    <span key={k} onClick={() => setAddrSort(k)} style={{ cursor:'pointer', fontWeight: addrSort===k?700:400, color: addrSort===k?'#111':'#bbb' }}>{l}</span>
+                  ))}
+                </div>
+              </div>
+              {savedAddresses.length === 0 ? (
+                <div style={{ textAlign:'center', color:'#aaa', fontSize:13, padding:'30px 0' }}>저장된 배송지가 없습니다.</div>
+              ) : (
+                [...savedAddresses].sort((a, b) => {
+                  if (addrSort === 'name') return (a.label || '').localeCompare(b.label || '', 'ko');
+                  if (addrSort === 'recent_reg') return (b.created_at || '').localeCompare(a.created_at || '');
+                  return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0);
+                }).map(a => {
+                  const sel = a.id === selectedAddrId;
+                  return (
+                    <div key={a.id} style={{ border:'1px solid #E5E5E5', borderRadius:10, padding:'16px', marginBottom:12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, gap:8 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                          <span style={{ fontSize:15, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.label || '배송지'}</span>
+                          {a.is_default && <span style={{ fontSize:11, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px', flexShrink:0 }}>기본배송지</span>}
+                        </div>
+                        {sel ? (
+                          <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:13, color:'#111', fontWeight:600, flexShrink:0 }}>
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            선택됨
+                          </span>
+                        ) : (
+                          <button onClick={() => { applyAddr(a); setAddrListModal(false); }}
+                            style={{ fontSize:13, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>선택</button>
+                        )}
+                      </div>
+                      <div style={{ fontSize:13, color:'#333', marginBottom:4 }}>{a.recipient}  {a.phone}</div>
+                      <div style={{ fontSize:13, color:'#777', lineHeight:1.5, marginBottom:12 }}>
+                        {a.zipcode && <span style={{ color:'#aaa' }}>[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
+                      </div>
+                      <div style={{ display:'flex', gap:12, fontSize:13, color:'#888' }}>
+                        <span onClick={() => { setAddrListModal(false); openEditAddr(a); }} style={{ cursor:'pointer' }}>수정</span>
+                        <span style={{ color:'#E0E0E0' }}>|</span>
+                        <span onClick={() => deleteAddr(a.id)} style={{ cursor:'pointer' }}>삭제</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div style={{ display:'flex', justifyContent:'center', marginTop:8 }}>
+                <button onClick={() => { setAddrListModal(false); openAddAddr(); }}
+                  style={{ padding:'14px 40px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                  + 배송지 추가
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 배송지 추가/수정 모달 */}
+      {addrFormModal && (
+        <div onClick={() => setAddrFormModal(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1001, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>{addrEditing ? '배송지 수정' : '배송지 추가'}</span>
+              <button onClick={() => setAddrFormModal(false)} style={{ position:'absolute', right:18, background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ overflowY:'auto', padding:'22px' }}>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <input maxLength={6} placeholder="최대 6자" value={addrForm.label} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
+                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>받으시는분 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <input maxLength={25} placeholder="최대 25자" value={addrForm.recipient} onChange={e => setAddrForm(f => ({ ...f, recipient: e.target.value }))}
+                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ marginBottom:16 }}>
+                <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>휴대폰 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <input type="tel" placeholder="-없이 휴대폰 번호를 입력해주세요." value={addrForm.phone} onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value.replace(/[^0-9]/g, '') }))}
+                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ marginBottom:18 }}>
+                <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>주소 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <input readOnly placeholder="우편번호" value={addrForm.zipcode} onClick={openAddrFormPost}
+                    style={{ flex:1, height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
+                  <button type="button" onClick={openAddrFormPost}
+                    style={{ height:46, padding:'0 16px', border:'none', borderRadius:6, background:'#1A1A1A', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>우편번호 찾기</button>
+                </div>
+                <input readOnly placeholder="기본 주소" value={addrForm.address1}
+                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', marginBottom:8, boxSizing:'border-box' }} />
+                <input placeholder="건물, 아파트, 동/호수 입력" value={addrForm.address2} onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
+                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', cursor:'pointer', marginBottom:22 }}>
+                <input type="checkbox" checked={addrForm.is_default} onChange={e => setAddrForm(f => ({ ...f, is_default: e.target.checked }))}
+                  style={{ width:16, height:16, accentColor:'#1A1A1A', cursor:'pointer' }} />
+                기본 배송지로 저장
+              </label>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={() => { setAddrFormModal(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); }}
+                  style={{ flex:1, padding:'15px', border:'1px solid #DDD', borderRadius:8, background:'#fff', fontSize:15, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>취소</button>
+                <button onClick={saveAddr}
+                  style={{ flex:2, padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 쿠폰 선택 모달 */}
       {couponModal && (
