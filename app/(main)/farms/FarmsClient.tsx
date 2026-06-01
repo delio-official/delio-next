@@ -145,19 +145,17 @@ export default function FarmsClient() {
             </div>
           )}
 
-          {/* 하단 CTA */}
-          <div style={{ marginTop: 56, borderRadius: 20, padding: '40px 32px', textAlign: 'center',
-            background: 'linear-gradient(135deg,#F4EFE6,#EDE8DC)' }}>
-            <div style={{ fontSize: 40, marginBottom: 14 }}>🌱</div>
-            <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>파트너 농가 입점 문의</h2>
-            <p style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 22 }}>
+          {/* 하단 CTA — 입점 문의 */}
+          <div style={{ marginTop: 64, paddingTop: 48, borderTop: '1px solid #EEE', textAlign: 'center' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>파트너 농가 입점 문의</h2>
+            <p style={{ fontSize: 14, color: '#666', lineHeight: 1.8, marginBottom: 26 }}>
               좋은 농산물을 키우고 계신가요?<br />
               델리오와 함께 더 많은 소비자에게 소개해보세요.
             </p>
-            <Link href="/inquiry" style={{ display: 'inline-block', padding: '12px 30px',
-              background: '#1A1A1A', color: '#fff', borderRadius: 10, fontWeight: 700,
-              fontSize: 14, textDecoration: 'none' }}>
-              입점/협업 문의하기 →
+            <Link href="/inquiry" style={{ display: 'inline-block', padding: '13px 40px',
+              background: '#fff', color: '#1A1A1A', border: '1px solid #1A1A1A', borderRadius: 8,
+              fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+              입점/협업 문의하기
             </Link>
           </div>
         </div>
