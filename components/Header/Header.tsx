@@ -32,6 +32,7 @@ export default function Header() {
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
   const [popular, setPopular] = useState<string[]>(POPULAR_FALLBACK);
+  const [showShipping, setShowShipping] = useState(true); // 배송안내 탭 노출
 
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const popularLoadedRef = useRef(false);
@@ -60,6 +61,10 @@ export default function Header() {
       }
     }
     loadPopular();
+    // 배송안내 탭 노출 설정
+    createClient()
+      .from('site_settings').select('value').eq('key', 'show_shipping_tab').maybeSingle()
+      .then(({ data }) => setShowShipping(data?.value !== 'false'));
   }, []);
 
   const openDrop = useCallback(() => {
@@ -193,7 +198,11 @@ export default function Header() {
                 )}
               </div>
 
-              <Link href="/shipping" className="header-delivery-btn">배송안내</Link>
+              <Link href="/shipping" className="header-delivery-btn"
+                style={{ visibility: showShipping ? 'visible' : 'hidden', pointerEvents: showShipping ? undefined : 'none' }}
+                aria-hidden={!showShipping} tabIndex={showShipping ? undefined : -1}>
+                배송안내
+              </Link>
 
               <div className="header-actions">
                 <button className="mob-search-btn" onClick={() => router.push('/search')} title="검색">
@@ -247,7 +256,7 @@ export default function Header() {
                       </div>
                       <div className="mega-col mega-col-last">
                         <div className="mega-col-title"><Link href="/service">서비스</Link></div>
-                        <Link href="/shipping" className="mega-link">배송안내</Link>
+                        {showShipping && <Link href="/shipping" className="mega-link">배송안내</Link>}
                         <Link href="/inquiry" className="mega-link">입점/협업문의</Link>
                         <Link href="/faq" className="mega-link">고객센터</Link>
                       </div>

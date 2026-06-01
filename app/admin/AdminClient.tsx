@@ -5162,6 +5162,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <span className="adm-muted">% (구매금액 기준)</span>
                     </div>
                   </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">상단 배송안내 탭 노출</label>
+                    <Toggle
+                      defaultOn={siteSettings.show_shipping_tab !== 'false'}
+                      onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))}
+                    />
+                  </div>
                   <div className="adm-form-row" style={{ alignItems:'flex-start' }}>
                     <label className="adm-label" style={{ paddingTop:6 }}>인기 검색어</label>
                     <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1 }}>
