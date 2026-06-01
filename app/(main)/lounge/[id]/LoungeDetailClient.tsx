@@ -77,7 +77,7 @@ export default function LoungeDetailClient() {
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12, lineHeight: 1.4 }}>
           {post.title}
         </h1>
-        <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32 }}>📅 {post.date}</div>
+        <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32 }}>{post.date}</div>
 
         {/* 헤더 배너 — 이미지 없으면 이모지 */}
         {!post.thumbnail_url && (
@@ -109,8 +109,8 @@ export default function LoungeDetailClient() {
           <Link href="/lounge"
             style={{
               display: 'inline-block', padding: '12px 32px',
-              border: '1.5px solid var(--color-accent)', borderRadius: 8,
-              color: 'var(--color-accent)', fontWeight: 700, fontSize: 14,
+              border: '1.5px solid #1A1A1A', borderRadius: 8,
+              color: '#1A1A1A', fontWeight: 700, fontSize: 14,
               textDecoration: 'none',
             }}
           >

@@ -98,7 +98,7 @@ export default function EventDetailClient() {
 
         {/* 기간 */}
         <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32, display: 'flex', gap: 16 }}>
-          <span>📅 {fmtDate(event.starts_at)} ~ {fmtDate(event.ends_at)}</span>
+          <span>{fmtDate(event.starts_at)} ~ {fmtDate(event.ends_at)}</span>
         </div>
 
         {/* 썸네일 */}
@@ -139,8 +139,8 @@ export default function EventDetailClient() {
           <Link href="/event"
             style={{
               display: 'inline-block', padding: '12px 32px',
-              border: '1.5px solid var(--color-accent)', borderRadius: 8,
-              color: 'var(--color-accent)', fontWeight: 700, fontSize: 14,
+              border: '1.5px solid #1A1A1A', borderRadius: 8,
+              color: '#1A1A1A', fontWeight: 700, fontSize: 14,
               textDecoration: 'none',
             }}
           >
