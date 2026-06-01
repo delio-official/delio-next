@@ -4837,10 +4837,10 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
                       <div style={{ display:'flex', gap:8 }}>
                         {(r.status === 'pending' || r.status === 'rejected') && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중으로</button>
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
                         )}
                         {r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { if (confirm('환불 완료 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불완료</button>
+                          <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { if (confirm('환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
                         )}
                         {r.status !== 'rejected' && r.status !== 'completed' && (
                           <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { if (confirm('이 환불 신청을 거절하시겠습니까?')) updateRefundStatus(r, 'rejected'); }}>거절</button>
