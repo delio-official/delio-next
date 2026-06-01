@@ -82,7 +82,7 @@ interface CsInquiry {
   attachments?: string[];
 }
 
-const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'' };
+const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false };
 
 /* ─── Constants ─── */
 const STATUS_LABEL: Record<string, string> = {
@@ -161,6 +161,7 @@ export default function MypageClient() {
   const [addrFormOpen, setAddrFormOpen] = useState(false);
   const [addrEditing,  setAddrEditing]  = useState<Address | null>(null);
   const [addrForm,     setAddrForm]     = useState({ ...EMPTY_ADDR });
+  const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
 
   /* 친구 추천 */
   const [referralCode,    setReferralCode]    = useState('');
@@ -616,13 +617,21 @@ export default function MypageClient() {
       showToastMsg('필수 항목을 모두 입력해주세요.'); return;
     }
     const supabase = createClient();
+    const makeDefault = addrForm.is_default || addresses.length === 0;
+    const payload = {
+      label: addrForm.label, recipient: addrForm.recipient, phone: addrForm.phone,
+      zipcode: addrForm.zipcode, address1: addrForm.address1, address2: addrForm.address2,
+    };
+    // 기본 배송지로 지정 시 기존 기본 해제
+    if (makeDefault) {
+      await supabase.from('shipping_addresses').update({ is_default: false }).eq('user_id', user!.id);
+    }
     if (addrEditing) {
-      const { error } = await supabase.from('shipping_addresses').update({ ...addrForm }).eq('id', addrEditing.id);
+      const { error } = await supabase.from('shipping_addresses').update({ ...payload, is_default: makeDefault }).eq('id', addrEditing.id);
       if (error) { showToastMsg('저장 실패: ' + error.message); return; }
     } else {
       if (addresses.length >= 5) { showToastMsg('배송지는 최대 5개까지 저장 가능합니다.'); return; }
-      const isFirst = addresses.length === 0;
-      const { error } = await supabase.from('shipping_addresses').insert({ ...addrForm, user_id: user!.id, is_default: isFirst });
+      const { error } = await supabase.from('shipping_addresses').insert({ ...payload, user_id: user!.id, is_default: makeDefault });
       if (error) { showToastMsg('저장 실패: ' + error.message); return; }
     }
     setAddrFormOpen(false);
@@ -1635,146 +1644,147 @@ export default function MypageClient() {
               <div className="mp-section">
 
                 {/* 타이틀 */}
-                <div style={{ textAlign:'center', padding:'8px 0 20px', borderBottom:'1px solid #E8E8E8', marginBottom:16 }}>
-                  <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>배송지 관리</div>
+                <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
+                  <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>
+                    {addrFormOpen ? (addrEditing ? '배송지 수정' : '배송지 추가') : '배송지 목록'}
+                  </div>
                 </div>
 
                 {addrLoading ? (
                   <div className="mp-empty">불러오는 중...</div>
-                ) : (
-                  <>
-                    {/* 배송지 추가 버튼 (상단) */}
-                    {!addrFormOpen && addresses.length < 5 && (
-                      <div style={{ textAlign:'center', marginBottom:6 }}>
-                        <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
-                          style={{ padding:'12px 40px', background:'#F2F2F2', border:'none',
-                            borderRadius:999, fontSize:14, fontWeight:600, color:'#333',
-                            cursor:'pointer', fontFamily:'inherit' }}>
-                          배송지 추가 +
+                ) : addrFormOpen ? (
+                  /* ════ 추가/수정 폼 ════ */
+                  <div>
+                    {/* 배송명 */}
+                    <div style={{ marginBottom:16 }}>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
+                      <input maxLength={6} placeholder="최대 6자" value={addrForm.label}
+                        onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
+                        style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                    </div>
+                    {/* 받으시는분 */}
+                    <div style={{ marginBottom:16 }}>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>받으시는분 <span style={{ color:'#CB1D11' }}>*</span></label>
+                      <input maxLength={25} placeholder="최대 25자" value={addrForm.recipient}
+                        onChange={e => setAddrForm(f => ({ ...f, recipient: e.target.value }))}
+                        style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                    </div>
+                    {/* 휴대폰 */}
+                    <div style={{ marginBottom:16 }}>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>휴대폰 <span style={{ color:'#CB1D11' }}>*</span></label>
+                      <input type="tel" placeholder="-없이 휴대폰 번호를 입력해주세요." value={addrForm.phone}
+                        onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value.replace(/[^0-9]/g, '') }))}
+                        style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                    </div>
+                    {/* 주소 */}
+                    <div style={{ marginBottom:18 }}>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>주소 <span style={{ color:'#CB1D11' }}>*</span></label>
+                      <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                        <input readOnly placeholder="우편번호" value={addrForm.zipcode}
+                          onClick={() => openAddressPost((zip, addr) => setAddrForm(f => ({ ...f, zipcode: zip, address1: addr })))}
+                          style={{ flex:1, height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
+                        <button type="button"
+                          onClick={() => openAddressPost((zip, addr) => setAddrForm(f => ({ ...f, zipcode: zip, address1: addr })))}
+                          style={{ height:46, padding:'0 16px', border:'none', borderRadius:6, background:'#1A1A1A', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>
+                          우편번호 찾기
                         </button>
                       </div>
-                    )}
-                    <p style={{ textAlign:'center', fontSize:11, color:'#aaa', marginBottom:16 }}>
-                      *입력하신 주소에 따라 주문 가능한 상품이 변경될 수 있습니다.
-                    </p>
-
-                    {/* 추가/수정 폼 */}
-                    {addrFormOpen && (
-                      <div style={{ background:'#F7F7F5', borderRadius:10, padding:'16px', marginBottom:16 }}>
-                        <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>
-                          {addrEditing ? '배송지 수정' : '새 배송지 추가'}
-                        </div>
-                        {[
-                          ['배송지명', 'label', 'text', '예: 집, 회사 (선택)'],
-                          ['받는 분 *', 'recipient', 'text', '이름 입력'],
-                          ['전화번호 *', 'phone', 'tel', '숫자만 입력'],
-                        ].map(([label, key, type, ph]) => (
-                          <div key={key} style={{ marginBottom:10 }}>
-                            <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:5 }}>{label}</label>
-                            <input type={type} placeholder={ph}
-                              value={(addrForm as Record<string,string>)[key]}
-                              onChange={e => setAddrForm(f => ({ ...f, [key]: e.target.value }))}
-                              style={{ width:'100%', height:44, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                                borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit',
-                                background:'#fff', boxSizing:'border-box' }} />
-                          </div>
+                      <input readOnly placeholder="기본 주소" value={addrForm.address1}
+                        style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', marginBottom:8, boxSizing:'border-box' }} />
+                      <input placeholder="건물, 아파트, 동/호수 입력" value={addrForm.address2}
+                        onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
+                        style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                    </div>
+                    {/* 기본 배송지 체크 */}
+                    <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', cursor:'pointer', marginBottom:22 }}>
+                      <input type="checkbox" checked={addrForm.is_default}
+                        onChange={e => setAddrForm(f => ({ ...f, is_default: e.target.checked }))}
+                        style={{ width:16, height:16, accentColor:'#1A1A1A', cursor:'pointer' }} />
+                      기본 배송지로 저장
+                    </label>
+                    {/* 버튼 */}
+                    <div style={{ display:'flex', gap:10 }}>
+                      <button onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); }}
+                        style={{ flex:1, padding:'15px', border:'1px solid #DDD', borderRadius:8, background:'#fff', fontSize:15, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                        취소
+                      </button>
+                      <button onClick={saveAddress}
+                        style={{ flex:2, padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                        확인
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* ════ 배송지 목록 ════ */
+                  <>
+                    {/* 전체 N건 + 정렬 */}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                      <span style={{ fontSize:14, color:'#333' }}>전체 <b style={{ fontWeight:700 }}>{addresses.length}</b>건</span>
+                      <div style={{ display:'flex', gap:14, fontSize:13 }}>
+                        {([['recent_use','최근 사용순'],['recent_reg','최근 등록순'],['name','가나다순']] as const).map(([k, l]) => (
+                          <span key={k} onClick={() => setAddrSort(k)}
+                            style={{ cursor:'pointer', fontWeight: addrSort===k ? 700 : 400, color: addrSort===k ? '#111' : '#bbb' }}>
+                            {l}
+                          </span>
                         ))}
-                        <div style={{ marginBottom:10 }}>
-                          <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:5 }}>주소 *</label>
-                          <div style={{ display:'flex', gap:8, marginBottom:8 }}>
-                            <input readOnly placeholder="우편번호" value={addrForm.zipcode}
-                              style={{ flex:1, height:44, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                                borderRadius:8, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box' }} />
-                            <button type="button"
-                              onClick={() => openAddressPost((zip, addr) => setAddrForm(f => ({ ...f, zipcode: zip, address1: addr })))}
-                              style={{ height:44, padding:'0 14px', border:'1.5px solid #111',
-                                borderRadius:8, background:'#fff', color:'#111',
-                                fontSize:13, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>
-                              주소 검색
-                            </button>
-                          </div>
-                          <input readOnly placeholder="기본 주소" value={addrForm.address1}
-                            style={{ width:'100%', height:44, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                              borderRadius:8, fontSize:14, background:'#fff', fontFamily:'inherit',
-                              marginBottom:8, boxSizing:'border-box' }} />
-                          <input placeholder="상세 주소" value={addrForm.address2}
-                            onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
-                            style={{ width:'100%', height:44, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                              borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                        </div>
-                        <div style={{ display:'flex', gap:10, marginTop:4 }}>
-                          <button onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); }}
-                            style={{ flex:1, padding:'12px', border:'1.5px solid #ddd', borderRadius:8,
-                              background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                            취소
-                          </button>
-                          <button onClick={saveAddress}
-                            style={{ flex:2, padding:'12px', background:'#1A1A1A', color:'#fff',
-                              border:'none', borderRadius:8, fontSize:13, fontWeight:700,
-                              cursor:'pointer', fontFamily:'inherit' }}>
-                            저장
-                          </button>
-                        </div>
                       </div>
-                    )}
-
-                    {/* 테이블 헤더 */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr',
-                      borderTop:'1px solid #E8E8E8', borderBottom:'1px solid #E8E8E8',
-                      padding:'10px 8px', marginBottom:0 }}>
-                      {['배송지명','주소','받는분','전화번호'].map(h => (
-                        <div key={h} style={{ fontSize:12, color:'#888', fontWeight:600, textAlign:'center' }}>{h}</div>
-                      ))}
                     </div>
 
-                    {/* 배송지 목록 */}
-                    {addresses.length === 0 && !addrFormOpen ? (
+                    {addresses.length === 0 ? (
                       <div className="mp-empty">배송지가 없습니다.</div>
                     ) : (
-                      addresses.map(a => (
-                        <div key={a.id} style={{ display:'grid', gridTemplateColumns:'1fr 2fr 1fr 1fr',
-                          padding:'14px 8px', borderBottom:'1px solid #F2F2F2', alignItems:'center' }}>
-                          {/* 배송지명 */}
-                          <div style={{ textAlign:'center' }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:'#111' }}>{a.label || '-'}</div>
-                            {a.is_default && (
-                              <span style={{ fontSize:10, background:'#111', color:'#fff',
-                                padding:'1px 6px', borderRadius:3, fontWeight:700, marginTop:3, display:'inline-block' }}>기본</span>
-                            )}
-                          </div>
-                          {/* 주소 */}
-                          <div style={{ fontSize:12, color:'#555', lineHeight:1.5, padding:'0 8px' }}>
-                            {a.zipcode && <span style={{ color:'#aaa' }}>[{a.zipcode}] </span>}
-                            {a.address1} {a.address2}
-                          </div>
-                          {/* 받는분 */}
-                          <div style={{ fontSize:13, color:'#333', textAlign:'center', fontWeight:500 }}>{a.recipient}</div>
-                          {/* 전화번호 */}
-                          <div style={{ fontSize:12, color:'#555', textAlign:'center' }}>{a.phone}</div>
-
-                          {/* 수정/삭제/기본설정 — 하단 행 */}
-                          <div style={{ gridColumn:'1/-1', display:'flex', gap:8, justifyContent:'flex-end',
-                            paddingTop:8, marginTop:4, borderTop:'1px solid #F7F7F7' }}>
-                            {!a.is_default && (
+                      [...addresses].sort((a, b) => {
+                        if (addrSort === 'name') return (a.label || '').localeCompare(b.label || '', 'ko');
+                        if (addrSort === 'recent_reg') return 0; // 이미 created_at desc 로 로드됨
+                        // 최근 사용순 = 기본배송지 우선 (로드 시 is_default desc)
+                        return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0);
+                      }).map(a => (
+                        <div key={a.id} style={{ border:'1px solid #E5E5E5', borderRadius:10, padding:'18px', marginBottom:12 }}>
+                          {/* 상단: 배송명 + 기본배송지 + 선택됨 */}
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                              <span style={{ fontSize:15, fontWeight:700, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.label || '배송지'}</span>
+                              {a.is_default && (
+                                <span style={{ fontSize:11, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px', flexShrink:0 }}>기본배송지</span>
+                              )}
+                            </div>
+                            {a.is_default ? (
+                              <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:13, color:'#111', fontWeight:600, flexShrink:0 }}>
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                선택됨
+                              </span>
+                            ) : (
                               <button onClick={() => setDefaultAddress(a.id)}
-                                style={{ fontSize:11, color:'#555', background:'none', border:'1px solid #ddd',
-                                  borderRadius:4, padding:'3px 8px', cursor:'pointer', fontFamily:'inherit' }}>
-                                기본 설정
+                                style={{ fontSize:13, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
+                                선택
                               </button>
                             )}
-                            <button onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2 }); setAddrFormOpen(true); }}
-                              style={{ fontSize:11, color:'#555', background:'none', border:'1px solid #ddd',
-                                borderRadius:4, padding:'3px 8px', cursor:'pointer', fontFamily:'inherit' }}>
-                              수정
-                            </button>
-                            <button onClick={() => deleteAddress(a.id)}
-                              style={{ fontSize:11, color:'#E55A4B', background:'none', border:'1px solid #fcc',
-                                borderRadius:4, padding:'3px 8px', cursor:'pointer', fontFamily:'inherit' }}>
-                              삭제
-                            </button>
+                          </div>
+                          {/* 받는분 + 전화 */}
+                          <div style={{ fontSize:14, color:'#333', marginBottom:6 }}>{a.recipient} {a.phone}</div>
+                          {/* 주소 */}
+                          <div style={{ fontSize:13, color:'#777', lineHeight:1.5, marginBottom:14 }}>
+                            {a.zipcode && <span style={{ color:'#aaa' }}>[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
+                          </div>
+                          {/* 수정 / 삭제 */}
+                          <div style={{ display:'flex', gap:12, fontSize:13, color:'#888' }}>
+                            <span onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
+                              style={{ cursor:'pointer' }}>수정</span>
+                            <span style={{ color:'#E0E0E0' }}>|</span>
+                            <span onClick={() => deleteAddress(a.id)} style={{ cursor:'pointer' }}>삭제</span>
                           </div>
                         </div>
                       ))
+                    )}
+
+                    {/* + 배송지 추가 */}
+                    {addresses.length < 5 && (
+                      <div style={{ display:'flex', justifyContent:'center', marginTop:24 }}>
+                        <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
+                          style={{ padding:'15px 44px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                          + 배송지 추가
+                        </button>
+                      </div>
                     )}
                   </>
                 )}
