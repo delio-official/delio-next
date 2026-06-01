@@ -22,11 +22,16 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
 
   // 2. 해당 운송장의 주문들 조회 (중복 가능성 대비, 단건 가정 X)
   const supabase = createAdminSupabaseClient();
-  const { data: orders } = await supabase
+  const { data: orders, error: qErr } = await supabase
     .from('orders')
     .select('id, status')
     .eq('tracking_number', trackingNumber);
+  if (qErr) {
+    console.error('[tracking/webhook] orders 조회 에러(키 확인 필요):', qErr.message);
+    return NextResponse.json({ ok: false, error: qErr.message, code }, { status: 202 });
+  }
   if (!orders || orders.length === 0) {
+    console.log(`[tracking/webhook] 매칭 주문 없음 tno=${trackingNumber}`);
     return NextResponse.json({ ok: true, skipped: true, reason: '주문 없음', code }, { status: 202 });
   }
 
