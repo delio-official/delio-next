@@ -4779,9 +4779,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               </td>
                               <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
                               <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
-                              <td style={{ maxWidth:220 }}>
-                                <div style={{ fontWeight:500 }}>{r.reason}</div>
-                                {r.detail && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'pre-wrap' }}>{r.detail}</div>}
+                              <td style={{ minWidth:240, maxWidth:360 }}>
+                                <div style={{ fontWeight:600, marginBottom: r.detail ? 4 : 0 }}>{r.reason}</div>
+                                {r.detail && <div style={{ fontSize:12, color:'#475569', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{r.detail}</div>}
                               </td>
                               <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                               <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>

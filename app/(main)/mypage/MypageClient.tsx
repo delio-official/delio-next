@@ -156,7 +156,7 @@ export default function MypageClient() {
   const [infoSaving,    setInfoSaving]    = useState(false);
 
   /* 내 환불 신청 내역 */
-  interface MyRefundReq { id: string; reason: string; detail: string; status: string; created_at: string; orders: { order_no: string } | null; }
+  interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; created_at: string; orders: { order_no: string } | null; }
   const [myRefundReqs, setMyRefundReqs] = useState<MyRefundReq[]>([]);
 
   /* 배송지 */
@@ -467,7 +467,7 @@ export default function MypageClient() {
     if (activePanel !== 'csrefund' || !user) return;
     createClient()
       .from('refund_requests')
-      .select('id, reason, detail, status, created_at, orders ( order_no )')
+      .select('id, order_id, reason, detail, status, created_at, orders ( order_no )')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setMyRefundReqs((data as unknown as MyRefundReq[]) || []));
@@ -2035,16 +2035,22 @@ export default function MypageClient() {
                 <div className="mp-section-header">
                   <span className="mp-section-title">CS/환불 내역</span>
                 </div>
-                {/* 환불 가능 주문 */}
+                {/* 환불 가능 주문 (이미 환불 신청한 주문은 제외) */}
+                {(() => {
+                const requestedOrderIds = new Set(
+                  myRefundReqs.filter(r => r.status !== 'rejected').map(r => r.order_id).filter(Boolean) as string[]
+                );
+                const refundable = orders.filter(o => o.status === 'delivered' && !requestedOrderIds.has(o.id));
+                return (
                 <div style={{ paddingTop:16 }}>
                   <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>환불 신청 가능한 주문</div>
-                  {orders.filter(o => o.status === 'delivered').length === 0 ? (
+                  {refundable.length === 0 ? (
                     <div style={{ textAlign:'center', padding:'24px 0', fontSize:13, color:'#aaa',
                       background:'#F7F7F5', borderRadius:10 }}>
                       환불 신청 가능한 주문이 없습니다.
                     </div>
                   ) : (
-                    orders.filter(o => o.status === 'delivered').map(o => (
+                    refundable.map(o => (
                       <div key={o.id} style={{ padding:'14px', border:'1px solid #EBEBEB',
                         borderRadius:10, marginBottom:10 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
@@ -2137,6 +2143,8 @@ export default function MypageClient() {
                     </p>
                   </div>
                 </div>
+                );
+                })()}
               </div>
             </div>
 
