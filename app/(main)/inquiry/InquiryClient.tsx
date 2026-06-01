@@ -58,11 +58,15 @@ export default function InquiryClient() {
     return (
       <div style={{ minHeight:'80vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAFAF8', padding:'40px 20px' }}>
         <div style={{ maxWidth:460, width:'100%', background:'#fff', borderRadius:20, padding:'48px 36px', textAlign:'center', boxShadow:'0 4px 32px rgba(0,0,0,0.07)' }}>
-          <div style={{ width:72, height:72, borderRadius:'50%', background:'#E8F5E9', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:32 }}>✅</div>
+          <div style={{ width:72, height:72, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px' }}>
+            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
           <h2 style={{ fontSize:22, fontWeight:800, marginBottom:10 }}>문의가 접수되었습니다!</h2>
           <p style={{ fontSize:14, color:'#666', lineHeight:1.8, marginBottom:8 }}>
-            담당자가 확인 후 <strong>{email}</strong>으로<br />
-            1~3 영업일 이내에 회신드립니다.
+            담당자가 확인 후 영업일 기준 1~3일 이내에<br />
+            전화 또는 이메일로 연락드립니다.
           </p>
           <p style={{ fontSize:12, color:'#bbb', marginBottom:32 }}>빠른 검토를 원하시면 카카오 채널 @델리오로 연락 주세요.</p>
           <div style={{ display:'flex', gap:10 }}>
@@ -132,19 +136,19 @@ export default function InquiryClient() {
                 <div style={{ fontSize:15, fontWeight:800, marginBottom:18 }}>기본 정보</div>
 
                 <div className="inq-field">
-                  <label>업체명 / 농장명 <span style={{ color:'var(--color-accent)', fontSize:10 }}>필수</span></label>
+                  <label>업체명 / 농장명 <span style={{ color:'var(--color-accent)', fontSize:10 }}>*필수</span></label>
                   <input className="inq-input" type="text" placeholder="예: 서귀포 감귤 농원"
                     value={company} onChange={e => setCompany(e.target.value)} />
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                   <div className="inq-field" style={{ marginBottom:0 }}>
-                    <label>담당자 연락처 <span style={{ color:'var(--color-accent)', fontSize:10 }}>필수</span></label>
+                    <label>담당자 연락처 <span style={{ color:'var(--color-accent)', fontSize:10 }}>*필수</span></label>
                     <input className="inq-input" type="tel" placeholder="010-0000-0000"
                       value={contact} onChange={e => setContact(e.target.value)} />
                   </div>
                   <div className="inq-field" style={{ marginBottom:0 }}>
-                    <label>이메일 <span style={{ color:'var(--color-accent)', fontSize:10 }}>필수</span></label>
+                    <label>이메일 <span style={{ color:'var(--color-accent)', fontSize:10 }}>*필수</span></label>
                     <input className="inq-input" type="email" placeholder="example@email.com"
                       value={email} onChange={e => setEmail(e.target.value)} />
                   </div>
@@ -160,7 +164,7 @@ export default function InquiryClient() {
                   {type === 'other'   && '문의하실 내용을 자유롭게 작성해 주세요.'}
                 </div>
                 <div className="inq-field" style={{ marginBottom:4 }}>
-                  <label>문의 내용 <span style={{ color:'var(--color-accent)', fontSize:10 }}>필수</span></label>
+                  <label>문의 내용 <span style={{ color:'var(--color-accent)', fontSize:10 }}>*필수</span></label>
                   <textarea className="inq-textarea" rows={6}
                     placeholder={
                       type === 'listing'
@@ -177,11 +181,11 @@ export default function InquiryClient() {
               {/* 제출 버튼 */}
               <button type="submit" className="btn-inq-submit" disabled={loading}
                 style={{ fontSize:15 }}>
-                {loading ? '⏳ 접수 중...' : '문의 접수하기 →'}
+                {loading ? '접수 중...' : '문의 접수하기'}
               </button>
 
               <p style={{ fontSize:11, color:'#bbb', textAlign:'center', marginTop:12, lineHeight:1.6 }}>
-                접수된 문의는 영업일 기준 1~3일 이내에 이메일로 회신드립니다.
+                접수된 문의는 영업일 기준 1~3일 이내에 전화 또는 이메일로 연락드립니다.
               </p>
             </form>
           </div>
@@ -216,7 +220,7 @@ export default function InquiryClient() {
                   <div key={p.step} style={{ display:'flex', gap:14, alignItems:'flex-start', paddingBottom: i < PROCESS.length - 1 ? 16 : 0, position:'relative' }}>
                     {/* 연결선 */}
                     {i < PROCESS.length - 1 && (
-                      <div style={{ position:'absolute', left:19, top:38, width:2, height:'calc(100% - 22px)', background:'#F0EDE8', borderRadius:2 }} />
+                      <div style={{ position:'absolute', left:19, top:38, width:2, height:'calc(100% - 38px)', background:'#F0EDE8', borderRadius:2 }} />
                     )}
                     <div style={{ width:38, height:38, borderRadius:'50%', background:'var(--color-accent-bg)', border:'2px solid var(--color-accent)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0, zIndex:1 }}>
                       {p.icon}
