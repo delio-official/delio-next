@@ -174,32 +174,34 @@
 
     /* ===== 탭 ===== */
     .pd-tab-bar {
+      --tab-pad: 16px;
       display: flex; background: #fff;
       position: sticky; top: 56px; z-index: 50;
-      border-bottom: 1px solid #EBEBEB;
+      padding: 0 var(--tab-pad);
+    }
+    /* 회색 하단선 — 좌우 여백(--tab-pad)만큼 들여서 표시 */
+    .pd-tab-bar::after {
+      content: ''; position: absolute; left: var(--tab-pad); right: var(--tab-pad);
+      bottom: 0; height: 1px; background: #EBEBEB;
     }
     .pd-tab {
-      flex: 1; display: flex; justify-content: center; align-items: stretch;
-      padding: 0 4px;
+      flex: 1; text-align: center; padding: 14px 4px;
       font-size: 13px; font-weight: 600; color: var(--color-ink-mute);
-      cursor: pointer; transition: color .15s; white-space: nowrap;
+      cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color .15s, border-color .15s; white-space: nowrap;
     }
-    .pd-tab-label {
-      display: inline-flex; align-items: center; padding: 14px 18px;
-      border-bottom: 2px solid transparent; margin-bottom: -1px;
-      transition: border-color .15s;
-    }
-    .pd-tab.active { color: #1A1A1A; }
-    .pd-tab.active .pd-tab-label { border-bottom-color: #1A1A1A; }
+    .pd-tab.active { color: #1A1A1A; border-bottom-color: #1A1A1A; }
     .tab-content { padding: 24px 20px; background: #fff; }
     @media (min-width: 769px) {
       .tab-content { padding: 32px 0; }
       /* container와 함께 쓸 때 — 이중 클래스로 우선순위 확보 */
       .tab-content.container { padding: 32px 60px; }
       .pd-tabs-section { background: #fff; }
+      .pd-tab-bar { --tab-pad: 60px; }
     }
     @media (min-width: 1100px) {
       .tab-content.container { padding: 32px 80px; }
+      .pd-tab-bar { --tab-pad: 80px; }
     }
 
     /* ===== 후기 ===== */
