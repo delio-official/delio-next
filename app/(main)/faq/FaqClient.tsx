@@ -81,8 +81,8 @@ export default function FaqClient() {
             onFocus={e => (e.target.style.borderColor = '#1A1A1A')}
             onBlur={e  => (e.target.style.borderColor = '#E0E0E0')}
           />
-          <div style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', color:'#888', pointerEvents:'none' }}>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+          <div style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', color:'#888', pointerEvents:'none', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ display:'block' }}>
               <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
             </svg>
           </div>
@@ -114,7 +114,16 @@ export default function FaqClient() {
         {loading ? (
           <p style={{ textAlign:'center', color:'#aaa', padding:'60px 0', fontSize:14 }}>불러오는 중...</p>
         ) : filtered.length === 0 ? (
-          <p style={{ textAlign:'center', color:'#aaa', padding:'60px 0', fontSize:14 }}>검색 결과가 없습니다.</p>
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'70px 0' }}>
+            <div style={{ width:48, height:48, borderRadius:'50%', border:'1.5px solid #D8D8D8',
+              display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18 }}>
+              <span style={{ fontSize:22, fontWeight:300, color:'#B0B0B0' }}>!</span>
+            </div>
+            <p style={{ fontSize:15, color:'#555', fontWeight:500, lineHeight:1.7, textAlign:'center', margin:0 }}>
+              검색결과가 없습니다.<br />
+              이용에 불편을 드려 죄송합니다.
+            </p>
+          </div>
         ) : cat ? (
           /* ── 특정 카테고리 선택 ── */
           <>
@@ -201,7 +210,7 @@ function FaqList({ items, open, setOpen }: {
                 display:'inline-flex', alignItems:'center', justifyContent:'center',
                 width:24, height:24, borderRadius:6,
                 background:'#1A1A1A', color:'#fff',
-                fontSize:12, fontWeight:800, flexShrink:0,
+                fontSize:12, fontWeight:600, flexShrink:0,
                 letterSpacing:'-0.5px',
               }}>Q</span>
               <span style={{ fontSize:14, fontWeight:500, color:'#1A1A1A', lineHeight:1.5, flex:1 }}>

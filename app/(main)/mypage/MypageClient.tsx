@@ -4,9 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
+import { StarRating } from '@/components/StarRating';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
 
@@ -46,10 +48,10 @@ interface Address {
   zipcode: string; address1: string; address2: string; is_default: boolean;
 }
 interface UserCoupon {
-  id: string; used: boolean; issued_at: string;
+  id: string; used: boolean; issued_at: string; expires_at: string | null;
   coupon: {
-    title: string; discount_type: 'percent' | 'amount'; discount_value: number;
-    min_order_amt: number; max_discount: number | null; expires_at: string | null;
+    name: string; discount_type: 'percent' | 'fixed'; discount_value: number;
+    min_order_amount: number; max_discount_amount: number | null; expires_at: string | null;
   } | null;
 }
 type PanelType = 'order' | 'point' | 'coupon' | 'recent' | 'wish' | 'benefit' | 'info' | 'myreviews' | 'address' | 'grade' | 'csrefund' | 'cs' | 'survey';
@@ -165,6 +167,13 @@ export default function MypageClient() {
   const [referralInvited, setReferralInvited] = useState(0);
   const [referralRewarded,setReferralRewarded]= useState(0);
 
+  /* 문의 — 상위 탭 (상품 Q&A / 1:1 문의) */
+  const [csMainTab,   setCsMainTab]   = useState<'qna'|'inquiry'>('qna');
+  interface MyQna { id: string; category: string; content: string; answer: string | null; created_at: string; products: { name: string | null } | null; }
+  const [myQna,       setMyQna]       = useState<MyQna[]>([]);
+  const [qnaLoading,  setQnaLoading]  = useState(false);
+  const [qnaOpenId,   setQnaOpenId]   = useState<string | null>(null);
+
   /* 1:1 문의 */
   const [csTab,       setCsTab]       = useState<'write'|'history'>('write');
   const [csCategory,  setCsCategory]  = useState<CsCategory>('order');
@@ -185,18 +194,17 @@ export default function MypageClient() {
     discount_rate: number; thumbnail_url: string | null; category: string;
   }
   const [surveyRecProducts, setSurveyRecProducts] = useState<SurveyRecProduct[]>([]);
+  const [surveyShowRec, setSurveyShowRec] = useState(true); // 추천 상품 노출 설정
   const [surveyResult, setSurveyResult] = useState<{
     axis1: string; axis2: string; axis3: string;
     result_label: string; result_desc: string; created_at: string;
   } | null | 'none'>('none'); // 'none' = 아직 로드 전
 
-  /* URL 파라미터로 패널 초기화 (?panel=wish 등) */
+  /* URL(?panel=) 기준으로 패널 동기화 → 뒤로/앞으로가기가 자연스럽게 동작 */
   useEffect(() => {
     const panel = searchParams.get('panel') as PanelType | null;
-    if (panel) {
-      setActivePanel(panel);
-      setShowMobileMenu(false);
-    }
+    setActivePanel(panel ?? 'order');
+    setShowMobileMenu(!panel); // 패널 없으면 모바일 메뉴, 있으면 해당 패널
   }, [searchParams]);
 
   /* toast helper */
@@ -237,7 +245,7 @@ export default function MypageClient() {
         .from('user_coupons')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user!.id)
-        .eq('used', false);
+        .eq('is_used', false);
       setAvailableCouponCount(count ?? 0);
     }
 
@@ -257,11 +265,11 @@ export default function MypageClient() {
       const supabase = createClient();
       const { data } = await supabase
         .from('referrals')
-        .select('id,status')
+        .select('id,rewarded')
         .eq('referrer_id', user!.id);
       if (data) {
         setReferralInvited(data.length);
-        setReferralRewarded(data.filter(r => r.status === 'rewarded').length);
+        setReferralRewarded(data.filter(r => r.rewarded).length);
       }
     }
     loadReferrals();
@@ -281,6 +289,24 @@ export default function MypageClient() {
     }
     loadCsInquiries();
   }, [activePanel, csTab, user]);
+
+  /* 상품 Q&A 내역 — 패널·탭 열릴 때 로드 */
+  useEffect(() => {
+    if (activePanel !== 'cs' || csMainTab !== 'qna' || !user) return;
+    async function loadMyQna() {
+      setQnaLoading(true);
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('product_inquiries')
+        .select('id, category, content, answer, created_at, products:product_id(name)')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
+      setMyQna((data as unknown as MyQna[]) || []);
+      setQnaLoading(false);
+    }
+    loadMyQna();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, csMainTab, user]);
 
   /* 취향 진단 결과 카드 저장 */
   async function saveResultCard() {
@@ -310,6 +336,12 @@ export default function MypageClient() {
     if (activePanel !== 'survey' || !surveyResult || surveyResult === 'none' || surveyRecProducts.length > 0) return;
     async function loadSurveyRecs() {
       const supabase = createClient();
+      /* 추천 상품 노출 설정 확인 */
+      const { data: setting } = await supabase
+        .from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
+      const show = setting?.value !== 'false';
+      setSurveyShowRec(show);
+      if (!show) { setSurveyRecProducts([]); return; }
       const cats = (surveyResult as { axis3: string }).axis3 === 'vitamin'
         ? ['citrus', 'berry', 'apple']
         : ['melon', 'grape', 'kiwi'];
@@ -386,22 +418,42 @@ export default function MypageClient() {
   /* 쿠폰 — 패널 열릴 때 로드 */
   const [userCoupons, setUserCoupons] = useState<UserCoupon[]>([]);
   const [couponLoading, setCouponLoading] = useState(false);
-  const [couponTab, setCouponTab] = useState<'available'|'used'>('available');
   const [availableCouponCount, setAvailableCouponCount] = useState(0);
+  const [dlCount, setDlCount] = useState(0);          // 다운가능 쿠폰 수
+  const [claimingCoupon, setClaimingCoupon] = useState(false);
+
+  async function loadUserCoupons() {
+    if (!user) return;
+    setCouponLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('user_coupons')
+      .select(`id, used:is_used, issued_at, expires_at, coupon:coupon_id(name,discount_type,discount_value,min_order_amount,max_discount_amount,expires_at)`)
+      .eq('user_id', user.id)
+      .order('issued_at', { ascending: false });
+    setUserCoupons((data as unknown as UserCoupon[]) || []);
+    setCouponLoading(false);
+  }
+  async function refreshDownloadable() {
+    if (!user) { setDlCount(0); return; }
+    const list = await getDownloadableCoupons(user.id);
+    setDlCount(list.length);
+  }
+  async function handleClaimCoupons() {
+    if (!user || claimingCoupon) return;
+    setClaimingCoupon(true);
+    const n = await claimAllPublic(user.id);
+    await loadUserCoupons();
+    await refreshDownloadable();
+    setClaimingCoupon(false);
+    alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
+  }
+
   useEffect(() => {
     if (activePanel !== 'coupon' || !user) return;
-    async function loadCoupons() {
-      setCouponLoading(true);
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('user_coupons')
-        .select(`id, used, issued_at, coupon:coupon_id(title,discount_type,discount_value,min_order_amt,max_discount,expires_at)`)
-        .eq('user_id', user!.id)
-        .order('issued_at', { ascending: false });
-      setUserCoupons((data as unknown as UserCoupon[]) || []);
-      setCouponLoading(false);
-    }
-    loadCoupons();
+    loadUserCoupons();
+    refreshDownloadable();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, user]);
 
   /* 배송지 — 패널 열릴 때 로드 */
@@ -442,10 +494,9 @@ export default function MypageClient() {
     showToastMsg('찜 목록에서 삭제했습니다');
   }
 
-  /* 패널 전환 (모바일: 메뉴 → 패널) */
+  /* 패널 전환 (모바일: 메뉴 → 패널) — URL 변경으로 히스토리 기록 */
   function goPanel(panel: PanelType) {
-    setActivePanel(panel);
-    setShowMobileMenu(false);
+    router.push(`/mypage?panel=${panel}`);
     window.scrollTo(0, 0);
   }
   /* ── 리뷰 삭제 ── */
@@ -487,12 +538,12 @@ export default function MypageClient() {
 
   /* 패널 → 메뉴 복귀 (모바일) */
   function goBackMenu() {
-    setShowMobileMenu(true);
+    router.push('/mypage');
     window.scrollTo(0, 0);
   }
-  /* PC용 패널 전환 (사이드바 클릭) */
+  /* PC용 패널 전환 (사이드바 클릭) — URL 변경으로 히스토리 기록 */
   function switchPanel(panel: PanelType) {
-    setActivePanel(panel);
+    router.push(`/mypage?panel=${panel}`);
   }
 
   /* ── 회원정보 수정 ── */
@@ -817,8 +868,9 @@ export default function MypageClient() {
                 <div className="mp-stat-divider" />
                 <div className="mp-stat">
                   <div className="mp-stat-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="20 6 9 17 4 12"/>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+                      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
                     </svg>
                   </div>
                   <div>
@@ -837,26 +889,22 @@ export default function MypageClient() {
                 <div style={{ display:'flex', alignItems:'stretch', gap:12, paddingTop:4 }}>
                   {/* 왼쪽: 배송 흐름 */}
                   <div className="mp-order-flow" style={{ flex:1 }}>
-                    <div className="mp-order-step"
-                      onClick={() => showToastMsg(orderCounts.pending>0 ? `입금전 ${orderCounts.pending}건` : '입금전 주문이 없습니다')}>
+                    <div className="mp-order-step" style={{ cursor:'default' }}>
                       <div className="mp-order-num">{orderCounts.pending}</div>
                       <div className="mp-order-label">입금전</div>
                     </div>
                     <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step"
-                      onClick={() => showToastMsg(orderCounts.preparing>0 ? `배송준비 중 ${orderCounts.preparing}건` : '배송준비 중인 주문이 없습니다')}>
+                    <div className="mp-order-step" style={{ cursor:'default' }}>
                       <div className="mp-order-num">{orderCounts.preparing}</div>
                       <div className="mp-order-label">배송준비중</div>
                     </div>
                     <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step"
-                      onClick={() => showToastMsg(orderCounts.shipped>0 ? `배송 중 ${orderCounts.shipped}건` : '배송 중인 주문이 없습니다')}>
+                    <div className="mp-order-step" style={{ cursor:'default' }}>
                       <div className="mp-order-num">{orderCounts.shipped}</div>
                       <div className="mp-order-label">배송중</div>
                     </div>
                     <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step"
-                      onClick={() => showToastMsg('배송 완료 내역을 확인합니다')}>
+                    <div className="mp-order-step" style={{ cursor:'default' }}>
                       <div className="mp-order-num">{orderCounts.delivered}</div>
                       <div className="mp-order-label">배송완료</div>
                     </div>
@@ -879,8 +927,8 @@ export default function MypageClient() {
                           padding:'7px 14px', border:'1px solid #E8E8E8', borderRadius:8,
                           cursor:'pointer', background:'#fff', gap:6,
                         }}>
-                        <span style={{ fontSize:13, color:'#555' }}>{item.label}</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:'#111' }}>:{item.count}</span>
+                        <span style={{ fontSize:13, color:'#555' }}>{item.label} :</span>
+                        <span style={{ fontSize:13, fontWeight:700, color:'#111' }}>{item.count}</span>
                       </div>
                     ))}
                   </div>
@@ -948,10 +996,14 @@ export default function MypageClient() {
                             onClick={() => setExpandedOrder(isExpanded ? null : o.id)}
                             style={{ fontSize:12, color:'#888', background:'none', border:'1px solid #E8E8E8',
                               borderRadius:6, padding:'5px 12px', cursor:'pointer',
-                              fontFamily:'inherit', marginBottom:8, width:'100%' }}>
-                            {isExpanded
-                              ? '▲ 접기'
-                              : `▼ 외 ${hiddenCount}개 상품 더보기`}
+                              fontFamily:'inherit', marginBottom:8, width:'100%',
+                              display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                              style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition:'transform .15s' }}>
+                              <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                            {isExpanded ? '접기' : `외 ${hiddenCount}개 상품 더보기`}
                           </button>
                         )}
 
@@ -969,7 +1021,7 @@ export default function MypageClient() {
                                 style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #1A1A1A',
                                   borderRadius:6, background:'#1A1A1A', color:'#fff',
                                   cursor:'pointer', fontWeight:600, fontFamily:'inherit' }}>
-                                🚚 배송추적
+                                배송추적
                               </button>
                             )}
                             {o.status === 'delivered' && (
@@ -1023,139 +1075,79 @@ export default function MypageClient() {
                   const now = new Date();
                   const available = userCoupons.filter(uc => {
                     if (uc.used) return false;
-                    const exp = uc.coupon?.expires_at;
+                    const exp = uc.expires_at ?? uc.coupon?.expires_at; // 개별 만료 우선
                     return !exp || new Date(exp) >= now;
                   });
                   const used = userCoupons.filter(uc => uc.used);
-                  const tabList = couponTab === 'available' ? available : used;
+                  const fmtDT = (s: string) => {
+                    const d = new Date(s);
+                    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                  };
+                  const renderCard = (uc: UserCoupon, dim: boolean) => {
+                    const c = uc.coupon;
+                    if (!c) return null;
+                    const isPercent = c.discount_type === 'percent';
+                    return (
+                      <div key={uc.id} style={{
+                        position:'relative', padding:'18px 16px', border:'1.5px solid #EFEFEF',
+                        borderRadius:10, background: dim ? '#FAFAFA' : '#fff', opacity: dim ? 0.6 : 1,
+                      }}>
+                        <span style={{ position:'absolute', top:14, right:14, fontSize:10,
+                          color: dim ? '#AAA' : '#999', border:'1px solid #E2E2E2', borderRadius:4,
+                          padding:'2px 6px', lineHeight:1, fontWeight:500 }}>
+                          {dim ? '사용완료' : '1장'}
+                        </span>
+                        <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A', lineHeight:1.1 }}>
+                          {isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
+                        <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
+                          {c.min_order_amount > 0 ? `${c.min_order_amount.toLocaleString()}원 이상 구매` : '0원 이상 구매'}
+                          {(uc.expires_at ?? c.expires_at) && <><br/>~{fmtDT((uc.expires_at ?? c.expires_at)!)}</>}
+                        </div>
+                      </div>
+                    );
+                  };
                   return (
                     <>
-                      {/* 탭 요약 카드 */}
-                      <div style={{ display:'flex', gap:10, marginTop:16, marginBottom:4 }}>
-                        {([
-                          { key:'available', label:'사용 가능', count: available.length, color:'#1A1A1A' },
-                          { key:'used',      label:'사용 완료', count: used.length,      color:'#999' },
-                        ] as const).map(t => {
-                          const isActive = couponTab === t.key;
-                          return (
-                            <button key={t.key} onClick={() => setCouponTab(t.key)} style={{
-                              flex:1, padding:'14px 0', borderRadius:12, cursor:'pointer',
-                              border: isActive ? `2px solid ${t.color}` : '2px solid #EBEBEB',
-                              background: isActive ? (t.key==='available' ? '#1A1A1A' : '#F5F5F5') : '#fff',
-                              transition:'all .15s', fontFamily:'inherit',
-                            }}>
-                              <div style={{
-                                fontSize:22, fontWeight:800,
-                                color: isActive ? (t.key==='available' ? '#fff' : '#555') : '#1A1A1A',
-                                marginBottom:4,
-                              }}>{t.count}</div>
-                              <div style={{
-                                fontSize:12,
-                                color: isActive ? (t.key==='available' ? 'rgba(255,255,255,0.75)' : '#888') : '#aaa',
-                              }}>{t.label}</div>
+                      {/* 다운받기 헤더 */}
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:16, padding:'16px 20px', border:'1px solid #EEE', borderRadius:12 }}>
+                        <div style={{ display:'flex', alignItems:'center', flex:1 }}>
+                          <div style={{ flex:1, textAlign:'center', fontSize:15, fontWeight:700 }}>
+                            사용가능 쿠폰 <span style={{ color:'#CB1D11' }}>{available.length}</span>장
+                          </div>
+                          <div style={{ width:1, height:24, background:'#E5E5E5' }} />
+                          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:12 }}>
+                            <span style={{ fontSize:15, fontWeight:700 }}>다운가능 쿠폰 <span style={{ color:'#CB1D11' }}>{dlCount}</span>장</span>
+                            <button onClick={handleClaimCoupons} disabled={claimingCoupon || dlCount === 0}
+                              style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:600, whiteSpace:'nowrap',
+                                border:'1px solid ' + (dlCount === 0 ? '#E5E5E5' : '#1A1A1A'),
+                                background:'#fff', color: dlCount === 0 ? '#BBB' : '#1A1A1A',
+                                cursor: (claimingCoupon || dlCount === 0) ? 'default' : 'pointer' }}>
+                              {claimingCoupon ? '받는 중...' : '쿠폰 다운받기'}
                             </button>
-                          );
-                        })}
+                          </div>
+                        </div>
                       </div>
 
-                      {tabList.length === 0 ? (
-                        <div className="mp-empty">
-                          {couponTab === 'available' ? '사용 가능한 쿠폰이 없습니다.' : '사용 완료된 쿠폰이 없습니다.'}
-                        </div>
+                      {/* 사용 가능 쿠폰 */}
+                      <div style={{ fontSize:16, fontWeight:800, marginTop:28, marginBottom:14 }}>사용 가능 쿠폰</div>
+                      {available.length === 0 ? (
+                        <div className="mp-empty">사용 가능한 쿠폰이 없습니다.</div>
                       ) : (
-                        <div style={{ display:'flex', flexDirection:'column', gap:12, marginTop:12 }}>
-                          {tabList.map(uc => {
-                            const c = uc.coupon;
-                            if (!c) return null;
-                            const exp = c.expires_at;
-                            const expired = exp ? new Date(exp) < now : false;
-                            const inactive = uc.used || expired;
-                            const isPercent = c.discount_type === 'percent';
-                            const discLabel = isPercent
-                              ? `${c.discount_value}% 할인`
-                              : `${c.discount_value.toLocaleString()}원 즉시 할인`;
-                            const leftBg = inactive ? '#C8C8C8' : '#1A1A1A';
-                            return (
-                              <div key={uc.id} style={{
-                                display:'flex', borderRadius:14, overflow:'hidden',
-                                border:`1.5px solid ${inactive ? '#E5E5E5' : '#D4D4D4'}`,
-                                boxShadow: inactive ? 'none' : '0 2px 10px rgba(0,0,0,0.07)',
-                                opacity: inactive ? 0.6 : 1,
-                                background:'#fff',
-                                position:'relative',
-                              }}>
-                                {/* 왼쪽 컬러 패널 */}
-                                <div style={{
-                                  width:150, flexShrink:0,
-                                  background: leftBg,
-                                  display:'flex', flexDirection:'column',
-                                  alignItems:'center', justifyContent:'center',
-                                  padding:'18px 6px', gap:2,
-                                }}>
-                                  {isPercent ? (
-                                    <>
-                                      <span style={{ fontSize:32, fontWeight:900, color:'#fff', lineHeight:1 }}>{c.discount_value}</span>
-                                      <span style={{ fontSize:16, fontWeight:700, color:'rgba(255,255,255,0.85)', lineHeight:1 }}>%</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span style={{ fontSize:20, fontWeight:900, color:'#fff', lineHeight:1 }}>{c.discount_value.toLocaleString()}</span>
-                                      <span style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,0.8)', lineHeight:1 }}>원</span>
-                                    </>
-                                  )}
-                                  <span style={{ fontSize:9, color:'rgba(255,255,255,0.5)', marginTop:4, letterSpacing:'0.08em' }}>COUPON</span>
-                                </div>
-
-                                {/* 퍼포레이션 — 위아래 반원 + 점선 */}
-                                <div style={{ position:'relative', width:0, flexShrink:0, zIndex:2 }}>
-                                  {/* 위 반원 */}
-                                  <div style={{
-                                    position:'absolute', top:-1, left:-11,
-                                    width:22, height:11, borderRadius:'0 0 11px 11px',
-                                    background:'#F2F2F2', border:'1.5px solid #E0E0E0', borderTop:'none',
-                                  }} />
-                                  {/* 아래 반원 */}
-                                  <div style={{
-                                    position:'absolute', bottom:-1, left:-11,
-                                    width:22, height:11, borderRadius:'11px 11px 0 0',
-                                    background:'#F2F2F2', border:'1.5px solid #E0E0E0', borderBottom:'none',
-                                  }} />
-                                  {/* 점선 */}
-                                  <div style={{ position:'absolute', top:10, bottom:10, left:0, borderLeft:'2px dashed #E0E0E0' }} />
-                                </div>
-
-                                {/* 오른쪽 내용 */}
-                                <div style={{
-                                  flex:1, padding:'16px 16px 16px 18px',
-                                  display:'flex', justifyContent:'space-between', alignItems:'center', gap:10,
-                                }}>
-                                  <div style={{ flex:1, minWidth:0 }}>
-                                    <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A', marginBottom:4,
-                                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                      {c.title}
-                                    </div>
-                                    <div style={{ fontSize:12, color: inactive ? '#bbb' : '#CB1D11', fontWeight:600, marginBottom:3 }}>
-                                      {discLabel}
-                                    </div>
-                                    <div style={{ fontSize:11, color:'#C0C0C0', display:'flex', flexWrap:'wrap', gap:'0 8px' }}>
-                                      {c.min_order_amt > 0 && <span>{c.min_order_amt.toLocaleString()}원 이상</span>}
-                                      {exp && <span>~{new Date(exp).toLocaleDateString('ko-KR')} 까지</span>}
-                                    </div>
-                                  </div>
-                                  <div style={{
-                                    flexShrink:0, fontSize:11, fontWeight:700,
-                                    padding:'5px 10px', borderRadius:99,
-                                    background: uc.used ? '#F3F3F3' : expired ? '#F3F3F3' : '#ECFDF5',
-                                    color: uc.used ? '#aaa' : expired ? '#aaa' : '#16A34A',
-                                    whiteSpace:'nowrap',
-                                  }}>
-                                    {uc.used ? '사용완료' : expired ? '만료됨' : '사용가능'}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                          {available.map(uc => renderCard(uc, false))}
                         </div>
+                      )}
+
+                      {/* 사용 완료 쿠폰 */}
+                      {used.length > 0 && (
+                        <>
+                          <div style={{ fontSize:16, fontWeight:800, marginTop:32, marginBottom:14, color:'#888' }}>사용 완료 쿠폰</div>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                            {used.map(uc => renderCard(uc, true))}
+                          </div>
+                        </>
                       )}
                     </>
                   );
@@ -1191,7 +1183,7 @@ export default function MypageClient() {
                               {p.thumbnail_url
                                 ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                 : <span>{EMOJI_MAP[p.category] || EMOJI_MAP.default}</span>}
-                              <button className="mp-wish-del"
+                              <button className="mp-wish-del" style={{ color:'#1A1A1A' }}
                                 onClick={e => { e.stopPropagation(); removeRecentProduct(p.id); }}>✕</button>
                             </div>
                             <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit' }}>
@@ -1313,14 +1305,9 @@ export default function MypageClient() {
                             ) : (
                               /* ── 일반 표시 ── */
                               <>
-                                <div style={{ display:'flex', gap:2, marginBottom:5 }}>
-                                  {[1,2,3,4,5].map(s => (
-                                    <svg key={s} viewBox="0 0 20 20" width="13" height="13">
-                                      <path d="M10,1.5 L11.8,6.5 L17,6.5 L12.9,9.8 L14.5,14.9 L10,11.8 L5.5,14.9 L7.1,9.8 L3,6.5 L8.2,6.5 Z"
-                                        fill={s <= r.rating ? '#F5A623' : '#E0DFDB'} />
-                                    </svg>
-                                  ))}
-                                  <span style={{ fontSize:11, color:'#aaa', marginLeft:4 }}>{r.rating}.0</span>
+                                <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:5, lineHeight:1 }}>
+                                  <StarRating rating={r.rating} size={14} />
+                                  <span style={{ fontSize:12, fontWeight:600, color:'#1A1A1A', lineHeight:1, position:'relative', top:1 }}>{r.rating.toFixed(1)}</span>
                                 </div>
                                 <p style={{ fontSize:13, color:'#444', lineHeight:1.6, margin:0,
                                   overflow:'hidden', display:'-webkit-box',
@@ -1430,30 +1417,28 @@ export default function MypageClient() {
                   {/* 헤더 텍스트 */}
                   <div style={{ textAlign:'center', marginBottom:24 }}>
                     <p style={{ fontSize:14, color:'#555', marginBottom:6 }}>지금 델리오에 친구를 초대하면</p>
-                    <p style={{ fontSize:22, fontWeight:900, color:'#111', lineHeight:1.3 }}>친구도 나도 더블 할인!</p>
+                    <p style={{ fontSize:22, fontWeight:900, color:'#111', lineHeight:1.3 }}>친구도 나도 5천원 할인!</p>
                   </div>
 
                   {/* 쿠폰 카드 */}
-                  <div style={{ background:'#C8E63C', borderRadius:14, padding:'22px 24px',
-                    marginBottom:20, position:'relative', overflow:'hidden' }}>
-                    <div style={{ position:'absolute', left:-14, top:'50%', transform:'translateY(-50%)',
-                      width:28, height:28, borderRadius:'50%', background:'#fff' }} />
-                    <div style={{ position:'absolute', right:-14, top:'50%', transform:'translateY(-50%)',
-                      width:28, height:28, borderRadius:'50%', background:'#fff' }} />
-                    <div style={{ textAlign:'center' }}>
-                      <p style={{ fontSize:13, fontWeight:700, color:'#555', marginBottom:6, letterSpacing:0.5 }}>
-                        <span style={{ fontStyle:'italic', color:'#222' }}>DELI</span>
-                        <span style={{ fontStyle:'italic', fontWeight:900, color:'#111' }}>'O</span>
-                      </p>
-                      <p style={{ fontSize:44, fontWeight:900, color:'#111', lineHeight:1, letterSpacing:-1 }}>1,000</p>
-                      <p style={{ fontSize:13, color:'#555', marginTop:4, fontWeight:600 }}>적립금</p>
-                    </div>
+                  <div style={{ background:'#1A1A1A', borderRadius:16, padding:'44px 24px',
+                    marginBottom:20, position:'relative', overflow:'hidden', textAlign:'center' }}>
+                    {/* 좌우 삼각형 노치 */}
+                    <div style={{ position:'absolute', left:0, top:'50%', transform:'translateY(-50%)',
+                      width:0, height:0, borderTop:'24px solid transparent', borderBottom:'24px solid transparent',
+                      borderLeft:'20px solid #fff' }} />
+                    <div style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)',
+                      width:0, height:0, borderTop:'24px solid transparent', borderBottom:'24px solid transparent',
+                      borderRight:'20px solid #fff' }} />
+                    <p style={{ fontSize:14, fontWeight:600, color:'#fff', letterSpacing:3, marginBottom:14 }}>COUPON</p>
+                    <p style={{ fontSize:52, fontWeight:800, color:'#fff', lineHeight:1, letterSpacing:-1 }}>5,000</p>
                   </div>
 
                   {/* 설명 */}
                   <p style={{ textAlign:'center', fontSize:13, color:'#666', lineHeight:1.7, marginBottom:24 }}>
-                    초대 받은 친구의 첫 구매가 완료되면<br />
-                    나와 친구 모두 적립금 1,000원을 받을 수 있어요.
+                    친구는 초대코드로 가입하면 <b style={{ color:'#1A1A1A' }}>즉시 5,000원 쿠폰</b>,<br />
+                    친구가 첫 구매를 완료하면 <b style={{ color:'#1A1A1A' }}>나도 5,000원 쿠폰</b>을 받아요!<br />
+                    <span style={{ fontSize:11, color:'#aaa' }}>(2만원 이상 구매 시 사용 · 발급일로부터 30일)</span>
                   </p>
 
                   {/* 내 추천 코드 */}
@@ -1468,12 +1453,12 @@ export default function MypageClient() {
                   {/* 통계 */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
                     <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px', textAlign:'center' }}>
-                      <div style={{ fontSize:22, fontWeight:800, color:'#111' }}>{referralInvited}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#111' }}>{referralInvited}<span style={{ fontSize:13, fontWeight:600 }}>명</span></div>
                       <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>초대한 친구</div>
                     </div>
                     <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px', textAlign:'center' }}>
-                      <div style={{ fontSize:22, fontWeight:800, color:'#2D7A4D' }}>{referralRewarded}</div>
-                      <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>적립금 지급 완료</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#2D7A4D' }}>{fmtPrice(referralRewarded * 5000)}<span style={{ fontSize:13, fontWeight:600 }}>원</span></div>
+                      <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>누적 쿠폰 금액</div>
                     </div>
                   </div>
 
@@ -2063,33 +2048,117 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='cs'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">1:1 문의</span>
+                {/* 상위 탭: 상품 Q&A / 1:1 문의 */}
+                <div style={{ display:'flex', borderBottom:'1px solid #E5E5E5', marginTop:4 }}>
+                  {([
+                    { key:'qna',     label:'상품 Q&A' },
+                    { key:'inquiry', label:'1:1 문의' },
+                  ] as const).map(t => (
+                    <button key={t.key} onClick={() => setCsMainTab(t.key)}
+                      style={{ flex:1, textAlign:'center', padding:'14px 0', background:'none', border:'none',
+                        fontFamily:'inherit', cursor:'pointer', fontSize:15,
+                        fontWeight: csMainTab===t.key ? 700 : 500,
+                        color: csMainTab===t.key ? '#1A1A1A' : '#999',
+                        borderBottom: csMainTab===t.key ? '2px solid #1A1A1A' : '2px solid transparent',
+                        marginBottom:-1, transition:'color .15s' }}>
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* 탭 */}
-                <div style={{ display:'flex', borderRadius:'10px 10px 0 0', border:'1px solid #EBEBEB',
-                  borderBottom:'none', overflow:'hidden', marginTop:16, marginBottom:0 }}>
-                  {(['write','history'] as const).map(t => (
-                    <div key={t}
-                      onClick={() => { setCsTab(t); if(csDone && t==='write') { setCsDone(false); setCsTitle(''); setCsMessage(''); setCsCategory('order'); setCsFiles([]); } }}
-                      style={{ flex:1, padding:'12px', textAlign:'center', fontSize:13, fontWeight:600,
-                        cursor:'pointer', transition:'all .15s',
-                        color: csTab===t ? '#1A1A1A' : '#aaa',
-                        borderBottom: csTab===t ? '2px solid #1A1A1A' : '2px solid transparent',
-                        background: csTab===t ? '#F7F7F5' : '#fff' }}>
-                      {t==='write' ? '✏️ 문의하기' : '📋 문의 내역'}
+                {/* ── 상품 Q&A ── */}
+                {csMainTab === 'qna' && (
+                  <div style={{ marginTop:20, overflowX:'auto' }}>
+                    <div style={{ minWidth:560 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
+                        background:'#F5F5F5', borderTop:'1px solid #E5E5E5', borderBottom:'1px solid #E5E5E5',
+                        fontSize:13, fontWeight:600, color:'#555' }}>
+                        <div style={{ padding:'14px 8px', textAlign:'center' }}>번호</div>
+                        <div style={{ padding:'14px 8px', textAlign:'center' }}>상품명</div>
+                        <div style={{ padding:'14px 8px', textAlign:'center' }}>제목</div>
+                        <div style={{ padding:'14px 8px', textAlign:'center' }}>등록일</div>
+                        <div style={{ padding:'14px 8px', textAlign:'center' }}>처리여부</div>
+                      </div>
+                      {qnaLoading ? (
+                        <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:13, borderBottom:'1px solid #EEE' }}>불러오는 중...</div>
+                      ) : myQna.length === 0 ? (
+                        <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>등록된 상품 Q&A가 없습니다.</div>
+                      ) : (
+                        myQna.map((q, i) => {
+                          const isOpen = qnaOpenId === q.id;
+                          return (
+                          <div key={q.id} style={{ borderBottom:'1px solid #F0F0F0' }}>
+                            <div onClick={() => setQnaOpenId(isOpen ? null : q.id)}
+                              style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
+                                fontSize:13, alignItems:'center', cursor:'pointer',
+                                background: isOpen ? '#FAFAFA' : 'transparent' }}>
+                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#888' }}>{myQna.length - i}</div>
+                              <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.products?.name ?? '-'}</div>
+                              <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</div>
+                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#999' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</div>
+                              <div style={{ padding:'14px 8px', textAlign:'center' }}>
+                                <span style={{ fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:999,
+                                  background: q.answer ? '#E8F5E9' : '#FFF3E0', color: q.answer ? '#2D7A4D' : '#C8841C' }}>
+                                  {q.answer ? '답변완료' : '답변대기'}
+                                </span>
+                              </div>
+                            </div>
+                            {isOpen && (
+                              <div style={{ background:'#F7F7F5', padding:'16px 0' }}>
+                                {/* 문의 */}
+                                <div style={{ display:'flex', alignItems:'flex-start', marginBottom: q.answer ? 14 : 0 }}>
+                                  <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#1A1A1A' }}>Q</span>
+                                  <div style={{ flex:1, paddingRight:8, fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{q.content}</div>
+                                </div>
+                                {/* 답변 */}
+                                <div style={{ display:'flex', alignItems:'flex-start', borderTop:'1px solid #ECECEC', paddingTop:14 }}>
+                                  <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#CB1D11' }}>A</span>
+                                  <div style={{ flex:1, paddingRight:8, fontSize:13, color: q.answer ? '#333' : '#aaa', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
+                                    {q.answer || '아직 답변이 등록되지 않았습니다.'}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          );
+                        })
+                      )}
                     </div>
+                  </div>
+                )}
+
+                {/* ── 1:1 문의 ── */}
+                {csMainTab === 'inquiry' && (
+                <>
+                {/* 탭 (문의하기 / 문의 내역) */}
+                <div style={{ display:'flex', borderBottom:'1px solid #E5E5E5', marginTop:16 }}>
+                  {(['write','history'] as const).map(t => (
+                    <button key={t}
+                      onClick={() => { setCsTab(t); if(csDone && t==='write') { setCsDone(false); setCsTitle(''); setCsMessage(''); setCsCategory('order'); setCsFiles([]); } }}
+                      style={{ flex:1, textAlign:'center', padding:'13px 0', background:'none', border:'none',
+                        fontFamily:'inherit', cursor:'pointer', fontSize:14,
+                        fontWeight: csTab===t ? 700 : 500,
+                        color: csTab===t ? '#1A1A1A' : '#999',
+                        borderBottom: csTab===t ? '2px solid #1A1A1A' : '2px solid transparent',
+                        marginBottom:-1, transition:'color .15s' }}>
+                      {t==='write' ? '문의하기' : '문의 내역'}
+                    </button>
                   ))}
                 </div>
 
                 {/* ── 문의하기 ── */}
                 {csTab === 'write' && (
-                  <div style={{ border:'1px solid #EBEBEB', borderRadius:'0 0 10px 10px', padding:'20px', marginBottom:12 }}>
+                  <div style={{ padding:'20px 0', marginBottom:12 }}>
                     {csDone ? (
                       /* 완료 메시지 */
                       <div style={{ textAlign:'center', padding:'32px 0' }}>
-                        <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
+                        <div style={{ width:56, height:56, borderRadius:'50%', background:'#22C55E',
+                          display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff"
+                            strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        </div>
                         <div style={{ fontSize:16, fontWeight:800, marginBottom:8 }}>문의가 접수되었습니다!</div>
                         <p style={{ fontSize:13, color:'#888', lineHeight:1.8, marginBottom:20 }}>
                           영업일 기준 1~2일 이내 답변드립니다.<br/>
@@ -2110,26 +2179,25 @@ export default function MypageClient() {
                       </div>
                     ) : (
                       <form onSubmit={submitCsInquiry}>
-                        {/* 유형 선택 */}
+                        {/* 유형 선택 — 필 탭 */}
                         <div style={{ marginBottom:16 }}>
-                          <div style={{ fontSize:11, fontWeight:700, color:'#aaa', marginBottom:8,
+                          <div style={{ fontSize:11, fontWeight:700, color:'#aaa', marginBottom:10,
                             textTransform:'uppercase', letterSpacing:'0.4px' }}>문의 유형</div>
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                            {CS_CATEGORIES.map(c => (
-                              <button type="button" key={c.value}
-                                onClick={() => setCsCategory(c.value)}
-                                style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px',
-                                  borderRadius:10, border:`1.5px solid ${csCategory===c.value?'#1A1A1A':'#EBEBEB'}`,
-                                  background: csCategory===c.value?'#F5F5F5':'#FAFAFA',
-                                  fontSize:13, fontWeight:600, color: csCategory===c.value?'#1A1A1A':'#555',
-                                  cursor:'pointer', transition:'all .15s', fontFamily:'inherit', textAlign:'left' }}>
-                                <span style={{ fontSize:18 }}>{c.icon}</span>
-                                <div>
-                                  <div style={{ fontSize:12, fontWeight:700 }}>{c.name}</div>
-                                  <div style={{ fontSize:10, color:'#aaa', fontWeight:400 }}>{c.sub}</div>
-                                </div>
-                              </button>
-                            ))}
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                            {CS_CATEGORIES.map(c => {
+                              const on = csCategory===c.value;
+                              return (
+                                <button type="button" key={c.value}
+                                  onClick={() => setCsCategory(c.value)}
+                                  style={{ padding:'9px 18px', borderRadius:999,
+                                    border:`1px solid ${on ? '#1A1A1A' : '#E5E5E5'}`,
+                                    background: on ? '#1A1A1A' : '#F4F4F4',
+                                    fontSize:13, fontWeight:700, color: on ? '#fff' : '#888',
+                                    cursor:'pointer', transition:'all .15s', fontFamily:'inherit', whiteSpace:'nowrap' }}>
+                                  {c.name}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -2137,7 +2205,7 @@ export default function MypageClient() {
                         <div style={{ marginBottom:12 }}>
                           <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
-                            제목 <span style={{ color:'#1A1A1A', fontSize:10 }}>필수</span>
+                            제목 <span style={{ color:'#1A1A1A', fontSize:10 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
                           <input type="text" value={csTitle} onChange={e => setCsTitle(e.target.value)}
                             placeholder="문의 제목을 입력해주세요"
@@ -2150,7 +2218,7 @@ export default function MypageClient() {
                         <div style={{ marginBottom:16 }}>
                           <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
-                            문의 내용 <span style={{ color:'#1A1A1A', fontSize:10 }}>필수</span>
+                            문의 내용 <span style={{ color:'#1A1A1A', fontSize:10 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
                           <textarea value={csMessage} onChange={e => setCsMessage(e.target.value)} rows={5}
                             placeholder={
@@ -2216,7 +2284,7 @@ export default function MypageClient() {
                             {/* 추가 버튼 */}
                             {csFiles.length < 5 && (
                               <label style={{ width:68, height:68, borderRadius:10,
-                                border:'2px dashed #D0D0D0', background:'#F7F7F5',
+                                border:'1px dashed #D0D0D0', background:'#F7F7F5',
                                 display:'flex', flexDirection:'column', alignItems:'center',
                                 justifyContent:'center', cursor:'pointer', gap:3, flexShrink:0 }}>
                                 <span style={{ fontSize:20, color:'#aaa' }}>＋</span>
@@ -2245,7 +2313,7 @@ export default function MypageClient() {
                             cursor: (csLoading||csUploading)?'default':'pointer',
                             opacity: (csLoading||csUploading)?0.7:1,
                             fontFamily:'inherit' }}>
-                          {csUploading ? '📤 파일 업로드 중...' : csLoading ? '⏳ 접수 중...' : '문의 접수하기 →'}
+                          {csUploading ? '📤 파일 업로드 중...' : csLoading ? '접수 중...' : '문의 접수하기 →'}
                         </button>
                       </form>
                     )}
@@ -2254,8 +2322,7 @@ export default function MypageClient() {
 
                 {/* ── 문의 내역 ── */}
                 {csTab === 'history' && (
-                  <div style={{ border:'1px solid #EBEBEB', borderRadius:'0 0 10px 10px',
-                    padding:'16px 20px', marginBottom:12 }}>
+                  <div style={{ padding:'8px 0 16px', marginBottom:12 }}>
                     {csInquiries.length === 0 ? (
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13 }}>
                         아직 문의 내역이 없습니다.
@@ -2341,9 +2408,11 @@ export default function MypageClient() {
                 {/* 운영 안내 */}
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px',
                   fontSize:12, color:'#888', lineHeight:2 }}>
-                  📅 평일 09:00~18:00 운영 (점심 12~13시 제외)<br/>
-                  📵 주말·공휴일 휴무 · 영업일 기준 1~2일 이내 답변
+                  평일 09:00~18:00 운영 (점심 12~13시 제외)<br/>
+                  주말·공휴일 휴무 · 영업일 기준 1~2일 이내 답변
                 </div>
+                </>
+                )}
 
               </div>
             </div>
@@ -2436,7 +2505,7 @@ export default function MypageClient() {
                           style={{ flex:1, padding:'13px', border:'1.5px solid #EBEBEB', borderRadius:12,
                             background:'#fff', fontSize:13, fontWeight:700, cursor:'pointer',
                             color:'#1A1A1A', fontFamily:'inherit', opacity: savingCard ? 0.6 : 1 }}>
-                          {savingCard ? '저장 중...' : '📥 저장하기'}
+                          {savingCard ? '저장 중...' : '저장하기'}
                         </button>
                         <button onClick={() => router.push('/category')}
                           style={{ flex:1, padding:'13px', border:'1.5px solid #EBEBEB', borderRadius:12,
@@ -2449,14 +2518,14 @@ export default function MypageClient() {
                         style={{ width:'100%', padding:'13px', border:'none', borderRadius:12,
                           background:'#1A1A1A', color:'#fff', fontSize:13, fontWeight:700,
                           cursor:'pointer', fontFamily:'inherit' }}>
-                        재검사하기 🔄
+                        재검사하기
                       </button>
 
                       {/* 맞춤 상품 추천 */}
-                      {surveyRecProducts.length > 0 && (
+                      {surveyShowRec && surveyRecProducts.length > 0 && (
                         <div style={{ marginTop:24 }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                            <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품</div>
+                            <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>나를 위한 추천 상품</div>
                             <button onClick={() => router.push('/category')}
                               style={{ fontSize:11, color:'#888', background:'none', border:'none',
                                 cursor:'pointer', fontFamily:'inherit', fontWeight:600 }}>
@@ -2640,15 +2709,8 @@ export default function MypageClient() {
                 {/* 리뷰 텍스트 */}
                 <div style={{ padding:'10px 16px 16px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                    <div style={{ display:'flex', gap:2 }}>
-                      {[1,2,3,4,5].map(s => (
-                        <svg key={s} viewBox="0 0 20 20" width="13" height="13">
-                          <path d="M10,1.5 L11.8,6.5 L17,6.5 L12.9,9.8 L14.5,14.9 L10,11.8 L5.5,14.9 L7.1,9.8 L3,6.5 L8.2,6.5 Z"
-                            fill={s <= r.rating ? '#F5A623' : '#E0DFDB'} />
-                        </svg>
-                      ))}
-                    </div>
-                    <span style={{ fontSize:11, color:'#aaa' }}>
+                    <StarRating rating={r.rating} size={14} />
+                    <span style={{ fontSize:11, color:'#aaa', lineHeight:1 }}>
                       {new Date(r.created_at).toLocaleDateString('ko-KR')}
                     </span>
                   </div>

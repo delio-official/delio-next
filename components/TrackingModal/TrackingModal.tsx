@@ -103,7 +103,7 @@ export default function TrackingModal({ carrierId, trackingNumber, courierName, 
         <div style={{ padding: '18px 20px', borderBottom: '1px solid #F0F0F0',
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>🚚 배송추적</div>
+            <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>배송추적</div>
             <div style={{ fontSize: 12, color: '#64748B' }}>
               {courierName || CARRIER_LABEL[carrierId] || carrierId} · {trackingNumber}
             </div>

@@ -1134,9 +1134,9 @@
     .review-prod-name { font-size: 12px; font-weight: 600; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
     .review-prod-rating { font-size: 11px; color: var(--color-ink-mute); }
     .review-prod-rating span { color: #FFB300; font-weight: 700; margin-right: 2px; }
-    .review-nav-btn { position: absolute; top: 50%; transform: translateY(-60%); z-index: 10; width: 40px; height: 40px; border-radius: 50%; background: #fff; border: 1.5px solid #D8D8D4; box-shadow: 0 2px 8px rgba(0,0,0,0.10); display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, box-shadow .15s; }
+    .review-nav-btn { position: absolute; top: 50%; transform: translateY(-60%); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
     .review-scroll-wrap:hover .review-nav-btn { opacity: 1; }
-    .review-nav-btn:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.15); }
+    .review-nav-btn:hover { background: rgba(0,0,0,0.5); }
     .review-nav-btn.prev { left: -16px; }
     .review-nav-btn.next { right: -16px; }
     @media(max-width:768px) { .review-nav-btn { display: none; } }
@@ -1216,7 +1216,7 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .bdc-product-price { font-size: 15px; font-weight: 700; color: var(--color-ink); transition: color .15s; }
-    .bdc-discount { color: #1A1A1A; font-size: 13px; font-weight: 800; margin-right: 4px; }
+    .bdc-discount { color: var(--color-accent); font-size: 15px; font-weight: 800; margin-right: 4px; }
 
     /* ===== 배너 화살표 ===== */
     .main-banner { position: relative; }
@@ -1418,13 +1418,21 @@
       }
       .qg-card-original { display: block !important; font-size: 11px !important; color: #aaa !important; text-decoration: line-through !important; margin-bottom: 1px !important; }
       .qg-card-price-row { gap: 3px !important; margin-bottom: 4px !important; align-items: baseline !important; flex-wrap: wrap !important; }
-      .qg-card-discount { font-size: 12px !important; font-weight: 700 !important; color: #1A1A1A !important; display: inline !important; }
+      .qg-card-discount { font-size: 13px !important; font-weight: 700 !important; color: var(--color-accent) !important; display: inline !important; }
       .qg-card-price { font-size: 13px !important; font-weight: 700 !important; color: var(--color-ink) !important; }
       .qg-card-img-r { display: none !important; }
       /* 모바일 찜/담기 바 */
       .qg-body-actions { margin-top: 8px !important; padding-top: 0 !important; gap: 6px !important; }
       .qg-body-wish, .qg-body-cart { height: 30px !important; font-size: 12px !important; border-radius: 6px !important; }
     }
+    /* 퀵가이드 화살표 (PC 전용) */
+    .qg-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
+    .qg-scroll-wrap:hover .qg-nav-btn { opacity: 1; }
+    .qg-nav-btn:hover { background: rgba(0,0,0,0.5); }
+    .qg-nav-btn.prev { left: -16px; }
+    .qg-nav-btn.next { right: -16px; }
+    @media(max-width:768px) { .qg-nav-btn { display: none; } }
+
     .qg-products { display: grid; grid-template-rows: repeat(2, 220px); grid-auto-flow: column; grid-auto-columns: 480px; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; padding-right: 24px; cursor: grab; user-select: none; width: 100%; }
     .qg-products.dragging { cursor: grabbing; }
     .qg-products::-webkit-scrollbar { display: none; }
@@ -1434,10 +1442,11 @@
     .qg-card:hover .qg-card-img-inner { transform: scale(1.12); }
     .qg-card-body { flex: 1; padding: 15px 16px 15px; display: flex; flex-direction: column; min-width: 0; }
     .qg-card-tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; width: fit-content; }
+    .qg-card-delivery { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
     .qg-card-name { font-size: 17px; font-weight: 700; color: var(--color-ink); line-height: 1.4; margin-bottom: 10px; }
     .qg-card-original { font-size: 14px; color: var(--color-ink-mute); text-decoration: line-through; text-decoration-thickness: 2px; margin-bottom: 3px; }
     .qg-card-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
-    .qg-card-discount { font-size: 19px; font-weight: 800; color: #1A1A1A; }
+    .qg-card-discount { font-size: 19px; font-weight: 800; color: var(--color-accent); }
     .qg-card-price { font-size: 19px; font-weight: 800; color: var(--color-ink); }
     .qg-card-shipping { font-size: 13px; color: var(--color-ink-mute); margin-bottom: 12px; }
     .qg-card-img-r { display: none; }
@@ -1450,9 +1459,9 @@
     /* ===== 중간 배너 ===== */
     .mid-banner-section { padding: 48px 0 48px; }
     .mid-banner-nav-row { position: relative; }
-    .mid-banner-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #D8D8D4; background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .2s, box-shadow .2s, opacity .25s; opacity: 0; z-index: 2; }
+    .mid-banner-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(0,0,0,0.32); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .2s, opacity .25s; opacity: 0; z-index: 2; }
     .mid-banner-nav-row:hover .mid-banner-arrow { opacity: 1; }
-    .mid-banner-arrow:hover { border-color: #bbb; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .mid-banner-arrow:hover { background: rgba(0,0,0,0.5); }
     .mid-banner-arrow.prev { left: -56px; }
     .mid-banner-arrow.next { right: -56px; }
     .mid-banner-arrow svg { width: 22px; height: 22px; }

@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signUp } from '@/lib/auth';
+import { signUp, signIn } from '@/lib/auth';
 import '@/styles/signup.css';
 
 /* 원형 체크박스 */
@@ -147,11 +147,14 @@ export default function SignupClient() {
     setLoading(true);
     setError('');
     const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined);
-    setLoading(false);
     if (err) {
+      setLoading(false);
       if (err.message.includes('already')) setError('이미 가입된 이메일입니다.');
       else setError(err.message);
     } else {
+      // 가입 성공 → 자동 로그인 (세션 확실히 확보)
+      await signIn(email, pw);
+      setLoading(false);
       setDone(true);
     }
   }

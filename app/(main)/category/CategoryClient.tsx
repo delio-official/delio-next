@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
@@ -79,10 +79,8 @@ function ProductCard({ p }: { p: Product }) {
 
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
-    addToCart({ id: p.id, name: p.name, price: p.discounted_price ?? p.price,
-      thumbnail: p.thumbnail_url || '', quantity: 1,
-      deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
-    showCartToast();
+    e.stopPropagation();
+    openOptionDrawer(p.id);
   }
 
   async function handleWish(e: React.MouseEvent) {

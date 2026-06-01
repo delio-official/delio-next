@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -39,6 +39,7 @@ interface PickProduct {
 interface QGProduct {
   id: string; name: string; price: number; discounted_price: number;
   discount_rate: number; brix: number | null; is_dawn: boolean;
+  is_new: boolean; is_best: boolean;
   thumbnail_url: string | null; category: string;
 }
 
@@ -56,20 +57,19 @@ function PickSectionArrow({ dir, visible, onClick }: { dir: 'prev'|'next'; visib
       onMouseLeave={() => setHovered(false)}
       style={{
         position: 'absolute', top: '35%', transform: 'translateY(-50%)',
-        ...(dir === 'prev' ? { left: -26 } : { right: -26 }),
-        zIndex: 10, width: 52, height: 52,
-        background: hovered ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.82)',
-        color: '#1A1A1A', border: 'none', borderRadius: '50%',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
-        alignItems: 'center', justifyContent: 'center',
+        ...(dir === 'prev' ? { left: -22 } : { right: -22 }),
+        zIndex: 10, width: 44, height: 44,
+        background: hovered ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.32)',
+        color: '#fff', border: 'none', borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
         transition: 'opacity .4s, background .15s',
         opacity: visible ? 1 : 0,
         pointerEvents: visible ? 'auto' : 'none',
       }}>
       {dir === 'prev'
-        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="15 18 9 12 15 6"/></svg>
-        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="9 18 15 12 9 6"/></svg>}
+        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
+        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6"/></svg>}
     </button>
   );
 }
@@ -80,9 +80,8 @@ function BannerArrow({ dir, visible, onClick }: { dir: 'prev' | 'next'; visible:
   const style: React.CSSProperties = {
     position: 'absolute', top: '50%', transform: 'translateY(-50%)',
     zIndex: 100, width: 52, height: 52,
-    background: hovered ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.82)',
-    color: '#1A1A1A', border: 'none', borderRadius: '50%',
-    boxShadow: '0 2px 12px rgba(0,0,0,0.13)',
+    background: hovered ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.32)',
+    color: '#fff', border: 'none', borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer', transition: 'opacity .4s, background .15s',
     opacity: visible ? 1 : 0,
@@ -94,8 +93,8 @@ function BannerArrow({ dir, visible, onClick }: { dir: 'prev' | 'next'; visible:
     <button style={style} onClick={onClick}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {dir === 'prev'
-        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="15 18 9 12 15 6" /></svg>
-        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="34" height="34"><polyline points="9 18 15 12 9 6" /></svg>}
+        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
+        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>}
     </button>
   );
 }
@@ -245,6 +244,7 @@ function QuickGuide() {
   const [items, setItems] = useState<QGProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
+  const qgScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,7 +253,7 @@ function QuickGuide() {
       const supabase = createClient();
       let q = supabase
         .from('products')
-        .select('id,name,price,discounted_price,discount_rate,brix,is_dawn,thumbnail_url,category')
+        .select('id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category')
         .eq('is_active', true);
       if      (activeCat === 'best') q = (q as any).eq('is_best', true);
       else if (activeCat === 'dawn') q = (q as any).eq('is_dawn', true);
@@ -318,7 +318,14 @@ function QuickGuide() {
             </a>
           ))}
         </div>
-        <div className="qg-products">
+        <div className="qg-scroll-wrap" style={{ position:'relative' }}>
+          <button className="qg-nav-btn prev" onClick={() => qgScrollRef.current && smoothScroll(qgScrollRef.current, -494)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button className="qg-nav-btn next" onClick={() => qgScrollRef.current && smoothScroll(qgScrollRef.current, 494)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        <div className="qg-products" ref={qgScrollRef}>
           {loading
             ? [0,1,2,3].map(i => (
                 <div key={i} className="qg-card" style={{ opacity:0.35 }}>
@@ -339,25 +346,34 @@ function QuickGuide() {
                   const displayPrice = p.discounted_price ?? p.price;
                   return (
                     <div key={p.id} className="qg-card" onClick={() => router.push(`/product/${p.id}`)}>
-                      <div className="qg-card-img" style={{ background: bg }}>
+                      <div className="qg-card-img" style={{ background: bg, position:'relative' }}>
+                        {/* 배송 배지 (썸네일 좌상단) */}
+                        <span className={`qg-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
+                          style={{ position:'absolute', top:10, left:10, zIndex:2 }}>
+                          {p.is_dawn ? '산지직송' : '자사배송'}
+                        </span>
                         {p.thumbnail_url
                           ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : <span className="qg-card-img-inner">{icon}</span>
                         }
                       </div>
                       <div className="qg-card-body">
-                        <span className={`qg-card-tag ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}>{p.is_dawn ? '산지직송' : '자사배송'}</span>
-                        <div className="qg-card-name">{p.name}</div>
-                        {p.discount_rate > 0 && (
-                          <div className="qg-card-original">{p.price.toLocaleString()}원</div>
+                        {(p.is_new || p.is_best) ? (
+                          <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>
+                            {p.is_new ? 'NEW' : '인기'}
+                          </span>
+                        ) : (
+                          <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
                         )}
+                        <div className="qg-card-name">{p.name}</div>
+                        {p.discount_rate > 0
+                          ? <div className="qg-card-original">{p.price.toLocaleString()}원</div>
+                          : <div className="qg-card-original" style={{ visibility:'hidden' }}>&nbsp;</div>
+                        }
                         <div className="qg-card-price-row">
                           {p.discount_rate > 0 && <span className="qg-card-discount">{p.discount_rate}%</span>}
                           <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
                         </div>
-                        {p.brix != null && p.brix > 0 && (
-                          <div style={{ fontSize:11, color:'#888', fontWeight:600, marginTop:3 }}>🍬 {p.brix} brix</div>
-                        )}
                         <div className="qg-body-actions">
                           <button className="qg-body-wish" onClick={e => handleQGWish(e, p.id)}>
                             <span style={{ color: wishedIds.has(p.id) ? '#E53935' : undefined }}>{wishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
@@ -365,8 +381,7 @@ function QuickGuide() {
                           <span className="qg-body-actions-divider" />
                           <button className="qg-body-cart" onClick={e => {
                             e.stopPropagation();
-                            addToCart({ id: p.id, name: p.name, price: displayPrice, quantity: 1, thumbnail: p.thumbnail_url || icon, deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
-                            showCartToast();
+                            openOptionDrawer(p.id);
                           }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
                               <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
@@ -382,6 +397,7 @@ function QuickGuide() {
                   );
                 })
           }
+        </div>
         </div>
       </div>
     </section>
@@ -477,7 +493,7 @@ function MidBanner() {
         <div className="mid-banner-carousel" id="midBannerCarousel">
           <div className="mid-banner-nav-row">
             <button className="mid-banner-arrow prev" onClick={() => { stopTimer(); go(curRef.current - 1); startTimer(); }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <div className="mid-banner-pages" ref={pagesRef}>
               <div className="mid-banner-track" ref={trackRef}>
@@ -492,7 +508,7 @@ function MidBanner() {
               </div>
             </div>
             <button className="mid-banner-arrow next" onClick={() => { stopTimer(); go(curRef.current + 1); startTimer(); }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform:'translateX(1px)' }}><polyline points="9 6 15 12 9 18"/></svg>
             </button>
           </div>
           <div className="mid-banner-dots">
@@ -690,8 +706,7 @@ export default function HomeClient() {
                                   <span className="product-card-actions-divider" />
                                   <button className="cart-btn" onClick={e => {
                                     e.stopPropagation();
-                                    addToCart({ id:p.id, name:p.name, price:basePrice, quantity:1, thumbnail:p.thumbnail_url||icon, deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
-                                    showCartToast();
+                                    openOptionDrawer(p.id);
                                   }}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
                                       <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
@@ -807,16 +822,16 @@ export default function HomeClient() {
           </div>
           <div className="review-scroll-wrap">
             <button className="review-nav-btn prev" onClick={() => reviewScrollRef.current && smoothScroll(reviewScrollRef.current, -265)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <button className="review-nav-btn next" onClick={() => reviewScrollRef.current && smoothScroll(reviewScrollRef.current, 265)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6"/></svg>
             </button>
             <div className="review-scroll" ref={reviewScrollRef}>
               {reviews.map((r, i) => (
                 <div key={i} className="review-card">
                   {/* 이미지 + 리뷰 텍스트 → 리뷰 상세 */}
-                  <Link href={r.reviewHref} className="review-card-top" style={{ textDecoration:'none', color:'inherit', display:'block' }}>
+                  <Link href={r.reviewHref} className="review-card-top" style={{ textDecoration:'none', color:'inherit', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
                     <div className={`review-photo ${r.photo}`}>{r.emoji}</div>
                     <div className="review-body">
                       <div className="review-stars"><StarRating rating={r.stars} size={14} /></div>
@@ -892,29 +907,64 @@ export default function HomeClient() {
       {/* ── 푸터 ── */}
       <footer className="site-footer">
         <div className="container">
-          <div className="footer-inner">
-            <div>
-              <div className="footer-logo">
-                <img src="/DelioLogo.png" alt="Delio" style={{ height:30, width:'auto', display:'block', objectFit:'contain' }} />
+          {/* 로고 (맨 위 단독) */}
+          <div className="footer-logo" style={{ marginBottom:28 }}>
+            <img src="/DelioLogo.png" alt="Delio" style={{ height:48, width:'auto', display:'block', objectFit:'contain' }} />
+          </div>
+
+          {/* 사업자정보 | 고객센터 | 입금계좌 (같은 높이 박스, 내용 위아래 꽉) */}
+          <div className="footer-top" style={{ display:'grid', gridTemplateColumns:'1.9fr 1fr 1fr', gap:48, paddingBottom:40, alignItems:'stretch' }}>
+            {/* 사업자 정보 */}
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
+                <div>주소 : 경기도 고양시 덕양구 용현로3, 714호</div>
+                <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 신청 중</div>
+                <div>개인정보보호책임자 : 송민창 (deli_o@naver.com)</div>
               </div>
-              <p className="footer-desc">
-                (주)델리오 · 대표자: 송민창<br />
-                사업자등록번호: 123-45-67890<br />
-                주소: 서울특별시 강남구 테헤란로 123<br />
-                고객센터: 1588-0000 (평일 09~18시)<br />
-                이메일: hello@delio.co.kr
-              </p>
+              <div style={{ color:'#c0c0c0', fontSize:13 }}>© 델리오. All rights reserved.</div>
             </div>
-            <div className="footer-links">
-              <a href="#">이용약관</a>
-              <a href="#">개인정보처리방침</a>
-              <Link href="/faq">자주 묻는 질문</Link>
-              <a href="#">카카오 채널</a>
-              <a href="#">공지사항</a>
+
+            {/* 고객센터 */}
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
+              <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터</div>
+              <div style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>031-987-0825</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                <div>운영시간 : 평일 09:00 ~ 18:00</div>
+                <div>토·일·공휴일은 운영하지 않습니다.</div>
+                <div>이메일 : deli_o@naver.com</div>
+              </div>
+            </div>
+
+            {/* 입금 계좌 */}
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
+              <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                <div>국민은행 253401-04-398102</div>
+                <div>예금주 : (주)델리오 송민창</div>
+              </div>
+              <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize:13, padding:'9px 16px', borderRadius:6 }}>
+                입금 시 주문자 성함 기재
+              </div>
             </div>
           </div>
-          <div className="footer-bottom">
-            © 2026 Delio. All rights reserved. · 통신판매업신고번호: 제2025-서울강남-00000호
+
+          {/* 하단: 정책 링크 + SNS */}
+          <div className="footer-bottom-bar" style={{ borderTop:'1px solid #EBEBEB', paddingTop:26, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div className="footer-policy-links" style={{ display:'flex', gap:28, fontSize:13.5, fontWeight:500, color:'#444' }}>
+              <a href="#" style={{ color:'#444', textDecoration:'none' }}>개인정보처리방침</a>
+              <a href="#" style={{ color:'#444', textDecoration:'none' }}>이용약관</a>
+              <Link href="/refund-policy" style={{ color:'#444', textDecoration:'none' }}>취소/환불정책</Link>
+              <Link href="/faq" style={{ color:'#444', textDecoration:'none' }}>자주 묻는 질문</Link>
+            </div>
+            <div className="footer-sns" style={{ display:'flex', gap:16, alignItems:'center', color:'#bbb' }}>
+              <a href="#" style={{ color:'#bbb' }} title="인스타그램">
+                <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+              </a>
+              <a href="#" style={{ color:'#bbb' }} title="유튜브">
+                <svg viewBox="0 0 24 24" width="23" height="23" fill="currentColor"><path d="M23 12s0-3.5-.45-5.16a2.6 2.6 0 00-1.83-1.84C19.06 4.55 12 4.55 12 4.55s-7.06 0-8.72.45A2.6 2.6 0 001.45 6.84C1 8.5 1 12 1 12s0 3.5.45 5.16a2.6 2.6 0 001.83 1.84c1.66.45 8.72.45 8.72.45s7.06 0 8.72-.45a2.6 2.6 0 001.83-1.84C23 15.5 23 12 23 12zM9.75 15.27V8.73L15.5 12z"/></svg>
+              </a>
+            </div>
           </div>
         </div>
       </footer>

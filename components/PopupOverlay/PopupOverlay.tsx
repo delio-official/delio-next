@@ -60,11 +60,13 @@ export default function PopupOverlay() {
   }
 
   const imgEl = current.image_url ? (
-    <img
-      src={current.image_url}
-      alt={current.title || '팝업'}
-      style={{ width: '100%', display: 'block', objectFit: 'cover' }}
-    />
+    <div style={{ width: '100%', height: 415, overflow: 'hidden' }}>
+      <img
+        src={current.image_url}
+        alt={current.title || '팝업'}
+        style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+      />
+    </div>
   ) : null;
 
   return (
@@ -75,7 +77,7 @@ export default function PopupOverlay() {
         top: 162,
         left: 60,
         zIndex: 9000,
-        width: current.width,
+        width: 400,
         maxWidth: 'calc(100vw - 40px)',
         background: '#fff',
         borderRadius: 8,   /* 상단은 viewport에 붙어있으므로 하단만 radius */

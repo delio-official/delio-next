@@ -73,3 +73,9 @@ export function showCartToast(name?: string): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('cartToast', { detail: { name } }));
 }
+
+/** 옵션 선택 드로어 열기 (상품 id 전달) */
+export function openOptionDrawer(productId: string): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('openOptionDrawer', { detail: { productId } }));
+}

@@ -375,52 +375,51 @@ export default function ProductClient() {
         .from('user_coupons')
         .select(`
           id,
-          coupon:coupon_id (
-            id, title, discount_type, discount_value,
-            min_order_amt, max_discount,
-            target_type, target_ids, expires_at
+          coupons:coupon_id (
+            id, name, discount_type, discount_value,
+            min_order_amount, max_discount_amount,
+            applicable_categories, applicable_product_ids,
+            expires_at, is_active
           )
         `)
         .eq('user_id', user!.id)
-        .eq('used', false);
+        .eq('is_used', false);
 
       if (!data || data.length === 0) { setBestCoupon(null); return; }
 
-      const now       = new Date();
-      const bp        = product!.discounted_price ?? product!.price;
-      let best: typeof bestCoupon & object | null = null;
+      const now = new Date();
+      const bp  = product!.discounted_price ?? product!.price;
+      let best: { name: string; discountAmt: number; finalPrice: number; totalRate: number } | null = null;
 
       for (const uc of data as any[]) {
-        const c = uc.coupon;
-        if (!c || !c.discount_value) continue;
+        const c = uc.coupons;
+        if (!c || !c.discount_value || !c.is_active) continue;
 
         // 만료 체크
         if (c.expires_at && new Date(c.expires_at) < now) continue;
 
         // 최소 주문금액
-        if ((c.min_order_amt ?? 0) > bp) continue;
+        if ((c.min_order_amount ?? 0) > bp) continue;
 
-        // 적용 대상 제한 (target_type: 'all' | 'category' | 'product')
-        if (c.target_type === 'category' && c.target_ids?.length &&
-            !c.target_ids.includes(product!.category)) continue;
-        if (c.target_type === 'product' && c.target_ids?.length &&
-            !c.target_ids.includes(product!.id)) continue;
+        // 적용 대상 제한 (카테고리/상품)
+        if (c.applicable_categories?.length && !c.applicable_categories.includes(product!.category)) continue;
+        if (c.applicable_product_ids?.length && !c.applicable_product_ids.includes(product!.id)) continue;
 
         // 할인 금액 계산
         let discountAmt = 0;
         if (c.discount_type === 'percent') {
           discountAmt = Math.round(bp * c.discount_value / 100);
-          if (c.max_discount) discountAmt = Math.min(discountAmt, c.max_discount);
-        } else { // 'amount'
+          if (c.max_discount_amount) discountAmt = Math.min(discountAmt, c.max_discount_amount);
+        } else { // fixed
           discountAmt = Math.min(c.discount_value, bp);
         }
 
         if (!best || discountAmt > best.discountAmt) {
           best = {
-            name:        c.title,
+            name:       c.name,
             discountAmt,
-            finalPrice:  bp - discountAmt,
-            totalRate:   Math.round((1 - (bp - discountAmt) / product!.price) * 100),
+            finalPrice: bp - discountAmt,
+            totalRate:  Math.round((1 - (bp - discountAmt) / product!.price) * 100),
           };
         }
       }
@@ -448,11 +447,12 @@ export default function ProductClient() {
     const opt = options.find(o => o.id === selOption);
     addToCart({
       id: product.id,
-      name: product.name + (opt ? ` (${opt.label})` : ''),
+      name: product.name,
       price: (product.discounted_price ?? product.price) + (opt?.add_price ?? 0),
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
       optionId: selOption || undefined,
+      options: opt?.label || undefined,
       deliveryType: product.is_dawn ? '산지직송' : '자사배송',
     });
   }
@@ -1107,7 +1107,7 @@ export default function ProductClient() {
                     <span className="price-coupon-val">
                       {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원~</span>
                     </span>
-                    <span className="price-coupon-tag">{bestCoupon.name}</span>
+                    <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
                   </div>
                 ) : !user ? (
                   <div style={{ fontSize:12, color:'var(--color-ink-mute)', marginTop:2 }}>

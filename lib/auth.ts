@@ -32,23 +32,9 @@ export async function signUp(
       referral_code: myCode,
     }, { onConflict: 'id', ignoreDuplicates: true });
 
-    // 추천인 코드 처리
+    // 추천인 코드 처리 — 서버 RPC로만 등록 (셀프/중복/잘못된 코드 차단, referred_id는 서버에서 auth.uid()로 확정)
     if (refCode?.trim()) {
-      const code = refCode.trim().toUpperCase();
-      const { data: referrer } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('referral_code', code)
-        .single();
-
-      if (referrer) {
-        await supabase.from('referrals').insert({
-          referrer_id: referrer.id,
-          referred_id: data.user.id,
-          code,
-          status: 'pending',
-        });
-      }
+      await supabase.rpc('register_referral', { p_code: refCode.trim() });
     }
   }
 

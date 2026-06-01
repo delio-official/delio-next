@@ -198,8 +198,7 @@ interface AdminReferral {
   id: string;
   referrer_id: string;
   referred_id: string;
-  code: string;
-  status: string;  /* pending | rewarded */
+  rewarded: boolean;
   rewarded_at: string | null;
   created_at: string;
   referrer: { name: string; email: string } | null;
@@ -233,7 +232,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -293,6 +292,12 @@ const CAT_LABEL: Record<string, string> = {
   kiwi:'키위', mango:'망고', grape:'포도', gift:'선물세트',
 };
 
+/* SKU 자동생성용 카테고리 코드 */
+const CAT_SKU_CODE: Record<string, string> = {
+  apple:'APL', citrus:'CIT', berry:'BER', melon:'MEL',
+  kiwi:'KIW', mango:'MNG', grape:'GRP', gift:'GFT',
+};
+
 // CHART_DATA는 실데이터로 대체됨
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -336,6 +341,7 @@ const Icon = {
 /* ===== 토글 컴포넌트 ===== */
 function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange?: (v: boolean) => void }) {
   const [on, setOn] = useState(defaultOn);
+  useEffect(() => { setOn(defaultOn); }, [defaultOn]);
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -345,17 +351,17 @@ function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange
   }
   return (
     <div onClick={handleClick} style={{
-      width: 36, height: 20, borderRadius: 999, cursor: 'pointer', flexShrink: 0,
+      width: 38, height: 22, borderRadius: 999, cursor: 'pointer', flexShrink: 0,
       background: on ? 'var(--accent, #2563EB)' : '#CBD5E1',
-      transition: 'background .2s',
+      transition: 'background .28s cubic-bezier(.4,0,.2,1)',
       position: 'relative',
     }}>
       <div style={{
         position: 'absolute', top: 3, left: 3,
-        width: 14, height: 14, borderRadius: '50%',
+        width: 16, height: 16, borderRadius: '50%',
         background: '#fff',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-        transition: 'transform .2s',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
+        transition: 'transform .28s cubic-bezier(.34,1.56,.64,1)',
         transform: on ? 'translateX(16px)' : 'translateX(0)',
       }} />
     </div>
@@ -729,13 +735,15 @@ export default function AdminClient() {
   const [infoEditor,   setInfoEditor]   = useState<{ id: string; name: string } | null>(null);
   const [farmList, setFarmList] = useState<AdminFarmSimple[]>([]);
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
-    sku: '', name: '', category: 'apple', origin: '', price: 0, discount_rate: 0,
+    sku: '', name: '', category: 'apple', origin: 'domestic', price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '', brix: null, badge: '', is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
+  /* 상품 옵션 (label / add_price / stock) */
+  const [pOptions, setPOptions] = useState<{ label: string; add_price: number; stock: number }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
@@ -847,8 +855,15 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false });
   const [couponSaving, setCouponSaving] = useState(false);
+  /* 쿠폰 지급 */
+  const [giveCouponModal, setGiveCouponModal] = useState(false);
+  const [giveCouponTarget, setGiveCouponTarget] = useState<AdminCoupon | null>(null);
+  const [giveCouponMode, setGiveCouponMode] = useState<'all'|'select'>('all');
+  const [giveCouponIds, setGiveCouponIds] = useState<Set<string>>(new Set());
+  const [giveCouponSearch, setGiveCouponSearch] = useState('');
+  const [giveCouponSaving, setGiveCouponSaving] = useState(false);
 
   /* ── 입점 문의 ── */
   const [inquiries, setInquiries] = useState<FarmInquiry[]>([]);
@@ -911,6 +926,7 @@ export default function AdminClient() {
   /* ── 취향 프로파일(설문 결과) ── */
   const [surveyResults, setSurveyResults] = useState<AdminSurveyResult[]>([]);
   const [surveyLoading, setSurveyLoading] = useState(false);
+  const [surveyShowProducts, setSurveyShowProducts] = useState(true);
 
   /* ── 친구 추천 ── */
   const [referrals, setReferrals] = useState<AdminReferral[]>([]);
@@ -1147,6 +1163,20 @@ export default function AdminClient() {
     setFarmList((data as AdminFarmSimple[]) || []);
   }
 
+  /* 카테고리별 다음 SKU 자동생성: APL-0001 */
+  async function generateSku(category: string): Promise<string> {
+    const code = CAT_SKU_CODE[category] || 'PRD';
+    const supabase = createClient();
+    const { data } = await supabase.from('products')
+      .select('sku').eq('category', category).like('sku', `${code}-%`);
+    let max = 0;
+    (data || []).forEach((r: { sku: string | null }) => {
+      const m = r.sku?.match(new RegExp(`^${code}-(\\d+)$`));
+      if (m) max = Math.max(max, parseInt(m[1]));
+    });
+    return `${code}-${String(max + 1).padStart(4, '0')}`;
+  }
+
   function openProductModal(p?: AdminProduct) {
     loadFarmList();
     if (p) {
@@ -1175,17 +1205,31 @@ export default function AdminClient() {
           setProductModal(true);
         }
       });
+      // 옵션 로드
+      supabase.from('product_options').select('label, add_price, stock')
+        .eq('product_id', p.id).order('sort_order')
+        .then(({ data }) => {
+          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number }) =>
+            ({ label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
+        });
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
       setPForm({ ...PRODUCT_EMPTY });
+      setPOptions([{ label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
       setProductModal(true);
+      // 기본 카테고리 기준 SKU 자동 생성
+      generateSku(PRODUCT_EMPTY.category).then(sku => setPForm(f => ({ ...f, sku })));
     }
   }
 
   async function saveProduct() {
     if (!pForm.name.trim()) { alert('상품명을 입력하세요.'); return; }
     if (!pForm.price || pForm.price <= 0) { alert('정상가를 입력하세요.'); return; }
+    if (pOptions.filter(o => o.label.trim()).length === 0) {
+      alert('판매 옵션을 1개 이상 추가해주세요.\n(단품 상품도 "기본" 같은 옵션 1개를 등록해야 합니다.)');
+      return;
+    }
     // pForm 상태 + ref 양쪽 모두 확인 (스테일 클로저 방어)
     const thumbnailUrl = pForm.thumbnail_url?.trim() || uploadedThumbnailRef.current || null;
     console.log('[저장] pForm.thumbnail_url:', pForm.thumbnail_url);
@@ -1195,11 +1239,12 @@ export default function AdminClient() {
     const supabase = createClient();
     const price          = Number(pForm.price);
     const discount_rate  = Number(pForm.discount_rate) || 0;
+    const finalSku = pForm.sku?.trim() || (!editingProduct ? await generateSku(pForm.category) : null);
     const payload = {
-      sku:            pForm.sku?.trim()           || null,
+      sku:            finalSku,
       name:           pForm.name.trim(),
       category:       pForm.category,
-      origin:         pForm.origin?.trim()        || null,
+      origin:         pForm.origin?.trim()        || 'domestic',
       price,
       discount_rate,
       short_desc:     pForm.short_desc?.trim()    || null,
@@ -1217,15 +1262,34 @@ export default function AdminClient() {
       farm_id:        pForm.farm_id               || null,
       sort_order:     Number(pForm.sort_order)    || 0,
     };
-    const { error } = editingProduct
-      ? await supabase.from('products').update(payload).eq('id', editingProduct.id)
-      : await supabase.from('products').insert(payload);
-    if (error) {
-      console.error('상품 저장 오류:', error);
-      alert(`저장 실패: ${error.message}`);
-      setPSaving(false);
-      return;
+    let productId = editingProduct?.id;
+    if (editingProduct) {
+      const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id);
+      if (error) { console.error('상품 저장 오류:', error); alert(`저장 실패: ${error.message}`); setPSaving(false); return; }
+    } else {
+      const { data, error } = await supabase.from('products').insert(payload).select('id').single();
+      if (error || !data) { console.error('상품 저장 오류:', error); alert(`저장 실패: ${error?.message || ''}`); setPSaving(false); return; }
+      productId = data.id;
     }
+
+    // ── 옵션 저장 (기존 삭제 후 재삽입) ──
+    if (productId) {
+      await supabase.from('product_options').delete().eq('product_id', productId);
+      const validOpts = pOptions.filter(o => o.label.trim());
+      if (validOpts.length > 0) {
+        await supabase.from('product_options').insert(
+          validOpts.map((o, i) => ({
+            product_id: productId,
+            label: o.label.trim(),
+            add_price: Number(o.add_price) || 0,
+            stock: Number(o.stock) || 0,
+            is_default: i === 0,
+            sort_order: i + 1,
+          }))
+        );
+      }
+    }
+
     setPSaving(false);
     setProductModal(false);
     loadProducts();
@@ -1292,6 +1356,18 @@ export default function AdminClient() {
     setMemberMemoSaving(false);
   }
 
+  async function loadSurveySettings() {
+    const supabase = createClient();
+    const { data } = await supabase.from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
+    setSurveyShowProducts(data?.value !== 'false');
+  }
+
+  async function toggleSurveyProducts(on: boolean) {
+    setSurveyShowProducts(on);
+    const supabase = createClient();
+    await supabase.from('site_settings').upsert({ key: 'survey_show_products', value: on ? 'true' : 'false' }, { onConflict: 'key' });
+  }
+
   async function loadSurveyResults() {
     setSurveyLoading(true);
     const supabase = createClient();
@@ -1316,7 +1392,7 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('referrals')
       .select(`
-        id, referrer_id, referred_id, code, status, rewarded_at, created_at,
+        id, referrer_id, referred_id, rewarded, rewarded_at, created_at,
         referrer:profiles!referrals_referrer_id_fkey(name, email),
         referred:profiles!referrals_referred_id_fkey(name, email)
       `)
@@ -1327,15 +1403,12 @@ export default function AdminClient() {
   }
 
   async function revokeReferralReward(r: AdminReferral) {
-    if (!confirm(`${r.referrer?.name || '추천인'}의 리워드를 철회하시겠습니까?\n추천인·피추천인 각 1,000P가 차감됩니다.`)) return;
+    if (!confirm(`${r.referrer?.name || '추천인'}의 리워드를 철회하시겠습니까?\n지급된 5,000원 쿠폰(미사용분)이 회수되고 추천 상태가 초기화됩니다.`)) return;
     const supabase = createClient();
-    const REWARD = 1000;
-    await Promise.all([
-      supabase.rpc('add_points', { p_user_id: r.referrer_id, p_amount: -REWARD, p_desc: '친구 추천 리워드 철회' }),
-      supabase.rpc('add_points', { p_user_id: r.referred_id,  p_amount: -REWARD, p_desc: '친구 추천 가입 혜택 철회' }),
-      supabase.from('referrals').update({ status: 'pending', rewarded_at: null }).eq('id', r.id),
-    ]);
-    setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, status: 'pending', rewarded_at: null } : x));
+    /* 쿠폰 회수 + 발급이력 삭제 + 추천 상태 초기화 (SECURITY DEFINER RPC) */
+    const { error } = await supabase.rpc('revoke_referral_reward', { p_referral_id: r.id });
+    if (error) { alert('철회 실패: ' + error.message); return; }
+    setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, rewarded: false, rewarded_at: null } : x));
   }
 
   async function loadReviews() {
@@ -1795,45 +1868,8 @@ export default function AdminClient() {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
 
-      /* ── 첫 구매 완료 시 추천 리워드 지급 ── */
+      /* 추천 리워드는 첫 구매 배송완료(delivered) 시 DB 트리거가 자동 지급 (5,000원 쿠폰) */
       if (newStatus === 'delivered') {
-        const order = orders.find(o => o.id === orderId);
-        if (order?.user_id) {
-          const userId = order.user_id;
-          /* 이 사용자가 피추천인인 referral(pending) 조회 */
-          const { data: ref } = await supabase
-            .from('referrals')
-            .select('id, referrer_id')
-            .eq('referred_id', userId)
-            .eq('status', 'pending')
-            .maybeSingle();
-
-          if (ref) {
-            /* 이미 delivered 주문이 이번 것 말고 있는지 확인 (첫 구매 여부) */
-            const { count } = await supabase
-              .from('orders')
-              .select('id', { count: 'exact', head: true })
-              .eq('user_id', userId)
-              .eq('status', 'delivered')
-              .neq('id', orderId);
-
-            if ((count ?? 0) === 0) {
-              /* 첫 구매 확인 → 포인트 지급 (추천인 + 피추천인 각 1,000P) */
-              const REWARD = 1000;
-              await Promise.all([
-                /* 추천인 포인트 */
-                supabase.rpc('add_points', { p_user_id: ref.referrer_id, p_amount: REWARD, p_desc: '친구 추천 리워드' }),
-                /* 피추천인 포인트 */
-                supabase.rpc('add_points', { p_user_id: userId, p_amount: REWARD, p_desc: '친구 추천 가입 혜택' }),
-                /* referral 상태 업데이트 */
-                supabase.from('referrals').update({ status: 'rewarded', rewarded_at: new Date().toISOString() }).eq('id', ref.id),
-              ]);
-              /* 어드민 테이블 새로고침 */
-              if (panel === 'referral') loadReferrals();
-            }
-          }
-        }
-
         // 배송 완료 SMS 발송
         const deliveredOrder = orders.find(o => o.id === orderId);
         if (deliveredOrder?.phone) {
@@ -1879,18 +1915,42 @@ export default function AdminClient() {
       ));
       setSelectedOrder(s => s ? { ...s, courier: trackingInput.courier || null, tracking_number: trackingInput.tracking_number || null } : s);
 
-      // 운송장번호가 새로 입력된 경우 배송 시작 SMS 발송
-      if (trackingInput.tracking_number && selectedOrder.phone) {
-        fetch('/api/notify', {
+      // 운송장번호가 새로 입력된 경우: 배송 시작 SMS + 상태 배송중 전환 + 웹훅 구독 등록
+      if (trackingInput.tracking_number) {
+        const cid = trackingInput.courier || 'kr.cjlogistics';
+        const tno = trackingInput.tracking_number;
+
+        // 배송 시작 SMS
+        if (selectedOrder.phone) {
+          fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'shipping_started',
+              phone: selectedOrder.phone,
+              recipient: selectedOrder.recipient,
+              courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
+              trackingNumber: tno,
+            }),
+          }).catch(() => {});
+        }
+
+        // 송장 등록 시 실제 배송상태 조회해서 반영 (배송완료면 바로 배송완료, 진행중이면 배송중)
+        if (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing' || selectedOrder.status === 'shipped') {
+          const sync = await fetch(`/api/tracking/webhook?carrierId=${encodeURIComponent(cid)}&trackingNumber=${encodeURIComponent(tno)}`, { method: 'POST' })
+            .then(r => r.json()).catch(() => null);
+          const real = sync?.updated as string | undefined; // 'shipped' | 'delivered' 등
+          const finalStatus = (real && real !== 'preparing') ? real : 'shipped';
+          await supabase.from('orders').update({ status: finalStatus }).eq('id', selectedOrder.id);
+          setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: finalStatus } : o));
+          setSelectedOrder(s => s ? { ...s, status: finalStatus } : s);
+        }
+
+        // tracker.delivery 웹훅 구독 등록 → 이후 상태 변경 자동 동기화 (배포 환경)
+        fetch('/api/tracking/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'shipping_started',
-            phone: selectedOrder.phone,
-            recipient: selectedOrder.recipient,
-            courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
-            trackingNumber: trackingInput.tracking_number,
-          }),
+          body: JSON.stringify({ carrierId: cid, trackingNumber: tno }),
         }).catch(() => {});
       }
     } else {
@@ -2038,12 +2098,20 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active });
+      setCouponForm({ code: c.code || '', name: c.name, discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true });
+      setCouponForm({ code: '', name: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false });
     }
     setCouponModal(true);
+  }
+
+  /* 쿠폰 코드 자동생성: 영문대문자+숫자 10자리 (혼동문자 0,O,1,I 제외) */
+  function genCouponCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let s = '';
+    for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
   }
 
   async function saveCoupon() {
@@ -2051,7 +2119,7 @@ export default function AdminClient() {
     setCouponSaving(true);
     const supabase = createClient();
     const payload = {
-      code: couponForm.code.trim() || null,
+      code: couponForm.code.trim() || genCouponCode(),
       name: couponForm.name.trim(),
       discount_type: couponForm.discount_type,
       discount_value: Number(couponForm.discount_value),
@@ -2060,6 +2128,7 @@ export default function AdminClient() {
       starts_at: couponForm.starts_at || new Date().toISOString(),
       expires_at: couponForm.expires_at || null,
       is_active: couponForm.is_active,
+      is_public: couponForm.is_public,
     };
     if (editingCoupon) {
       const { error } = await supabase.from('coupons').update(payload).eq('id', editingCoupon.id);
@@ -2079,6 +2148,35 @@ export default function AdminClient() {
     const supabase = createClient();
     await supabase.from('coupons').delete().eq('id', id);
     setCoupons(prev => prev.filter(c => c.id !== id));
+  }
+
+  function openGiveCouponModal(c: AdminCoupon) {
+    setGiveCouponTarget(c);
+    setGiveCouponMode('all');
+    setGiveCouponIds(new Set());
+    setGiveCouponSearch('');
+    setGiveCouponModal(true);
+    if (members.length === 0) loadMembers();
+  }
+
+  async function giveCoupon() {
+    if (!giveCouponTarget) return;
+    const targets = giveCouponMode === 'all'
+      ? members.map(m => m.id)
+      : members.filter(m => giveCouponIds.has(m.id)).map(m => m.id);
+    if (targets.length === 0) { alert('지급 대상이 없습니다.'); return; }
+    if (!confirm(`${targets.length}명에게 "${giveCouponTarget.name}" 쿠폰을 지급하시겠습니까?`)) return;
+    setGiveCouponSaving(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc('give_coupon_to_users', {
+      p_coupon_id: giveCouponTarget.id,
+      p_user_ids: targets,
+      p_expires_at: giveCouponTarget.expires_at,
+    });
+    setGiveCouponSaving(false);
+    if (error) { alert('지급 실패: ' + error.message); return; }
+    setGiveCouponModal(false);
+    alert(`${data ?? 0}명에게 쿠폰을 지급했습니다. (이미 보유한 회원 제외)`);
   }
 
   async function toggleCouponActive(id: string, newVal: boolean) {
@@ -2186,7 +2284,7 @@ export default function AdminClient() {
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
       case 'referral':     loadReferrals(); break;
-      case 'tasteprofile': loadSurveyResults(); break;
+      case 'tasteprofile': loadSurveyResults(); loadSurveySettings(); break;
       case 'inquiry':   loadInquiries(); break;
       case 'productinquiry': loadProductInquiries(); break;
       case 'faq':       loadFaq(); break;
@@ -2359,7 +2457,7 @@ export default function AdminClient() {
 
       {/* ===== 상품 등록/수정 모달 ===== */}
       {productModal && (
-        <div className="adm-modal-bg open" onClick={() => setProductModal(false)}>
+        <div className="adm-modal-bg open">
           <div className="adm-modal" style={{ maxWidth:640, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">{editingProduct ? '상품 수정' : '상품 등록'}</span>
@@ -2375,21 +2473,29 @@ export default function AdminClient() {
                     onChange={e => setPForm(f => ({ ...f, name: e.target.value }))} placeholder="상품명 입력" />
                 </div>
                 <div>
-                  <label className="adm-label">SKU</label>
+                  <label className="adm-label">SKU <span style={{ fontWeight:400, color:'#94A3B8' }}>(자동생성·수정가능)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.sku}
-                    onChange={e => setPForm(f => ({ ...f, sku: e.target.value }))} placeholder="상품 코드" />
+                    onChange={e => setPForm(f => ({ ...f, sku: e.target.value }))} placeholder="자동 생성됩니다" />
                 </div>
                 <div>
                   <label className="adm-label">카테고리 *</label>
                   <select className="adm-select" style={{ width:'100%' }} value={pForm.category}
-                    onChange={e => setPForm(f => ({ ...f, category: e.target.value }))}>
+                    onChange={e => {
+                      const category = e.target.value;
+                      setPForm(f => ({ ...f, category }));
+                      // 신규 등록 시 카테고리 바뀌면 SKU 재생성
+                      if (!editingProduct) generateSku(category).then(sku => setPForm(f => ({ ...f, sku })));
+                    }}>
                     {Object.entries(CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="adm-label">원산지</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.origin}
-                    onChange={e => setPForm(f => ({ ...f, origin: e.target.value }))} placeholder="예: 경북 의성" />
+                  <label className="adm-label">원산지 구분</label>
+                  <select className="adm-select" style={{ width:'100%' }} value={pForm.origin || 'domestic'}
+                    onChange={e => setPForm(f => ({ ...f, origin: e.target.value }))}>
+                    <option value="domestic">국내산</option>
+                    <option value="import">수입산</option>
+                  </select>
                 </div>
                 <div>
                   <label className="adm-label">정상가 (원) *</label>
@@ -2412,6 +2518,42 @@ export default function AdminClient() {
                   {pForm.discount_rate > 0 && <span style={{ color:'#CB1D11', marginLeft:8 }}>({pForm.discount_rate}% 할인)</span>}
                 </div>
               )}
+
+              {/* 옵션 */}
+              <div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(필수 · 단품도 "기본" 옵션 1개)</span></label>
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
+                    onClick={() => setPOptions(prev => [...prev, { label:'', add_price:0, stock:0 }])}>
+                    + 옵션 추가
+                  </button>
+                </div>
+                {pOptions.length === 0 ? (
+                  <div style={{ fontSize:12, color:'#DC2626', padding:'10px 0' }}>
+                    옵션을 1개 이상 추가해주세요.
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {/* 헤더 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, fontSize:11, color:'#94A3B8', fontWeight:600, padding:'0 2px' }}>
+                      <span>옵션명</span><span>추가금액(원)</span><span>재고</span><span></span>
+                    </div>
+                    {pOptions.map((opt, i) => (
+                      <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, alignItems:'center' }}>
+                        <input className="adm-input-text" placeholder="예: 2kg" value={opt.label}
+                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, label: e.target.value } : o))} />
+                        <input className="adm-input-text" type="number" placeholder="0" value={opt.add_price}
+                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, add_price: Number(e.target.value) } : o))} />
+                        <input className="adm-input-text" type="number" placeholder="0" value={opt.stock}
+                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, stock: Number(e.target.value) } : o))} />
+                        <button type="button"
+                          onClick={() => setPOptions(prev => prev.filter((_, idx) => idx !== i))}
+                          style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* 상세 정보 */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -3387,6 +3529,7 @@ export default function AdminClient() {
                                 <td className="adm-muted" style={{ fontSize:12 }}>{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
                                 <td><Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} /></td>
                                 <td style={{ display:'flex', gap:6 }}>
+                                  <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
                                   <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
                                   <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
                                 </td>
@@ -3682,7 +3825,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
                         {/* 이미지 업로드 */}
                         <div>
-                          <label className="adm-label">팝업 이미지 *</label>
+                          <label className="adm-label">팝업 이미지 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(권장 400×415px)</span></label>
                           <input ref={ppImgRef} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -4185,17 +4328,17 @@ GRANT ALL ON popups TO authenticated, anon;`}
             const thisMonth    = new Date().toISOString().slice(0, 7);
             const total        = referrals.length;
             const thisMonthCnt = referrals.filter(r => r.created_at.startsWith(thisMonth)).length;
-            const rewarded     = referrals.filter(r => r.status === 'rewarded').length;
+            const rewarded     = referrals.filter(r => r.rewarded).length;
 
             const filteredReferrals = referrals.filter(r => {
-              const matchStatus = referralStatusFilter === 'all' || r.status === referralStatusFilter;
+              const status = r.rewarded ? 'rewarded' : 'pending';
+              const matchStatus = referralStatusFilter === 'all' || status === referralStatusFilter;
               const q = referralSearch.toLowerCase();
               const matchSearch = !q ||
                 (r.referrer?.name || '').toLowerCase().includes(q) ||
                 (r.referrer?.email || '').toLowerCase().includes(q) ||
                 (r.referred?.name || '').toLowerCase().includes(q) ||
-                (r.referred?.email || '').toLowerCase().includes(q) ||
-                r.code.toLowerCase().includes(q);
+                (r.referred?.email || '').toLowerCase().includes(q);
               return matchStatus && matchSearch;
             });
 
@@ -4222,7 +4365,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <option value="pending">대기중</option>
                       <option value="rewarded">지급 완료</option>
                     </select>
-                    <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 · 코드 검색"
+                    <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
                       value={referralSearch} onChange={e => setReferralSearch(e.target.value)} />
                   </div>
                   <div className="adm-toolbar-right">
@@ -4240,7 +4383,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           <tr>
                             <th>추천인</th>
                             <th>피추천인</th>
-                            <th>추천 코드</th>
                             <th>가입일</th>
                             <th>리워드 상태</th>
                             <th>지급일</th>
@@ -4249,7 +4391,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         </thead>
                         <tbody>
                           {filteredReferrals.length === 0 ? (
-                            <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                            <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                               {referrals.length === 0 ? '친구 추천 이력 없음' : '검색 결과 없음'}
                             </td></tr>
                           ) : filteredReferrals.map(r => (
@@ -4262,16 +4404,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
                                 <div style={{ fontWeight:500 }}>{r.referred?.name || '(탈퇴)'}</div>
                                 <div className="adm-muted" style={{ fontSize:11 }}>{r.referred?.email || ''}</div>
                               </td>
-                              <td className="adm-mono" style={{ fontSize:12 }}>{r.code}</td>
                               <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                               <td>
-                                <span className={`adm-badge ${r.status === 'rewarded' ? 'badge-paid' : 'badge-wait'}`}>
-                                  {r.status === 'rewarded' ? '지급 완료' : '대기중'}
+                                <span className={`adm-badge ${r.rewarded ? 'badge-paid' : 'badge-wait'}`}>
+                                  {r.rewarded ? '지급 완료' : '대기중'}
                                 </span>
                               </td>
                               <td className="adm-muted">{r.rewarded_at ? fmtDateShort(r.rewarded_at) : '—'}</td>
                               <td>
-                                {r.status === 'rewarded' && (
+                                {r.rewarded && (
                                   <button className="adm-row-btn adm-row-btn-danger"
                                     onClick={() => revokeReferralReward(r)}>철회</button>
                                 )}
@@ -4720,6 +4861,20 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
                     </div>
                   ))}
+                </div>
+
+                {/* 결과 페이지 설정 */}
+                <div className="adm-card" style={{ marginBottom:16 }}>
+                  <div className="adm-card-head"><span className="adm-card-title">진단 결과 페이지 설정</span></div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px' }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품 노출</div>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:3 }}>
+                        끄면 취향진단 결과 화면에서 추천 상품 섹션이 숨겨집니다.
+                      </div>
+                    </div>
+                    <Toggle defaultOn={surveyShowProducts} onChange={toggleSurveyProducts} />
+                  </div>
                 </div>
 
                 {/* 유형별 분포 */}
@@ -5273,6 +5428,89 @@ GRANT ALL ON popups TO authenticated, anon;`}
         </div>
       )}
 
+      {/* ===== 쿠폰 지급 모달 ===== */}
+      {giveCouponModal && giveCouponTarget && (() => {
+        const filtered = members.filter(m => {
+          const q = giveCouponSearch.toLowerCase();
+          return !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+        });
+        return (
+          <div className="adm-float-overlay" onClick={() => setGiveCouponModal(false)}>
+            <div className="adm-float-modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
+              <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:17, fontWeight:800 }}>쿠폰 지급</span>
+                <button onClick={() => setGiveCouponModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+              </div>
+              <div style={{ padding:'18px 22px' }}>
+                <div style={{ background:'#F8FAFC', borderRadius:8, padding:'12px 14px', marginBottom:16 }}>
+                  <div style={{ fontSize:14, fontWeight:700 }}>{giveCouponTarget.name}</div>
+                  <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>
+                    {giveCouponTarget.discount_type === 'percent' ? `${giveCouponTarget.discount_value}% 할인` : `${fmtPrice(giveCouponTarget.discount_value)}원 할인`}
+                  </div>
+                </div>
+
+                {/* 대상 선택 */}
+                <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+                  {([['all','전체 회원'],['select','회원 선택']] as const).map(([v,l]) => (
+                    <button key={v} onClick={() => setGiveCouponMode(v)}
+                      style={{ flex:1, padding:'9px 0', borderRadius:8, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
+                        borderColor: giveCouponMode === v ? '#1A1A1A' : '#E2E8F0',
+                        background: giveCouponMode === v ? '#1A1A1A' : '#fff',
+                        color: giveCouponMode === v ? '#fff' : '#64748B' }}>
+                      {l}{v === 'all' ? ` (${members.length})` : ''}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 회원 선택 목록 */}
+                {giveCouponMode === 'select' && (
+                  <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:14 }}>
+                    <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
+                      <input type="text" className="adm-input-text" placeholder="이름·이메일 검색" style={{ flex:1 }}
+                        value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        <input type="checkbox"
+                          checked={filtered.length > 0 && filtered.every(m => giveCouponIds.has(m.id))}
+                          onChange={e => {
+                            setGiveCouponIds(prev => {
+                              const next = new Set(prev);
+                              if (e.target.checked) filtered.forEach(m => next.add(m.id));
+                              else filtered.forEach(m => next.delete(m.id));
+                              return next;
+                            });
+                          }} />
+                        전체
+                      </label>
+                    </div>
+                    <div style={{ maxHeight:240, overflowY:'auto' }}>
+                      {filtered.length === 0 ? (
+                        <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>회원 없음</div>
+                      ) : filtered.map(m => (
+                        <label key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 14px', borderBottom:'1px solid #F4F4F4', cursor:'pointer', background: giveCouponIds.has(m.id) ? '#EFF6FF' : '#fff' }}>
+                          <input type="checkbox" checked={giveCouponIds.has(m.id)}
+                            onChange={() => setGiveCouponIds(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })} />
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
+                            <div style={{ fontSize:11, color:'#94A3B8' }}>{m.email}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => setGiveCouponModal(false)}>취소</button>
+                  <button className="adm-btn adm-btn-primary" style={{ flex:2 }} onClick={giveCoupon} disabled={giveCouponSaving}>
+                    {giveCouponSaving ? '지급 중...' : '쿠폰 지급'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ===== 포인트 지급 모달 ===== */}
       {givePointModal && givePointTarget && (
         <div className="adm-float-overlay" onClick={() => setGivePointModal(false)}>
@@ -5545,8 +5783,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">쿠폰 코드</label>
-                <input type="text" className="adm-input-text" placeholder="예: WELCOME10 (미입력 시 자동생성)"
-                  value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} />
+                <div className="adm-flex-center-gap" style={{ flex:1 }}>
+                  <input type="text" className="adm-input-text" style={{ flex:1 }} placeholder="예: WELCOME10 (미입력 시 자동생성)"
+                    value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} />
+                  <button type="button" onClick={() => setCouponForm(p => ({ ...p, code: genCouponCode() }))}
+                    style={{ padding:'0 14px', height:38, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    자동생성
+                  </button>
+                </div>
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">할인 유형</label>
@@ -5602,6 +5846,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
               <div className="adm-form-row">
                 <label className="adm-label">활성 여부</label>
                 <Toggle defaultOn={couponForm.is_active} onChange={v => setCouponForm(p => ({ ...p, is_active: v }))} />
+              </div>
+              <div className="adm-form-row">
+                <label className="adm-label">회원 다운로드 허용</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                  <Toggle defaultOn={couponForm.is_public} onChange={v => setCouponForm(p => ({ ...p, is_public: v }))} />
+                  <span style={{ fontSize:11, color:'#94A3B8' }}>켜면 마이페이지·결제창의 &lsquo;쿠폰 다운받기&rsquo;에서 회원이 직접 받을 수 있습니다.</span>
+                </div>
               </div>
               <div className="adm-form-actions">
                 <button className="adm-btn adm-btn-outline" onClick={() => setCouponModal(false)}>취소</button>

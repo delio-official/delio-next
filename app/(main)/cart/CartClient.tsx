@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCart, saveCart, removeFromCart, updateQty, type CartItem } from '@/lib/cart';
+import { createClient } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import '@/styles/cart.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -26,11 +28,10 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
 
 export default function CartClient() {
   const router = useRouter();
+  const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [couponCode, setCouponCode] = useState('');
-  const [couponDisc, setCouponDisc] = useState(0);
-  const [couponMsg, setCouponMsg] = useState('');
+  const [coupons, setCoupons] = useState<{ discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null }[]>([]);
 
   useEffect(() => {
     const load = () => {
@@ -42,6 +43,28 @@ export default function CartClient() {
     window.addEventListener('cartUpdated', load);
     return () => window.removeEventListener('cartUpdated', load);
   }, []);
+
+  /* 보유 쿠폰 로드 (최대 할인 계산용) */
+  useEffect(() => {
+    if (!user) return;
+    const now = new Date().toISOString();
+    createClient()
+      .from('user_coupons')
+      .select('coupons:coupon_id(discount_type, discount_value, min_order_amount, max_discount_amount, is_active, expires_at)')
+      .eq('user_id', user.id).eq('is_used', false)
+      .then(({ data }) => {
+        const list = (data || [])
+          .map((r: Record<string, unknown>) => r.coupons as Record<string, unknown>)
+          .filter((c) => c?.is_active && (!c.expires_at || (c.expires_at as string) > now))
+          .map((c) => ({
+            discount_type: c.discount_type as 'percent'|'fixed',
+            discount_value: c.discount_value as number,
+            min_order_amount: (c.min_order_amount as number) ?? 0,
+            max_discount_amount: (c.max_discount_amount as number) ?? null,
+          }));
+        setCoupons(list);
+      });
+  }, [user]);
 
   function toggleSelect(idx: number) {
     setSelected(prev => {
@@ -71,6 +94,12 @@ export default function CartClient() {
     setItems(cart);
     setSelected(new Set());
   }
+  function handleRemoveAll() {
+    if (!confirm('장바구니를 전체 비우시겠습니까?')) return;
+    saveCart([]);
+    setItems([]);
+    setSelected(new Set());
+  }
 
   /* 배송 타입별 그룹 */
   const farmItems    = items.filter(i => i.deliveryType === '산지직송');
@@ -79,17 +108,19 @@ export default function CartClient() {
   /* 금액 계산 */
   const selItems = items.filter(i => selected.has(i.idx));
   const subtotal = selItems.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
-  const total = subtotal - couponDisc;
 
-  async function applyCoupon() {
-    if (couponCode.toUpperCase() === 'WELCOME5000') {
-      setCouponDisc(5000);
-      setCouponMsg('5,000원 할인 적용!');
-    } else {
-      setCouponDisc(0);
-      setCouponMsg('유효하지 않은 쿠폰입니다.');
-    }
+  /* 보유 쿠폰 중 최대 할인액 (주문금액 기준) */
+  let bestCouponDisc = 0;
+  for (const c of coupons) {
+    if (subtotal < c.min_order_amount) continue;
+    let d = c.discount_type === 'percent'
+      ? Math.floor(subtotal * c.discount_value / 100)
+      : c.discount_value;
+    if (c.max_discount_amount) d = Math.min(d, c.max_discount_amount);
+    bestCouponDisc = Math.max(bestCouponDisc, d);
   }
+  const total = subtotal;                          // 결제 예정금액 (쿠폰 미적용)
+  const couponFinal = Math.max(0, subtotal - bestCouponDisc); // 쿠폰 적용가
 
   function handleCheckout() {
     if (selItems.length === 0) { alert('주문할 상품을 선택해주세요.'); return; }
@@ -100,15 +131,14 @@ export default function CartClient() {
     return (
       <div className="container cart-empty-box">
         <div className="cart-empty-icon-svg">
-          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
-            <circle cx="27" cy="27" r="26" stroke="#D8D8D8" strokeWidth="1.5"/>
-            <path d="M18 24h18l-2 11H20L18 24z" stroke="#CACACA" strokeWidth="1.5" strokeLinejoin="round"/>
-            <path d="M22 24v-3a5 5 0 0 1 10 0v3" stroke="#CACACA" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+          <div style={{ width:48, height:48, borderRadius:'50%', border:'1.5px solid #D8D8D8',
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <span style={{ fontSize:22, fontWeight:300, color:'#B0B0B0' }}>!</span>
+          </div>
         </div>
         <div className="cart-empty-text">장바구니에 담으신 상품이 없습니다.</div>
         <Link href="/category" className="cart-empty-btn">
-          할인상품 보러가기
+          상품 보러가기
         </Link>
       </div>
     );
@@ -128,9 +158,14 @@ export default function CartClient() {
                 style={{ width:12, height:12, accentColor:'#1A1A1A', cursor:'pointer', flexShrink:0 }} />
               <span className="select-bar-label">전체 선택 ({selItems.length}/{items.length})</span>
             </label>
-            <button className="select-bar-delete-btn" onClick={handleRemoveSelected}>
-              선택 삭제
-            </button>
+            <div style={{ display:'flex', gap:8 }}>
+              <button className="select-bar-delete-btn" onClick={handleRemoveSelected}>
+                선택 삭제
+              </button>
+              <button className="select-bar-delete-btn" onClick={handleRemoveAll}>
+                전체 삭제
+              </button>
+            </div>
           </div>
 
           {/* 배송 그룹 렌더 함수 */}
@@ -140,7 +175,7 @@ export default function CartClient() {
             return (
               <div key={type} className="delivery-group">
                 <div className="delivery-group-header">
-                  <span className="delivery-group-badge">{type}</span>
+                  <span className={`delivery-group-badge ${type === '산지직송' ? 'tag-dawn' : 'tag-regular'}`}>{type}</span>
                   <span className="delivery-group-title">전 상품 무료배송</span>
                 </div>
 
@@ -162,6 +197,11 @@ export default function CartClient() {
 
                       <div className="cart-item-info">
                         <div className="cart-item-name">{item.name}</div>
+                        {item.options && (
+                          <div style={{ fontSize:12, color:'#888', marginTop:3, display:'flex', alignItems:'center', gap:4 }}>
+                            <span style={{ color:'#bbb' }}>ㄴ</span>{item.options}
+                          </div>
+                        )}
                         <div className="cart-item-bottom">
                           <QtyControl value={item.quantity ?? 1}
                             onChange={v => handleQtyChange(item.idx, v)} />
@@ -197,32 +237,20 @@ export default function CartClient() {
           <div className="order-summary">
             <div className="summary-title">주문 요약</div>
 
-            {/* 쿠폰 */}
-            <div className="coupon-section">
-              <div className="coupon-label">쿠폰 코드</div>
-              <div className="coupon-row">
-                <input type="text" className="coupon-input" placeholder="쿠폰 코드 입력"
-                  value={couponCode} onChange={e => setCouponCode(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && applyCoupon()} />
-                <button className="select-bar-delete-btn coupon-apply-btn" onClick={applyCoupon}>적용</button>
-              </div>
-              {couponMsg && (
-                <p style={{ fontSize:12, color: couponDisc > 0 ? '#2D7A4D' : '#C00',
-                  marginTop:2 }}>{couponMsg}</p>
-              )}
-            </div>
-
             {/* 금액 */}
             <div className="summary-row"><span>상품 합계</span><span>{fmtPrice(subtotal)}원</span></div>
-            {couponDisc > 0 && (
-              <div className="summary-row"><span>쿠폰 할인</span><span className="sum-discount-val">−{fmtPrice(couponDisc)}원</span></div>
-            )}
-            <div className="summary-row"><span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span></div>
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
+            {bestCouponDisc > 0 && (
+              <div className="summary-row total" style={{ borderTop:'none', marginTop:0, paddingTop:4 }}>
+                <span style={{ color:'var(--color-accent)' }}>쿠폰 적용 금액</span>
+                <span style={{ color:'var(--color-accent)' }}>{fmtPrice(couponFinal)}원</span>
+              </div>
+            )}
 
             <div className="cta-group">
               <button className="cart-checkout-all" onClick={handleCheckout}>
-                전체 주문하기 ({fmtPrice(total)}원)
+                전체 주문하기 ({fmtPrice(bestCouponDisc > 0 ? couponFinal : total)}원)
               </button>
               <button className="cart-checkout-sel" onClick={handleCheckout}>
                 선택 주문하기 ({selItems.length}개)
@@ -245,7 +273,7 @@ export default function CartClient() {
       <div className="cta-sticky-mobile">
         <div className="mobile-cta-total-row">
           <span className="mobile-cta-total-label">결제 예정금액</span>
-          <span className="mobile-cta-total-val">{fmtPrice(total)}원</span>
+          <span className="mobile-cta-total-val">{fmtPrice(bestCouponDisc > 0 ? couponFinal : total)}원</span>
         </div>
         <div className="mobile-cta-btns">
           <button className="btn-purchase btn-purchase-flex" onClick={handleCheckout}>

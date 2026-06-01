@@ -55,13 +55,15 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
 
+    const couponDiscount = orderData.couponDiscount || 0;
+    const pointUsed      = orderData.pointUsed || 0;
     const insertRow: Record<string, unknown> = {
       user_id:         orderData.userId,
       status:          'paid',
       total_amount:    orderData.subtotal,
-      discount_amount: 0,
-      coupon_discount: 0,
-      point_used:      0,
+      discount_amount: couponDiscount + pointUsed,
+      coupon_discount: couponDiscount,
+      point_used:      pointUsed,
       final_amount:    orderData.totalAmount,
       recipient:       orderData.recipient,
       phone:           orderData.phone,
@@ -90,10 +92,10 @@ export async function POST(req: NextRequest) {
 
     /* 주문 아이템 */
     await supabase.from('order_items').insert(
-      orderData.items.map((i: { id: string; name: string; price: number; quantity: number; thumbnail?: string }) => ({
+      orderData.items.map((i: { id: string; name: string; price: number; quantity: number; thumbnail?: string; options?: string }) => ({
         order_id:      order.id,
         product_id:    i.id,
-        product_name:  i.name,
+        product_name:  i.name + (i.options ? ` (${i.options})` : ''),
         unit_price:    i.price,
         quantity:      i.quantity,
         subtotal:      i.price * i.quantity,
@@ -101,17 +103,25 @@ export async function POST(req: NextRequest) {
       }))
     );
 
-    /* 포인트 적립 (1%) */
+    /* 쿠폰 사용 처리 */
+    if (orderData.userCouponId) {
+      await supabase.from('user_coupons')
+        .update({ is_used: true, used_at: new Date().toISOString() })
+        .eq('id', orderData.userCouponId);
+    }
+
+    /* 포인트: 사용분 차감 + 적립분(1%) 추가 */
     const earned = Math.floor(orderData.totalAmount * 0.01);
-    if (earned > 0 && orderData.userId) {
+    if (orderData.userId) {
       const { data: prof } = await supabase
         .from('profiles')
         .select('point_balance')
         .eq('id', orderData.userId)
         .single();
       if (prof) {
+        const newBalance = (prof.point_balance || 0) - pointUsed + earned;
         await supabase.from('profiles')
-          .update({ point_balance: (prof.point_balance || 0) + earned })
+          .update({ point_balance: Math.max(0, newBalance) })
           .eq('id', orderData.userId);
       }
     }

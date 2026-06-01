@@ -9,8 +9,13 @@ export function useAuth() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
+
+    // 세션 먼저 확인 (없으면 네트워크 호출/토큰 갱신 시도 안 함)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
+      setUser(null);
       setLoading(false);
     });
 

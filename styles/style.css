@@ -358,16 +358,15 @@ input, select, textarea { font-family: inherit; }
   right: 2px;
   min-width: 18px;
   height: 18px;
-  background: #E84B3C;
+  background: var(--color-accent);
   color: #fff;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  border: 2px solid #fff;
   pointer-events: none;
 }
 
@@ -398,7 +397,8 @@ input, select, textarea { font-family: inherit; }
 .header-nav a:hover, .header-nav a.active { color: var(--color-accent); }
 .header-nav .mega-link { font-size: 17px !important; font-weight: 400; }
 .header-nav .mega-col-title a { font-size: 21px !important; font-weight: 700; }
-.header-nav .mega-link:hover, .header-nav .mega-col-title a:hover { color: var(--color-ink); background: #F5F5F5; }
+.header-nav .mega-link:hover { color: var(--color-ink); background: #F5F5F5; }
+.header-nav .mega-col-title a:hover { color: var(--color-ink); background: transparent; }
 
 .hamburger-btn {
   display: none;
@@ -724,10 +724,12 @@ input, select, textarea { font-family: inherit; }
 .site-footer {
   background: #fff;
   color: rgba(0,0,0,0.55);
-  padding: var(--space-8) 0 var(--space-6);
+  padding: 56px 0 40px;
   margin-top: var(--space-9);
   border-top: 1px solid #EBEBEB;
 }
+/* 푸터 전용 와이드 컨테이너 */
+.site-footer .container { max-width: 1400px; }
 .footer-inner {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -765,6 +767,10 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 640px) {
   .footer-inner { grid-template-columns: 1fr; }
   .footer-links { align-items: flex-start; }
+  .footer-cols { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .footer-top { grid-template-columns: 1fr !important; gap: 28px !important; }
+  .footer-bottom-bar { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+  .footer-policy-links { flex-wrap: wrap; gap: 12px 18px !important; }
 }
 
 /* ===== 상단 이동 버튼 ===== */
@@ -1622,7 +1628,7 @@ input, select, textarea { font-family: inherit; }
   text-decoration: none;
   white-space: nowrap;
 }
-.mega-btn:hover { background: #F5F5F5; color: var(--color-ink); }
+.mega-btn:hover { background: transparent; color: var(--color-ink); }
 .mega-btn.open {
   background: #fff;
   color: var(--color-ink);
@@ -1707,7 +1713,7 @@ input, select, textarea { font-family: inherit; }
 }
 .mega-link:hover { color: var(--color-ink); background: #F5F5F5; }
 .mega-col-title a { color: inherit; text-decoration: none; display: block; }
-.mega-col-title a:hover { color: var(--color-ink); background: #F5F5F5; }
+.mega-col-title a:hover { color: var(--color-ink); background: transparent; }
 /* 하단 배너 영역 */
 .mega-banner-area {
   padding: 0 28px 22px;

@@ -42,7 +42,6 @@ body { background: #fff; }
     .delivery-group-badge {
       font-size: 11px; font-weight: 700;
       padding: 3px 8px; border-radius: 999px;
-      background: #1A1A1A; color: #fff;
     }
     .delivery-group-title {
       font-size: 12px; font-weight: 700; color: var(--color-ink);
@@ -165,7 +164,7 @@ body { background: #fff; }
 .cart-empty-text { font-size: 14px; font-weight: 500; color: #666; margin-bottom: 24px; }
 .cart-empty-btn {
   display: inline-block; padding: 13px 32px;
-  background: #3D6358; color: #fff;
+  background: #1A1A1A; color: #fff;
   border-radius: 8px; font-size: 14px; font-weight: 600;
   text-decoration: none; transition: opacity .15s;
 }

@@ -42,7 +42,9 @@ function StarIcon({ fill = 'empty', size = 16, fillColor, idx = 0 }: StarIconPro
             <stop offset="50%" stopColor={EMPTY} />
           </linearGradient>
         </defs>
-        <path d={STAR_PATH} fill={`url(#${gid})`} {...strokeProps} />
+        <path d={STAR_PATH} fill={`url(#${gid})`}
+          stroke={`url(#${gid})`} strokeWidth={1.5}
+          strokeLinejoin="round" strokeLinecap="round" />
       </svg>
     );
   }

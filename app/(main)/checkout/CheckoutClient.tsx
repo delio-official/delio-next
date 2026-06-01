@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
 import '@/styles/checkout.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -37,6 +38,17 @@ export default function CheckoutClient() {
   const [loading, setLoading]     = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<{id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean}[]>([]);
   const [showAddrList, setShowAddrList] = useState(false);
+
+  /* 쿠폰 / 적립금 */
+  interface UserCoupon { ucId: string; couponId: string; name: string; discount_type: 'percent'|'fixed'; discount_value: number; min_order_amount: number; max_discount_amount: number | null; starts_at: string | null; expires_at: string | null; }
+  const [coupons, setCoupons]       = useState<UserCoupon[]>([]);
+  const [selCoupon, setSelCoupon]   = useState('');
+  const [couponModal, setCouponModal] = useState(false);
+  const [modalSel, setModalSel]     = useState(''); // 모달 내 임시 선택
+  const [dlCount, setDlCount]       = useState(0);  // 다운가능 쿠폰 수
+  const [claiming, setClaiming]     = useState(false);
+  const [pointBalance, setPointBalance] = useState(0);
+  const [pointUsed, setPointUsed]   = useState(0);
 
   /* 주소 검색 */
   function openDaumPostcode() {
@@ -78,8 +90,84 @@ export default function CheckoutClient() {
       });
   }, [user]); // eslint-disable-line
 
+  /* 보유 쿠폰 로드 (+최대할인 자동선택) */
+  async function loadHeldCoupons(autoSelect: boolean) {
+    if (!user) return;
+    const { data } = await createClient().from('user_coupons')
+      .select('id, coupon_id, expires_at, coupons(name, discount_type, discount_value, min_order_amount, max_discount_amount, is_active, starts_at, expires_at)')
+      .eq('user_id', user.id).eq('is_used', false);
+    const now = new Date().toISOString();
+    const list: UserCoupon[] = (data || [])
+      .filter((r: Record<string, unknown>) => {
+        const c = r.coupons as Record<string, unknown> | null;
+        // 개별 만료일(user_coupons.expires_at) 우선, 없으면 쿠폰 기본 만료일
+        const exp = (r.expires_at as string) || (c?.expires_at as string);
+        return c?.is_active && (!exp || exp > now);
+      })
+      .map((r: Record<string, unknown>) => {
+        const c = r.coupons as Record<string, unknown>;
+        return { ucId: r.id as string, couponId: r.coupon_id as string,
+          name: c.name as string, discount_type: c.discount_type as 'percent'|'fixed',
+          discount_value: c.discount_value as number, min_order_amount: c.min_order_amount as number,
+          max_discount_amount: (c.max_discount_amount as number) ?? null,
+          starts_at: (c.starts_at as string) ?? null,
+          expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null };
+      });
+    setCoupons(list);
+    if (autoSelect) {
+      const st = items.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
+      let best = ''; let bestDisc = 0;
+      for (const c of list) {
+        if (st < c.min_order_amount) continue;
+        let d = c.discount_type === 'percent' ? Math.floor(st * c.discount_value / 100) : c.discount_value;
+        if (c.max_discount_amount) d = Math.min(d, c.max_discount_amount);
+        if (d > bestDisc) { bestDisc = d; best = c.ucId; }
+      }
+      if (best) setSelCoupon(best);
+    }
+  }
+
+  async function refreshDownloadable() {
+    if (!user) { setDlCount(0); return; }
+    const list = await getDownloadableCoupons(user.id);
+    setDlCount(list.length);
+  }
+
+  /* 쿠폰 + 포인트 로드 */
+  useEffect(() => {
+    if (!user) return;
+    loadHeldCoupons(true);
+    refreshDownloadable();
+    createClient().from('profiles').select('point_balance').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setPointBalance(data?.point_balance || 0));
+  }, [user]); // eslint-disable-line
+
+  /* 쿠폰 다운받기 */
+  async function handleClaimCoupons() {
+    if (!user || claiming) return;
+    setClaiming(true);
+    const n = await claimAllPublic(user.id);
+    await loadHeldCoupons(false);
+    await refreshDownloadable();
+    setClaiming(false);
+    alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
+  }
+
   const subtotal = items.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
-  const total    = subtotal;
+
+  /* 쿠폰 할인 계산 */
+  const coupon = coupons.find(c => c.ucId === selCoupon);
+  let couponDisc = 0;
+  if (coupon && subtotal >= coupon.min_order_amount) {
+    couponDisc = coupon.discount_type === 'percent'
+      ? Math.floor(subtotal * coupon.discount_value / 100)
+      : coupon.discount_value;
+    if (coupon.max_discount_amount) couponDisc = Math.min(couponDisc, coupon.max_discount_amount);
+  }
+  const afterCoupon = Math.max(0, subtotal - couponDisc);
+  const maxPoint = Math.min(pointBalance, afterCoupon);
+  const appliedPoint = Math.min(pointUsed, maxPoint);
+  const total = Math.max(0, afterCoupon - appliedPoint);
 
   /* ── 결제 처리 ── */
   async function handleOrder() {
@@ -102,8 +190,8 @@ export default function CheckoutClient() {
           .from('orders')
           .insert({
             user_id: user.id, status: 'paid',
-            total_amount: subtotal, discount_amount: 0,
-            coupon_discount: 0, point_used: 0, final_amount: total,
+            total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
+            coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
             recipient, phone, zipcode, address1: addr1, address2: addr2,
             delivery_type: 'parcel', delivery_memo: memo,
             payment_method: payMethod, paid_at: new Date().toISOString(),
@@ -120,17 +208,23 @@ export default function CheckoutClient() {
         await supabase.from('order_items').insert(
           items.map(i => ({
             order_id: order.id, product_id: i.id,
-            product_name: i.name, unit_price: i.price,
+            product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
             quantity: i.quantity ?? 1,
             subtotal: i.price * (i.quantity ?? 1),
             thumbnail_url: i.thumbnail || null,
           }))
         );
 
+        // 쿠폰 사용 처리
+        if (coupon) {
+          await supabase.from('user_coupons').update({ is_used: true, used_at: new Date().toISOString() }).eq('id', coupon.ucId);
+        }
+        // 포인트: 사용분 차감 + 적립분 추가
         const earned = Math.floor(total * 0.01);
-        if (earned > 0) {
-          const { data: prof } = await supabase.from('profiles').select('point_balance').eq('id', user.id).single();
-          if (prof) await supabase.from('profiles').update({ point_balance: (prof.point_balance || 0) + earned }).eq('id', user.id);
+        const { data: prof } = await supabase.from('profiles').select('point_balance').eq('id', user.id).single();
+        if (prof) {
+          const newBalance = (prof.point_balance || 0) - appliedPoint + earned;
+          await supabase.from('profiles').update({ point_balance: Math.max(0, newBalance) }).eq('id', user.id);
         }
 
         clearCart();
@@ -200,6 +294,9 @@ export default function CheckoutClient() {
             userId:      user.id,
             subtotal,
             totalAmount: total,
+            couponDiscount: couponDisc,
+            pointUsed:   appliedPoint,
+            userCouponId: coupon?.ucId || null,
             recipient, phone, zipcode,
             addr1, addr2, memo,
             payMethod,
@@ -209,6 +306,7 @@ export default function CheckoutClient() {
               price:     i.price,
               quantity:  i.quantity ?? 1,
               thumbnail: i.thumbnail,
+              options:   i.options,
             })),
           },
         }),
@@ -337,6 +435,7 @@ export default function CheckoutClient() {
                 </div>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:13, fontWeight:600, lineHeight:1.4 }}>{i.name}</div>
+                  {i.options && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>ㄴ {i.options}</div>}
                   <div style={{ fontSize:12, color:'#888' }}>{fmtPrice(i.price)}원 × {i.quantity??1}개</div>
                 </div>
                 <div style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(i.price*(i.quantity??1))}원</div>
@@ -349,9 +448,55 @@ export default function CheckoutClient() {
         <div style={{ width:300, flexShrink:0, position:'sticky', top:80 }}>
           <div style={{ border:'1px solid #EBEBEB', borderRadius:12, padding:'20px' }}>
             <h2 style={{ fontSize:16, fontWeight:700, marginBottom:16 }}>결제 요약</h2>
+
+            {/* 쿠폰 선택 */}
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'#555', display:'block', marginBottom:6 }}>쿠폰</label>
+              <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
+                style={{ width:'100%', minHeight:40, padding:'8px 12px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, textAlign:'left' }}>
+                {coupon ? (
+                  <span style={{ fontWeight:600, color:'#1A1A1A' }}>
+                    {coupon.name} <span style={{ color:'#CB1D11' }}>−{fmtPrice(couponDisc)}원</span>
+                  </span>
+                ) : (
+                  <span style={{ color:'#94A3B8' }}>쿠폰 선택하기 ({coupons.length}장 보유)</span>
+                )}
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* 적립금 사용 */}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'#555', display:'block', marginBottom:6 }}>
+                적립금 <span style={{ color:'#94A3B8', fontWeight:400 }}>(보유 {fmtPrice(pointBalance)}P)</span>
+              </label>
+              <div style={{ display:'flex', gap:6 }}>
+                <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
+                  onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))}
+                  placeholder="0"
+                  style={{ flex:1, height:40, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                <button onClick={() => setPointUsed(maxPoint)}
+                  style={{ padding:'0 14px', border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  전액 사용
+                </button>
+              </div>
+            </div>
+
             <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
               <span>상품 합계</span><span>{fmtPrice(subtotal)}원</span>
             </div>
+            {couponDisc > 0 && (
+              <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
+                <span>쿠폰 할인</span><span style={{ color:'#CB1D11', fontWeight:600 }}>−{fmtPrice(couponDisc)}원</span>
+              </div>
+            )}
+            {appliedPoint > 0 && (
+              <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
+                <span>적립금 사용</span><span style={{ color:'#CB1D11', fontWeight:600 }}>−{fmtPrice(appliedPoint)}원</span>
+              </div>
+            )}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
               <span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span>
             </div>
@@ -375,6 +520,101 @@ export default function CheckoutClient() {
           </div>
         </div>
       </div>
+
+      {/* 쿠폰 선택 모달 */}
+      {couponModal && (
+        <div onClick={() => setCouponModal(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:600, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            {/* 헤더 */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+                <span style={{ fontSize:16, fontWeight:700 }}>사용 가능 쿠폰 <span style={{ color:'#CB1D11' }}>{coupons.length}</span>장</span>
+                {dlCount > 0 && (
+                  <button onClick={handleClaimCoupons} disabled={claiming}
+                    style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, fontWeight:600, color:'#1A1A1A', background:'#F3F4F6', border:'none', borderRadius:8, padding:'7px 12px', cursor: claiming ? 'default' : 'pointer' }}>
+                    {claiming ? '받는 중...' : <>다운가능 <span style={{ color:'#CB1D11' }}>{dlCount}</span>장 받기</>}
+                  </button>
+                )}
+              </div>
+              <button onClick={() => setCouponModal(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {/* 리스트 */}
+            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
+              {/* 적용 안 함 */}
+              <button onClick={() => setModalSel('')}
+                style={{ width:'100%', textAlign:'center', padding:'12px 16px', marginBottom:14, border:`1.5px solid ${modalSel==='' ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor:'pointer', fontSize:13, fontWeight:600, color: modalSel==='' ? '#1A1A1A' : '#888' }}>
+                쿠폰 사용 안 함
+              </button>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                {coupons.map(c => {
+                  const usable = subtotal >= c.min_order_amount;
+                  const sel = modalSel === c.ucId;
+                  const fmtD = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+                  const start = c.starts_at ? new Date(c.starts_at) : null;
+                  const exp = c.expires_at ? new Date(c.expires_at) : null;
+                  // 4번: 기간 표시 / 1번: 무제한 → 상시 사용 가능
+                  const periodStr = exp
+                    ? `${start ? fmtD(start) : ''} ~ ${fmtD(exp)}`
+                    : '상시 사용 가능';
+                  // 3번: 만료 임박 D-day (3일 이내)
+                  let dday: number | null = null;
+                  if (exp) {
+                    const t0 = new Date(); t0.setHours(0,0,0,0);
+                    const e0 = new Date(exp); e0.setHours(0,0,0,0);
+                    dday = Math.round((e0.getTime() - t0.getTime()) / 86400000);
+                  }
+                  const imminent = dday !== null && dday >= 0 && dday <= 3;
+                  const ddayStr = dday === 0 ? '오늘 마감' : `D-${dday}`;
+                  return (
+                    <button key={c.ucId} disabled={!usable}
+                      onClick={() => setModalSel(c.ucId)}
+                      style={{ textAlign:'left', padding:'18px 16px', border:`1.5px solid ${sel ? '#1A1A1A' : '#EFEFEF'}`, borderRadius:10,
+                        background: usable ? '#fff' : '#FAFAFA', cursor: usable ? 'pointer' : 'not-allowed', opacity: usable ? 1 : 0.55, position:'relative' }}>
+                      {/* 우측 상단 뱃지 (만료 임박 + 카운트) */}
+                      <div style={{ position:'absolute', top:14, right:14, display:'flex', gap:5 }}>
+                        {imminent && (
+                          <span style={{ fontSize:10, color:'#fff', background:'#CB1D11', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:700 }}>{ddayStr}</span>
+                        )}
+                        <span style={{ fontSize:10, color:'#999', border:'1px solid #E2E2E2', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:500 }}>1장</span>
+                      </div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A', lineHeight:1.1 }}>
+                        {c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
+                      {c.max_discount_amount ? (
+                        <div style={{ fontSize:12, color:'#CB1D11', fontWeight:600, marginTop:4 }}>최대 {fmtPrice(c.max_discount_amount)}원 할인</div>
+                      ) : null}
+                      <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
+                        {c.min_order_amount > 0 ? `${fmtPrice(c.min_order_amount)}원 이상 구매` : '0원 이상 구매'}
+                        <br/>{periodStr}
+                      </div>
+                      {!usable && (
+                        <div style={{ fontSize:11, color:'#CB1D11', fontWeight:600, marginTop:6 }}>
+                          {fmtPrice(c.min_order_amount)}원 이상 구매 시 사용 가능
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {coupons.length === 0 && (
+                <div style={{ textAlign:'center', color:'#AAA', fontSize:13, padding:'30px 0' }}>보유한 쿠폰이 없습니다</div>
+              )}
+            </div>
+            {/* 하단 적용 버튼 */}
+            <div style={{ padding:'14px 22px', borderTop:'1px solid #F0F0F0' }}>
+              <button onClick={() => { setSelCoupon(modalSel); setCouponModal(false); }}
+                style={{ width:'100%', padding:'14px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                {modalSel === '' ? '쿠폰 미적용' : '쿠폰 사용하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

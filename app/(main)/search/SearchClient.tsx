@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/category.css';
 import '@/styles/search.css';
@@ -60,10 +60,8 @@ function SearchProductCard({ p }: { p: Product }) {
 
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
-    addToCart({ id: p.id, name: p.name, price: p.discounted_price ?? p.price,
-      thumbnail: p.thumbnail_url || '', quantity: 1,
-      deliveryType: p.is_dawn ? '산지직송' : '자사배송' });
-    showCartToast();
+    e.stopPropagation();
+    openOptionDrawer(p.id);
   }
 
   async function handleWish(e: React.MouseEvent) {
@@ -451,17 +449,21 @@ export default function SearchClient() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="no-result">
-              <div className="icon">🔍</div>
-              <p>
-                <strong>&quot;{urlQ}&quot;</strong>에 대한<br />검색 결과가 없습니다.
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'70px 0' }}>
+              <div style={{ width:48, height:48, borderRadius:'50%', border:'1.5px solid #D8D8D8',
+                display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18 }}>
+                <span style={{ fontSize:22, fontWeight:300, color:'#B0B0B0' }}>!</span>
+              </div>
+              <p style={{ fontSize:15, color:'#555', fontWeight:500, lineHeight:1.7, textAlign:'center', margin:0 }}>
+                검색결과가 없습니다.<br />
+                이용에 불편을 드려 죄송합니다.
               </p>
-              <p style={{ color: '#AAA', fontSize: 14, marginTop: 8 }}>다른 키워드로 검색해보세요</p>
-              <div style={{ marginTop: 20, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <p style={{ color:'#AAA', fontSize:14, marginTop:10 }}>다른 키워드로 검색해보세요</p>
+              <div style={{ marginTop: 18, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                 {popularKeywords.map(kw => (
                   <button key={kw}
                     onClick={() => handleSearch(kw)}
-                    style={{ padding: '7px 16px', border: '1.5px solid #EBEBEB', borderRadius: 999, fontSize: 13, cursor: 'pointer', background: '#fff' }}
+                    style={{ padding: '6px 12px', border: '1.5px solid var(--color-line)', borderRadius: 999, fontSize: 13, cursor: 'pointer', background: '#fff', color: 'var(--color-ink)' }}
                   >{kw}</button>
                 ))}
               </div>

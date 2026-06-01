@@ -167,9 +167,9 @@ const RESULTS: Record<string, ResultData> = {
     emoji:'🌬️', color:'#4A9FD4', bg:'linear-gradient(135deg,#D8EEFF,#EEF7FF)',
     desc:['계획 없이도 자연스럽게 온기를 나눠주는 사람이에요.','억지 없이 흘러가는 대로 살면서도, 곁에 있는 사람은 늘 따뜻해요.','은은하고 담백한 맛처럼 — 강요하지 않아도 스며드는 편안함이 있어요.','당신과 함께하면 이유 없이 기분이 좋아져요.'],
     energyHigh:'자유롭게 소중한 사람들과 함께하는 시간에', energyLow:'억압적인 환경이나 강요받는 상황에서',
-    doingWell:'자연스럽게 흘러가면서도 주변을 따뜻하게 하는 것, 그게 당신만의 웰니스예요.',
+    doingWell:'자연스럽게 흘러가면서도 주변을 따뜻하게 하는 것, 그게 당신다운 삶이에요.',
     missing:'너무 흘러가다 보면 정작 나의 건강을 챙기는 타이밍을 놓칠 수 있어요.',
-    tryThis:'저녁 여유 시간에 담백한 과일 한 조각, 그게 당신을 위한 가장 자연스러운 웰니스예요.',
+    tryThis:'저녁 여유 시간에 담백한 과일 한 조각, 그게 당신을 위한 가장 자연스러운 휴식이에요.',
     fruitRec:'은은하고 신선한 과일', fruitTime:'저녁 여유 시간 — 자연스럽게 흘러가는 하루의 마무리에 어울려요.',
     wellness:'"자연스럽게 흘러가는 나의 온기가 주변을 데워요"',
   },
@@ -180,9 +180,9 @@ const RESULTS: Record<string, ResultData> = {
     energyHigh:'새로운 것을 발견하고 혼자 깊이 탐험할 때', energyLow:'반복적이고 자극 없는 환경이 지속될 때',
     doingWell:'새로운 것을 끊임없이 탐험하는 에너지, 그게 당신을 살아있게 하는 힘이에요.',
     missing:'강렬한 자극만 찾다 보면 몸의 회복 시간을 놓치기 쉬워요. 가끔 의도적으로 쉬는 시간을 만드세요.',
-    tryThis:'새로운 과일을 발견했을 때 주저 말고 도전해보세요. 새로운 맛의 탐험이 당신의 웰니스예요.',
+    tryThis:'새로운 과일을 발견했을 때 주저 말고 도전해보세요. 새로운 맛의 탐험이 당신의 활력이에요.',
     fruitRec:'새콤달콤 강렬한 과일', fruitTime:'새로운 과일 발견했을 때 — 도전하는 그 순간이 딱 맞는 타이밍이에요.',
-    wellness:'"새로운 것을 향한 나의 탐험이 곧 나의 웰니스예요"',
+    wellness:'"새로운 것을 향한 나의 탐험이 곧 나의 에너지예요"',
   },
   'free-self-healing': {
     name:'달빛', tagline:'은은하게 자신만의 감각으로 살아가는 사람',
@@ -249,11 +249,16 @@ export default function SurveyClient() {
     discount_rate: number; thumbnail_url: string | null; category: string; avg_rating: number;
   }
   const [recProducts, setRecProducts] = useState<RecProduct[]>([]);
+  const [showRecProducts, setShowRecProducts] = useState(true);
 
   useEffect(() => {
     if (!result) return;
     async function loadRecs() {
       const supabase = createClient();
+      /* 추천 상품 노출 설정 확인 */
+      const { data: setting } = await supabase
+        .from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
+      setShowRecProducts(setting?.value !== 'false');
       /* axis3: vitamin→강한맛 과일, healing→부드러운 과일 */
       const cats = result!.axis3 === 'vitamin'
         ? ['citrus', 'berry', 'apple']
@@ -328,7 +333,7 @@ export default function SurveyClient() {
         purchase_purpose:   getOpt('q10')?.mktVal,
         decision_factor:    getOpt('q11')?.mktVal,
         texture_pref:       getOpt('q8')?.a3tie,
-        answers:            Object.fromEntries(Object.entries(ans).map(([id,i]) => [id, QS.find(q=>q.id===id)!.opts[i].text])),
+        answers:            Object.fromEntries(Object.entries(ans).map(([id,i]) => [id, QS.find(q=>q.id===id)?.opts[i]?.text ?? null])),
         result_category:    r.axis3 === 'vitamin' ? 'vitamin' : 'healing',
         result_label:       res?.name,
         result_desc:        res?.tagline,
@@ -364,7 +369,7 @@ export default function SurveyClient() {
 
       if (isMobile && navigator.canShare?.({ files: [file] })) {
         // 모바일: 공유 시트 → 인스타 스토리 선택 가능
-        await navigator.share({ files: [file], title: 'DELI\'O 웰니스 유형 진단 결과' });
+        await navigator.share({ files: [file], title: 'DELI\'O 취향유형 진단 결과' });
       } else {
         // 데스크탑: 이미지 다운로드 후 안내
         const a = document.createElement('a');
@@ -385,13 +390,13 @@ export default function SurveyClient() {
     return (
       <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#F4EFE6 0%,#EDE8DC 100%)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center' }}>
         <div style={{ fontSize:72, marginBottom:20 }}>🍑</div>
-        <p style={{ fontSize:12, letterSpacing:3, color:'#A08060', fontWeight:700, marginBottom:12 }}>DELI'O WELLNESS</p>
+        <p style={{ fontSize:12, letterSpacing:3, color:'#A08060', fontWeight:700, marginBottom:12 }}>DELI'O</p>
         <h1 style={{ fontSize:'clamp(24px,5vw,38px)', fontWeight:800, lineHeight:1.3, marginBottom:16, color:'#1A1A1A' }}>
-          웰니스 라이프<br />유형 진단
+          취향유형 진단
         </h1>
-        <p style={{ fontSize:15, color:'#666', lineHeight:1.8, maxWidth:340, marginBottom:8 }}>
-          나의 생활방식, 관계방식, 입맛으로<br />
-          8가지 웰니스 유형 중 나는 누구?
+        <p style={{ fontSize:15, color:'#666', lineHeight:1.8, maxWidth:360, marginBottom:8 }}>
+          나의 라이프스타일과 입맛으로<br />
+          찾는 나의 유형은?
         </p>
         <p style={{ fontSize:13, color:'#AAA', marginBottom:36 }}>총 11문항 · 3분 소요</p>
         <button
@@ -475,6 +480,13 @@ export default function SurveyClient() {
 
   // ════════ QUIZ ════════
   if (phase === 'quiz') {
+    // step이 범위를 벗어나면 결과 계산으로 안전 전환
+    if (!currentQ) {
+      const r = calcResult(answers);
+      setResult(r);
+      setPhase('result');
+      return null;
+    }
     const progress = ((step + 1) / TOTAL) * 100;
     const isMidPoint = step === 6; // 7번째 질문
 
@@ -591,7 +603,7 @@ export default function SurveyClient() {
 
       {/* 히어로 */}
       <div style={{ background: res.bg, padding:'36px 20px 28px' }}>
-        <p style={{ fontSize:11, letterSpacing:3, color: res.color, fontWeight:700, marginBottom:18, textAlign:'center' }}>MY WELLNESS TYPE</p>
+        <p style={{ fontSize:11, letterSpacing:3, color: res.color, fontWeight:700, marginBottom:18, textAlign:'center' }}>MY LIFESTYLE TYPE</p>
 
         {/* 결과 카드 — 이미지 스타일 */}
         <div style={{
@@ -631,7 +643,7 @@ export default function SurveyClient() {
             <div style={{ fontSize:40, marginBottom:12 }}>🔒</div>
             <h3 style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>상세 결과는 회원만 볼 수 있어요</h3>
             <p style={{ fontSize:14, color:'#888', lineHeight:1.7, marginBottom:24 }}>
-              웰니스 가이드, 추천 과일, 에너지 패턴까지<br />
+델리오의 가이드, 추천 과일, 에너지 패턴까지<br />
               나에게 딱 맞는 분석을 확인해보세요.
             </p>
             <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
@@ -676,7 +688,7 @@ export default function SurveyClient() {
 
             {/* ③ 웰니스 가이드 */}
             <section style={{ marginBottom:28 }}>
-              <h2 style={{ fontSize:16, fontWeight:800, marginBottom:14 }}>🌿 당신을 위한 웰니스 가이드</h2>
+              <h2 style={{ fontSize:16, fontWeight:800, marginBottom:14 }}>🌿 당신을 위한 델리오의 가이드</h2>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {[
                   { icon:'✅', label:'잘 하고 있어요', text: res.doingWell, bg:'#F0FAF3', border:'#B2DFCC', labelColor:'#2D7A4D' },
@@ -704,6 +716,7 @@ export default function SurveyClient() {
             </section>
 
             {/* ⑤ 맞춤 상품 추천 */}
+            {showRecProducts && (
             <section style={{ marginBottom:28 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                 <h2 style={{ fontSize:16, fontWeight:800 }}>🛒 나를 위한 추천 상품</h2>
@@ -778,19 +791,20 @@ export default function SurveyClient() {
                 </div>
               )}
             </section>
+            )}
           </>
         )}
 
-        {/* ⑦ 웰니스 한 마디 */}
+        {/* ⑦ 델리오 한 마디 */}
         <div style={{ textAlign:'center', padding:'28px 20px', borderTop:'1px solid #F0F0EE', borderBottom:'1px solid #F0F0EE', margin:'28px 0' }}>
-          <p style={{ fontSize:13, color:'#AAA', marginBottom:8 }}>웰니스 한 마디</p>
+          <p style={{ fontSize:13, color:'#AAA', marginBottom:8 }}>델리오 한 마디</p>
           <p style={{ fontSize:18, fontWeight:800, color: res.color, fontStyle:'italic', lineHeight:1.5 }}>{res.wellness}</p>
         </div>
 
         {/* ⑧ 공유 섹션 */}
         <div style={{ marginBottom:40, background:'#F7F7F5', borderRadius:16, padding:'24px' }}>
           <div style={{ fontSize:15, fontWeight:800, marginBottom:2 }}>결과 공유하기</div>
-          <div style={{ fontSize:12, color:'#aaa', marginBottom:20 }}>나의 웰니스 유형을 친구에게 알려보세요</div>
+          <div style={{ fontSize:12, color:'#aaa', marginBottom:20 }}>나의 유형을 친구에게 알려보세요</div>
 
           {/* 미니 프리뷰 카드 */}
           <div style={{
@@ -805,33 +819,53 @@ export default function SurveyClient() {
             </div>
           </div>
 
-          {/* 버튼 그리드 */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-            <button onClick={copyLink}
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                padding:'13px 0', background: copied ? '#2D7A4D' : '#fff',
-                border:'1.5px solid #E0E0E0', borderRadius:12,
-                color: copied ? '#fff' : '#333', fontSize:13, fontWeight:700,
-                cursor:'pointer', transition:'all .2s', fontFamily:'inherit' }}>
-              {copied ? '✓ 복사됨' : '🔗 링크 복사'}
-            </button>
-            <button onClick={shareKakao}
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                padding:'13px 0', background:'#FEE500', border:'none', borderRadius:12,
-                color:'#3C1E1E', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-              <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-                <path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
-              </svg>
-              카카오톡
-            </button>
-            <button onClick={shareInstagram} disabled={sharingInsta}
-              style={{ gridColumn:'1 / -1', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-                padding:'14px 0',
-                background: sharingInsta ? '#ccc' : 'linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',
-                border:'none', borderRadius:12, color:'#fff', fontSize:14, fontWeight:700,
-                cursor: sharingInsta ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-              {sharingInsta ? '⏳ 이미지 생성 중...' : '📸 인스타 스토리로 저장'}
-            </button>
+          {/* 원형 공유 버튼 */}
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'flex-start', gap:24, paddingTop:4 }}>
+            {/* 링크 복사 */}
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:7 }}>
+              <button onClick={copyLink} title="링크 복사"
+                style={{ width:54, height:54, borderRadius:'50%', border:'none', cursor:'pointer',
+                  background: copied ? '#2D7A4D' : '#5B7FE0',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.12)', transition:'all .2s' }}>
+                {copied ? (
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+                )}
+              </button>
+              <span style={{ fontSize:11, color:'#888', fontWeight:600 }}>{copied ? '복사됨' : '링크'}</span>
+            </div>
+
+            {/* 카카오톡 */}
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:7 }}>
+              <button onClick={shareKakao} title="카카오톡 공유"
+                style={{ width:54, height:54, borderRadius:'50%', border:'none', cursor:'pointer',
+                  background:'#FEE500', display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.12)' }}>
+                <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#3C1E1E" d="M12 4C7.03 4 3 7.13 3 11c0 2.47 1.65 4.64 4.13 5.88-.18.65-.66 2.37-.75 2.74-.12.46.17.45.35.33.14-.09 2.26-1.54 3.18-2.17.68.1 1.38.15 2.09.15 4.97 0 9-3.13 9-7s-4.03-7-9-7z"/>
+                </svg>
+              </button>
+              <span style={{ fontSize:11, color:'#888', fontWeight:600 }}>카카오톡</span>
+            </div>
+
+            {/* 인스타 저장 */}
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:7 }}>
+              <button onClick={shareInstagram} disabled={sharingInsta} title="인스타 스토리 저장"
+                style={{ width:54, height:54, borderRadius:'50%', border:'none',
+                  cursor: sharingInsta ? 'not-allowed' : 'pointer',
+                  background: sharingInsta ? '#ccc' : 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.12)' }}>
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" strokeWidth="2">
+                  <rect x="2" y="2" width="20" height="20" rx="5"/>
+                  <circle cx="12" cy="12" r="4"/>
+                  <circle cx="17.5" cy="6.5" r="1.2" fill="#fff" stroke="none"/>
+                </svg>
+              </button>
+              <span style={{ fontSize:11, color:'#888', fontWeight:600 }}>{sharingInsta ? '생성중' : '인스타'}</span>
+            </div>
           </div>
         </div>
 
@@ -850,7 +884,7 @@ export default function SurveyClient() {
             {/* 상단 브랜드 */}
             <div style={{ paddingTop:30, marginBottom:26 }}>
               <span style={{ fontSize:10, letterSpacing:3, color:res.color, fontWeight:800, opacity:0.75 }}>
-                DELI&apos;O WELLNESS
+                DELI&apos;O LIFESTYLE
               </span>
             </div>
 
