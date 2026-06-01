@@ -98,6 +98,28 @@ function FarmProductCard({ p }: { p: Product }) {
   );
 }
 
+/* ── 페이지네이션 (상품목록과 동일) ── */
+function Pagination({ total, perPage, page, onChange }: {
+  total: number; perPage: number; page: number; onChange: (p: number) => void;
+}) {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+  function go(p: number) { onChange(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  return (
+    <div className="pagination">
+      <button className="page-btn" disabled={page === 0} onClick={() => go(0)}>«</button>
+      <button className="page-btn" disabled={page === 0} onClick={() => go(page - 1)}>‹</button>
+      {Array.from({ length: totalPages }, (_, i) => (
+        <button key={i} className={`page-num${page === i ? ' active' : ''}`} onClick={() => go(i)}>
+          {i + 1}
+        </button>
+      ))}
+      <button className="page-btn" disabled={page === totalPages - 1} onClick={() => go(page + 1)}>›</button>
+      <button className="page-btn" disabled={page === totalPages - 1} onClick={() => go(totalPages - 1)}>»</button>
+    </div>
+  );
+}
+
 export default function FarmClient() {
   const { slug } = useParams() as { slug: string };
   const router = useRouter();
@@ -107,6 +129,8 @@ export default function FarmClient() {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [prodPage, setProdPage] = useState(0);
+  const PROD_PER_PAGE = 8;
 
   useEffect(() => {
     async function load() {
@@ -121,7 +145,7 @@ export default function FarmClient() {
       const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
         supabase.from('farm_gallery').select('*').eq('farm_id', farmData.id).order('sort_order'),
-        supabase.from('products').select('*').eq('farm_id', farmData.id).eq('is_active', true).limit(8),
+        supabase.from('products').select('*').eq('farm_id', farmData.id).eq('is_active', true).limit(60),
       ]);
 
       setCerts((certData as Certification[]) || []);
@@ -281,10 +305,11 @@ export default function FarmClient() {
               {farm.name} 상품
             </h2>
             <div className="product-grid">
-              {products.map(p => (
+              {products.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
                 <FarmProductCard key={p.id} p={p} />
               ))}
             </div>
+            <Pagination total={products.length} perPage={PROD_PER_PAGE} page={prodPage} onChange={setProdPage} />
           </section>
         )}
 
