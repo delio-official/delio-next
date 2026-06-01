@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { openOptionDrawer } from '@/lib/cart';
+import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
+import { SingleStar } from '@/components/StarRating';
+import '@/styles/category.css';
 
 interface Farm {
   id: string; slug: string; name: string; region: string; farm_type: string;
@@ -20,6 +23,7 @@ interface Product {
   id: string; name: string; price: number; discount_rate: number;
   discounted_price: number; thumbnail_url: string | null; badge: string | null;
   avg_rating: number; review_count: number; category: string;
+  is_dawn: boolean; is_new: boolean; is_best: boolean; short_desc: string | null;
 }
 
 const EMOJI_MAP: Record<string, string> = {
@@ -27,6 +31,72 @@ const EMOJI_MAP: Record<string, string> = {
   kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
 };
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
+
+const BG_MAP: Record<string, string> = {
+  apple:'#FFE8E8', citrus:'#FFF3E0', berry:'#F3E5F5', melon:'#E8F5E9',
+  kiwi:'#F1F8E9', mango:'#FFF9E6', grape:'#EDE7F6', gift:'#E8EAF6',
+};
+
+/* ── 상품 카드 (메인 델리오 픽 / 카테고리와 동일 디자인) ── */
+function FarmProductCard({ p }: { p: Product }) {
+  const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
+  const bg    = BG_MAP[p.category]    || '#F4EFE6';
+  const deliveryClass = p.is_dawn ? 'tag-dawn' : 'tag-regular';
+  const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
+  const [wished, setWished] = useState(false);
+  useEffect(() => { isWishlisted(p.id).then(setWished); }, [p.id]);
+
+  const reviewCount = p.review_count > 9999
+    ? (p.review_count / 10000).toFixed(1) + '만'
+    : p.review_count.toLocaleString('ko-KR');
+
+  return (
+    <Link href={`/product/${p.id}`} className="product-card">
+      <div className="product-card-img">
+        {p.thumbnail_url
+          ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
+        }
+        <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
+        <div className="product-card-actions">
+          <button className="product-card-wish" onClick={async e => { e.preventDefault(); setWished(await toggleWishlist(p.id)); }}>
+            <span style={{ color: wished ? '#E53935' : undefined }}>{wished ? '♥' : '♡'}</span> 찜
+          </button>
+          <span className="product-card-actions-divider" />
+          <button className="cart-btn" onClick={e => { e.preventDefault(); e.stopPropagation(); openOptionDrawer(p.id); }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
+            </svg>
+            담기
+          </button>
+        </div>
+      </div>
+      <div className="product-card-body">
+        <div className="product-brix-wrap">
+          {p.is_new  && <span className="product-badge badge-new">NEW</span>}
+          {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
+        </div>
+        <div className="product-card-name">{p.name}</div>
+        {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
+        <div className="product-price-row">
+          {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
+          <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
+          {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
+        </div>
+        {p.review_count > 0 && (
+          <div className="product-rating-row">
+            <div className="rating-stars">
+              <SingleStar size={13} />
+              <span>{p.avg_rating.toFixed(1)}</span>
+              <span style={{ color:'#bbb' }}>({reviewCount})</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
 
 export default function FarmClient() {
   const { slug } = useParams() as { slug: string };
@@ -210,56 +280,10 @@ export default function FarmClient() {
             <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
               {farm.name} 상품
             </h2>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:16 }}>
-              {products.map(p => {
-                const pEmoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
-                return (
-                  <Link key={p.id} href={`/product/${p.id}`}
-                    style={{ textDecoration:'none', color:'inherit' }}>
-                    <div style={{
-                      borderRadius:12, overflow:'hidden',
-                      border:'1px solid #EBEBEB', transition:'transform .15s, box-shadow .15s',
-                    }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform='translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow='0 6px 20px rgba(0,0,0,.08)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform='none'; (e.currentTarget as HTMLDivElement).style.boxShadow='none'; }}
-                    >
-                      <div style={{ aspectRatio:'1', background:'#F7F7F5',
-                        display:'flex', alignItems:'center', justifyContent:'center', fontSize:48 }}>
-                        {p.thumbnail_url
-                          ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                          : pEmoji
-                        }
-                      </div>
-                      <div style={{ padding:'10px 12px' }}>
-                        {p.badge && (
-                          <span style={{ fontSize:11, background:'#1A1A1A', color:'#fff',
-                            padding:'2px 6px', borderRadius:4, marginBottom:4, display:'inline-block' }}>
-                            {p.badge}
-                          </span>
-                        )}
-                        <div style={{ fontSize:13, fontWeight:600, lineHeight:1.4, marginBottom:4 }}>{p.name}</div>
-                        <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
-                          {p.discount_rate > 0 && (
-                            <span style={{ fontSize:12, fontWeight:700, color:'#E53E3E' }}>{p.discount_rate}%</span>
-                          )}
-                          <span style={{ fontSize:15, fontWeight:800 }}>{fmtPrice(p.discounted_price ?? p.price)}원</span>
-                        </div>
-                        <button
-                          onClick={e => {
-                            e.preventDefault();
-                            addToCart({ id:p.id, name:p.name, price:p.discounted_price??p.price, quantity:1, thumbnail:p.thumbnail_url||'', deliveryType: '산지직송' });
-                            showCartToast();
-                          }}
-                          style={{ marginTop:8, width:'100%', padding:'7px', border:'1.5px solid #1A1A1A',
-                            borderRadius:6, color:'#1A1A1A', background:'#fff',
-                            fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                          담기
-                        </button>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+            <div className="product-grid">
+              {products.map(p => (
+                <FarmProductCard key={p.id} p={p} />
+              ))}
             </div>
           </section>
         )}
