@@ -268,9 +268,9 @@ export default function CheckoutClient() {
             easyPay: { easyPayProvider: selectedMethod.easyPay as any },
           }),
           customer: {
-            fullName:    recipient,
-            phoneNumber: phone,
-            email:       user.email ?? undefined,
+            ...(recipient.trim() ? { fullName: recipient.trim() } : {}),
+            ...(phone.trim()     ? { phoneNumber: phone.trim() } : {}),
+            ...(user.email       ? { email: user.email } : {}),
           },
           windowType: { pc: 'IFRAME', mobile: 'REDIRECTION' },
         });
