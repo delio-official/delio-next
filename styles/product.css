@@ -139,7 +139,7 @@
     .option-label { font-size: 12px; font-weight: 700; color: var(--color-ink-mute); margin-bottom: 8px; }
     .option-select {
       width: 100%; padding: 11px 16px;
-      border-radius: 8px; border: 1.5px solid var(--color-line);
+      border-radius: 8px; border: 1.5px solid #DDDDD9;
       background: var(--color-bg-white);
       font-size: 14px; color: var(--color-ink);
       margin-bottom: 16px; appearance: none;
@@ -263,8 +263,14 @@
       width: 100%; border-collapse: collapse;
       font-size: 13px; margin-bottom: 20px;
     }
-    .pd-info-table tr { border-bottom: 1px solid var(--color-line-soft); }
-    .pd-info-table tr:first-child { border-top: 1px solid var(--color-line-soft); }
+    .pd-info-table tr { border-bottom: 1px solid #DDDDD9; }
+    .pd-info-table tr:first-child { border-top: 1px solid #DDDDD9; }
+
+    /* 장바구니 버튼 테두리를 선물하기(#DDDDD9)와 통일 */
+    .cta-bar-pc .btn-secondary,
+    .cta-bar-pc .btn-secondary:hover,
+    .mobile-cta-bar .btn-secondary,
+    .mobile-cta-bar .btn-secondary:hover { border-color: #DDDDD9 !important; }
     .pd-info-table th {
       padding: 11px 0; width: 72px; font-weight: 600;
       color: var(--color-ink-mute); text-align: left; vertical-align: top; white-space: nowrap;

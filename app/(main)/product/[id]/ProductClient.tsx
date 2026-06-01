@@ -991,24 +991,26 @@ export default function ProductClient() {
                 </div>
               </div>
 
-              {/* 썸네일 6개: 이미지 있으면 사진, 없으면 빈 칸 */}
-              <div className="thumb-row">
-                {productImages.map((imgUrl, i) => (
-                  <div key={i}
-                    className={`thumb${selThumb === i ? ' active' : ''}`}
-                    onClick={() => { if (imgUrl) setSelThumb(i); }}
-                    style={{
-                      background: imgUrl ? '#fff' : `linear-gradient(135deg,${bg},#fff)`,
-                      cursor: imgUrl ? 'pointer' : 'default',
-                      opacity: imgUrl ? 1 : 0.35,
-                    }}>
-                    {imgUrl
-                      ? <img src={imgUrl} alt=""
-                          style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:4 }} />
-                      : null}
-                  </div>
-                ))}
-              </div>
+              {/* 썸네일 행: 추가 사진(image_urls)이 있을 때만 노출 */}
+              {extraUrls.some(Boolean) && (
+                <div className="thumb-row">
+                  {productImages.map((imgUrl, i) => (
+                    <div key={i}
+                      className={`thumb${selThumb === i ? ' active' : ''}`}
+                      onClick={() => { if (imgUrl) setSelThumb(i); }}
+                      style={{
+                        background: imgUrl ? '#fff' : `linear-gradient(135deg,${bg},#fff)`,
+                        cursor: imgUrl ? 'pointer' : 'default',
+                        opacity: imgUrl ? 1 : 0.35,
+                      }}>
+                      {imgUrl
+                        ? <img src={imgUrl} alt=""
+                            style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:4 }} />
+                        : null}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* 농가 카드 */}
               {farm && (
@@ -1183,7 +1185,7 @@ export default function ProductClient() {
                     {/* ── 선택된 옵션 박스 (옵션 선택 후 표시) ── */}
                     {selOption && optObj && (
                       <div style={{
-                        border:'1px solid #E4E2DE', borderRadius:8,
+                        border:'1px solid #DDDDD9', borderRadius:8,
                         padding:'14px 16px', marginBottom:4,
                         background:'#FAFAF8',
                       }}>
