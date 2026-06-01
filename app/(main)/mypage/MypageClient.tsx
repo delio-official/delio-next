@@ -155,6 +155,10 @@ export default function MypageClient() {
   const [editPwNew2,    setEditPwNew2]    = useState('');
   const [infoSaving,    setInfoSaving]    = useState(false);
 
+  /* 내 환불 신청 내역 */
+  interface MyRefundReq { id: string; reason: string; detail: string; status: string; created_at: string; orders: { order_no: string } | null; }
+  const [myRefundReqs, setMyRefundReqs] = useState<MyRefundReq[]>([]);
+
   /* 배송지 */
   const [addresses,    setAddresses]    = useState<Address[]>([]);
   const [addrLoading,  setAddrLoading]  = useState(false);
@@ -457,6 +461,18 @@ export default function MypageClient() {
     setClaimingCoupon(false);
     alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
   }
+
+  /* 내 환불 신청 내역 — CS/환불 패널 열릴 때 로드 */
+  useEffect(() => {
+    if (activePanel !== 'csrefund' || !user) return;
+    createClient()
+      .from('refund_requests')
+      .select('id, reason, detail, status, created_at, orders ( order_no )')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setMyRefundReqs((data as unknown as MyRefundReq[]) || []));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, user]);
 
   useEffect(() => {
     if (activePanel !== 'coupon' || !user) return;
@@ -2081,6 +2097,32 @@ export default function MypageClient() {
                           <div style={{ fontSize:14, fontWeight:700, marginTop:6 }}>{fmtPrice(o.final_amount)}원</div>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* 내 환불 신청 내역 */}
+                  {myRefundReqs.length > 0 && (
+                    <div style={{ marginTop:24 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>내 환불 신청</div>
+                      {myRefundReqs.map(req => {
+                        const stLabel: Record<string,string> = { pending:'신청 접수', processing:'처리중', completed:'환불완료', rejected:'거절됨' };
+                        const stColor: Record<string,string> = { pending:'#C8841C', processing:'#C8841C', completed:'#888', rejected:'#E55A4B' };
+                        const stBg: Record<string,string> = { pending:'#FFF3E0', processing:'#FFF3E0', completed:'#F2F2F2', rejected:'#FEE' };
+                        return (
+                          <div key={req.id} style={{ padding:'14px', border:'1px solid #EBEBEB', borderRadius:10, marginBottom:10 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                              <span style={{ fontSize:12, color:'#aaa' }}>
+                                {new Date(req.created_at).toLocaleDateString('ko-KR')}{req.orders?.order_no ? ` · ${req.orders.order_no}` : ''}
+                              </span>
+                              <span style={{ fontSize:11, fontWeight:700, color: stColor[req.status] || '#888', background: stBg[req.status] || '#F2F2F2', padding:'3px 8px', borderRadius:4 }}>
+                                {stLabel[req.status] || req.status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize:13, fontWeight:600, marginBottom: req.detail ? 4 : 0 }}>{req.reason}</div>
+                            {req.detail && <div style={{ fontSize:12, color:'#888', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{req.detail}</div>}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 

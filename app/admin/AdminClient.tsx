@@ -18,7 +18,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'settlement'|'tasteprofile'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'tasteprofile'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -205,6 +205,17 @@ interface AdminReferral {
   referred: { name: string; email: string } | null;
 }
 
+interface AdminRefundReq {
+  id: string;
+  order_id: string | null;
+  reason: string;
+  detail: string;
+  status: string; // pending | processing | completed | rejected
+  created_at: string;
+  orders: { order_no: string; final_amount: number; status: string } | null;
+  profiles: { name: string | null; email: string | null } | null;
+}
+
 interface AdminProductInquiry {
   id: string;
   product_id: string;
@@ -253,7 +264,7 @@ const TITLES: Record<PanelKey, string> = {
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  settlement:'정산 관리', tasteprofile:'취향 프로파일', settings:'설정',
+  refund:'환불 관리', settlement:'정산 관리', tasteprofile:'취향 프로파일', settings:'설정',
 };
 
 const FAQ_CATS: Record<string, string> = {
@@ -934,6 +945,10 @@ export default function AdminClient() {
   const [referralSearch, setReferralSearch] = useState('');
   const [referralStatusFilter, setReferralStatusFilter] = useState<'all'|'pending'|'rewarded'>('all');
 
+  /* ── 환불 관리 ── */
+  const [refundReqs, setRefundReqs] = useState<AdminRefundReq[]>([]);
+  const [refundLoading, setRefundLoading] = useState(false);
+
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
   const [bannerTab, setBannerTab] = useState('tab-banner');
@@ -1409,6 +1424,38 @@ export default function AdminClient() {
     const { error } = await supabase.rpc('revoke_referral_reward', { p_referral_id: r.id });
     if (error) { alert('철회 실패: ' + error.message); return; }
     setReferrals(prev => prev.map(x => x.id === r.id ? { ...x, rewarded: false, rewarded_at: null } : x));
+  }
+
+  /* ── 환불 신청 관리 ── */
+  async function loadRefundRequests() {
+    setRefundLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('refund_requests')
+      .select(`
+        id, order_id, reason, detail, status, created_at,
+        orders ( order_no, final_amount, status ),
+        profiles:user_id ( name, email )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    setRefundReqs((data as unknown as AdminRefundReq[]) || []);
+    setRefundLoading(false);
+  }
+
+  /* 환불 신청 상태 변경 + 주문 상태 연동 */
+  async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected') {
+    const supabase = createClient();
+    const { error } = await supabase.from('refund_requests').update({ status: newStatus }).eq('id', req.id);
+    if (error) { alert('상태 변경 실패: ' + error.message); return; }
+    // 주문 상태 연동: 처리중→환불처리중, 완료→환불완료 (거절은 주문 상태 변경 안 함)
+    if (req.order_id && (newStatus === 'processing' || newStatus === 'completed')) {
+      const orderStatus = newStatus === 'completed' ? 'refunded' : 'refunding';
+      await supabase.from('orders').update({ status: orderStatus }).eq('id', req.order_id);
+    }
+    setRefundReqs(prev => prev.map(r => r.id === req.id
+      ? { ...r, status: newStatus, orders: r.orders && (newStatus !== 'rejected') ? { ...r.orders, status: newStatus === 'completed' ? 'refunded' : 'refunding' } : r.orders }
+      : r));
   }
 
   async function loadReviews() {
@@ -2289,6 +2336,7 @@ export default function AdminClient() {
       case 'productinquiry': loadProductInquiries(); break;
       case 'faq':       loadFaq(); break;
       case 'cs':        loadCsInquiries(); break;
+      case 'refund':    loadRefundRequests(); break;
       case 'settings':    loadSettings(); loadSearchStats(7); break;
       case 'settlement':  loadSettlement(settlementMonth); break;
     }
@@ -3167,6 +3215,8 @@ export default function AdminClient() {
                 badge={csPending.length || undefined} />
               <NavItem panel="productinquiry" icon={<Icon.Faq />} label="상품 문의"
                 badge={productInquiries.filter(q => !q.answer).length || undefined} />
+              <NavItem panel="refund" icon={<Icon.Settlement />} label="환불 관리"
+                badge={refundReqs.filter(r => r.status === 'pending').length || undefined} />
             </div>
             <div className="adm-nav-group">
               <div className="adm-nav-label">정산·설정</div>
@@ -4679,6 +4729,85 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
             );
           })()}
+
+          {/* ===== 환불 관리 ===== */}
+          {panel === 'refund' && (
+            <div className="adm-content">
+              <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                {[
+                  ['신청 대기', `${refundReqs.filter(r => r.status === 'pending').length}건`],
+                  ['처리중', `${refundReqs.filter(r => r.status === 'processing').length}건`],
+                  ['환불 완료', `${refundReqs.filter(r => r.status === 'completed').length}건`],
+                ].map(([l, v]) => (
+                  <div key={l} className="adm-kpi-card">
+                    <div className="adm-kpi-label">{l}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="adm-toolbar">
+                <div className="adm-toolbar-left"><span className="adm-card-title">환불/교환 신청</span></div>
+                <div className="adm-toolbar-right">
+                  <button className="adm-btn adm-btn-outline" onClick={loadRefundRequests}>
+                    <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                  </button>
+                </div>
+              </div>
+
+              <div className="adm-card">
+                {refundLoading ? <PanelLoading /> : (
+                  <div className="adm-table-wrap">
+                    <table className="adm-table">
+                      <thead>
+                        <tr>
+                          <th>신청자</th><th>주문번호</th><th>금액</th><th>사유</th>
+                          <th>신청일</th><th>상태</th><th>관리</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {refundReqs.length === 0 ? (
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불 신청 내역이 없습니다.</td></tr>
+                        ) : refundReqs.map(r => {
+                          const stLabel: Record<string,string> = { pending:'신청 대기', processing:'처리중', completed:'환불완료', rejected:'거절' };
+                          const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
+                          return (
+                            <tr key={r.id}>
+                              <td>
+                                <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
+                                <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
+                              </td>
+                              <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
+                              <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
+                              <td style={{ maxWidth:220 }}>
+                                <div style={{ fontWeight:500 }}>{r.reason}</div>
+                                {r.detail && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'pre-wrap' }}>{r.detail}</div>}
+                              </td>
+                              <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                              <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>
+                              <td>
+                                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                                  {(r.status === 'pending' || r.status === 'rejected') && (
+                                    <button className="adm-row-btn" onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
+                                  )}
+                                  {r.status !== 'completed' && (
+                                    <button className="adm-row-btn" onClick={() => { if (confirm('환불 완료 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불완료</button>
+                                  )}
+                                  {r.status !== 'rejected' && r.status !== 'completed' && (
+                                    <button className="adm-row-btn adm-row-btn-danger" onClick={() => { if (confirm('이 환불 신청을 거절하시겠습니까?')) updateRefundStatus(r, 'rejected'); }}>거절</button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ===== 정산 관리 ===== */}
           {panel === 'settlement' && (
