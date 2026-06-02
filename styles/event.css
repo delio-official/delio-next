@@ -1,7 +1,6 @@
 body { background: #fff; }
 
-.event-page { padding: 0 0 80px; }
-.event-page .container { max-width: 1240px; padding-left: 0; padding-right: 0; }
+.event-page { padding: 48px 0 80px; }
 
 /* ══════════════════════════════════
    탭 (진행중 / 종료)
@@ -141,11 +140,13 @@ body { background: #fff; }
    반응형
 ══════════════════════════════════ */
 @media (max-width: 900px) {
-  .event-grid { grid-template-columns: repeat(2, 1fr); }
+  .event-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 @media (max-width: 580px) {
   .event-page { padding-bottom: 60px; }
   .event-tab-btn { font-size: 14px; padding: 14px 10px; }
+}
+@media (max-width: 560px) {
   .event-grid { grid-template-columns: 1fr; gap: 20px; }
 }
 
