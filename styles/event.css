@@ -110,7 +110,7 @@ body { background: #fff; }
 }
 
 /* 텍스트 — 라운지 카드 info와 동일 */
-.event-card-info { padding: 12px 4px 0; }
+.event-card-info { padding: 12px 0 0; }
 .event-card-title {
   font-size: 15px;
   font-weight: 600;
