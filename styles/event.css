@@ -53,6 +53,7 @@ body { background: #fff; }
 /* 이미지 래퍼 — 라운지 배너와 동일 (1.6/1, 둥근 모서리, hover 확대) */
 .event-card-img-wrap {
   position: relative;
+  width: 100%;
   aspect-ratio: 1.6 / 1;
   border-radius: 12px;
   overflow: hidden;
