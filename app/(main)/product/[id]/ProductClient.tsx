@@ -1090,7 +1090,7 @@ export default function ProductClient() {
                     <span className="price-discount-rate">{product.discount_rate}%</span>
                   )}
                   <span className="price-discount-val">
-                    {fmtPrice(basePrice)}<span className="price-won-suffix">원{product.discount_rate > 0 ? '~' : ''}</span>
+                    {fmtPrice(basePrice)}<span className="price-won-suffix">원</span>
                   </span>
                 </div>
                 {/* 쿠폰 최대혜택가 — 실제 보유 쿠폰 기반 */}
@@ -1099,7 +1099,7 @@ export default function ProductClient() {
                   <div className="price-line">
                     <span className="price-coupon-rate">{bestCoupon.totalRate}%</span>
                     <span className="price-coupon-val">
-                      {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원~</span>
+                      {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원</span>
                     </span>
                     <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
                   </div>
@@ -1152,7 +1152,7 @@ export default function ProductClient() {
                     <div className="option-label">옵션 선택 1</div>
                     <select className="option-select" value={selOption}
                       onChange={e => { setSelOption(e.target.value); setQty(1); }}>
-                      <option value="">- [필수] 옵션을 선택해 주세요 -</option>
+                      <option value="">[필수] 옵션 선택</option>
                       {options.map(o => (
                         <option key={o.id} value={o.id}>
                           {o.label}
@@ -1165,7 +1165,7 @@ export default function ProductClient() {
                     <div className="option-label">옵션 선택 2</div>
                     <select className="option-select" value={selOption2}
                       onChange={e => setSelOption2(e.target.value)}>
-                      <option value="">- [필수] 옵션을 선택해 주세요 -</option>
+                      <option value="">[필수] 옵션 선택</option>
                       {options.map(o => (
                         <option key={o.id} value={o.id}>
                           {o.label}
@@ -1735,7 +1735,7 @@ export default function ProductClient() {
 
             {/* 정렬 탭 */}
             <div style={{ display:'flex', justifyContent:'flex-end', gap:4,
-              marginBottom:16, borderBottom:'1px solid #EBEBEB', paddingBottom:12 }}>
+              marginBottom:16 }}>
               {(['최신순','추천순','평점순'] as const).map((label, i) => {
                 const val: SortKey = (['latest','helpful','rating'] as SortKey[])[i];
                 const active = reviewSort === val;
@@ -2336,7 +2336,7 @@ export default function ProductClient() {
       <div className="mobile-cta-bar">
         <button onClick={() => showToast('선물하기 기능은 준비 중입니다.')}
           style={{ flexShrink:0, width:46, border:'1.5px solid #DDDDD9',
-            background:'#fff', borderRadius:8, cursor:'pointer',
+            background:'#fff', borderRadius:8, cursor:'pointer', color:'var(--color-accent)',
             display:'flex', alignItems:'center', justifyContent:'center' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
             <polyline points="20 12 20 22 4 22 4 12"/>

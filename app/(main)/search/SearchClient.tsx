@@ -369,9 +369,9 @@ export default function SearchClient() {
                   <button
                     key={i}
                     onClick={() => handleSearch(kw)}
-                    style={{ padding: '7px 18px', border: '1.5px solid #E8E6E3', borderRadius: 999, fontSize: 13, background: '#fff', cursor: 'pointer', color: 'var(--color-ink)', transition: 'all .15s' }}
+                    style={{ padding: '7px 18px', border: '1px solid var(--color-line)', borderRadius: 999, fontSize: 13, background: '#fff', cursor: 'pointer', color: 'var(--color-ink)', transition: 'all .15s' }}
                     onMouseOver={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = 'var(--color-accent)'; b.style.color = 'var(--color-accent)'; }}
-                    onMouseOut={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = '#E8E6E3'; b.style.color = 'var(--color-ink)'; }}
+                    onMouseOut={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = 'var(--color-line)'; b.style.color = 'var(--color-ink)'; }}
                   >{kw}</button>
                 ))}
               </div>
@@ -389,7 +389,7 @@ export default function SearchClient() {
                 {recent.map((kw, i) => (
                   <span
                     key={i}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, border: '1.5px solid var(--color-line)', background: '#fff', fontSize: 13, cursor: 'pointer' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--color-line)', background: '#fff', fontSize: 13, cursor: 'pointer' }}
                   >
                     <span onClick={() => handleSearch(kw)}>{kw}</span>
                     <span
@@ -402,8 +402,6 @@ export default function SearchClient() {
             </div>
           )}
 
-          <hr className="search-divider" />
-          <div className="search-items-count">0 items</div>
         </div>
       </main>
     );

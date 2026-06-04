@@ -93,7 +93,7 @@ body { background: #fff; }
     .mp-section-header {
       display: flex; align-items: baseline; gap: 6px;
       padding-bottom: 12px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: none;
       margin-bottom: 0;
     }
     .mp-section-title { font-size: 14px; font-weight: 700; color: #111; }
@@ -165,9 +165,9 @@ body { background: #fff; }
     }
     .mp-wish-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .mp-wish-img {
-      height: 110px; background: #f7f7f5;
+      aspect-ratio: 1; background: #f7f7f5;
       display: flex; align-items: center; justify-content: center;
-      font-size: 38px; position: relative;
+      font-size: 38px; position: relative; overflow: hidden;
     }
     .mp-wish-del {
       position: absolute; top: 6px; right: 6px;
@@ -281,12 +281,12 @@ body { background: #fff; }
         border-top: 8px solid #F2F2F2;
       }
       .mp-menu-section-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: #999;
-        padding: 14px 20px 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #888;
+        padding: 16px 20px 10px;
         background: #fff;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.2px;
       }
       .mp-menu-item {
         display: flex;
@@ -296,7 +296,6 @@ body { background: #fff; }
         padding: 16px 20px;
         background: #fff;
         border: none;
-        border-bottom: 1px solid #F3F3F3;
         font-size: 15px;
         font-weight: 500;
         color: #111;
@@ -348,6 +347,8 @@ body { background: #fff; }
 
 /* mp-benefit-row 변형 (padding-top, no border) */
 .mp-benefit-row-top { margin-top: 0; border-top: none; border-bottom: none; padding: 20px 0 0; }
+/* 포인트내역: 보유 포인트 크게+빨강 강조 (온브릭스 스타일) */
+.mp-benefit-row-top .mp-benefit-item:first-child .mp-benefit-num { font-size: 30px; color: var(--color-accent); }
 
 /* section-sub 위시 카운트 */
 .mp-wish-count { margin-left: auto; font-size: 13px; color: #111; font-weight: 600; }

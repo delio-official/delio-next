@@ -109,6 +109,15 @@ input, select, textarea { font-family: inherit; }
 
 .section { padding: var(--space-9) 0; }
 .section-sm { padding: var(--space-7) 0; }
+
+/* 배너/팝업 PC·모바일 이미지 전환 (모바일 전용 이미지가 있을 때만) */
+.bnr-img-pc-only, .bnr-img-mob { width: 100%; height: 100%; object-fit: cover; }
+.bnr-img-pc-only { display: block; }
+.bnr-img-mob { display: none; }
+@media (max-width: 768px) {
+  .bnr-img-pc-only { display: none; }
+  .bnr-img-mob { display: block; }
+}
 @media (max-width: 640px) {
   .section { padding: var(--space-7) 0; }
   .section-sm { padding: var(--space-6) 0; }
@@ -423,6 +432,7 @@ input, select, textarea { font-family: inherit; }
   .header-main-inner { gap: 4px; }
   .search-wrap { display: none; }
   .header-logo { flex: 1; font-size: 28px; }
+  .header-logo img { height: 40px !important; }
   .header-actions { display: flex; align-items: center; margin-left: auto; gap: 2px; }
   .header-inner { height: 52px; }
   /* 모바일 nav-row: 헤더(60px) 바로 아래 sticky */
@@ -436,9 +446,9 @@ input, select, textarea { font-family: inherit; }
     min-width: fit-content;
     text-align: center;
     font-size: 14px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     padding: 11px 14px 12px !important;
-    color: var(--color-ink-mute) !important;
+    color: #1A1A1A !important;
     border-bottom: 2px solid transparent;
   }
   .header-nav-link:hover { color: var(--color-accent) !important; }
@@ -664,8 +674,7 @@ input, select, textarea { font-family: inherit; }
   width: 28px; height: 28px;
   stroke-width: 2;
 }
-.bottom-nav-item.nav-home.active svg,
-.bottom-nav-item.nav-home svg { stroke: var(--color-ink); }
+.bottom-nav-item.nav-home.active svg { stroke: var(--color-ink); }
 
 /* 장바구니 배지 */
 .bottom-nav-item .cart-badge {
@@ -771,6 +780,15 @@ input, select, textarea { font-family: inherit; }
   .footer-top { grid-template-columns: 1fr !important; gap: 28px !important; }
   .footer-bottom-bar { flex-direction: column; align-items: flex-start !important; gap: 16px; }
   .footer-policy-links { flex-wrap: wrap; gap: 12px 18px !important; }
+}
+@media (max-width: 768px) {
+  /* 취향(회색 CTA) 아래 푸터 상단 실선 제거 */
+  .site-footer { border-top: none; }
+  /* 고객센터 번호 축소 */
+  .footer-cs-tel { font-size: 20px !important; }
+  /* 사업자 정보 줄간격 좁히기 */
+  .footer-biz { line-height: 1.55 !important; }
+  .footer-top { gap: 22px !important; padding-bottom: 28px !important; }
 }
 
 /* ===== 상단 이동 버튼 ===== */

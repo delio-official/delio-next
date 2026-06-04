@@ -172,6 +172,7 @@ interface AdminBanner {
   type: string;
   sort_order: number;
   image_url: string | null;
+  image_url_mobile: string | null;
   link_url: string;
   is_active: boolean;
   created_at: string;
@@ -918,12 +919,14 @@ export default function AdminClient() {
   const BANNER_EMPTY = { type: 'main', link_url: '/', is_active: true };
   const [bnForm, setBnForm] = useState<{ type: string; link_url: string; is_active: boolean }>({ ...BANNER_EMPTY });
   const [bnImgUrl, setBnImgUrl] = useState<string>('');
+  const [bnImgUrlMobile, setBnImgUrlMobile] = useState<string>('');
   const [bnSaving, setBnSaving] = useState(false);
   const [bnUploading, setBnUploading] = useState(false);
   const bnImgRef = useRef<HTMLInputElement>(null);
+  const bnImgRefMobile = useRef<HTMLInputElement>(null);
 
   /* ── 팝업 ── */
-  interface AdminPopup { id: string; title: string | null; image_url: string | null; link_url: string; width: number; position: string; is_active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; }
+  interface AdminPopup { id: string; title: string | null; image_url: string | null; image_url_mobile: string | null; link_url: string; width: number; position: string; is_active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; }
   const [popups, setPopups] = useState<AdminPopup[]>([]);
   const [popupsLoading, setPopupsLoading] = useState(false);
   const [popupModal, setPopupModal] = useState(false);
@@ -931,9 +934,11 @@ export default function AdminClient() {
   const POPUP_EMPTY = { title: '', link_url: '/', width: 400, position: 'center', is_active: true, starts_at: '', ends_at: '' };
   const [ppForm, setPpForm] = useState<typeof POPUP_EMPTY>({ ...POPUP_EMPTY });
   const [ppImgUrl, setPpImgUrl] = useState('');
+  const [ppImgUrlMobile, setPpImgUrlMobile] = useState('');
   const [ppSaving, setPpSaving] = useState(false);
   const [ppUploading, setPpUploading] = useState(false);
   const ppImgRef = useRef<HTMLInputElement>(null);
+  const ppImgRefMobile = useRef<HTMLInputElement>(null);
 
   /* ── 취향 프로파일(설문 결과) ── */
   const [surveyResults, setSurveyResults] = useState<AdminSurveyResult[]>([]);
@@ -1654,10 +1659,12 @@ export default function AdminClient() {
         ends_at:   p.ends_at   ? p.ends_at.slice(0, 16)   : '',
       });
       setPpImgUrl(p.image_url || '');
+      setPpImgUrlMobile(p.image_url_mobile || '');
     } else {
       setEditingPopup(null);
       setPpForm({ ...POPUP_EMPTY });
       setPpImgUrl('');
+      setPpImgUrlMobile('');
     }
     setPopupModal(true);
   }
@@ -1669,6 +1676,7 @@ export default function AdminClient() {
     const payload = {
       title:     ppForm.title.trim() || '',
       image_url: ppImgUrl || editingPopup?.image_url || null,
+      image_url_mobile: ppImgUrlMobile || null,
       link_url:  ppForm.link_url.trim() || '/',
       width:     Number(ppForm.width) || 400,
       position:  ppForm.position,
@@ -1724,10 +1732,12 @@ export default function AdminClient() {
       setEditingBanner(b);
       setBnForm({ type: b.type, link_url: b.link_url, is_active: b.is_active });
       setBnImgUrl(b.image_url || '');
+      setBnImgUrlMobile(b.image_url_mobile || '');
     } else {
       setEditingBanner(null);
       setBnForm({ ...BANNER_EMPTY });
       setBnImgUrl('');
+      setBnImgUrlMobile('');
     }
     setBannerModal(true);
   }
@@ -1740,6 +1750,7 @@ export default function AdminClient() {
       type: bnForm.type,
       link_url: bnForm.link_url.trim() || '/',
       image_url: bnImgUrl || editingBanner?.image_url || null,
+      image_url_mobile: bnImgUrlMobile || null,
       is_active: bnForm.is_active,
       sort_order: editingBanner?.sort_order ?? banners.filter(b => b.type === bnForm.type).length,
     };
@@ -3879,7 +3890,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
                         {/* 이미지 업로드 */}
                         <div>
-                          <label className="adm-label">팝업 이미지 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(권장 400×415px)</span></label>
+                          <label className="adm-label">💻 PC 이미지 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(권장 800×830px @2x)</span></label>
                           <input ref={ppImgRef} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -3926,6 +3937,56 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           </div>
                           <div style={{ fontSize:11, color:'#94A3B8', marginTop:5 }}>
                             권장: 팝업 너비에 맞는 이미지 (기본 400px)
+                          </div>
+                        </div>
+
+                        {/* 모바일 팝업 이미지 (선택) */}
+                        <div>
+                          <label className="adm-label">📱 모바일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 없으면 PC 이미지 공용)</span></label>
+                          <input ref={ppImgRefMobile} type="file" accept="image/*" style={{ display:'none' }}
+                            onChange={async e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const url = await uploadPopupImage(file);
+                              if (url) setPpImgUrlMobile(url);
+                              e.target.value = '';
+                            }} />
+                          <div
+                            onClick={() => !ppUploading && ppImgRefMobile.current?.click()}
+                            onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = '#15803D'; (e.currentTarget as HTMLDivElement).style.background = '#F0FDF4'; }}
+                            onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#CBD5E1'; (e.currentTarget as HTMLDivElement).style.background = ppImgUrlMobile ? '#000' : '#F8FAFC'; }}
+                            onDrop={async e => {
+                              e.preventDefault();
+                              (e.currentTarget as HTMLDivElement).style.borderColor = '#CBD5E1';
+                              (e.currentTarget as HTMLDivElement).style.background = '#F8FAFC';
+                              const file = e.dataTransfer.files?.[0];
+                              if (!file || !file.type.startsWith('image/')) return;
+                              const url = await uploadPopupImage(file);
+                              if (url) setPpImgUrlMobile(url);
+                            }}
+                            style={{
+                              position:'relative', border:'2px dashed #CBD5E1', borderRadius:12,
+                              background: ppImgUrlMobile ? '#000' : '#F8FAFC',
+                              height:130, display:'flex', alignItems:'center', justifyContent:'center',
+                              cursor: ppUploading ? 'wait' : 'pointer', overflow:'hidden',
+                              transition:'border-color .15s, background .15s',
+                            }}>
+                            {ppImgUrlMobile ? (
+                              <>
+                                <img src={ppImgUrlMobile} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', opacity:0.85 }} />
+                                <button type="button" onClick={e => { e.stopPropagation(); setPpImgUrlMobile(''); }}
+                                  style={{ position:'absolute', top:8, right:8, zIndex:2, width:24, height:24, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.6)', color:'#fff', cursor:'pointer', fontSize:13 }}>✕</button>
+                                <div style={{ position:'relative', zIndex:1, background:'rgba(0,0,0,0.55)', borderRadius:8, padding:'6px 14px', color:'#fff', fontSize:13, fontWeight:600 }}>
+                                  클릭 또는 드래그로 교체
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ textAlign:'center', color:'#94A3B8', pointerEvents:'none' }}>
+                                <div style={{ fontSize:28, marginBottom:6 }}>📱</div>
+                                <div style={{ fontSize:13, fontWeight:600 }}>모바일 전용 이미지 (선택)</div>
+                                <div style={{ fontSize:11, marginTop:4 }}>안 올리면 PC 이미지가 모바일에도 표시됩니다</div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -4062,8 +4123,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {/* 종류 */}
                         {(() => {
                           const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
-                            main: { pc: '550×390px', mobile: '380×370px' },
-                            mid:  { pc: '1100×200px', mobile: '490×130px' },
+                            main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
+                            mid:  { pc: '1060×350px (@2x)', mobile: '686×280px (@2x)' },
                           };
                           const hint = SIZE_HINT[bnForm.type];
                           return (
@@ -4088,9 +4149,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           );
                         })()}
 
-                        {/* 이미지 드래그앤드롭 업로드 */}
+                        {/* PC 이미지 드래그앤드롭 업로드 */}
                         <div>
-                          <label className="adm-label">배너 이미지 *</label>
+                          <label className="adm-label">💻 PC 이미지 *</label>
                           <input ref={bnImgRef} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -4137,6 +4198,56 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           </div>
                           <div style={{ fontSize:11, color:'#94A3B8', marginTop:5 }}>
                             JPG, PNG, WebP · 최대 5MB · 위 종류 선택 시 권장 사이즈 표시
+                          </div>
+                        </div>
+
+                        {/* 모바일 이미지 드래그앤드롭 업로드 (선택) */}
+                        <div>
+                          <label className="adm-label">📱 모바일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 없으면 PC 이미지 공용)</span></label>
+                          <input ref={bnImgRefMobile} type="file" accept="image/*" style={{ display:'none' }}
+                            onChange={async e => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const url = await uploadBannerImage(file);
+                              if (url) setBnImgUrlMobile(url);
+                              e.target.value = '';
+                            }} />
+                          <div
+                            onClick={() => !bnUploading && bnImgRefMobile.current?.click()}
+                            onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = '#15803D'; (e.currentTarget as HTMLDivElement).style.background = '#F0FDF4'; }}
+                            onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#CBD5E1'; (e.currentTarget as HTMLDivElement).style.background = bnImgUrlMobile ? '#000' : '#F8FAFC'; }}
+                            onDrop={async e => {
+                              e.preventDefault();
+                              (e.currentTarget as HTMLDivElement).style.borderColor = '#CBD5E1';
+                              (e.currentTarget as HTMLDivElement).style.background = '#F8FAFC';
+                              const file = e.dataTransfer.files?.[0];
+                              if (!file || !file.type.startsWith('image/')) return;
+                              const url = await uploadBannerImage(file);
+                              if (url) setBnImgUrlMobile(url);
+                            }}
+                            style={{
+                              position:'relative', border:'2px dashed #CBD5E1', borderRadius:12,
+                              background: bnImgUrlMobile ? '#000' : '#F8FAFC',
+                              height:130, display:'flex', alignItems:'center', justifyContent:'center',
+                              cursor: bnUploading ? 'wait' : 'pointer', overflow:'hidden',
+                              transition:'border-color .15s, background .15s',
+                            }}>
+                            {bnImgUrlMobile ? (
+                              <>
+                                <img src={bnImgUrlMobile} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover', opacity:0.85 }} />
+                                <button type="button" onClick={e => { e.stopPropagation(); setBnImgUrlMobile(''); }}
+                                  style={{ position:'absolute', top:8, right:8, zIndex:2, width:24, height:24, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.6)', color:'#fff', cursor:'pointer', fontSize:13 }}>✕</button>
+                                <div style={{ position:'relative', zIndex:1, background:'rgba(0,0,0,0.55)', borderRadius:8, padding:'6px 14px', color:'#fff', fontSize:13, fontWeight:600 }}>
+                                  클릭 또는 드래그로 교체
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ textAlign:'center', color:'#94A3B8', pointerEvents:'none' }}>
+                                <div style={{ fontSize:28, marginBottom:6 }}>📱</div>
+                                <div style={{ fontSize:13, fontWeight:600 }}>모바일 전용 이미지 (선택)</div>
+                                <div style={{ fontSize:11, marginTop:4 }}>안 올리면 PC 이미지가 모바일에도 표시됩니다</div>
+                              </div>
+                            )}
                           </div>
                         </div>
 

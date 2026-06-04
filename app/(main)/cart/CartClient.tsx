@@ -14,12 +14,12 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
   return (
     <div style={{ display:'flex', alignItems:'center', gap:0, border:'1px solid #EBEBEB', borderRadius:6, overflow:'hidden' }}>
       <button onClick={() => onChange(Math.max(1, value - 1))}
-        style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center' }}>
         −
       </button>
       <span style={{ width:32, textAlign:'center', fontSize:13, fontWeight:700 }}>{value}</span>
       <button onClick={() => onChange(value + 1)}
-        style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center' }}>
         +
       </button>
     </div>
@@ -238,7 +238,7 @@ export default function CartClient() {
             <div className="summary-title">주문 요약</div>
 
             {/* 금액 */}
-            <div className="summary-row"><span>상품 합계</span><span>{fmtPrice(subtotal)}원</span></div>
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 합계</span><span>{fmtPrice(subtotal)}원</span></div>
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
             {bestCouponDisc > 0 && (

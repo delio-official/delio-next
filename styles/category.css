@@ -31,14 +31,14 @@ body { background: #fff; }
 }
 .mob-pv-filter::-webkit-scrollbar { display: none; }
 .mob-pv-chip {
-  flex-shrink: 0; padding: 6px 14px;
-  border: 1.5px solid #E8E8E4; border-radius: 999px;
-  font-size: 13px; font-weight: 500; color: var(--color-ink-soft);
-  background: #fff; cursor: pointer; transition: all .15s; white-space: nowrap;
+  flex-shrink: 0; padding: 7px 16px;
+  border: 1px solid #E5E5E5; border-radius: 999px;
+  font-size: 13px; font-weight: 600; color: #888;
+  background: #F4F4F4; cursor: pointer; transition: all .15s; white-space: nowrap;
 }
 .mob-pv-chip.active {
-  border-color: #1A1A1A; color: #1A1A1A;
-  background: #F4F4F4; font-weight: 700;
+  border-color: #1A1A1A; color: #fff;
+  background: #1A1A1A; font-weight: 700;
 }
 .mob-pv-result-bar {
   display: flex; align-items: center; justify-content: space-between;

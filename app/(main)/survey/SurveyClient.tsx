@@ -601,8 +601,8 @@ export default function SurveyClient() {
   return (
     <div style={{ background:'#fff', minHeight:'100vh', paddingBottom:80 }}>
 
-      {/* 히어로 */}
-      <div style={{ background: res.bg, padding:'36px 20px 28px' }}>
+      {/* 히어로 — 포스텔러식 그라데 헤더 */}
+      <div style={{ background: `linear-gradient(160deg, ${res.color}26 0%, ${res.bg} 55%)`, padding:'48px 20px 40px' }}>
         <p style={{ fontSize:11, letterSpacing:3, color: res.color, fontWeight:700, marginBottom:18, textAlign:'center' }}>MY LIFESTYLE TYPE</p>
 
         {/* 결과 카드 — 이미지 스타일 */}

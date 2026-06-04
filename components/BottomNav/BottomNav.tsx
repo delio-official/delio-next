@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -74,6 +74,13 @@ export default function BottomNav() {
   function isActive(path: string) {
     return pathname === path || pathname.startsWith(path + '/');
   }
+
+  /* 경로 변경 시 카테고리 드로어 자동 닫기 (다른 탭 눌러도 페이지가 가려지던 버그 수정) */
+  useEffect(() => {
+    setCatOpen(false);
+    setOpenAcc(null);
+    document.body.style.overflow = '';
+  }, [pathname]);
 
   return (
     <>

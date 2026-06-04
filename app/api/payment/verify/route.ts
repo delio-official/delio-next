@@ -12,9 +12,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '필수 파라미터 누락' }, { status: 400 });
   }
 
-  const { paymentId, bypass, orderData } = body;
+  const { paymentId, orderData } = body;
+  /* ⚠️ bypass는 클라이언트 값이 아니라 서버 env로만 판단 (위변조 방지) */
+  const bypass = process.env.PAYMENT_BYPASS === 'true';
 
-  /* ── 1. 포트원 검증 (bypass 모드면 스킵) ── */
+  /* ── 1. 포트원 검증 (서버 bypass 모드면 스킵) ── */
   if (!bypass) {
     const portoneRes = await fetch(
       `https://api.portone.io/payments/${encodeURIComponent(paymentId)}`,

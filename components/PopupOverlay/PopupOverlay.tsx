@@ -8,6 +8,7 @@ interface Popup {
   id: string;
   title: string | null;
   image_url: string | null;
+  image_url_mobile: string | null;
   link_url: string;
   width: number;
   position: string;
@@ -36,7 +37,7 @@ export default function PopupOverlay() {
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('popups')
-        .select('id,title,image_url,link_url,width,position,is_active,starts_at,ends_at')
+        .select('id,title,image_url,image_url_mobile,link_url,width,position,is_active,starts_at,ends_at')
         .eq('is_active', true)
         .or(`starts_at.is.null,starts_at.lte.${now}`)
         .or(`ends_at.is.null,ends_at.gte.${now}`)
@@ -61,11 +62,18 @@ export default function PopupOverlay() {
 
   const imgEl = current.image_url ? (
     <div style={{ width: '100%', height: 415, overflow: 'hidden' }}>
-      <img
-        src={current.image_url}
-        alt={current.title || '팝업'}
-        style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
-      />
+      {current.image_url_mobile ? (
+        <>
+          <img src={current.image_url} alt={current.title || '팝업'} className="bnr-img-pc-only" />
+          <img src={current.image_url_mobile} alt={current.title || '팝업'} className="bnr-img-mob" />
+        </>
+      ) : (
+        <img
+          src={current.image_url}
+          alt={current.title || '팝업'}
+          style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }}
+        />
+      )}
     </div>
   ) : null;
 

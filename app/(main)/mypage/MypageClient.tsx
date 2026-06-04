@@ -32,6 +32,7 @@ interface WishItem {
   products: {
     id: string; name: string; price: number; discounted_price: number;
     discount_rate: number; thumbnail_url: string | null; category: string; badge: string | null;
+    is_dawn: boolean; is_new: boolean; is_best: boolean; avg_rating: number; review_count: number;
   } | null;
 }
 interface MyReview {
@@ -499,7 +500,7 @@ export default function MypageClient() {
       const supabase = createClient();
       const { data } = await supabase
         .from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge)')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
         .eq('user_id', user!.id)
         .limit(40);
       setWishlist((data as unknown as WishItem[]) || []);
@@ -768,14 +769,6 @@ export default function MypageClient() {
         {/* ── 모바일 탑바 ── */}
         <div className="mp-mobile-topbar">
           <span className="mp-mobile-topbar-title">마이페이지</span>
-          <div className="mp-mobile-topbar-icons">
-            <Link href="/cart" className="mp-cart-link" title="장바구니">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
-                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
-              </svg>
-            </Link>
-          </div>
         </div>
 
         {/* ── 모바일 메뉴 ── */}
@@ -808,13 +801,10 @@ export default function MypageClient() {
               <span>주문/배송 내역</span><IconArrowRight />
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('point')}>
-              <span>적립금 내역</span><IconArrowRight />
+              <span>포인트 내역</span><IconArrowRight />
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('coupon')}>
               <span>쿠폰 내역</span><IconArrowRight />
-            </button>
-            <button className="mp-menu-item" onClick={() => goPanel('csrefund')}>
-              <span>CS/환불 내역</span><IconArrowRight />
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('cs')}>
               <span>1:1 문의</span><IconArrowRight />
@@ -881,9 +871,8 @@ export default function MypageClient() {
             <nav>
               <div className="mp-nav-section">
                 <button className={`mp-nav-link${activePanel==='order'?' active':''}`} onClick={() => switchPanel('order')}>주문/배송 내역</button>
-                <button className={`mp-nav-link${activePanel==='point'?' active':''}`} onClick={() => switchPanel('point')}>적립금 내역</button>
+                <button className={`mp-nav-link${activePanel==='point'?' active':''}`} onClick={() => switchPanel('point')}>포인트 내역</button>
                 <button className={`mp-nav-link${activePanel==='coupon'?' active':''}`} onClick={() => switchPanel('coupon')}>쿠폰 내역</button>
-                <button className={`mp-nav-link${activePanel==='csrefund'?' active':''}`} onClick={() => switchPanel('csrefund')}>CS/환불 내역</button>
                 <button className={`mp-nav-link${activePanel==='cs'?' active':''}`} onClick={() => switchPanel('cs')}>1:1 문의</button>
               </div>
               <div className="mp-nav-section">
@@ -917,7 +906,7 @@ export default function MypageClient() {
                   <div className="mp-stat-icon" style={{ fontSize:15, fontWeight:800 }}>₩</div>
                   <div>
                     <div className="mp-stat-value">{fmtPrice(profile?.point_balance||0)}원</div>
-                    <div className="mp-stat-label">총적립금</div>
+                    <div className="mp-stat-label">총 포인트</div>
                   </div>
                 </div>
                 <div className="mp-stat-divider" />
@@ -983,9 +972,7 @@ export default function MypageClient() {
                   {/* 오른쪽: 취소·교환·반품 */}
                   <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', gap:6, minWidth:180 }}>
                     {[
-                      { label:'취소', count: orderCounts.cancelled },
-                      { label:'교환', count: orderCounts.exchange },
-                      { label:'반품', count: orderCounts.refund },
+                      { label:'취소/환불', count: orderCounts.cancelled + orderCounts.refund },
                     ].map(item => (
                       <div key={item.label}
                         onClick={() => switchPanel('csrefund')}
@@ -1092,11 +1079,23 @@ export default function MypageClient() {
                               </button>
                             )}
                             {o.status === 'delivered' && (
-                              <button onClick={() => showToastMsg('리뷰 작성 기능은 준비 중입니다.')}
-                                style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #EBEBEB',
-                                  borderRadius:6, cursor:'pointer', background:'#fff', fontFamily:'inherit' }}>
-                                리뷰 작성
-                              </button>
+                              <>
+                                <button onClick={() => showToastMsg('리뷰 작성 기능은 준비 중입니다.')}
+                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid var(--color-accent)',
+                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'var(--color-accent)', fontWeight:600, fontFamily:'inherit' }}>
+                                  리뷰쓰기
+                                </button>
+                                <button onClick={() => goPanel('cs')}
+                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #DDDDD9',
+                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
+                                  문의
+                                </button>
+                                <button onClick={() => showToastMsg('재구매 기능은 준비 중입니다.')}
+                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #DDDDD9',
+                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
+                                  재구매
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1113,19 +1112,19 @@ export default function MypageClient() {
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
                 <div className="mp-section-header">
-                  <span className="mp-section-title">적립금 내역</span>
+                  <span className="mp-section-title">포인트 내역</span>
                 </div>
                 <div className="mp-benefit-row mp-benefit-row-top">
                   <div className="mp-benefit-item">
                     <div className="mp-benefit-num">{fmtPrice(profile?.point_balance||0)}</div>
-                    <div className="mp-benefit-label">보유 적립금 (원)</div>
+                    <div className="mp-benefit-label">보유 포인트 (P)</div>
                   </div>
                   <div className="mp-benefit-item">
                     <div className="mp-benefit-num">0</div>
                     <div className="mp-benefit-label">소멸 예정 (원)</div>
                   </div>
                 </div>
-                <div className="mp-empty">적립금 내역이 없습니다.</div>
+                <div className="mp-empty">포인트 내역이 없습니다.</div>
               </div>
             </div>
 
@@ -1154,17 +1153,21 @@ export default function MypageClient() {
                     const c = uc.coupon;
                     if (!c) return null;
                     const isPercent = c.discount_type === 'percent';
+                    const expRaw = uc.expires_at ?? c.expires_at;
+                    const daysLeft = expRaw ? Math.ceil((new Date(expRaw).getTime() - now.getTime()) / 86400000) : null;
+                    const soon = !dim && daysLeft !== null && daysLeft >= 0 && daysLeft <= 14;
                     return (
                       <div key={uc.id} style={{
                         position:'relative', padding:'18px 16px', border:'1.5px solid #EFEFEF',
                         borderRadius:10, background: dim ? '#FAFAFA' : '#fff', opacity: dim ? 0.6 : 1,
                       }}>
                         <span style={{ position:'absolute', top:14, right:14, fontSize:10,
-                          color: dim ? '#AAA' : '#999', border:'1px solid #E2E2E2', borderRadius:4,
-                          padding:'2px 6px', lineHeight:1, fontWeight:500 }}>
-                          {dim ? '사용완료' : '1장'}
+                          color: soon ? '#CB1D11' : (dim ? '#AAA' : '#999'),
+                          border:'1px solid ' + (soon ? '#F0CFCC' : '#E2E2E2'), borderRadius:4,
+                          padding:'2px 6px', lineHeight:1, fontWeight: soon ? 700 : 500 }}>
+                          {dim ? '사용완료' : soon ? `${daysLeft}일 후 소멸` : '1장'}
                         </span>
-                        <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A', lineHeight:1.1 }}>
+                        <div style={{ fontSize:24, fontWeight:800, color:'var(--color-accent)', lineHeight:1.1 }}>
                           {isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}
                         </div>
                         <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
@@ -1509,13 +1512,34 @@ export default function MypageClient() {
                             {p.thumbnail_url
                               ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                               : emoji}
+                            <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
+                              style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
+                              {p.is_dawn ? '산지직송' : '자사배송'}
+                            </span>
                             <button className="mp-wish-del"
                               onClick={e => { e.stopPropagation(); removeWish(w.id); }}>♥</button>
                           </div>
                           <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit' }}>
                             <div className="mp-wish-body">
                               <div className="mp-wish-name">{p.name}</div>
-                              <div className="mp-wish-price">{fmtPrice(price)}원</div>
+                              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                                {p.discount_rate > 0 && (
+                                  <span style={{ fontSize:12, fontWeight:800, color:'var(--color-accent)' }}>{p.discount_rate}%</span>
+                                )}
+                                <span className="mp-wish-price">{fmtPrice(price)}원</span>
+                              </div>
+                              {(p.is_new || p.is_best || p.avg_rating > 0) && (
+                                <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5, flexWrap:'wrap' }}>
+                                  {(p.is_new || p.is_best) && (
+                                    <span className={`product-badge ${p.is_new ? 'badge-new' : 'badge-best'}`}>{p.is_new ? 'NEW' : '인기'}</span>
+                                  )}
+                                  {p.avg_rating > 0 && (
+                                    <span style={{ fontSize:11, color:'#888', display:'flex', alignItems:'center', gap:2 }}>
+                                      <span style={{ color:'#FFB300' }}>★</span>{p.avg_rating.toFixed(1)} ({p.review_count})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </Link>
                         </div>
@@ -1541,8 +1565,8 @@ export default function MypageClient() {
                   </div>
 
                   {/* 쿠폰 카드 */}
-                  <div style={{ background:'#1A1A1A', borderRadius:16, padding:'44px 24px',
-                    marginBottom:20, position:'relative', overflow:'hidden', textAlign:'center' }}>
+                  <div style={{ background:'#1A1A1A', borderRadius:16, padding:'40px 24px',
+                    maxWidth:300, margin:'0 auto 20px', position:'relative', overflow:'hidden', textAlign:'center' }}>
                     {/* 좌우 삼각형 노치 */}
                     <div style={{ position:'absolute', left:0, top:'50%', transform:'translateY(-50%)',
                       width:0, height:0, borderTop:'24px solid transparent', borderBottom:'24px solid transparent',
@@ -1577,7 +1601,7 @@ export default function MypageClient() {
                       <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>초대한 친구</div>
                     </div>
                     <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px', textAlign:'center' }}>
-                      <div style={{ fontSize:22, fontWeight:800, color:'#2D7A4D' }}>{fmtPrice(referralRewarded * 5000)}<span style={{ fontSize:13, fontWeight:600 }}>원</span></div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'var(--color-accent)' }}>{fmtPrice(referralRewarded * 5000)}<span style={{ fontSize:13, fontWeight:600 }}>원</span></div>
                       <div style={{ fontSize:11, color:'#aaa', marginTop:4 }}>누적 쿠폰 금액</div>
                     </div>
                   </div>

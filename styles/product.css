@@ -50,10 +50,22 @@
       overflow: hidden;
     }
     .thumb.active { border-color: #1A1A1A; }
+    /* 모바일: 썸네일 좌우 스크롤 + 농가 카드와 간격 */
+    @media(max-width:768px) {
+      .thumb-row {
+        display: flex; grid-template-columns: none;
+        overflow-x: auto; scrollbar-width: none;
+        gap: 6px; margin-bottom: 22px;
+      }
+      .thumb-row::-webkit-scrollbar { display: none; }
+      .thumb { flex: 0 0 auto; width: 64px; }
+    }
 
     /* ===== 상품 정보 (우측 컬럼) ===== */
     .breadcrumb { font-size: 11px; color: var(--color-ink-mute); margin-bottom: 10px; }
     .breadcrumb a { color: inherit; text-decoration: none; }
+    /* 모바일: 위치 breadcrumb 숨김 */
+    @media(max-width:768px) { .breadcrumb { display: none; } }
     .product-name {
       font-family: 'Pretendard', sans-serif;
       font-size: clamp(18px, 3vw, 26px);
@@ -69,9 +81,9 @@
     .price-label { font-size: 12px; color: var(--color-ink-mute); width: 64px; flex-shrink: 0; }
     .price-original-text { font-size: 15px; color: var(--color-ink-mute); text-decoration: line-through; }
     .price-discount-val { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #1A1A1A; }
-    .price-discount-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #CB1D11; }
+    .price-discount-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #CB1D11; min-width: 56px; text-align: right; flex-shrink: 0; }
     .price-coupon-val { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #7B3FF2; }
-    .price-coupon-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #7B3FF2; }
+    .price-coupon-rate { font-size: clamp(20px,3vw,26px); font-weight: 700; color: #7B3FF2; min-width: 56px; text-align: right; flex-shrink: 0; }
     .price-won-suffix { font-size: 14px; font-weight: 600; }
     .price-coupon-tag { font-size: 11px; font-weight: 700; background: #EDE7F6; color: #7B3FF2; border-radius: 4px; padding: 2px 6px; margin-left: 4px; }
 
@@ -146,6 +158,8 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B9389' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat; background-position: right 14px center;
     }
+    /* 옵션 클릭 시 파란 포커스 박스 제거 */
+    .option-select:focus { outline: none; border-color: var(--color-ink); }
     .total-row {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 0; border-top: 1px solid var(--color-line-soft); margin-top: 12px;
@@ -273,6 +287,12 @@
     }
     .pd-info-table tr { border-bottom: 1px solid #DDDDD9; }
     .pd-info-table tr:first-child { border-top: 1px solid #DDDDD9; }
+    /* 모바일: 배송방법/배송비/적립금 사이 실선 제거 */
+    @media(max-width:768px) {
+      .pd-info-table tr,
+      .pd-info-table tr:first-child { border: none; }
+      .pd-info-table th, .pd-info-table td { padding: 6px 0; }
+    }
 
     /* 장바구니 버튼 테두리를 선물하기(#DDDDD9)와 통일 */
     .cta-bar-pc .btn-secondary,

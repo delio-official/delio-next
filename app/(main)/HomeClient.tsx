@@ -14,6 +14,7 @@ import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
 interface Banner {
   id: string;
   image_url: string | null;
+  image_url_mobile: string | null;
   link_url: string;
   sort_order: number;
 }
@@ -26,6 +27,7 @@ interface LoungePost {
   title: string;
   badge: string;
   date: string;
+  thumbnail_url: string | null;
 }
 
 /* ===== 상품 인터페이스 ===== */
@@ -106,7 +108,7 @@ function MainBanner() {
 
   useEffect(() => {
     createClient()
-      .from('banners').select('id,image_url,link_url,sort_order')
+      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
       .eq('type', 'main').eq('is_active', true).order('sort_order')
       .then(({ data }) => { setSlides(data || []); setReady(true); });
   }, []);
@@ -119,6 +121,7 @@ function MainBanner() {
   const clipRef  = useRef<HTMLDivElement>(null);
   const fillRef  = useRef<HTMLDivElement>(null);
   const curRef   = useRef(CLONES);
+  const touchStartX = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioning = useRef(false);
   const [bannerHovered, setBannerHovered] = useState(false);
@@ -203,7 +206,13 @@ function MainBanner() {
       {/* 이미지 색상 후광 */}
       {glowUrl && <div className="banner-img-glow" style={{ backgroundImage: `url(${glowUrl})` }} />}
       <div className="main-banner-inner" onMouseEnter={() => setBannerHovered(true)} onMouseLeave={() => setBannerHovered(false)}>
-        <div className="main-banner-clip" ref={clipRef}>
+        <div className="main-banner-clip" ref={clipRef}
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; stopTimer(); }}
+          onTouchEnd={e => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            if (Math.abs(dx) > 40) go(curRef.current + (dx < 0 ? 1 : -1));
+            startTimer();
+          }}>
           <div className="main-banner-track" ref={trackRef}>
             {allSlides.map((s, i) => (
               <div key={i} className="banner-slide-wrap">
@@ -212,10 +221,18 @@ function MainBanner() {
                   <div className="banner-slide-glow" style={{ backgroundImage: `url(${s.image_url})` }} />
                 )}
                 <Link href={s.link_url || '/'} className="main-banner-slide" style={{ display: 'block', overflow: 'hidden', padding: 0 }}>
-                  {s.image_url
-                    ? <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    : <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
-                  }
+                  {s.image_url ? (
+                    s.image_url_mobile ? (
+                      <>
+                        <img src={s.image_url} alt="" className="bnr-img-pc-only" />
+                        <img src={s.image_url_mobile} alt="" className="bnr-img-mob" />
+                      </>
+                    ) : (
+                      <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    )
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
+                  )}
                 </Link>
               </div>
             ))}
@@ -411,7 +428,7 @@ function MidBanner() {
 
   useEffect(() => {
     createClient()
-      .from('banners').select('id,image_url,link_url,sort_order')
+      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
       .eq('type', 'mid').eq('is_active', true).order('sort_order')
       .then(({ data }) => { setSlides(data || []); setReady(true); });
   }, []);
@@ -499,10 +516,18 @@ function MidBanner() {
               <div className="mid-banner-track" ref={trackRef}>
                 {allSlides.map((s, i) => (
                   <Link key={i} href={s.link_url || '/'} className="mid-banner-card" style={{ padding: 0, overflow: 'hidden' }}>
-                    {s.image_url
-                      ? <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      : <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
-                    }
+                    {s.image_url ? (
+                      s.image_url_mobile ? (
+                        <>
+                          <img src={s.image_url} alt="" className="bnr-img-pc-only" />
+                          <img src={s.image_url_mobile} alt="" className="bnr-img-mob" />
+                        </>
+                      ) : (
+                        <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      )
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
+                    )}
                   </Link>
                 ))}
               </div>
@@ -562,7 +587,7 @@ export default function HomeClient() {
       const supabase = createClient();
       const { data } = await supabase
         .from('lounge_posts')
-        .select('id,bg,emoji,title,badge,date')
+        .select('id,bg,emoji,title,badge,date,thumbnail_url')
         .eq('is_active', true)
         .order('sort_order')
         .order('created_at', { ascending: false })
@@ -713,6 +738,15 @@ export default function HomeClient() {
                                 <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}>
                                   {p.is_dawn ? '산지직송' : '자사배송'}
                                 </span>
+                                <button className="pick-mob-cart" aria-label="담기" onClick={e => {
+                                  e.stopPropagation();
+                                  openOptionDrawer(p.id);
+                                }}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
+                                    <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+                                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
+                                  </svg>
+                                </button>
                                 <div className="product-card-actions">
                                   <button className="product-card-wish" onClick={e => handlePickWish(e, p.id)}>
                                     <span className="wish-icon" style={{ color: pickWishedIds.has(p.id) ? '#E53935' : undefined }}>{pickWishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
@@ -889,7 +923,9 @@ export default function HomeClient() {
               : loungePosts.map(post => (
                   <Link key={post.id} href={`/lounge/${post.id}`} className="lounge-card">
                     <div className="lounge-card-img" style={{ background: post.bg }}>
-                      {post.emoji}
+                      {post.thumbnail_url
+                        ? <img src={post.thumbnail_url} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : post.emoji}
                     </div>
                     <div className="lounge-card-title">{post.title}</div>
                     <div className="lounge-card-desc">{post.badge}</div>
@@ -929,7 +965,7 @@ export default function HomeClient() {
           {/* 사업자정보 | 고객센터 | 입금계좌 (같은 높이 박스, 내용 위아래 꽉) */}
           <div className="footer-top" style={{ display:'grid', gridTemplateColumns:'1.9fr 1fr 1fr', gap:48, paddingBottom:40, alignItems:'stretch' }}>
             {/* 사업자 정보 */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+            <div className="footer-biz" style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
                 <div>주소 : 경기도 고양시 덕양구 용현로3, 714호</div>
@@ -942,7 +978,7 @@ export default function HomeClient() {
             {/* 고객센터 */}
             <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터</div>
-              <div style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>031-987-0825</div>
+              <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>031-987-0825</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>운영시간 : 평일 09:00 ~ 18:00</div>
                 <div>토·일·공휴일은 운영하지 않습니다.</div>

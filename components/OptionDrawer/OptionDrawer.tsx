@@ -129,7 +129,7 @@ export default function OptionDrawer() {
                 <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>선택</label>
                 <select value={selOpt} onChange={e => setSelOpt(e.target.value)}
                   style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}>
-                  <option value="">- [필수] 옵션을 선택해 주세요 -</option>
+                  <option value="">[필수] 옵션 선택</option>
                   {options.map(o => (
                     <option key={o.id} value={o.id} disabled={o.stock === 0}>
                       {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{o.stock === 0 ? ' (품절)' : ''}
@@ -199,7 +199,7 @@ export default function OptionDrawer() {
         @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
 
         /* 모바일: 하단 시트 */
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           .option-drawer {
             top: auto; right: 0; left: 0; bottom: 0;
             width: 100%; max-width: 100%;
