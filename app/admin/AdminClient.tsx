@@ -1942,6 +1942,27 @@ export default function AdminClient() {
   /* ========== 주문 상태 변경 ========== */
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
+
+    /* 주문취소(cancelled)면 결제된 카드도 실제 취소(포트원) 먼저 수행 */
+    if (newStatus === 'cancelled') {
+      const ord = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+      const pid = (ord as unknown as { portone_payment_id?: string | null })?.portone_payment_id;
+      const alreadyVoid = ord && ['cancelled', 'refunded', 'refunding'].includes(ord.status);
+      if (pid && !alreadyVoid) {
+        const res = await fetch('/api/payment/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: pid, reason: '관리자 주문취소' }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert('카드 취소 실패 — 주문취소 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
+          setUpdatingStatus(null);
+          return;
+        }
+      }
+    }
+
     const supabase = createClient();
     const { error } = await supabase
       .from('orders')
