@@ -237,6 +237,27 @@ export default function CheckoutClient() {
 
       let paymentId: string;
 
+      /* 결제 전/검증 공용 주문 데이터 */
+      const orderData = {
+        userId:      user.id,
+        subtotal,
+        totalAmount: total,
+        couponDiscount: couponDisc,
+        pointUsed:   appliedPoint,
+        userCouponId: coupon?.ucId || null,
+        recipient, phone, zipcode,
+        addr1, addr2, memo,
+        payMethod,
+        items: items.map(i => ({
+          id:        i.id,
+          name:      i.name,
+          price:     i.price,
+          quantity:  i.quantity ?? 1,
+          thumbnail: i.thumbnail,
+          options:   i.options,
+        })),
+      };
+
       /* total이 0(적립금·쿠폰으로 전액 차감)이면 결제창 없이 바로 주문 완료 */
       if (bypass || total <= 0) {
         /* ── 개발 bypass: 결제창 스킵, 클라이언트에서 직접 저장 ── */
@@ -311,6 +332,13 @@ export default function CheckoutClient() {
         const selectedMethod = PAYMENT_METHODS.find(m => m.value === payMethod)!;
         const pid = `delio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
+        /* 결제창 호출 전, 주문 데이터를 서버에 임시 저장 (웹훅이 브라우저 없이도 주문 확정 가능) */
+        await fetch('/api/payment/prepare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: pid, orderData }),
+        }).catch(() => {});
+
         const response = await PortOne.requestPayment({
           storeId,
           channelKey,
@@ -338,33 +366,11 @@ export default function CheckoutClient() {
         paymentId = (response as any).paymentId;
       }
 
-      /* ── 서버 검증 (bypass면 검증 스킵하고 바로 저장) ── */
+      /* ── 서버 검증 (복귀 시) — 공용 orderData 사용 ── */
       const verifyRes = await fetch('/api/payment/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId,
-          bypass,
-          orderData: {
-            userId:      user.id,
-            subtotal,
-            totalAmount: total,
-            couponDiscount: couponDisc,
-            pointUsed:   appliedPoint,
-            userCouponId: coupon?.ucId || null,
-            recipient, phone, zipcode,
-            addr1, addr2, memo,
-            payMethod,
-            items: items.map(i => ({
-              id:        i.id,
-              name:      i.name,
-              price:     i.price,
-              quantity:  i.quantity ?? 1,
-              thumbnail: i.thumbnail,
-              options:   i.options,
-            })),
-          },
-        }),
+        body: JSON.stringify({ paymentId, orderData }),
       });
 
       const verifyData = await verifyRes.json();
