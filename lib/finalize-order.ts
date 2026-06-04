@@ -49,7 +49,11 @@ export async function finalizeOrder(
       `https://api.portone.io/payments/${encodeURIComponent(paymentId)}`,
       { headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' } }
     );
-    if (!portoneRes.ok) return { success: false, error: '포트원 결제 조회 실패', status: 502 };
+    if (!portoneRes.ok) {
+      const errBody = await portoneRes.json().catch(() => ({}));
+      console.error('[finalize] portone lookup failed:', portoneRes.status, JSON.stringify(errBody));
+      return { success: false, error: `포트원 결제 조회 실패 (HTTP ${portoneRes.status}: ${errBody?.message || errBody?.type || ''})`, status: 502 };
+    }
     const payment = await portoneRes.json();
     if (payment.status !== 'PAID') return { success: false, error: `결제 미완료 (status: ${payment.status})`, status: 400 };
     if (payment.amount?.total !== orderData.totalAmount) {
