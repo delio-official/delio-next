@@ -8,6 +8,7 @@ import { finalizeOrder, OrderData } from '@/lib/finalize-order';
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const paymentId: string | undefined = body?.data?.paymentId || body?.paymentId;
+  console.log('[webhook] received:', JSON.stringify({ type: body?.type, paymentId }));
   if (!paymentId) return NextResponse.json({ ok: true, skipped: 'no paymentId' });
 
   const apiSecret = process.env.PORTONE_API_SECRET;
@@ -19,11 +20,16 @@ export async function POST(req: NextRequest) {
     { headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' } }
   );
   if (!res.ok) {
-    // 일시 오류면 200 아닌 응답으로 포트원 재전송 유도
-    return NextResponse.json({ error: 'payment fetch failed' }, { status: 500 });
+    // 404 등 = 존재하지 않는 결제(콘솔 "호출 테스트" 포함) → ack(200). 5xx 일시오류만 재전송 유도.
+    console.log('[webhook] payment fetch not ok:', res.status);
+    return NextResponse.json(
+      { ok: true, skipped: 'payment not found or fetch error', code: res.status },
+      { status: res.status >= 500 ? 500 : 200 }
+    );
   }
   const payment = await res.json();
   const status: string = payment.status;
+  console.log('[webhook] payment status:', paymentId, status);
 
   const supabase = createAdminSupabaseClient();
 
