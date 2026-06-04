@@ -806,6 +806,9 @@ export default function MypageClient() {
             <button className="mp-menu-item" onClick={() => goPanel('coupon')}>
               <span>쿠폰 내역</span><IconArrowRight />
             </button>
+            <button className="mp-menu-item" onClick={() => goPanel('csrefund')}>
+              <span>환불 내역</span><IconArrowRight />
+            </button>
             <button className="mp-menu-item" onClick={() => goPanel('cs')}>
               <span>1:1 문의</span><IconArrowRight />
             </button>
@@ -873,6 +876,7 @@ export default function MypageClient() {
                 <button className={`mp-nav-link${activePanel==='order'?' active':''}`} onClick={() => switchPanel('order')}>주문/배송 내역</button>
                 <button className={`mp-nav-link${activePanel==='point'?' active':''}`} onClick={() => switchPanel('point')}>포인트 내역</button>
                 <button className={`mp-nav-link${activePanel==='coupon'?' active':''}`} onClick={() => switchPanel('coupon')}>쿠폰 내역</button>
+                <button className={`mp-nav-link${activePanel==='csrefund'?' active':''}`} onClick={() => switchPanel('csrefund')}>환불 내역</button>
                 <button className={`mp-nav-link${activePanel==='cs'?' active':''}`} onClick={() => switchPanel('cs')}>1:1 문의</button>
               </div>
               <div className="mp-nav-section">
@@ -2144,7 +2148,7 @@ export default function MypageClient() {
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
                 <div className="mp-section-header">
-                  <span className="mp-section-title">CS/환불 내역</span>
+                  <span className="mp-section-title">환불 내역</span>
                 </div>
                 {/* 환불 가능 주문 (이미 환불 신청한 주문은 제외) */}
                 {(() => {
