@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    // 이미 취소된 결제 = 목표(취소) 이미 달성 → 성공으로 처리해 DB 동기화 진행
+    if (data?.type === 'PAYMENT_ALREADY_CANCELLED') {
+      return NextResponse.json({ ok: true, alreadyCancelled: true });
+    }
     return NextResponse.json({ error: '포트원 취소 실패', detail: data }, { status: 502 });
   }
   return NextResponse.json({ ok: true, cancellation: data.cancellation ?? data });
