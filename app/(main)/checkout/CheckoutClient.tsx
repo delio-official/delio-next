@@ -224,6 +224,12 @@ export default function CheckoutClient() {
       alert('배송지 정보를 모두 입력해주세요.'); return;
     }
 
+    /* 총액 검증 — 0/NaN이 결제창에 넘어가 400 나는 것 방지 */
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      alert('주문 금액을 확인해주세요. 장바구니를 다시 확인해 주세요.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -231,7 +237,8 @@ export default function CheckoutClient() {
 
       let paymentId: string;
 
-      if (bypass) {
+      /* total이 0(적립금·쿠폰으로 전액 차감)이면 결제창 없이 바로 주문 완료 */
+      if (bypass || total <= 0) {
         /* ── 개발 bypass: 결제창 스킵, 클라이언트에서 직접 저장 ── */
         const supabase = createClient();
         const { data: order, error: orderErr } = await supabase
