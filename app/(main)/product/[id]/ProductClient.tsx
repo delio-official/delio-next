@@ -23,7 +23,7 @@ interface Product {
   seller_score?: { sweet: number; sour: number; texture: number; fresh: number } | null;
 }
 interface ProductOption {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null;
+  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null;
 }
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
@@ -441,7 +441,8 @@ export default function ProductClient() {
   function allGroupsSelected(): boolean {
     if (options.length === 0) return true;
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-    return gNames.every(g => selByGroup[g]);
+    const requiredGroups = gNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
+    return requiredGroups.every(g => selByGroup[g]);
   }
   function addCartItem() {
     if (!product) return;
@@ -1166,12 +1167,14 @@ export default function ProductClient() {
                 {options.length > 0 && (
                   <>
                     {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
-                    {optGroupNames.map(g => (
+                    {optGroupNames.map(g => {
+                      const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
+                      return (
                       <div key={g}>
-                        <div className="option-label">{g === '옵션' ? '옵션 선택' : g}</div>
+                        <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
                         <select className="option-select" value={selByGroup[g] || ''}
                           onChange={e => { setSelByGroup(prev => ({ ...prev, [g]: e.target.value })); setQty(1); }}>
-                          <option value="">[필수] 옵션 선택</option>
+                          <option value="">{gReq ? '[필수]' : '[선택]'} 옵션 선택</option>
                           {options.filter(o => (o.group_name || '옵션') === g).map(o => (
                             <option key={o.id} value={o.id}>
                               {o.label}
@@ -1180,7 +1183,8 @@ export default function ProductClient() {
                           ))}
                         </select>
                       </div>
-                    ))}
+                      );
+                    })}
 
                     {/* ── 선택된 옵션 박스 (모두 선택 후 표시) ── */}
                     {allSelected && selectedOpts.length > 0 && (

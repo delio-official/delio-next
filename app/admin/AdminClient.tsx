@@ -756,7 +756,7 @@ export default function AdminClient() {
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
   /* 상품 옵션 (label / add_price / stock) */
-  const [pOptions, setPOptions] = useState<{ group: string; label: string; add_price: number; stock: number }[]>([]);
+  const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
@@ -1228,17 +1228,17 @@ export default function AdminClient() {
         }
       });
       // 옵션 로드
-      supabase.from('product_options').select('label, add_price, stock, group_name')
+      supabase.from('product_options').select('label, add_price, stock, group_name, is_required')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number; group_name: string | null }) =>
-            ({ group: o.group_name || '옵션', label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
+          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null }) =>
+            ({ group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
         });
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
       setPForm({ ...PRODUCT_EMPTY });
-      setPOptions([{ group: '옵션', label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
+      setPOptions([{ group: '옵션', required: true, label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
       generateSku(PRODUCT_EMPTY.category).then(sku => setPForm(f => ({ ...f, sku })));
@@ -1303,6 +1303,7 @@ export default function AdminClient() {
           validOpts.map((o, i) => ({
             product_id: productId,
             group_name: o.group?.trim() || '옵션',
+            is_required: o.required !== false,
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
@@ -2587,7 +2588,7 @@ export default function AdminClient() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                   <label className="adm-label" style={{ margin:0 }}>판매 옵션 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(그룹별 드롭다운 · 고른 값들 추가금액 합산)</span></label>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
-                    onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, label:'', add_price:0, stock:0 }])}>
+                    onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, required: true, label:'', add_price:0, stock:0 }])}>
                     + 옵션 그룹 추가
                   </button>
                 </div>
@@ -2606,8 +2607,16 @@ export default function AdminClient() {
                           <div key={gName} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:'12px', background:'#FAFBFC' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                               <span style={{ fontSize:11, color:'#64748B', fontWeight:700, whiteSpace:'nowrap' }}>그룹명</span>
-                              <input className="adm-input-text" style={{ flex:1, maxWidth:220, fontWeight:600 }} value={gName} placeholder="예: 중량"
+                              <input className="adm-input-text" style={{ flex:1, maxWidth:180, fontWeight:600 }} value={gName} placeholder="예: 중량"
                                 onChange={e => { const nv = e.target.value; setPOptions(prev => prev.map(o => o.group === gName ? { ...o, group: nv } : o)); }} />
+                              <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
+                                <button type="button" onClick={() => setPOptions(prev => prev.map(o => o.group === gName ? { ...o, required: true } : o))}
+                                  style={{ fontSize:11, padding:'5px 10px', border:'none', cursor:'pointer', fontWeight:600,
+                                    background: rows[0]?.required !== false ? '#1A1A1A' : '#fff', color: rows[0]?.required !== false ? '#fff' : '#64748B' }}>필수</button>
+                                <button type="button" onClick={() => setPOptions(prev => prev.map(o => o.group === gName ? { ...o, required: false } : o))}
+                                  style={{ fontSize:11, padding:'5px 10px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600,
+                                    background: rows[0]?.required === false ? '#1A1A1A' : '#fff', color: rows[0]?.required === false ? '#fff' : '#64748B' }}>선택</button>
+                              </div>
                               <button type="button" onClick={() => setPOptions(prev => prev.filter(o => o.group !== gName))}
                                 style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>그룹 삭제</button>
                             </div>
@@ -2626,7 +2635,7 @@ export default function AdminClient() {
                                   style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setPOptions(prev => [...prev, { group: gName, label:'', add_price:0, stock:0 }])}
+                            <button type="button" onClick={() => setPOptions(prev => [...prev, { group: gName, required: prev.find(o => o.group === gName)?.required ?? true, label:'', add_price:0, stock:0 }])}
                               style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 세부옵션 추가</button>
                           </div>
                         );

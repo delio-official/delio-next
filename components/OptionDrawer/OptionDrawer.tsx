@@ -10,7 +10,7 @@ interface Product {
   thumbnail_url: string | null; is_dawn: boolean;
 }
 interface Option {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null;
+  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null;
 }
 
 const EMOJI = '🍑';
@@ -36,12 +36,12 @@ export default function OptionDrawer() {
       const supabase = createClient();
       const [{ data: prod }, { data: opts }] = await Promise.all([
         supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', productId).single(),
-        supabase.from('product_options').select('id,label,add_price,stock,is_default,group_name').eq('product_id', productId).order('sort_order'),
+        supabase.from('product_options').select('id,label,add_price,stock,is_default,group_name,is_required').eq('product_id', productId).order('sort_order'),
       ]);
       let optionList = (opts as Option[]) || [];
       // 옵션이 없는 기존 상품 → "기본" 가상 옵션으로 통일
       if (optionList.length === 0) {
-        optionList = [{ id: '__default__', label: '기본', add_price: 0, stock: 999, is_default: true, group_name: '옵션' }];
+        optionList = [{ id: '__default__', label: '기본', add_price: 0, stock: 999, is_default: true, group_name: '옵션', is_required: true }];
       }
       setProduct(prod as Product);
       setOptions(optionList);
@@ -62,7 +62,8 @@ export default function OptionDrawer() {
 
   const groupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
   const selectedOpts = groupNames.map(g => options.find(o => o.id === selByGroup[g])).filter(Boolean) as Option[];
-  const allSel = options.length === 0 || groupNames.every(g => selByGroup[g]);
+  const requiredGroups = groupNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
+  const allSel = options.length === 0 || requiredGroups.every(g => selByGroup[g]);
   const basePrice = product ? (product.discounted_price ?? product.price) : 0;
   const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
   const unitPrice = basePrice + totalAddPrice;
@@ -128,12 +129,14 @@ export default function OptionDrawer() {
               </div>
 
               {/* 옵션 선택 (그룹별) */}
-              {groupNames.map(g => (
+              {groupNames.map(g => {
+                const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
+                return (
                 <div key={g} style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>{g === '옵션' ? '선택' : g}</label>
+                  <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>{g === '옵션' ? '선택' : g}{gReq ? '' : ' (선택)'}</label>
                   <select value={selByGroup[g] || ''} onChange={e => { setSelByGroup(prev => ({ ...prev, [g]: e.target.value })); setQty(1); }}
                     style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}>
-                    <option value="">[필수] 옵션 선택</option>
+                    <option value="">{gReq ? '[필수]' : '[선택]'} 옵션 선택</option>
                     {options.filter(o => (o.group_name || '옵션') === g).map(o => (
                       <option key={o.id} value={o.id} disabled={o.stock === 0}>
                         {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{o.stock === 0 ? ' (품절)' : ''}
@@ -141,7 +144,8 @@ export default function OptionDrawer() {
                     ))}
                   </select>
                 </div>
-              ))}
+                );
+              })}
 
               {/* 수량 + 선택된 옵션 카드 */}
               {allSel && selectedOpts.length > 0 && (
