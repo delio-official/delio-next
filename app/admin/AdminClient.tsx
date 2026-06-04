@@ -214,7 +214,7 @@ interface AdminRefundReq {
   detail: string;
   status: string; // pending | processing | completed | rejected
   created_at: string;
-  orders: { order_no: string; final_amount: number; status: string } | null;
+  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null } | null;
   profiles: { name: string | null; email: string | null } | null;
 }
 
@@ -1443,7 +1443,7 @@ export default function AdminClient() {
       .from('refund_requests')
       .select(`
         id, order_id, reason, detail, status, created_at,
-        orders ( order_no, final_amount, status ),
+        orders ( order_no, final_amount, status, portone_payment_id ),
         profiles:user_id ( name, email )
       `)
       .order('created_at', { ascending: false })
@@ -1455,6 +1455,26 @@ export default function AdminClient() {
   /* 환불 신청 상태 변경 + 주문 상태 연동 */
   async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected') {
     const supabase = createClient();
+
+    /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API */
+    if (newStatus === 'completed') {
+      const pid = req.orders?.portone_payment_id;
+      if (pid) {
+        const res = await fetch('/api/payment/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: pid, reason: '관리자 환불 승인' }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert('카드 취소 실패 — 상태 변경 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
+          return;
+        }
+      } else {
+        if (!confirm('이 주문은 결제 ID가 없어(0원/무통장 등) 실제 카드 취소 없이 상태만 "환불완료"로 바꿉니다. 계속할까요?')) return;
+      }
+    }
+
     const { error } = await supabase.from('refund_requests').update({ status: newStatus }).eq('id', req.id);
     if (error) { alert('상태 변경 실패: ' + error.message); return; }
     // 주문 상태 연동: 처리중→환불처리중, 완료→환불완료 (거절은 주문 상태 변경 안 함)
