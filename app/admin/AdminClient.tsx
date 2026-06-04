@@ -2393,7 +2393,7 @@ export default function AdminClient() {
       case 'productinquiry': loadProductInquiries(); break;
       case 'faq':       loadFaq(); break;
       case 'cs':        loadCsInquiries(); break;
-      case 'refund':    loadRefundRequests(); break;
+      case 'refund':    loadRefundRequests(); loadOrders(); break;
       case 'settings':    loadSettings(); loadSearchStats(7); break;
       case 'settlement':  loadSettlement(settlementMonth); break;
     }
@@ -4945,33 +4945,56 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <table className="adm-table">
                       <thead>
                         <tr>
-                          <th>신청자</th><th>주문번호</th><th>금액</th><th>사유</th>
-                          <th>신청일</th><th>상태</th><th>관리</th>
+                          <th>유형</th><th>신청자</th><th>주문번호</th><th>금액</th><th>사유</th>
+                          <th>일자</th><th>상태</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {refundReqs.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불 신청 내역이 없습니다.</td></tr>
-                        ) : refundReqs.map(r => {
+                        {(() => {
                           const stLabel: Record<string,string> = { pending:'신청 대기', processing:'처리중', completed:'환불완료', rejected:'거절' };
                           const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
-                          return (
-                            <tr key={r.id}>
-                              <td>
-                                <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
-                                <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
-                              </td>
-                              <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
-                              <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
-                              <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
-                              <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
-                              <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>
-                              <td>
-                                <button className="adm-row-btn" onClick={() => setRefundDetail(r)}>상세</button>
-                              </td>
-                            </tr>
+                          /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
+                          const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
+                          const directCancels = orders.filter(o =>
+                            ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no)
                           );
-                        })}
+                          if (refundReqs.length === 0 && directCancels.length === 0) {
+                            return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
+                          }
+                          return (
+                            <>
+                              {refundReqs.map(r => (
+                                <tr key={r.id}>
+                                  <td><span className="adm-badge badge-paid">고객신청</span></td>
+                                  <td>
+                                    <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
+                                    <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
+                                  </td>
+                                  <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
+                                  <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
+                                  <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
+                                  <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>
+                                  <td>
+                                    <button className="adm-row-btn" onClick={() => setRefundDetail(r)}>상세</button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {directCancels.map(o => (
+                                <tr key={o.id}>
+                                  <td><span className="adm-badge badge-off">관리자취소</span></td>
+                                  <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
+                                  <td className="adm-mono" style={{ fontSize:12 }}>{o.order_no}</td>
+                                  <td>{fmtPrice(o.final_amount)}원</td>
+                                  <td className="adm-muted">관리자 취소</td>
+                                  <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
+                                  <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
+                                  <td className="adm-muted">-</td>
+                                </tr>
+                              ))}
+                            </>
+                          );
+                        })()}
                       </tbody>
                     </table>
                   </div>
