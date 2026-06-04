@@ -955,6 +955,7 @@ export default function AdminClient() {
   const [refundReqs, setRefundReqs] = useState<AdminRefundReq[]>([]);
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
+  const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
@@ -4931,7 +4932,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
 
               <div className="adm-toolbar">
-                <div className="adm-toolbar-left"><span className="adm-card-title">환불/교환 신청</span></div>
+                <div className="adm-toolbar-left">
+                  <div className="adm-btn-group">
+                    {([['all','전체'],['customer','고객신청'],['admin','관리자취소']] as const).map(([id, label]) => (
+                      <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadRefundRequests}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
@@ -4955,15 +4962,16 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
-                          const directCancels = orders.filter(o =>
+                          const customerReqs = refundFilter === 'admin' ? [] : refundReqs;
+                          const directCancels = (refundFilter === 'customer' ? [] : orders).filter(o =>
                             ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no)
                           );
-                          if (refundReqs.length === 0 && directCancels.length === 0) {
+                          if (customerReqs.length === 0 && directCancels.length === 0) {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
                           }
                           return (
                             <>
-                              {refundReqs.map(r => (
+                              {customerReqs.map(r => (
                                 <tr key={r.id}>
                                   <td><span className="adm-badge badge-paid">고객신청</span></td>
                                   <td>
