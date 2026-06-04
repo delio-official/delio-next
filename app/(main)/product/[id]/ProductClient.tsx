@@ -23,7 +23,7 @@ interface Product {
   seller_score?: { sweet: number; sour: number; texture: number; fresh: number } | null;
 }
 interface ProductOption {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean;
+  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null;
 }
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
@@ -144,8 +144,7 @@ export default function ProductClient() {
   const [detailImages,  setDetailImages]  = useState<string[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [selThumb,   setSelThumb]   = useState(0);
-  const [selOption,  setSelOption]  = useState('');
-  const [selOption2, setSelOption2] = useState('');
+  const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
   const [qty,        setQty]        = useState(1);
   const [activeTab,  setActiveTab]  = useState(0);
   const [wishlisted,       setWishlisted]       = useState(false);
@@ -300,7 +299,7 @@ export default function ProductClient() {
       }
 
       const def = (opts as ProductOption[])?.find(o => o.is_default);
-      if (def) setSelOption(def.id);
+      if (def) setSelByGroup({ [def.group_name || '옵션']: def.id });
 
       // 최근 본 상품 저장 (localStorage)
       try {
@@ -434,25 +433,40 @@ export default function ProductClient() {
     }
   }
 
+  /* 그룹별 선택된 옵션들 (덧셈식) */
+  function getSelectedOpts(): ProductOption[] {
+    const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+    return gNames.map(g => options.find(o => o.id === selByGroup[g])).filter(Boolean) as ProductOption[];
+  }
+  function allGroupsSelected(): boolean {
+    if (options.length === 0) return true;
+    const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+    return gNames.every(g => selByGroup[g]);
+  }
   function addCartItem() {
     if (!product) return;
-    const opt = options.find(o => o.id === selOption);
+    const sel = getSelectedOpts();
+    const addP = sel.reduce((s, o) => s + (o.add_price || 0), 0);
     addToCart({
       id: product.id,
       name: product.name,
-      price: (product.discounted_price ?? product.price) + (opt?.add_price ?? 0),
+      price: (product.discounted_price ?? product.price) + addP,
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
-      optionId: selOption || undefined,
-      options: opt?.label || undefined,
+      optionId: sel.map(o => o.id).join(',') || undefined,
+      options: sel.map(o => o.label).join(' / ') || undefined,
       deliveryType: product.is_dawn ? '산지직송' : '자사배송',
     });
   }
   function handleAddCart() {
+    if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
     addCartItem();
     showCartToast();
   }
-  function handleBuyNow() { addCartItem(); router.push('/cart'); }
+  function handleBuyNow() {
+    if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
+    addCartItem(); router.push('/cart');
+  }
 
   async function handleSubmitReview() {
     if (!user) { router.push('/login'); return; }
@@ -585,8 +599,11 @@ export default function ProductClient() {
   const emoji      = EMOJI_MAP[product.category] || EMOJI_MAP.default;
   const bg         = BG_MAP[product.category]    || BG_MAP.default;
   const basePrice  = product.discounted_price    ?? product.price;
-  const optObj     = options.find(o => o.id === selOption);
-  const totalPrice = (basePrice + (optObj?.add_price ?? 0)) * qty;
+  const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+  const selectedOpts  = getSelectedOpts();
+  const allSelected   = allGroupsSelected();
+  const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
+  const totalPrice    = (basePrice + totalAddPrice) * qty;
 
   /* 맛 프로파일 점수 (DB seller_score 우선, 없으면 카테고리 기본값) */
   const sellerScore: Record<TasteKey, number> =
@@ -1148,34 +1165,25 @@ export default function ProductClient() {
               <div className="option-section">
                 {options.length > 0 && (
                   <>
-                    {/* ── 옵션 선택 1 ── */}
-                    <div className="option-label">옵션 선택 1</div>
-                    <select className="option-select" value={selOption}
-                      onChange={e => { setSelOption(e.target.value); setQty(1); }}>
-                      <option value="">[필수] 옵션 선택</option>
-                      {options.map(o => (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                          {o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
+                    {optGroupNames.map(g => (
+                      <div key={g}>
+                        <div className="option-label">{g === '옵션' ? '옵션 선택' : g}</div>
+                        <select className="option-select" value={selByGroup[g] || ''}
+                          onChange={e => { setSelByGroup(prev => ({ ...prev, [g]: e.target.value })); setQty(1); }}>
+                          <option value="">[필수] 옵션 선택</option>
+                          {options.filter(o => (o.group_name || '옵션') === g).map(o => (
+                            <option key={o.id} value={o.id}>
+                              {o.label}
+                              {o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
 
-                    {/* ── 옵션 선택 2 ── */}
-                    <div className="option-label">옵션 선택 2</div>
-                    <select className="option-select" value={selOption2}
-                      onChange={e => setSelOption2(e.target.value)}>
-                      <option value="">[필수] 옵션 선택</option>
-                      {options.map(o => (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                          {o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* ── 선택된 옵션 박스 (옵션 선택 후 표시) ── */}
-                    {selOption && optObj && (
+                    {/* ── 선택된 옵션 박스 (모두 선택 후 표시) ── */}
+                    {allSelected && selectedOpts.length > 0 && (
                       <div style={{
                         border:'1px solid #DDDDD9', borderRadius:8,
                         padding:'14px 16px', marginBottom:4,
@@ -1186,16 +1194,16 @@ export default function ProductClient() {
                           alignItems:'flex-start', marginBottom:12 }}>
                           <span style={{ fontSize:13, fontWeight:600,
                             color:'var(--color-ink)', flex:1, lineHeight:1.45 }}>
-                            {optObj.label}
-                            {optObj.add_price > 0 && (
+                            {selectedOpts.map(o => o.label).join(' / ')}
+                            {totalAddPrice > 0 && (
                               <span style={{ fontSize:12, color:'#1A1A1A',
                                 marginLeft:6, fontWeight:700 }}>
-                                +{fmtPrice(optObj.add_price)}원
+                                +{fmtPrice(totalAddPrice)}원
                               </span>
                             )}
                           </span>
                           <button
-                            onClick={() => { setSelOption(''); setQty(1); }}
+                            onClick={() => { setSelByGroup({}); setQty(1); }}
                             style={{ background:'none', border:'none', cursor:'pointer',
                               fontSize:15, color:'#AAAAAA', padding:'0 0 0 10px',
                               lineHeight:1, flexShrink:0 }}>
@@ -1236,7 +1244,7 @@ export default function ProductClient() {
                           </div>
                           <span style={{ fontSize:16, fontWeight:800,
                             color:'#1A1A1A' }}>
-                            {fmtPrice((basePrice + (optObj.add_price ?? 0)) * qty)}원
+                            {fmtPrice((basePrice + totalAddPrice) * qty)}원
                           </span>
                         </div>
                       </div>

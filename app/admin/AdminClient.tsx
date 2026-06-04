@@ -756,7 +756,7 @@ export default function AdminClient() {
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
   /* 상품 옵션 (label / add_price / stock) */
-  const [pOptions, setPOptions] = useState<{ label: string; add_price: number; stock: number }[]>([]);
+  const [pOptions, setPOptions] = useState<{ group: string; label: string; add_price: number; stock: number }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
@@ -1228,17 +1228,17 @@ export default function AdminClient() {
         }
       });
       // 옵션 로드
-      supabase.from('product_options').select('label, add_price, stock')
+      supabase.from('product_options').select('label, add_price, stock, group_name')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number }) =>
-            ({ label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
+          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number; group_name: string | null }) =>
+            ({ group: o.group_name || '옵션', label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
         });
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
       setPForm({ ...PRODUCT_EMPTY });
-      setPOptions([{ label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
+      setPOptions([{ group: '옵션', label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
       generateSku(PRODUCT_EMPTY.category).then(sku => setPForm(f => ({ ...f, sku })));
@@ -1302,6 +1302,7 @@ export default function AdminClient() {
         await supabase.from('product_options').insert(
           validOpts.map((o, i) => ({
             product_id: productId,
+            group_name: o.group?.trim() || '옵션',
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
@@ -2584,37 +2585,55 @@ export default function AdminClient() {
               {/* 옵션 */}
               <div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(필수 · 단품도 "기본" 옵션 1개)</span></label>
+                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(그룹별 드롭다운 · 고른 값들 추가금액 합산)</span></label>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
-                    onClick={() => setPOptions(prev => [...prev, { label:'', add_price:0, stock:0 }])}>
-                    + 옵션 추가
+                    onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, label:'', add_price:0, stock:0 }])}>
+                    + 옵션 그룹 추가
                   </button>
                 </div>
                 {pOptions.length === 0 ? (
                   <div style={{ fontSize:12, color:'#DC2626', padding:'10px 0' }}>
-                    옵션을 1개 이상 추가해주세요.
+                    옵션 그룹을 1개 이상 추가해주세요. (단품도 "옵션" 그룹 + "기본" 1개)
                   </div>
-                ) : (
-                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    {/* 헤더 */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, fontSize:11, color:'#94A3B8', fontWeight:600, padding:'0 2px' }}>
-                      <span>옵션명</span><span>추가금액(원)</span><span>재고</span><span></span>
+                ) : (() => {
+                  const withIdx = pOptions.map((o, i) => ({ ...o, _i: i }));
+                  const groupNames = [...new Set(pOptions.map(o => o.group))];
+                  return (
+                    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                      {groupNames.map(gName => {
+                        const rows = withIdx.filter(o => o.group === gName);
+                        return (
+                          <div key={gName} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:'12px', background:'#FAFBFC' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                              <span style={{ fontSize:11, color:'#64748B', fontWeight:700, whiteSpace:'nowrap' }}>그룹명</span>
+                              <input className="adm-input-text" style={{ flex:1, maxWidth:220, fontWeight:600 }} value={gName} placeholder="예: 중량"
+                                onChange={e => { const nv = e.target.value; setPOptions(prev => prev.map(o => o.group === gName ? { ...o, group: nv } : o)); }} />
+                              <button type="button" onClick={() => setPOptions(prev => prev.filter(o => o.group !== gName))}
+                                style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>그룹 삭제</button>
+                            </div>
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, fontSize:11, color:'#94A3B8', fontWeight:600, padding:'0 2px', marginBottom:6 }}>
+                              <span>세부옵션명</span><span>추가금액(원)</span><span>재고</span><span></span>
+                            </div>
+                            {rows.map(o => (
+                              <div key={o._i} style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, alignItems:'center', marginBottom:6 }}>
+                                <input className="adm-input-text" placeholder="예: 2kg" value={o.label}
+                                  onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, label: e.target.value } : x))} />
+                                <input className="adm-input-text" type="number" placeholder="0" value={o.add_price}
+                                  onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, add_price: Number(e.target.value) } : x))} />
+                                <input className="adm-input-text" type="number" placeholder="0" value={o.stock}
+                                  onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, stock: Number(e.target.value) } : x))} />
+                                <button type="button" onClick={() => setPOptions(prev => prev.filter((_, idx) => idx !== o._i))}
+                                  style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => setPOptions(prev => [...prev, { group: gName, label:'', add_price:0, stock:0 }])}
+                              style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 세부옵션 추가</button>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {pOptions.map((opt, i) => (
-                      <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, alignItems:'center' }}>
-                        <input className="adm-input-text" placeholder="예: 2kg" value={opt.label}
-                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, label: e.target.value } : o))} />
-                        <input className="adm-input-text" type="number" placeholder="0" value={opt.add_price}
-                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, add_price: Number(e.target.value) } : o))} />
-                        <input className="adm-input-text" type="number" placeholder="0" value={opt.stock}
-                          onChange={e => setPOptions(prev => prev.map((o, idx) => idx === i ? { ...o, stock: Number(e.target.value) } : o))} />
-                        <button type="button"
-                          onClick={() => setPOptions(prev => prev.filter((_, idx) => idx !== i))}
-                          style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* 상세 정보 */}

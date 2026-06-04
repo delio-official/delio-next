@@ -10,7 +10,7 @@ interface Product {
   thumbnail_url: string | null; is_dawn: boolean;
 }
 interface Option {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean;
+  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null;
 }
 
 const EMOJI = '🍑';
@@ -21,7 +21,7 @@ export default function OptionDrawer() {
   const [closing, setClosing] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [options, setOptions] = useState<Option[]>([]);
-  const [selOpt, setSelOpt]   = useState('');
+  const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
   const [qty, setQty]         = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -31,22 +31,22 @@ export default function OptionDrawer() {
       setOpen(true);
       setClosing(false);
       setLoading(true);
-      setSelOpt('');
+      setSelByGroup({});
       setQty(1);
       const supabase = createClient();
       const [{ data: prod }, { data: opts }] = await Promise.all([
         supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', productId).single(),
-        supabase.from('product_options').select('id,label,add_price,stock,is_default').eq('product_id', productId).order('sort_order'),
+        supabase.from('product_options').select('id,label,add_price,stock,is_default,group_name').eq('product_id', productId).order('sort_order'),
       ]);
       let optionList = (opts as Option[]) || [];
       // 옵션이 없는 기존 상품 → "기본" 가상 옵션으로 통일
       if (optionList.length === 0) {
-        optionList = [{ id: '__default__', label: '기본', add_price: 0, stock: 999, is_default: true }];
+        optionList = [{ id: '__default__', label: '기본', add_price: 0, stock: 999, is_default: true, group_name: '옵션' }];
       }
       setProduct(prod as Product);
       setOptions(optionList);
       const def = optionList.find(o => o.is_default) || optionList[0];
-      if (def) setSelOpt(def.id);
+      if (def) setSelByGroup({ [def.group_name || '옵션']: def.id });
       setLoading(false);
     }
     window.addEventListener('openOptionDrawer', handler);
@@ -60,33 +60,36 @@ export default function OptionDrawer() {
 
   if (!open) return null;
 
-  const opt = options.find(o => o.id === selOpt);
+  const groupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+  const selectedOpts = groupNames.map(g => options.find(o => o.id === selByGroup[g])).filter(Boolean) as Option[];
+  const allSel = options.length === 0 || groupNames.every(g => selByGroup[g]);
   const basePrice = product ? (product.discounted_price ?? product.price) : 0;
-  const unitPrice = basePrice + (opt?.add_price ?? 0);
+  const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
+  const unitPrice = basePrice + totalAddPrice;
   const totalPrice = unitPrice * qty;
 
   function buildItem() {
     if (!product) return null;
-    const isDefault = selOpt === '__default__';
+    const isDefault = selectedOpts.length === 1 && selectedOpts[0].id === '__default__';
     return {
       id: product.id,
       name: product.name,
       price: unitPrice,
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
-      optionId: isDefault ? undefined : (selOpt || undefined),
-      options: isDefault ? undefined : (opt?.label || undefined),
+      optionId: isDefault ? undefined : (selectedOpts.map(o => o.id).join(',') || undefined),
+      options: isDefault ? undefined : (selectedOpts.map(o => o.label).join(' / ') || undefined),
       deliveryType: product.is_dawn ? '산지직송' : '자사배송' as '산지직송' | '자사배송',
     };
   }
 
   function handleAddCart() {
-    if (options.length > 0 && !selOpt) { alert('옵션을 선택해주세요.'); return; }
+    if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
     const item = buildItem();
     if (item) { addToCart(item); showCartToast(); close(); }
   }
   function handleBuyNow() {
-    if (options.length > 0 && !selOpt) { alert('옵션을 선택해주세요.'); return; }
+    if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
     const item = buildItem();
     if (item) { addToCart(item); close(); router.push('/cart'); }
   }
@@ -124,25 +127,27 @@ export default function OptionDrawer() {
                 </div>
               </div>
 
-              {/* 옵션 선택 */}
-              <div style={{ marginBottom:18 }}>
-                <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>선택</label>
-                <select value={selOpt} onChange={e => setSelOpt(e.target.value)}
-                  style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}>
-                  <option value="">[필수] 옵션 선택</option>
-                  {options.map(o => (
-                    <option key={o.id} value={o.id} disabled={o.stock === 0}>
-                      {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{o.stock === 0 ? ' (품절)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* 옵션 선택 (그룹별) */}
+              {groupNames.map(g => (
+                <div key={g} style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>{g === '옵션' ? '선택' : g}</label>
+                  <select value={selByGroup[g] || ''} onChange={e => { setSelByGroup(prev => ({ ...prev, [g]: e.target.value })); setQty(1); }}
+                    style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background:'#fff', cursor:'pointer' }}>
+                    <option value="">[필수] 옵션 선택</option>
+                    {options.filter(o => (o.group_name || '옵션') === g).map(o => (
+                      <option key={o.id} value={o.id} disabled={o.stock === 0}>
+                        {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{o.stock === 0 ? ' (품절)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
 
               {/* 수량 + 선택된 옵션 카드 */}
-              {selOpt && (
+              {allSel && selectedOpts.length > 0 && (
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px' }}>
                   <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>
-                    {product.name} {opt && `(${opt.label})`}
+                    {product.name}{selectedOpts.some(o => o.id !== '__default__') ? ` (${selectedOpts.filter(o => o.id !== '__default__').map(o => o.label).join(' / ')})` : ''}
                   </div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                     <div style={{ display:'flex', alignItems:'center', border:'1px solid #DADADA', borderRadius:8, background:'#fff' }}>
