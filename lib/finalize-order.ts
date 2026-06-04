@@ -94,7 +94,9 @@ export async function finalizeOrder(
         .from('orders').select('order_no').eq('portone_payment_id', paymentId).maybeSingle();
       if (existing) return { success: true, orderNo: existing.order_no, alreadyDone: true };
     }
-    return { success: false, error: '주문 저장 실패', status: 500 };
+    const oe = orderError as { message?: string; code?: string; details?: string; hint?: string } | null;
+    console.error('[finalize] order insert error:', JSON.stringify(oe));
+    return { success: false, error: `주문 저장 실패: ${oe?.message || ''}${oe?.code ? ` (${oe.code})` : ''}${oe?.details ? ` · ${oe.details}` : ''}`, status: 500 };
   }
 
   await supabase.from('order_items').insert(
