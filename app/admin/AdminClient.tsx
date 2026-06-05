@@ -305,6 +305,9 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+/* 농가 유형 프리셋 (추가 가능 — 직접입력도 허용) */
+const FARM_TYPE_PRESETS = ['자사배송', '산지직송'];
+
 /* 국내 시·도 (원산지 계층 입력용) */
 const SIDO_LIST: string[] = [
   '서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시',
@@ -822,7 +825,8 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: 'fruit', intro: '', carrier: '' });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '자사배송', intro: '', carrier: '' });
+  const [farmTypeFilter, setFarmTypeFilter] = useState('');
 
 
   /* ── 상품 등록/수정 모달 ── */
@@ -3510,8 +3514,16 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">농가 유형</label>
-                  <input type="text" className="adm-input-text adm-input-full" placeholder="예: 감귤, 포도, 베리"
-                    value={farmForm.farm_type} onChange={e => setFarmForm(p => ({ ...p, farm_type: e.target.value }))} />
+                  <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'center' }}>
+                    <div className="adm-btn-group">
+                      {FARM_TYPE_PRESETS.map(t => (
+                        <button key={t} type="button" className={`adm-seg-btn${farmForm.farm_type===t?' active':''}`}
+                          onClick={() => setFarmForm(p => ({ ...p, farm_type: t }))}>{t}</button>
+                      ))}
+                    </div>
+                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="직접 입력(예: 새 유형)"
+                      value={farmForm.farm_type} onChange={e => setFarmForm(p => ({ ...p, farm_type: e.target.value }))} />
+                  </div>
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">담당 택배사</label>
@@ -4078,10 +4090,20 @@ export default function AdminClient() {
           )}
 
           {/* ===== 농가 관리 ===== */}
-          {panel === 'farms' && (
+          {panel === 'farms' && (() => {
+            const farmTypes = [...new Set(farms.map(f => f.farm_type).filter(Boolean) as string[])];
+            const filteredFarms = farms.filter(f => !farmTypeFilter || f.farm_type === farmTypeFilter);
+            return (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left" />
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left">
+                  <div className="adm-btn-group">
+                    <button className={`adm-seg-btn${farmTypeFilter===''?' active':''}`} onClick={() => setFarmTypeFilter('')}>전체</button>
+                    {farmTypes.map(t => (
+                      <button key={t} className={`adm-seg-btn${farmTypeFilter===t?' active':''}`} onClick={() => setFarmTypeFilter(t)}>{t}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadFarms}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 농가 등록</button>
@@ -4093,9 +4115,9 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>농가 유형</th><th>담당 택배사</th><th>❤️찜</th><th>등록일</th><th>관리</th></tr></thead>
                       <tbody>
-                        {farms.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>등록된 농가 없음</td></tr>
-                        ) : farms.map(f => (
+                        {filteredFarms.length === 0 ? (
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '해당 유형 농가 없음'}</td></tr>
+                        ) : filteredFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
                             <td>{f.farmer_name || '-'}</td>
@@ -4116,7 +4138,8 @@ export default function AdminClient() {
                 )}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
