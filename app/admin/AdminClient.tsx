@@ -997,6 +997,7 @@ export default function AdminClient() {
   const [inquiries, setInquiries] = useState<FarmInquiry[]>([]);
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<FarmInquiry | null>(null);
+  const [inquiryTpl, setInquiryTpl] = useState<'general'|'accept'|'reject'>('general');
 
   /* ── FAQ ── */
   const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
@@ -1087,6 +1088,8 @@ export default function AdminClient() {
   const [couponStats, setCouponStats] = useState({ issued: 0, used: 0 });
   const [bannerTab, setBannerTab] = useState('tab-banner');
   const [inquiryTab, setInquiryTab] = useState('tab-general');
+  const [inquiryFrom, setInquiryFrom] = useState('');
+  const [inquiryTo, setInquiryTo] = useState('');
 
   /* ── 사이트 설정 ── */
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({ pick_count: '6' });
@@ -2422,6 +2425,14 @@ export default function AdminClient() {
     await supabase.from('farm_inquiries').update({ status }).eq('id', id);
     setInquiries(prev => prev.map(i => i.id === id ? { ...i, status } : i));
     setSelectedInquiry(prev => prev?.id === id ? { ...prev, status } : prev);
+  }
+
+  /* 입점문의 연락 템플릿 (수동 발송용) */
+  function inquiryTemplate(kind: 'general'|'accept'|'reject', company: string): string {
+    const name = company?.trim() || '담당자';
+    if (kind === 'accept') return `안녕하세요 ${name}님, 델리오입니다.\n입점 문의 주셔서 감사합니다. 긍정적으로 검토되어 입점 절차를 안내드리고자 연락드립니다. 편하신 시간에 회신 부탁드립니다.`;
+    if (kind === 'reject') return `안녕하세요 ${name}님, 델리오입니다.\n소중한 입점 문의 감사합니다. 내부 검토 결과 아쉽게도 이번에는 함께하기 어려운 점 양해 부탁드립니다. 더 좋은 기회로 다시 뵙기를 바랍니다.`;
+    return `안녕하세요 ${name}님, 델리오입니다.\n문의해 주셔서 감사합니다. 관련하여 안내드릴 사항이 있어 연락드립니다.`;
   }
 
   /* ========== 포인트 관리 ========== */
@@ -5356,6 +5367,18 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 문의 관리 ===== */}
           {panel === 'inquiry' && (
             <div className="adm-content">
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
+                  <span className="adm-card-title">입점·협업 문의</span>
+                  <span className="adm-badge badge-paid">총 {inquiries.length}건</span>
+                </div>
+                <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
+                  <input type="date" className="adm-select" value={inquiryFrom} onChange={e => setInquiryFrom(e.target.value)} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={inquiryTo} onChange={e => setInquiryTo(e.target.value)} />
+                  {(inquiryFrom || inquiryTo) && <button className="adm-btn adm-btn-outline" onClick={() => { setInquiryFrom(''); setInquiryTo(''); }}>초기화</button>}
+                </div>
+              </div>
               <TabBtns active={inquiryTab} setActive={setInquiryTab}
                 tabs={[
                   { id:'tab-general', label: <span>답변대기 {pendingInquiries.length > 0 && <span className="adm-tab-count adm-tab-count-red">{pendingInquiries.length}</span>}</span> },
@@ -5364,9 +5387,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 ]} />
               <div className="adm-card">
                 {inquiriesLoading ? <PanelLoading /> : (() => {
-                  const list = inquiryTab === 'tab-general' ? pendingInquiries
+                  const inDate = (ts: string) =>
+                    (!inquiryFrom || ts >= new Date(`${inquiryFrom}T00:00:00`).toISOString()) &&
+                    (!inquiryTo   || ts <= new Date(`${inquiryTo}T23:59:59`).toISOString());
+                  const base = inquiryTab === 'tab-general' ? pendingInquiries
                              : inquiryTab === 'tab-done'    ? doneInquiries
                              : inquiries;
+                  const list = base.filter(i => inDate(i.created_at));
                   return (
                     <div className="adm-table-wrap">
                       <table className="adm-table">
@@ -6812,17 +6839,38 @@ GRANT ALL ON popups TO authenticated, anon;`}
               <div style={{ fontSize:13, color:'#64748B', marginBottom:6 }}>문의 내용</div>
               <div style={{ fontSize:13, background:'#F8FAFC', borderRadius:8, padding:'12px 14px', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{selectedInquiry.message}</div>
             </div>
-            <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-              {selectedInquiry.status !== 'answered' && selectedInquiry.status !== 'done' && (
+
+            {/* 연락 (수동 발송) */}
+            <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>📨 연락하기 <span style={{ fontWeight:400, color:'#94A3B8' }}>(템플릿 선택 후 메일/문자/전화)</span></div>
+              <div className="adm-btn-group" style={{ marginBottom:10 }}>
+                {([['general','일반'],['accept','수락'],['reject','거절']] as const).map(([k, l]) => (
+                  <button key={k} type="button" className={`adm-seg-btn${inquiryTpl===k?' active':''}`} onClick={() => setInquiryTpl(k)}>{l}</button>
+                ))}
+              </div>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
+                  href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent('[델리오] 입점문의 회신')}&body=${encodeURIComponent(inquiryTemplate(inquiryTpl, selectedInquiry.company))}`}>📧 메일</a>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }}
+                  onClick={() => { navigator.clipboard?.writeText(inquiryTemplate(inquiryTpl, selectedInquiry.company)); alert('문자 템플릿이 복사되었습니다. 문자 발송 도구에 붙여넣어 전송하세요.\n수신번호: ' + selectedInquiry.contact); }}>💬 문자 템플릿 복사</button>
+                <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
+                  href={`tel:${(selectedInquiry.contact || '').replace(/[^0-9+]/g, '')}`}>📞 전화 {selectedInquiry.contact}</a>
+              </div>
+            </div>
+
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', alignItems:'center' }}>
+              <span style={{ fontSize:11, color:'#94A3B8', marginRight:'auto' }}>수락/거절 = 입점 결정 기록 (발송은 위에서 수동)</span>
+              {['answered','done'].includes(selectedInquiry.status) ? (
+                <span className="adm-badge badge-done" style={{ fontSize:13, padding:'6px 14px' }}>수락(처리완료)</span>
+              ) : selectedInquiry.status === 'rejected' ? (
+                <span className="adm-badge badge-off" style={{ fontSize:13, padding:'6px 14px' }}>거절</span>
+              ) : (
                 <>
                   <button className="adm-btn adm-btn-outline" style={{ color:'#EF4444', borderColor:'#FECACA' }}
                     onClick={() => updateInquiryStatus(selectedInquiry.id, 'rejected')}>거절</button>
                   <button className="adm-btn adm-btn-primary"
                     onClick={() => updateInquiryStatus(selectedInquiry.id, 'answered')}>수락</button>
                 </>
-              )}
-              {(selectedInquiry.status === 'answered' || selectedInquiry.status === 'done') && (
-                <span className="adm-badge badge-done" style={{ fontSize:13, padding:'6px 14px' }}>답변완료</span>
               )}
             </div>
           </div>
