@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import '@/styles/admin.css';
+import '@/styles/login.css';
 import { StarRating } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import dynamic from 'next/dynamic';
@@ -745,6 +746,11 @@ export default function AdminClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminChecked, setAdminChecked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authedUser, setAuthedUser] = useState(false);
+  const [admEmail, setAdmEmail] = useState('');
+  const [admPw, setAdmPw] = useState('');
+  const [admLoginErr, setAdmLoginErr] = useState('');
+  const [admLoginLoading, setAdmLoginLoading] = useState(false);
   const [chartDays, setChartDays] = useState<'7'|'30'>('7');
   const [farmModal, setFarmModal] = useState(false);
   const [farms, setFarms] = useState<AdminFarm[]>([]);
@@ -1020,17 +1026,28 @@ export default function AdminClient() {
   const loadedPanels = useRef(new Set<PanelKey>());
 
   /* ── 어드민 권한 확인 (모든 useState/useRef 이후) ── */
-  useEffect(() => {
-    async function checkAdmin() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setAdminChecked(true); return; }
-      const { data } = await supabase.rpc('is_current_user_admin');
-      setIsAdmin(data === true);
-      setAdminChecked(true);
-    }
-    checkAdmin();
-  }, []); // eslint-disable-line
+  async function checkAdmin() {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    setAuthedUser(!!user);
+    if (!user) { setIsAdmin(false); setAdminChecked(true); return; }
+    const { data } = await supabase.rpc('is_current_user_admin');
+    setIsAdmin(data === true);
+    setAdminChecked(true);
+  }
+  useEffect(() => { checkAdmin(); }, []); // eslint-disable-line
+
+  /* 관리자 로그인 처리 */
+  async function doAdminLogin() {
+    if (!admEmail.trim() || !admPw) return;
+    setAdmLoginLoading(true); setAdmLoginErr('');
+    const { signIn } = await import('@/lib/auth');
+    const { error } = await signIn(admEmail.trim(), admPw);
+    if (error) { setAdmLoginErr('이메일 또는 비밀번호를 확인해주세요.'); setAdmLoginLoading(false); return; }
+    setAdminChecked(false);
+    await checkAdmin();
+    setAdmLoginLoading(false);
+  }
 
   /* ── 대시보드 최초 로드 (isAdmin 확인 후) ── */
   useEffect(() => {
@@ -1042,12 +1059,39 @@ export default function AdminClient() {
     return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:14, color:'#94A3B8' }}>확인 중...</div>;
   }
   if (!isAdmin) {
+    /* 로그인 O · 관리자 X → 권한 없음 안내 + 로그아웃 */
+    if (authedUser) {
+      return (
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:12 }}>
+          <div style={{ fontSize:32 }}>🔒</div>
+          <div style={{ fontSize:16, fontWeight:700, color:'#1A1A1A' }}>관리자 권한이 없는 계정입니다</div>
+          <div style={{ fontSize:13, color:'#94A3B8' }}>관리자 계정으로 다시 로그인해주세요.</div>
+          <button onClick={async () => { await createClient().auth.signOut(); setAuthedUser(false); }}
+            style={{ marginTop:8, fontSize:13, color:'#1A1A1A', textDecoration:'underline', background:'none', border:'none', cursor:'pointer' }}>
+            다른 계정으로 로그인
+          </button>
+        </div>
+      );
+    }
+    /* 미로그인 → 관리자 전용 로그인 화면 (자사몰 로그인과 동일 스타일) */
     return (
-      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', gap:12 }}>
-        <div style={{ fontSize:32 }}>🔒</div>
-        <div style={{ fontSize:16, fontWeight:700, color:'#1A1A1A' }}>접근 권한이 없습니다</div>
-        <div style={{ fontSize:13, color:'#94A3B8' }}>어드민 계정으로 로그인해주세요.</div>
-        <a href="/" style={{ marginTop:8, fontSize:13, color:'#1A1A1A', textDecoration:'underline' }}>홈으로 돌아가기</a>
+      <div className="login-wrap">
+        <div className="login-box">
+          <h1 className="login-title">관리자 로그인</h1>
+          <input type="text" className="login-input" placeholder="이메일을 입력해주세요"
+            value={admEmail} onChange={e => setAdmEmail(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && document.getElementById('admPw')?.focus()} autoComplete="email" />
+          <input id="admPw" type="password" className="login-input login-input-pw" placeholder="비밀번호를 입력해주세요"
+            value={admPw} onChange={e => setAdmPw(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && doAdminLogin()} autoComplete="current-password" />
+          {admLoginErr && (
+            <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2 }}>{admLoginErr}</p>
+          )}
+          <button className="login-btn login-btn-solid" onClick={doAdminLogin} disabled={admLoginLoading}>
+            {admLoginLoading ? '로그인 중...' : '로그인'}
+          </button>
+          <a href="/" style={{ marginTop:14, fontSize:13, color:'#94A3B8', textAlign:'center', textDecoration:'none' }}>← 쇼핑몰로 돌아가기</a>
+        </div>
       </div>
     );
   }
