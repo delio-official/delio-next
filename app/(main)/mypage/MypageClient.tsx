@@ -161,7 +161,7 @@ export default function MypageClient() {
   const [infoSaving,    setInfoSaving]    = useState(false);
 
   /* 내 환불 신청 내역 */
-  interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; created_at: string; orders: { order_no: string } | null; }
+  interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; reject_reason?: string | null; created_at: string; orders: { order_no: string } | null; }
   const [myRefundReqs, setMyRefundReqs] = useState<MyRefundReq[]>([]);
 
   /* 배송지 */
@@ -472,7 +472,7 @@ export default function MypageClient() {
     if (activePanel !== 'csrefund' || !user) return;
     createClient()
       .from('refund_requests')
-      .select('id, order_id, reason, detail, status, created_at, orders ( order_no )')
+      .select('id, order_id, reason, detail, status, reject_reason, created_at, orders ( order_no )')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => setMyRefundReqs((data as unknown as MyRefundReq[]) || []));
@@ -2232,9 +2232,9 @@ export default function MypageClient() {
                     <div style={{ marginTop:24 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>내 환불 신청</div>
                       {myRefundReqs.map(req => {
-                        const stLabel: Record<string,string> = { pending:'신청 접수', processing:'처리중', completed:'환불완료', rejected:'거절됨' };
-                        const stColor: Record<string,string> = { pending:'#C8841C', processing:'#C8841C', completed:'#888', rejected:'#E55A4B' };
-                        const stBg: Record<string,string> = { pending:'#FFF3E0', processing:'#FFF3E0', completed:'#F2F2F2', rejected:'#FEE' };
+                        const stLabel: Record<string,string> = { pending:'신청 접수', hold:'보류', processing:'처리중', completed:'환불완료', rejected:'환불 불가' };
+                        const stColor: Record<string,string> = { pending:'#C8841C', hold:'#C8841C', processing:'#C8841C', completed:'#888', rejected:'#E55A4B' };
+                        const stBg: Record<string,string> = { pending:'#FFF3E0', hold:'#FFF3E0', processing:'#FFF3E0', completed:'#F2F2F2', rejected:'#FEE' };
                         return (
                           <div key={req.id} style={{ padding:'14px', border:'1px solid #EBEBEB', borderRadius:10, marginBottom:10 }}>
                             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
@@ -2247,6 +2247,11 @@ export default function MypageClient() {
                             </div>
                             <div style={{ fontSize:13, fontWeight:600, marginBottom: req.detail ? 4 : 0 }}>{req.reason}</div>
                             {req.detail && <div style={{ fontSize:12, color:'#888', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{req.detail}</div>}
+                            {req.status === 'rejected' && req.reject_reason && (
+                              <div style={{ marginTop:8, padding:'8px 10px', background:'#FEE', borderRadius:6, fontSize:12, color:'#B23B2E', lineHeight:1.6 }}>
+                                <strong>환불 불가 사유</strong><br/>{req.reject_reason}
+                              </div>
+                            )}
                           </div>
                         );
                       })}

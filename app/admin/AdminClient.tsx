@@ -212,7 +212,8 @@ interface AdminRefundReq {
   order_id: string | null;
   reason: string;
   detail: string;
-  status: string; // pending | processing | completed | rejected
+  status: string; // pending | processing | completed | rejected | hold
+  reject_reason?: string | null;
   created_at: string;
   orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null } | null;
   profiles: { name: string | null; email: string | null } | null;
@@ -982,6 +983,9 @@ export default function AdminClient() {
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
+  const [refundStatusFilter, setRefundStatusFilter] = useState('');
+  const [refundFrom, setRefundFrom] = useState('');
+  const [refundTo, setRefundTo] = useState('');
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
@@ -1500,7 +1504,7 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('refund_requests')
       .select(`
-        id, order_id, reason, detail, status, created_at,
+        id, order_id, reason, detail, status, reject_reason, created_at,
         orders ( order_no, final_amount, status, portone_payment_id ),
         profiles:user_id ( name, email )
       `)
@@ -1511,7 +1515,7 @@ export default function AdminClient() {
   }
 
   /* 환불 신청 상태 변경 + 주문 상태 연동 */
-  async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected') {
+  async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected'|'hold', rejectReason?: string) {
     const supabase = createClient();
 
     /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API */
@@ -1533,17 +1537,20 @@ export default function AdminClient() {
       }
     }
 
-    const { error } = await supabase.from('refund_requests').update({ status: newStatus }).eq('id', req.id);
+    const updatePayload: Record<string, unknown> = { status: newStatus };
+    if (newStatus === 'rejected') updatePayload.reject_reason = rejectReason || null;
+    const { error } = await supabase.from('refund_requests').update(updatePayload).eq('id', req.id);
     if (error) { alert('상태 변경 실패: ' + error.message); return; }
-    // 주문 상태 연동: 처리중→환불처리중, 완료→환불완료 (거절은 주문 상태 변경 안 함)
+    // 주문 상태 연동: 처리중→환불처리중, 완료→환불완료 (거절·보류는 주문 상태 변경 안 함)
     if (req.order_id && (newStatus === 'processing' || newStatus === 'completed')) {
       const orderStatus = newStatus === 'completed' ? 'refunded' : 'refunding';
       await supabase.from('orders').update({ status: orderStatus }).eq('id', req.order_id);
     }
     setRefundReqs(prev => prev.map(r => r.id === req.id
-      ? { ...r, status: newStatus, orders: r.orders && (newStatus !== 'rejected') ? { ...r.orders, status: newStatus === 'completed' ? 'refunded' : 'refunding' } : r.orders }
+      ? { ...r, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : r.reject_reason,
+          orders: r.orders && (newStatus === 'processing' || newStatus === 'completed') ? { ...r.orders, status: newStatus === 'completed' ? 'refunded' : 'refunding' } : r.orders }
       : r));
-    setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus } : prev);
+    setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : prev.reject_reason } : prev);
   }
 
   async function loadReviews() {
@@ -5096,26 +5103,47 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 환불 관리 ===== */}
           {panel === 'refund' && (
             <div className="adm-content">
-              <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+              <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                 {[
-                  ['신청 대기', `${refundReqs.filter(r => r.status === 'pending').length}건`],
-                  ['처리중', `${refundReqs.filter(r => r.status === 'processing').length}건`],
-                  ['환불 완료', `${refundReqs.filter(r => r.status === 'completed').length}건`],
-                ].map(([l, v]) => (
-                  <div key={l} className="adm-kpi-card">
-                    <div className="adm-kpi-label">{l}</div>
-                    <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
-                  </div>
-                ))}
+                  { l:'환불 요청', st:'pending',    red:true  },
+                  { l:'환불 보류', st:'hold',       red:false },
+                  { l:'진행중',    st:'processing', red:false },
+                  { l:'환불 완료', st:'completed',  red:false },
+                  { l:'환불 불가', st:'rejected',   red:false },
+                ].map(k => {
+                  const cnt = refundReqs.filter(r => r.status === k.st).length;
+                  const active = refundStatusFilter === k.st;
+                  return (
+                    <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: active ? '2px solid #1A1A1A' : 'none' }}
+                      onClick={() => setRefundStatusFilter(active ? '' : k.st)}>
+                      <div className="adm-kpi-label">{k.l}</div>
+                      <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && cnt>0 ? { color:'#DC2626' } : undefined}>{cnt}건</div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <div className="adm-btn-group">
                     {([['all','전체'],['customer','고객신청'],['admin','관리자취소']] as const).map(([id, label]) => (
                       <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
                     ))}
                   </div>
+                  <select className="adm-select" value={refundStatusFilter} onChange={e => setRefundStatusFilter(e.target.value)}>
+                    <option value="">전체 상태</option>
+                    <option value="pending">환불 요청</option>
+                    <option value="hold">환불 보류</option>
+                    <option value="processing">진행중</option>
+                    <option value="completed">환불 완료</option>
+                    <option value="rejected">환불 불가</option>
+                  </select>
+                  <input type="date" className="adm-select" value={refundFrom} onChange={e => setRefundFrom(e.target.value)} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={refundTo} onChange={e => setRefundTo(e.target.value)} />
+                  {(refundStatusFilter || refundFrom || refundTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setRefundStatusFilter(''); setRefundFrom(''); setRefundTo(''); }}>초기화</button>
+                  )}
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadRefundRequests}>
@@ -5136,13 +5164,19 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       </thead>
                       <tbody>
                         {(() => {
-                          const stLabel: Record<string,string> = { pending:'신청 대기', processing:'처리중', completed:'환불완료', rejected:'거절' };
-                          const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
+                          const stLabel: Record<string,string> = { pending:'환불요청', hold:'환불보류', processing:'진행중', completed:'환불완료', rejected:'환불불가' };
+                          const stCls: Record<string,string> = { pending:'badge-wait', hold:'badge-ready', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
+                          const inDate = (ts: string) =>
+                            (!refundFrom || ts >= new Date(`${refundFrom}T00:00:00`).toISOString()) &&
+                            (!refundTo   || ts <= new Date(`${refundTo}T23:59:59`).toISOString());
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
-                          const customerReqs = refundFilter === 'admin' ? [] : refundReqs;
-                          const directCancels = (refundFilter === 'customer' ? [] : orders).filter(o =>
-                            ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no)
+                          const customerReqs = (refundFilter === 'admin' ? [] : refundReqs)
+                            .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at));
+                          /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김 */
+                          const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
+                          const directCancels = (refundFilter === 'customer' || !adminStatusOk ? [] : orders).filter(o =>
+                            ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
@@ -5190,14 +5224,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
               {/* 환불 상세 모달 */}
               {refundDetail && (() => {
                 const r = refundDetail;
-                const stLabel: Record<string,string> = { pending:'신청 대기', processing:'처리중', completed:'환불완료', rejected:'거절' };
-                const stCls: Record<string,string> = { pending:'badge-wait', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
+                const stLabel: Record<string,string> = { pending:'환불요청', hold:'환불보류', processing:'진행중', completed:'환불완료', rejected:'환불불가' };
+                const stCls: Record<string,string> = { pending:'badge-wait', hold:'badge-ready', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
                 const rows: [string, string][] = [
                   ['신청자', `${r.profiles?.name || '(탈퇴)'}${r.profiles?.email ? ` · ${r.profiles.email}` : ''}`],
                   ['주문번호', r.orders?.order_no || '-'],
                   ['결제금액', r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'],
                   ['신청일', fmtDateShort(r.created_at)],
                   ['사유', r.reason],
+                  ...(r.status === 'rejected' && r.reject_reason ? [['거부사유', r.reject_reason]] as [string,string][] : []),
                 ];
                 return (
                   <div className="adm-float-overlay" onClick={() => setRefundDetail(null)}>
@@ -5226,15 +5261,21 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {r.detail || '(상세 내용 없음)'}
                       </div>
 
-                      <div style={{ display:'flex', gap:8 }}>
-                        {(r.status === 'pending' || r.status === 'rejected') && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {(r.status === 'pending' || r.status === 'rejected' || r.status === 'hold') && (
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
+                        )}
+                        {r.status !== 'completed' && r.status !== 'hold' && r.status !== 'rejected' && (
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
                         )}
                         {r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { if (confirm('환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
+                          <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => { if (confirm('환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
                         )}
                         {r.status !== 'rejected' && r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { if (confirm('이 환불 신청을 거절하시겠습니까?')) updateRefundStatus(r, 'rejected'); }}>거절</button>
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
+                            const reason = prompt('환불 불가(거부) 사유를 입력하세요. 고객에게 전달됩니다.');
+                            if (reason && reason.trim()) updateRefundStatus(r, 'rejected', reason.trim());
+                          }}>환불 불가</button>
                         )}
                       </div>
                     </div>
