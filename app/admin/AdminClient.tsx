@@ -68,6 +68,7 @@ interface AdminProduct {
   farm_id: string | null;
   sort_order: number;
   created_at: string;
+  total_stock?: number;
 }
 
 interface AdminProductFull extends AdminProduct {
@@ -833,6 +834,7 @@ export default function AdminClient() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState('');
+  const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
 
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
@@ -1218,10 +1220,18 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('products')
-      .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at')
+      .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock)')
       .order('sort_order')
       .limit(200);
-    setProducts((data as AdminProduct[]) || []);
+    /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용) */
+    const flat = (data || []).map((p: Record<string, unknown>) => {
+      const opts = (p.product_options as { stock: number }[]) || [];
+      const total_stock = opts.reduce((s, o) => s + (o.stock || 0), 0);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { product_options: _po, ...rest } = p;
+      return { ...rest, total_stock };
+    });
+    setProducts(flat as AdminProduct[]);
     setProductsLoading(false);
   }
 
@@ -2603,11 +2613,20 @@ export default function AdminClient() {
   }
 
   /* 필터된 상품 목록 */
+  /* 판매상태 판정: 판매중(활성·재고>0) / 품절(활성·재고0) / 판매중지(비활성) */
+  const productSellState = (p: AdminProduct): 'selling'|'soldout'|'stopped' =>
+    !p.is_active ? 'stopped' : (p.total_stock ?? 1) <= 0 ? 'soldout' : 'selling';
+  const productStatusCounts = {
+    selling: products.filter(p => productSellState(p) === 'selling').length,
+    soldout: products.filter(p => productSellState(p) === 'soldout').length,
+    stopped: products.filter(p => productSellState(p) === 'stopped').length,
+  };
   const filteredProducts = products.filter(p => {
     const matchCat = !productCatFilter || p.category === productCatFilter;
     const q = productSearch.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q);
-    return matchCat && matchSearch;
+    const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
+    return matchCat && matchSearch && matchStatus;
   });
 
   /* 포인트 필터된 회원 */
@@ -3755,6 +3774,20 @@ export default function AdminClient() {
           {/* ===== 상품 관리 ===== */}
           {panel === 'products' && (
             <div className="adm-content">
+              <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                {[
+                  { l:'전체 상품', v:products.length, st:'' as const, red:false },
+                  { l:'판매중', v:productStatusCounts.selling, st:'selling' as const, red:false },
+                  { l:'품절', v:productStatusCounts.soldout, st:'soldout' as const, red:true },
+                  { l:'판매중지', v:productStatusCounts.stopped, st:'stopped' as const, red:false },
+                ].map(k => (
+                  <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: productStatusFilter===k.st && k.st!=='' ? '2px solid #1A1A1A' : 'none' }}
+                    onClick={() => setProductStatusFilter(productStatusFilter===k.st ? '' : k.st)}>
+                    <div className="adm-kpi-label">{k.l}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && k.v>0 ? { color:'#DC2626' } : undefined}>{k.v}</div>
+                  </div>
+                ))}
+              </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <select className="adm-select" value={productCatFilter} onChange={e => setProductCatFilter(e.target.value)}>
