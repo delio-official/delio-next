@@ -74,6 +74,7 @@ interface AdminProduct {
 interface AdminProductFull extends AdminProduct {
   sku: string;
   origin: string;
+  origin_region: string | null;
   short_desc: string | null;
   thumbnail_url: string | null;
   image_urls: (string | null)[] | null;
@@ -299,6 +300,12 @@ const STATUS_BADGE_CLS: Record<string, string> = {
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
+/* 국내 시·도 (원산지 계층 입력용) */
+const SIDO_LIST: string[] = [
+  '서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시',
+  '경기도','강원특별자치도','충청북도','충청남도','전북특별자치도','전라남도','경상북도','경상남도','제주특별자치도',
+];
 
 /* 뱃지 색상 프리셋 (배경 hex) */
 const BADGE_COLORS: { label: string; value: string }[] = [
@@ -797,7 +804,7 @@ export default function AdminClient() {
   const [farmSearch, setFarmSearch] = useState('');
   const [farmPickOpen, setFarmPickOpen] = useState(false);
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
-    sku: '', name: '', category: 'apple', origin: 'domestic', price: 0, discount_rate: 0,
+    sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
@@ -1371,7 +1378,7 @@ export default function AdminClient() {
           ];
           setPForm({
             sku: data.sku || '', name: data.name, category: data.category,
-            origin: data.origin || '', price: data.price, discount_rate: data.discount_rate,
+            origin: data.origin || '', origin_region: data.origin_region || '', price: data.price, discount_rate: data.discount_rate,
             short_desc: data.short_desc || '', thumbnail_url: thumb, image_urls: imageUrls,
             dispatch_cutoff: data.dispatch_cutoff || '',
             brix: data.brix, badge: data.badge || '', badge_color: data.badge_color || BADGE_DEFAULT_COLOR, is_new: data.is_new,
@@ -1418,6 +1425,7 @@ export default function AdminClient() {
       name:           pForm.name.trim(),
       category:       pForm.category,
       origin:         pForm.origin?.trim()        || 'domestic',
+      origin_region:  pForm.origin_region?.trim() || null,
       price,
       discount_rate,
       short_desc:     pForm.short_desc?.trim()    || null,
@@ -2769,13 +2777,37 @@ export default function AdminClient() {
                     {Object.entries(CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="adm-label">원산지 구분</label>
-                  <select className="adm-select" style={{ width:'100%' }} value={pForm.origin || 'domestic'}
-                    onChange={e => setPForm(f => ({ ...f, origin: e.target.value }))}>
-                    <option value="domestic">국내산</option>
-                    <option value="import">수입산</option>
-                  </select>
+                <div style={{ gridColumn:'1 / -1' }}>
+                  <label className="adm-label">원산지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(국내산: 시·도 → 시·군·구 / 수입산: 국가)</span></label>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <select className="adm-select" style={{ flex:'0 0 130px' }} value={pForm.origin || 'domestic'}
+                      onChange={e => setPForm(f => ({ ...f, origin: e.target.value, origin_region: '' }))}>
+                      <option value="domestic">국내산</option>
+                      <option value="import">수입산</option>
+                    </select>
+                    {pForm.origin === 'import' ? (
+                      <input className="adm-input-text" style={{ flex:1, minWidth:160 }} placeholder="국가명 (예: 미국, 칠레)"
+                        value={pForm.origin_region || ''} onChange={e => setPForm(f => ({ ...f, origin_region: e.target.value }))} />
+                    ) : (() => {
+                      const [sido = '', sigungu = ''] = (pForm.origin_region || '').split(' ');
+                      return (
+                        <>
+                          <select className="adm-select" style={{ flex:'0 0 160px' }} value={sido}
+                            onChange={e => setPForm(f => ({ ...f, origin_region: `${e.target.value}${sigungu ? ' ' + sigungu : ''}`.trim() }))}>
+                            <option value="">시·도 선택</option>
+                            {SIDO_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <input className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="시·군·구 (예: 고양시)"
+                            value={sigungu} onChange={e => setPForm(f => ({ ...f, origin_region: `${sido}${e.target.value ? ' ' + e.target.value : ''}`.trim() }))} />
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {pForm.origin_region && (
+                    <div style={{ fontSize:12, color:'#475569', marginTop:6 }}>
+                      표기: <strong>{pForm.origin === 'import' ? '수입산' : '국내산'} {pForm.origin_region}</strong>
+                    </div>
+                  )}
                 </div>
               </div>
 
