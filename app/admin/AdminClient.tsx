@@ -1067,6 +1067,8 @@ export default function AdminClient() {
   const [surveyResults, setSurveyResults] = useState<AdminSurveyResult[]>([]);
   const [surveyLoading, setSurveyLoading] = useState(false);
   const [surveyShowProducts, setSurveyShowProducts] = useState(true);
+  const [surveyMemberTotal, setSurveyMemberTotal] = useState(0);
+  const [surveyTypeFilter, setSurveyTypeFilter] = useState('');
 
   /* ── 친구 추천 ── */
   const [referrals, setReferrals] = useState<AdminReferral[]>([]);
@@ -1626,15 +1628,6 @@ export default function AdminClient() {
     }
   }
 
-  async function saveMemberMemo(memberId: string) {
-    setMemberMemoSaving(true);
-    const supabase = createClient();
-    await supabase.from('profiles').update({ memo: memberMemo || null }).eq('id', memberId);
-    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, memo: memberMemo || null } : m));
-    setSelectedMember(prev => prev?.id === memberId ? { ...prev, memo: memberMemo || null } : prev);
-    setMemberMemoSaving(false);
-  }
-
   async function loadSurveySettings() {
     const supabase = createClient();
     const { data } = await supabase.from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
@@ -1662,6 +1655,8 @@ export default function AdminClient() {
       .order('created_at', { ascending: false })
       .limit(500);
     setSurveyResults((data as unknown as AdminSurveyResult[]) || []);
+    const { count } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
+    setSurveyMemberTotal(count || 0);
     setSurveyLoading(false);
   }
 
@@ -6011,15 +6006,17 @@ GRANT ALL ON popups TO authenticated, anon;`}
             return (
               <div className="adm-content">
                 {/* KPI */}
-                <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                   {[
                     ['총 응답 수', `${total.toLocaleString()}건`],
+                    ['회원 응답률', surveyMemberTotal > 0 ? `${Math.round(memberCnt/surveyMemberTotal*100)}%` : '-', `회원 ${memberCnt}/${surveyMemberTotal}명`],
                     ['이번달 응답', `${thisMonthCnt.toLocaleString()}건`],
                     ['회원 응답', `${memberCnt.toLocaleString()}건`],
-                  ].map(([l, v]) => (
+                  ].map(([l, v, sub]) => (
                     <div key={l} className="adm-kpi-card">
                       <div className="adm-kpi-label">{l}</div>
                       <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                      {sub && <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{sub}</div>}
                     </div>
                   ))}
                 </div>
@@ -6058,6 +6055,61 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 )}
 
+                {/* 응답 분포 (마케팅용) */}
+                {(() => {
+                  const AGE_LABEL: Record<string,string> = { '10s':'10대','20s':'20대','30s':'30대','40s':'40대','50s':'50대 이상' };
+                  const GENDER_LABEL: Record<string,string> = { male:'남성', female:'여성', other:'기타' };
+                  const dist = (field: keyof AdminSurveyResult, labelMap?: Record<string,string>) => {
+                    const m: Record<string, number> = {};
+                    surveyResults.forEach(r => { const v = (r[field] as string) || '미응답'; m[v] = (m[v]||0)+1; });
+                    return Object.entries(m).sort((a,b) => b[1]-a[1]).map(([k,c]) => ({ label: labelMap?.[k] || k, c }));
+                  };
+                  const blocks: [string, { label:string; c:number }[]][] = [
+                    ['나이대', dist('age_group', AGE_LABEL)],
+                    ['성별', dist('gender', GENDER_LABEL)],
+                    ['구매 목적', dist('purchase_purpose')],
+                    ['구매 빈도', dist('purchase_frequency')],
+                  ];
+                  return (
+                    <div className="adm-row" style={{ marginBottom:16, flexWrap:'wrap' }}>
+                      {blocks.map(([title, rows]) => (
+                        <div key={title} className="adm-card" style={{ flex:'1 1 240px', minWidth:220 }}>
+                          <div className="adm-card-head"><span className="adm-card-title" style={{ fontSize:13 }}>{title} 분포</span></div>
+                          <div style={{ display:'flex', flexDirection:'column', gap:6, padding:'4px 0' }}>
+                            {rows.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>응답 없음</div> : rows.map(({label, c}) => {
+                              const pct = total > 0 ? Math.round(c/total*100) : 0;
+                              return (
+                                <div key={label}>
+                                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
+                                    <span>{label}</span><span className="adm-muted">{c}건 ({pct}%)</span>
+                                  </div>
+                                  <div style={{ height:6, background:'#F1F5F9', borderRadius:99 }}>
+                                    <div style={{ width:`${pct}%`, height:'100%', background:'#1A1A1A', borderRadius:99 }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                {/* 유형 필터 */}
+                {typeSorted.length > 0 && (
+                  <div className="adm-toolbar">
+                    <div className="adm-toolbar-left">
+                      <div className="adm-btn-group" style={{ flexWrap:'wrap' }}>
+                        <button className={`adm-seg-btn${surveyTypeFilter===''?' active':''}`} onClick={() => setSurveyTypeFilter('')}>전체</button>
+                        {typeSorted.map(([type]) => (
+                          <button key={type} className={`adm-seg-btn${surveyTypeFilter===type?' active':''}`} onClick={() => setSurveyTypeFilter(type)}>{type}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 응답 목록 */}
                 <div className="adm-card">
                   {surveyLoading ? <PanelLoading /> : (
@@ -6075,11 +6127,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           </tr>
                         </thead>
                         <tbody>
-                          {surveyResults.length === 0 ? (
+                          {(() => {
+                          const shown = surveyResults.filter(r => !surveyTypeFilter || (r.result_label || r.result_type) === surveyTypeFilter);
+                          return shown.length === 0 ? (
                             <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                               설문 응답 없음
                             </td></tr>
-                          ) : surveyResults.map(r => (
+                          ) : shown.map(r => (
                             <tr key={r.id}>
                               <td>
                                 <span style={{ marginRight:4 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
@@ -6105,7 +6159,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               <td className="adm-muted" style={{ fontSize:11 }}>{r.purchase_purpose || '—'}</td>
                               <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                             </tr>
-                          ))}
+                          ));
+                          })()}
                         </tbody>
                       </table>
                     </div>
