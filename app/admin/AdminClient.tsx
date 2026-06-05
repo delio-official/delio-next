@@ -1006,6 +1006,8 @@ export default function AdminClient() {
   const [faqSaving, setFaqSaving] = useState(false);
   const [faqSearch, setFaqSearch] = useState('');
   const [faqCatFilter, setFaqCatFilter] = useState('');
+  const [faqPage, setFaqPage] = useState(1);
+  const [faqPageSize, setFaqPageSize] = useState(30);
 
   /* ── 상품 문의 ── */
   const [productInquiries, setProductInquiries] = useState<AdminProductInquiry[]>([]);
@@ -1788,6 +1790,22 @@ export default function AdminClient() {
     const { data } = await supabase.from('faq_items').select('*').order('category').order('sort_order');
     setFaqItems((data as FaqItem[]) || []);
     setFaqLoading(false);
+  }
+
+  /* FAQ 순서 이동 (같은 카테고리 내 인접 항목과 sort_order 교환) */
+  async function moveFaq(item: FaqItem, dir: -1 | 1) {
+    const sameCat = faqItems.filter(f => f.category === item.category).sort((a, b) => a.sort_order - b.sort_order);
+    const idx = sameCat.findIndex(f => f.id === item.id);
+    const swap = sameCat[idx + dir];
+    if (!swap) return;
+    const supabase = createClient();
+    await Promise.all([
+      supabase.from('faq_items').update({ sort_order: swap.sort_order }).eq('id', item.id),
+      supabase.from('faq_items').update({ sort_order: item.sort_order }).eq('id', swap.id),
+    ]);
+    setFaqItems(prev => prev.map(f =>
+      f.id === item.id ? { ...f, sort_order: swap.sort_order } :
+      f.id === swap.id ? { ...f, sort_order: item.sort_order } : f));
   }
 
   function openFaqModal(item?: FaqItem) {
@@ -2808,6 +2826,9 @@ export default function AdminClient() {
     if (faqSearch.trim() && !f.question.includes(faqSearch.trim()) && !f.answer.includes(faqSearch.trim())) return false;
     return true;
   });
+  const faqTotalPages = Math.max(1, Math.ceil(filteredFaq.length / faqPageSize));
+  const faqCurPage = Math.min(faqPage, faqTotalPages);
+  const pagedFaq = filteredFaq.slice((faqCurPage - 1) * faqPageSize, faqCurPage * faqPageSize);
 
   /* 1:1 문의 탭별 필터 */
   const csPending  = csItems.filter(c => c.status === 'pending');
@@ -5351,16 +5372,22 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== FAQ 관리 ===== */}
           {panel === 'faq' && (
             <div className="adm-content">
+              <div className="adm-info-box" style={{ marginBottom:12 }}>
+                💡 <strong>FAQ</strong>는 고객센터 페이지에 카테고리별로 그룹 표시됩니다. <strong>▲▼</strong> 버튼으로 순서를 조절하세요(같은 카테고리 내).
+              </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={faqCatFilter} onChange={e => setFaqCatFilter(e.target.value)}>
+                  <select className="adm-select" value={faqCatFilter} onChange={e => { setFaqCatFilter(e.target.value); setFaqPage(1); }}>
                     <option value="">전체 카테고리</option>
                     {Object.entries(FAQ_CATS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                   <input type="text" className="adm-input-text" placeholder="질문 · 답변 검색"
-                    value={faqSearch} onChange={e => setFaqSearch(e.target.value)} />
+                    value={faqSearch} onChange={e => { setFaqSearch(e.target.value); setFaqPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right">
+                  <select className="adm-select" value={faqPageSize} onChange={e => { setFaqPageSize(Number(e.target.value)); setFaqPage(1); }}>
+                    {[10,30,100].map(n => <option key={n} value={n}>{n}개씩</option>)}
+                  </select>
                   <button className="adm-btn adm-btn-outline" onClick={loadFaq}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFaqModal()}>+ FAQ 등록</button>
                 </div>
@@ -5377,11 +5404,16 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             FAQ 없음
                           </td></tr>
-                        ) : filteredFaq.map(f => (
+                        ) : pagedFaq.map(f => (
                           <tr key={f.id}>
                             <td><span className="adm-badge badge-paid">{FAQ_CATS[f.category] || f.category}</span></td>
                             <td style={{ maxWidth:340, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
-                            <td className="adm-mono">{f.sort_order}</td>
+                            <td>
+                              <div style={{ display:'inline-flex', gap:4 }}>
+                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFaq(f, -1)}>▲</button>
+                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFaq(f, 1)}>▼</button>
+                              </div>
+                            </td>
                             <td>
                               <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
                             </td>
@@ -5396,9 +5428,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 )}
               </div>
-              <div className="adm-info-box adm-info-mt10">
-                💡 <strong>FAQ</strong>는 고객센터 페이지에 카테고리별로 그룹 표시됩니다. 정렬 순서(낮을수록 위)와 노출 여부를 설정하세요.
-              </div>
+              {!faqLoading && filteredFaq.length > 0 && (
+                <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14 }}>
+                  <button className="adm-btn adm-btn-outline" disabled={faqCurPage <= 1} onClick={() => setFaqPage(p => Math.max(1, p - 1))}>이전</button>
+                  <span className="adm-muted" style={{ fontSize:13 }}>{faqCurPage} / {faqTotalPages}</span>
+                  <button className="adm-btn adm-btn-outline" disabled={faqCurPage >= faqTotalPages} onClick={() => setFaqPage(p => Math.min(faqTotalPages, p + 1))}>다음</button>
+                  <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredFaq.length}건</span>
+                </div>
+              )}
             </div>
           )}
 
