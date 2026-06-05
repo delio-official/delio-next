@@ -80,6 +80,7 @@ interface AdminProductFull extends AdminProduct {
   dispatch_cutoff: string | null;
   brix: number | null;
   badge: string | null;
+  badge_color: string | null;
   is_new: boolean;
   is_best: boolean;
   is_dawn: boolean;
@@ -298,6 +299,17 @@ const STATUS_BADGE_CLS: Record<string, string> = {
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+
+/* 뱃지 색상 프리셋 (배경 hex) */
+const BADGE_COLORS: { label: string; value: string }[] = [
+  { label: '빨강', value: '#CB1D11' },
+  { label: '주황', value: '#E8741E' },
+  { label: '초록', value: '#1F9D55' },
+  { label: '파랑', value: '#2563EB' },
+  { label: '보라', value: '#7C3AED' },
+  { label: '검정', value: '#1A1A1A' },
+];
+const BADGE_DEFAULT_COLOR = '#CB1D11';
 
 /* 출발 마감 시간 선택지 (08:00~21:00, 30분 간격) */
 const CUTOFF_TIMES: string[] = (() => {
@@ -787,7 +799,7 @@ export default function AdminClient() {
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
     sku: '', name: '', category: 'apple', origin: 'domestic', price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
-    dispatch_cutoff: '11:00', brix: null, badge: '', is_new: false,
+    dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
@@ -1362,7 +1374,7 @@ export default function AdminClient() {
             origin: data.origin || '', price: data.price, discount_rate: data.discount_rate,
             short_desc: data.short_desc || '', thumbnail_url: thumb, image_urls: imageUrls,
             dispatch_cutoff: data.dispatch_cutoff || '',
-            brix: data.brix, badge: data.badge || '', is_new: data.is_new,
+            brix: data.brix, badge: data.badge || '', badge_color: data.badge_color || BADGE_DEFAULT_COLOR, is_new: data.is_new,
             is_best: data.is_best, is_dawn: data.is_dawn, is_active: data.is_active,
             farm_id: data.farm_id, sort_order: data.sort_order || 0,
           });
@@ -1416,6 +1428,7 @@ export default function AdminClient() {
       dispatch_cutoff: pForm.dispatch_cutoff?.trim() || null,
       brix:           pForm.brix != null ? Number(pForm.brix) : null,
       badge:          pForm.badge?.trim()         || null,
+      badge_color:    pForm.badge?.trim() ? (pForm.badge_color || BADGE_DEFAULT_COLOR) : null,
       is_new:         Boolean(pForm.is_new),
       is_best:        Boolean(pForm.is_best),
       is_dawn:        Boolean(pForm.is_dawn),
@@ -2979,9 +2992,26 @@ export default function AdminClient() {
                   </select>
                 </div>
                 <div>
-                  <label className="adm-label">뱃지</label>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.badge || ''}
                     onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 한정수량" />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
+                    {BADGE_COLORS.map(c => {
+                      const active = (pForm.badge_color || BADGE_DEFAULT_COLOR) === c.value;
+                      return (
+                        <button key={c.value} type="button" title={c.label}
+                          onClick={() => setPForm(f => ({ ...f, badge_color: c.value }))}
+                          style={{ width:24, height:24, borderRadius:'50%', background:c.value, cursor:'pointer',
+                            border: active ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }} />
+                      );
+                    })}
+                    {pForm.badge && (
+                      <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
+                        background: pForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
+                        {pForm.badge}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>

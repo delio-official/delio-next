@@ -15,7 +15,7 @@ interface Product {
   origin: string; category: string;
   price: number; discount_rate: number; discounted_price: number;
   thumbnail_url: string | null; image_urls: string[] | null;
-  dispatch_cutoff: string | null; badge: string | null;
+  dispatch_cutoff: string | null; badge: string | null; badge_color: string | null;
   short_desc: string | null; brix: number | null;
   is_new: boolean; is_best: boolean; is_dawn: boolean;
   avg_rating: number; review_count: number;
@@ -1070,9 +1070,9 @@ export default function ProductClient() {
                   {product.is_dawn ? '산지직송' : '자사배송'}
                 </span>
                 {product.badge && (
-                  <span style={{ fontSize:12, fontWeight:600, padding:'3px 8px',
-                    background:'var(--color-bg)', borderRadius:6,
-                    color:'var(--color-ink-soft)' }}>
+                  <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
+                    background: product.badge_color || 'var(--color-bg)',
+                    color: product.badge_color ? '#fff' : 'var(--color-ink-soft)' }}>
                     {product.badge}
                   </span>
                 )}
