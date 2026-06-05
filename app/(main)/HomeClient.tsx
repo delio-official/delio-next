@@ -102,6 +102,11 @@ function BannerArrow({ dir, visible, onClick }: { dir: 'prev' | 'next'; visible:
 }
 
 /* ===== 메인 배너 ===== */
+/* 배너 노출/클릭 카운트 (조용히 실패 허용) */
+function bumpBanner(id: string, kind: 'view' | 'click') {
+  try { createClient().rpc('bump_banner_stat', { p_id: id, p_kind: kind }); } catch { /* noop */ }
+}
+
 function MainBanner() {
   const [slides, setSlides] = useState<Banner[]>([]);
   const [ready, setReady] = useState(false);
@@ -110,7 +115,7 @@ function MainBanner() {
     createClient()
       .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
       .eq('type', 'main').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { setSlides(data || []); setReady(true); });
+      .then(({ data }) => { setSlides(data || []); setReady(true); (data || []).forEach((b: Banner) => bumpBanner(b.id, 'view')); });
   }, []);
 
   const CLONES = 2;
@@ -220,7 +225,7 @@ function MainBanner() {
                 {s.image_url && (
                   <div className="banner-slide-glow" style={{ backgroundImage: `url(${s.image_url})` }} />
                 )}
-                <Link href={s.link_url || '/'} className="main-banner-slide" style={{ display: 'block', overflow: 'hidden', padding: 0 }}>
+                <Link href={s.link_url || '/'} onClick={() => bumpBanner(s.id, 'click')} className="main-banner-slide" style={{ display: 'block', overflow: 'hidden', padding: 0 }}>
                   {s.image_url ? (
                     s.image_url_mobile ? (
                       <>
@@ -430,7 +435,7 @@ function MidBanner() {
     createClient()
       .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
       .eq('type', 'mid').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { setSlides(data || []); setReady(true); });
+      .then(({ data }) => { setSlides(data || []); setReady(true); (data || []).forEach((b: Banner) => bumpBanner(b.id, 'view')); });
   }, []);
 
   const CLONES = 2;
@@ -515,7 +520,7 @@ function MidBanner() {
             <div className="mid-banner-pages" ref={pagesRef}>
               <div className="mid-banner-track" ref={trackRef}>
                 {allSlides.map((s, i) => (
-                  <Link key={i} href={s.link_url || '/'} className="mid-banner-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  <Link key={i} href={s.link_url || '/'} onClick={() => bumpBanner(s.id, 'click')} className="mid-banner-card" style={{ padding: 0, overflow: 'hidden' }}>
                     {s.image_url ? (
                       s.image_url_mobile ? (
                         <>

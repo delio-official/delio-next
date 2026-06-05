@@ -181,6 +181,8 @@ interface AdminBanner {
   image_url_mobile: string | null;
   link_url: string;
   is_active: boolean;
+  view_count?: number;
+  click_count?: number;
   created_at: string;
 }
 
@@ -4355,8 +4357,22 @@ export default function AdminClient() {
                 ]} />
 
               {/* ── 배너 탭 (메인 / 중간) ── */}
-              {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid') && (
+              {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid') && (() => {
+                const list = banners.filter(b => bannerTab === 'tab-banner' ? b.type === 'main' : b.type === 'mid');
+                const totView = list.reduce((s, b) => s + (b.view_count || 0), 0);
+                const totClick = list.reduce((s, b) => s + (b.click_count || 0), 0);
+                const avgCtr = totView > 0 ? (totClick / totView * 100) : 0;
+                return (
                 <>
+                  <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                    {[
+                      ['총 조회수', `${totView.toLocaleString()}`],
+                      ['총 클릭수', `${totClick.toLocaleString()}`],
+                      ['평균 CTR', `${avgCtr.toFixed(2)}%`],
+                    ].map(([l, v]) => (
+                      <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt">{v}</div></div>
+                    ))}
+                  </div>
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
@@ -4369,55 +4385,46 @@ export default function AdminClient() {
                   </div>
                   {bannersLoading
                     ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                    : list.length === 0
+                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>등록된 배너가 없습니다</div>
                     : (
-                      <div className="adm-card">
-                        <div className="adm-table-wrap">
-                          <table className="adm-table">
-                            <thead>
-                              <tr><th>순서</th><th>미리보기</th><th>종류</th><th>링크 URL</th><th>활성</th><th>관리</th></tr>
-                            </thead>
-                            <tbody>
-                              {banners
-                                .filter(b => bannerTab === 'tab-banner' ? b.type === 'main' : b.type === 'mid')
-                                .map(b => {
-                                  const badge = b.type === 'main'
-                                    ? { label:'메인', bg:'#E8F0FF', color:'#2563EB' }
-                                    : { label:'중간', bg:'#FFF3E0', color:'#D97706' };
-                                  return (
-                                  <tr key={b.id}>
-                                    <td style={{ color:'#94A3B8', fontSize:12 }}>{b.sort_order}</td>
-                                    <td>
-                                      {b.image_url
-                                        ? <img src={b.image_url} alt="" style={{ width:80, height:40, objectFit:'cover', borderRadius:6, display:'block' }} />
-                                        : <div style={{ width:80, height:40, background:'#F0F0EE', borderRadius:6 }} />
-                                      }
-                                    </td>
-                                    <td><span style={{ fontSize:11, background:badge.bg, color:badge.color, borderRadius:99, padding:'2px 8px', fontWeight:700 }}>{badge.label}</span></td>
-                                    <td className="adm-muted" style={{ maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.link_url || '/'}</td>
-                                    <td>
-                                      <button onClick={() => toggleBannerActive(b)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: b.is_active?'#DCFCE7':'#F1F5F9', color: b.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
-                                        {b.is_active ? '노출중' : '숨김'}
-                                      </button>
-                                    </td>
-                                    <td>
-                                      <button className="adm-row-btn" onClick={() => openBannerModal(b)}>수정</button>
-                                      {' '}
-                                      <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteBanner(b.id)}>삭제</button>
-                                    </td>
-                                  </tr>
-                                ); })
-                              }
-                              {banners.filter(b => bannerTab === 'tab-banner' ? b.type === 'main' : b.type === 'mid').length === 0 && (
-                                <tr><td colSpan={6} style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>등록된 배너가 없습니다</td></tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:16 }}>
+                        {list.map(b => {
+                          const ctr = (b.view_count || 0) > 0 ? ((b.click_count || 0) / (b.view_count || 1) * 100) : 0;
+                          return (
+                          <div key={b.id} className="adm-card" style={{ padding:0, overflow:'hidden' }}>
+                            {b.image_url
+                              ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'2.2/1', objectFit:'cover', display:'block', background:'#F0F0EE' }} />
+                              : <div style={{ width:'100%', aspectRatio:'2.2/1', background:'#F0F0EE' }} />}
+                            <div style={{ padding:'12px 14px' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                                <button onClick={() => toggleBannerActive(b)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: b.is_active?'#DCFCE7':'#F1F5F9', color: b.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
+                                  {b.is_active ? '노출중' : '숨김'}
+                                </button>
+                                <span style={{ fontSize:11, color:'#94A3B8' }}>순서 {b.sort_order}</span>
+                              </div>
+                              <div className="adm-muted" style={{ fontSize:12, marginBottom:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>🔗 {b.link_url || '/'}</div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:10 }}>
+                                {[['조회', (b.view_count||0).toLocaleString()], ['클릭', (b.click_count||0).toLocaleString()], ['CTR', `${ctr.toFixed(1)}%`]].map(([l,v]) => (
+                                  <div key={l} style={{ background:'#F8FAFC', borderRadius:6, padding:'6px 4px', textAlign:'center' }}>
+                                    <div style={{ fontSize:10, color:'#94A3B8' }}>{l}</div>
+                                    <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{v}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ display:'flex', gap:6 }}>
+                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12 }} onClick={() => openBannerModal(b)}>수정</button>
+                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA' }} onClick={() => deleteBanner(b.id)}>삭제</button>
+                              </div>
+                            </div>
+                          </div>
+                        ); })}
                       </div>
                     )
                   }
                 </>
-              )}
+                );
+              })()}
 
               {/* ── 팝업 탭 ── */}
               {bannerTab === 'tab-popup' && (
