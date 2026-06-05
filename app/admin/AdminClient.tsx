@@ -1117,6 +1117,8 @@ export default function AdminClient() {
     daily: { date: string; amount: number }[];
   } | null>(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
+  const [settlementView, setSettlementView] = useState<'daily'|'monthly'>('daily');
+  const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
 
   const loadedPanels = useRef(new Set<PanelKey>());
 
@@ -2162,10 +2164,29 @@ export default function AdminClient() {
   }
 
   /* ========== 정산 집계 ========== */
+  /* 연간(월별) 매출 — 확정+처리중 기준 */
+  async function loadSettlementYearly(year: number) {
+    const supabase = createClient();
+    const from = new Date(year, 0, 1).toISOString();
+    const to   = new Date(year + 1, 0, 1).toISOString();
+    const { data } = await supabase
+      .from('orders').select('final_amount, created_at, status')
+      .gte('created_at', from).lt('created_at', to)
+      .in('status', ['paid','preparing','shipped','delivered','confirmed']).limit(5000);
+    const m: Record<number, number> = {};
+    for (let i = 1; i <= 12; i++) m[i] = 0;
+    (data || []).forEach((o: { final_amount: number; created_at: string }) => {
+      const mon = new Date(o.created_at).getMonth() + 1;
+      m[mon] = (m[mon] || 0) + (o.final_amount || 0);
+    });
+    setSettlementYearly(Object.entries(m).map(([month, amount]) => ({ month: Number(month), amount })));
+  }
+
   async function loadSettlement(month: string) {
     setSettlementLoading(true);
     const supabase = createClient();
     const [year, mon] = month.split('-').map(Number);
+    loadSettlementYearly(year);
     const from = new Date(year, mon - 1, 1).toISOString();
     const to   = new Date(year, mon,     1).toISOString();
 
@@ -5931,11 +5952,42 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     </div>
                   </div>
 
-                  {/* 일별 매출 꺾은선 그래프 */}
+                  {/* 매출 그래프 (일별/월별) */}
                   <div className="adm-card">
-                    <div className="adm-card-head"><span className="adm-card-title">일별 매출</span></div>
+                    <div className="adm-card-head">
+                      <span className="adm-card-title">{settlementView === 'daily' ? '일별 매출' : `${settlementMonth.slice(0,4)}년 월별 매출`}</span>
+                      <div className="adm-btn-group">
+                        {([['daily','일별'],['monthly','월별']] as const).map(([v, l]) => (
+                          <button key={v} className={`adm-seg-btn${settlementView===v?' active':''}`} onClick={() => setSettlementView(v)}>{l}</button>
+                        ))}
+                      </div>
+                    </div>
                     <div style={{ overflowX:'auto', padding:'8px 0' }}>
-                      {(() => {
+                      {settlementView === 'monthly' ? (() => {
+                        const W = 46, H = 140, pad = 10;
+                        const data = settlementYearly;
+                        const maxAmt = Math.max(...data.map(d => d.amount), 1);
+                        const totalW = Math.max(data.length * W, 300);
+                        return (
+                          <svg width={totalW} height={H + 22} style={{ display:'block' }}>
+                            {[0.25,0.5,0.75,1].map(r => {
+                              const y = H - pad - Math.round(r * (H - pad * 2));
+                              return <line key={r} x1={pad} x2={totalW - pad} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
+                            })}
+                            {data.map((d, i) => {
+                              const barH = Math.round((d.amount / maxAmt) * (H - pad * 2));
+                              const x = pad + i * W + 6;
+                              return (
+                                <g key={i}>
+                                  <rect x={x} y={H - pad - barH} width={W - 16} height={barH} rx="3" fill="#3B82F6" fillOpacity={settlementMonth.endsWith(String(d.month).padStart(2,'0')) ? 1 : 0.55} />
+                                  <title>{`${d.month}월: ${fmtPrice(d.amount)}원`}</title>
+                                  <text x={x + (W-16)/2} y={H + 14} textAnchor="middle" fontSize="10" fill="#94A3B8">{d.month}월</text>
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        );
+                      })() : (() => {
                         const W = 28, H = 120, pad = 8;
                         const data = settlementData.daily;
                         const maxAmt = Math.max(...data.map(d => d.amount), 1);
