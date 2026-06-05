@@ -68,7 +68,7 @@ interface AdminProduct {
   farm_id: string | null;
   sort_order: number;
   created_at: string;
-  total_stock?: number;
+  total_stock?: number | null;
 }
 
 interface AdminProductFull extends AdminProduct {
@@ -1223,10 +1223,10 @@ export default function AdminClient() {
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock)')
       .order('sort_order')
       .limit(200);
-    /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용) */
+    /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용). 단품(옵션 0개)은 null = 재고 N/A */
     const flat = (data || []).map((p: Record<string, unknown>) => {
       const opts = (p.product_options as { stock: number }[]) || [];
-      const total_stock = opts.reduce((s, o) => s + (o.stock || 0), 0);
+      const total_stock = opts.length > 0 ? opts.reduce((s, o) => s + (o.stock || 0), 0) : null;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { product_options: _po, ...rest } = p;
       return { ...rest, total_stock };
@@ -1375,10 +1375,7 @@ export default function AdminClient() {
   async function saveProduct() {
     if (!pForm.name.trim()) { alert('상품명을 입력하세요.'); return; }
     if (!pForm.price || pForm.price <= 0) { alert('정상가를 입력하세요.'); return; }
-    if (pOptions.filter(o => o.label.trim()).length === 0) {
-      alert('판매 옵션을 1개 이상 추가해주세요.\n(단품 상품도 "기본" 같은 옵션 1개를 등록해야 합니다.)');
-      return;
-    }
+    /* 옵션 0개 = 단품 (옵션 선택 없이 바로구매). 허용. */
     // pForm 상태 + ref 양쪽 모두 확인 (스테일 클로저 방어)
     const thumbnailUrl = pForm.thumbnail_url?.trim() || uploadedThumbnailRef.current || null;
     console.log('[저장] pForm.thumbnail_url:', pForm.thumbnail_url);
@@ -2615,7 +2612,7 @@ export default function AdminClient() {
   /* 필터된 상품 목록 */
   /* 판매상태 판정: 판매중(활성·재고>0) / 품절(활성·재고0) / 판매중지(비활성) */
   const productSellState = (p: AdminProduct): 'selling'|'soldout'|'stopped' =>
-    !p.is_active ? 'stopped' : (p.total_stock ?? 1) <= 0 ? 'soldout' : 'selling';
+    !p.is_active ? 'stopped' : (p.total_stock != null && p.total_stock <= 0) ? 'soldout' : 'selling';
   const productStatusCounts = {
     selling: products.filter(p => productSellState(p) === 'selling').length,
     soldout: products.filter(p => productSellState(p) === 'soldout').length,
@@ -2805,15 +2802,15 @@ export default function AdminClient() {
               {/* 옵션 */}
               <div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(그룹별 드롭다운 · 고른 값들 추가금액 합산)</span></label>
+                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 단품 — 옵션 선택 없이 바로구매)</span></label>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
                     onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, required: true, label:'', add_price:0, stock:0 }])}>
                     + 옵션 그룹 추가
                   </button>
                 </div>
                 {pOptions.length === 0 ? (
-                  <div style={{ fontSize:12, color:'#DC2626', padding:'10px 0' }}>
-                    옵션 그룹을 1개 이상 추가해주세요. (단품도 "옵션" 그룹 + "기본" 1개)
+                  <div style={{ fontSize:12, color:'#64748B', padding:'10px 0' }}>
+                    옵션이 없는 <strong>단품</strong>입니다. 고객은 옵션 선택 없이 바로 구매합니다. (옵션이 필요하면 위 버튼으로 추가)
                   </div>
                 ) : (() => {
                   const withIdx = pOptions.map((o, i) => ({ ...o, _i: i }));
