@@ -4442,67 +4442,48 @@ export default function AdminClient() {
                   </div>
                   {popupsLoading
                     ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                    : popups.length === 0
+                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>등록된 팝업이 없습니다 (popups 테이블 생성 필요)</div>
                     : (
-                      <div className="adm-card">
-                        <div className="adm-table-wrap">
-                          <table className="adm-table">
-                            <thead>
-                              <tr><th>미리보기</th><th>제목</th><th>위치</th><th>기간</th><th>너비</th><th>활성</th><th>관리</th></tr>
-                            </thead>
-                            <tbody>
-                              {popups.length === 0 ? (
-                                <tr><td colSpan={7} style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>
-                                  등록된 팝업이 없습니다 (popups 테이블 생성 필요)
-                                </td></tr>
-                              ) : popups.map(p => {
-                                const posLabel: Record<string, string> = { center:'중앙', left:'좌측', right:'우측' };
-                                const now = new Date();
-                                const expired = p.ends_at && new Date(p.ends_at) < now;
-                                const notYet  = p.starts_at && new Date(p.starts_at) > now;
-                                return (
-                                  <tr key={p.id} style={{ opacity: expired ? 0.5 : 1 }}>
-                                    <td>
-                                      {p.image_url
-                                        ? <img src={p.image_url} alt="" style={{ width:64, height:40, objectFit:'cover', borderRadius:6, display:'block' }} />
-                                        : <div style={{ width:64, height:40, background:'#F0F0EE', borderRadius:6 }} />
-                                      }
-                                    </td>
-                                    <td style={{ maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                      {p.title || <span style={{ color:'#94A3B8' }}>제목 없음</span>}
-                                    </td>
-                                    <td>
-                                      <span style={{ fontSize:11, background:'#F1F5F9', borderRadius:99, padding:'2px 8px' }}>
-                                        {posLabel[p.position] || p.position}
-                                      </span>
-                                    </td>
-                                    <td style={{ fontSize:11, color:'#64748B' }}>
-                                      {p.starts_at || p.ends_at ? (
-                                        <div>
-                                          {p.starts_at && <div>시작: {fmtDateShort(p.starts_at)}</div>}
-                                          {p.ends_at   && <div>종료: {fmtDateShort(p.ends_at)}</div>}
-                                          {expired && <span style={{ color:'#DC2626', fontWeight:700 }}>기간 만료</span>}
-                                          {notYet  && <span style={{ color:'#F59E0B', fontWeight:700 }}>예정</span>}
-                                        </div>
-                                      ) : (
-                                        <span style={{ color:'#94A3B8' }}>상시</span>
-                                      )}
-                                    </td>
-                                    <td style={{ fontSize:12 }}>{p.width}px</td>
-                                    <td>
-                                      <button onClick={() => togglePopupActive(p)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: p.is_active?'#DCFCE7':'#F1F5F9', color: p.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
-                                        {p.is_active ? '노출중' : '숨김'}
-                                      </button>
-                                    </td>
-                                    <td style={{ display:'flex', gap:6 }}>
-                                      <button className="adm-row-btn" onClick={() => openPopupModal(p)}>수정</button>
-                                      <button className="adm-row-btn adm-row-btn-danger" onClick={() => deletePopup(p.id)}>삭제</button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:16 }}>
+                        {popups.map(p => {
+                          const posLabel: Record<string, string> = { center:'중앙', left:'좌측', right:'우측' };
+                          const now = new Date();
+                          const expired = !!(p.ends_at && new Date(p.ends_at) < now);
+                          const notYet  = !!(p.starts_at && new Date(p.starts_at) > now);
+                          return (
+                            <div key={p.id} className="adm-card" style={{ padding:0, overflow:'hidden', opacity: expired ? 0.55 : 1 }}>
+                              {p.image_url
+                                ? <img src={p.image_url} alt="" style={{ width:'100%', aspectRatio:'1/1', objectFit:'cover', display:'block', background:'#F0F0EE' }} />
+                                : <div style={{ width:'100%', aspectRatio:'1/1', background:'#F0F0EE' }} />}
+                              <div style={{ padding:'12px 14px' }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                                  <button onClick={() => togglePopupActive(p)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: p.is_active?'#DCFCE7':'#F1F5F9', color: p.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
+                                    {p.is_active ? '노출중' : '숨김'}
+                                  </button>
+                                  <span style={{ fontSize:11, background:'#F1F5F9', borderRadius:99, padding:'2px 8px' }}>{posLabel[p.position] || p.position} · {p.width}px</span>
+                                </div>
+                                <div style={{ fontWeight:600, fontSize:14, marginBottom:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                  {p.title || <span style={{ color:'#94A3B8' }}>제목 없음</span>}
+                                </div>
+                                <div style={{ fontSize:11, color:'#64748B', marginBottom:10 }}>
+                                  {p.starts_at || p.ends_at ? (
+                                    <>
+                                      {p.starts_at && <span>시작 {fmtDateShort(p.starts_at)} </span>}
+                                      {p.ends_at && <span>~ 종료 {fmtDateShort(p.ends_at)}</span>}
+                                      {expired && <span style={{ color:'#DC2626', fontWeight:700, marginLeft:4 }}>만료</span>}
+                                      {notYet && <span style={{ color:'#F59E0B', fontWeight:700, marginLeft:4 }}>예정</span>}
+                                    </>
+                                  ) : <span style={{ color:'#94A3B8' }}>상시 노출</span>}
+                                </div>
+                                <div style={{ display:'flex', gap:6 }}>
+                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12 }} onClick={() => openPopupModal(p)}>수정</button>
+                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA' }} onClick={() => deletePopup(p.id)}>삭제</button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )
                   }
