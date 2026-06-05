@@ -1477,6 +1477,16 @@ export default function AdminClient() {
     setPSaving(false);
     setProductModal(false);
     loadProducts();
+    return productId;
+  }
+
+  /* 저장 후 상세 에디터(상세설명/상세정보) 바로 열기 — 등록 화면에서 한 번에 */
+  async function saveAndEditDetail(kind: 'desc' | 'info') {
+    const id = editingProduct?.id || await saveProduct();
+    if (!id) return;
+    const name = pForm.name.trim();
+    if (kind === 'desc') setDetailEditor({ id, name });
+    else setInfoEditor({ id, name });
   }
 
   async function toggleProductActive(p: AdminProduct) {
@@ -3092,6 +3102,20 @@ export default function AdminClient() {
                     {label}
                   </label>
                 ))}
+              </div>
+
+              {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 저장 후 자동 진입) */}
+              <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'14px 16px', background:'#FAFBFC' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:4 }}>📄 상세페이지</div>
+                <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
+                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '버튼을 누르면 먼저 상품이 저장된 뒤 상세 작성 화면이 열립니다.'}
+                </div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
+                    disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세설명 작성</button>
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
+                    disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
+                </div>
               </div>
 
               <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
