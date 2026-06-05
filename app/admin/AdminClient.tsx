@@ -923,6 +923,8 @@ export default function AdminClient() {
   const [piqAnswering, setPiqAnswering] = useState(false);
   const [piqStatusFilter, setPiqStatusFilter] = useState<'all'|'pending'|'answered'>('all');
   const [piqSearch, setPiqSearch] = useState('');
+  const [piqFrom, setPiqFrom] = useState('');
+  const [piqTo, setPiqTo] = useState('');
 
   /* ── 1:1 문의 ── */
   const [csItems, setCsItems] = useState<CsInquiryAdmin[]>([]);
@@ -930,7 +932,10 @@ export default function AdminClient() {
   const [selectedCs, setSelectedCs] = useState<CsInquiryAdmin | null>(null);
   const [csAnswer, setCsAnswer] = useState('');
   const [csAnswering, setCsAnswering] = useState(false);
-  const [csAdminTab, setCsAdminTab] = useState('tab-pending');
+  const [csAdminTab, setCsAdminTab] = useState('tab-all');
+  const [csCatFilter, setCsCatFilter] = useState('');
+  const [csFrom, setCsFrom] = useState('');
+  const [csTo, setCsTo] = useState('');
 
   /* ── 배너 ── */
   const [banners, setBanners] = useState<AdminBanner[]>([]);
@@ -2583,7 +2588,13 @@ export default function AdminClient() {
   /* 1:1 문의 탭별 필터 */
   const csPending  = csItems.filter(c => c.status === 'pending');
   const csAnswered = csItems.filter(c => c.status === 'answered');
-  const csTabList  = csAdminTab === 'tab-pending' ? csPending : csAdminTab === 'tab-answered' ? csAnswered : csItems;
+  const csTabBase  = csAdminTab === 'tab-pending' ? csPending : csAdminTab === 'tab-answered' ? csAnswered : csItems;
+  const csTabList  = csTabBase.filter(c => {
+    const matchCat  = !csCatFilter || c.category === csCatFilter;
+    const matchFrom = !csFrom || c.created_at >= new Date(`${csFrom}T00:00:00`).toISOString();
+    const matchTo   = !csTo   || c.created_at <= new Date(`${csTo}T23:59:59`).toISOString();
+    return matchCat && matchFrom && matchTo;
+  });
 
   /* 이벤트 상태 */
   function getEventStatus(ev: AdminEvent) {
@@ -4930,28 +4941,35 @@ GRANT ALL ON popups TO authenticated, anon;`}
             <div className="adm-content">
               <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                 {[
-                  ['전체 문의', csItems.length + '건'],
-                  ['답변 대기', csPending.length + '건'],
-                  ['답변 완료', csAnswered.length + '건'],
-                ].map(([l, v]) => (
-                  <div key={l} className="adm-kpi-card">
-                    <div className="adm-kpi-label">{l}</div>
-                    <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                  { l:'전체 문의', v:csItems.length, tab:'tab-all', red:false },
+                  { l:'답변 완료', v:csAnswered.length, tab:'tab-answered', red:false },
+                  { l:'답변 대기', v:csPending.length, tab:'tab-pending', red:true },
+                ].map(k => (
+                  <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: csAdminTab===k.tab ? '2px solid #1A1A1A' : 'none' }}
+                    onClick={() => setCsAdminTab(k.tab)}>
+                    <div className="adm-kpi-label">{k.l}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && k.v>0 ? { color:'#DC2626' } : undefined}>{k.v}건</div>
                   </div>
                 ))}
               </div>
               <TabBtns active={csAdminTab} setActive={setCsAdminTab}
                 tabs={[
-                  { id:'tab-pending',  label: <span>답변 대기 {csPending.length > 0 && <span className="adm-tab-count adm-tab-count-red">{csPending.length}</span>}</span> },
-                  { id:'tab-answered', label: '답변 완료' },
                   { id:'tab-all',      label: '전체' },
+                  { id:'tab-answered', label: '답변 완료' },
+                  { id:'tab-pending',  label: <span>답변 대기 {csPending.length > 0 && <span className="adm-tab-count adm-tab-count-red">{csPending.length}</span>}</span> },
                 ]} />
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <select className="adm-select">
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  <select className="adm-select" value={csCatFilter} onChange={e => setCsCatFilter(e.target.value)}>
                     <option value="">전체 카테고리</option>
                     {Object.entries(CS_CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
+                  <input type="date" className="adm-select" value={csFrom} onChange={e => setCsFrom(e.target.value)} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={csTo} onChange={e => setCsTo(e.target.value)} />
+                  {(csCatFilter || csFrom || csTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setCsCatFilter(''); setCsFrom(''); setCsTo(''); }}>초기화</button>
+                  )}
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadCsInquiries}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
@@ -5003,30 +5021,36 @@ GRANT ALL ON popups TO authenticated, anon;`}
               const matchStatus = piqStatusFilter === 'all' ? true : piqStatusFilter === 'pending' ? !q.answer : !!q.answer;
               const s = piqSearch.toLowerCase();
               const matchSearch = !s || (q.products?.name||'').toLowerCase().includes(s) || q.content.toLowerCase().includes(s) || q.category.toLowerCase().includes(s);
-              return matchStatus && matchSearch;
+              const matchFrom = !piqFrom || q.created_at >= new Date(`${piqFrom}T00:00:00`).toISOString();
+              const matchTo   = !piqTo   || q.created_at <= new Date(`${piqTo}T23:59:59`).toISOString();
+              return matchStatus && matchSearch && matchFrom && matchTo;
             });
             return (
               <div className="adm-content">
                 <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                   {[
-                    ['전체 문의', `${productInquiries.length}건`],
-                    ['답변 대기', `${pending.length}건`],
-                    ['답변 완료', `${answered.length}건`],
-                  ].map(([l,v]) => (
-                    <div key={l} className="adm-kpi-card">
-                      <div className="adm-kpi-label">{l}</div>
-                      <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                    { l:'전체 문의', v:productInquiries.length, st:'all' as const, red:false },
+                    { l:'답변 완료', v:answered.length, st:'answered' as const, red:false },
+                    { l:'답변 대기', v:pending.length, st:'pending' as const, red:true },
+                  ].map(k => (
+                    <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: piqStatusFilter===k.st ? '2px solid #1A1A1A' : 'none' }}
+                      onClick={() => setPiqStatusFilter(k.st)}>
+                      <div className="adm-kpi-label">{k.l}</div>
+                      <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && k.v>0 ? { color:'#DC2626' } : undefined}>{k.v}건</div>
                     </div>
                   ))}
                 </div>
-                <div className="adm-toolbar">
-                  <div className="adm-toolbar-left">
+                <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                  <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                     <select className="adm-select" value={piqStatusFilter}
                       onChange={e => setPiqStatusFilter(e.target.value as 'all'|'pending'|'answered')}>
                       <option value="all">전체</option>
-                      <option value="pending">답변 대기</option>
                       <option value="answered">답변 완료</option>
+                      <option value="pending">답변 대기</option>
                     </select>
+                    <input type="date" className="adm-select" value={piqFrom} onChange={e => setPiqFrom(e.target.value)} />
+                    <span style={{ color:'#94A3B8' }}>~</span>
+                    <input type="date" className="adm-select" value={piqTo} onChange={e => setPiqTo(e.target.value)} />
                     <input type="text" className="adm-input-text" placeholder="상품명·내용·카테고리 검색"
                       value={piqSearch} onChange={e => setPiqSearch(e.target.value)} />
                   </div>
