@@ -250,7 +250,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; description?: string | null; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -933,7 +933,7 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false, signup_grant: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false, signup_grant: false });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -1032,6 +1032,7 @@ export default function AdminClient() {
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
+  const [couponStats, setCouponStats] = useState({ issued: 0, used: 0 });
   const [bannerTab, setBannerTab] = useState('tab-banner');
   const [inquiryTab, setInquiryTab] = useState('tab-general');
 
@@ -2368,18 +2369,23 @@ export default function AdminClient() {
   async function loadCoupons() {
     setCouponsLoading(true);
     const supabase = createClient();
-    const { data } = await supabase.from('coupons').select('*').order('created_at', { ascending: false });
+    const [{ data }, issuedRes, usedRes] = await Promise.all([
+      supabase.from('coupons').select('*').order('created_at', { ascending: false }),
+      supabase.from('user_coupons').select('id', { count: 'exact', head: true }),
+      supabase.from('user_coupons').select('id', { count: 'exact', head: true }).eq('is_used', true),
+    ]);
     setCoupons((data || []) as AdminCoupon[]);
+    setCouponStats({ issued: issuedRes.count || 0, used: usedRes.count || 0 });
     setCouponsLoading(false);
   }
 
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false, signup_grant: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false, signup_grant: false });
     }
     setCouponModal(true);
   }
@@ -2399,6 +2405,7 @@ export default function AdminClient() {
     const payload = {
       code: couponForm.code.trim() || genCouponCode(),
       name: couponForm.name.trim(),
+      description: couponForm.description.trim() || null,
       discount_type: couponForm.discount_type,
       discount_value: Number(couponForm.discount_value),
       min_order_amount: Number(couponForm.min_order_amount) || 0,
@@ -4076,6 +4083,20 @@ export default function AdminClient() {
                 tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'}]} />
               {couponTab === 'tab-coupon' ? (
                 <>
+                  <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
+                    {[
+                      ['전체 쿠폰', `${coupons.length}개`],
+                      ['활성', `${coupons.filter(c => c.is_active).length}개`],
+                      ['비활성', `${coupons.filter(c => !c.is_active).length}개`],
+                      ['총 발급', `${couponStats.issued.toLocaleString()}건`],
+                      ['총 사용', `${couponStats.used.toLocaleString()}건`],
+                    ].map(([l, v]) => (
+                      <div key={l} className="adm-kpi-card">
+                        <div className="adm-kpi-label">{l}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                      </div>
+                    ))}
+                  </div>
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
@@ -6656,6 +6677,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <label className="adm-label">쿠폰명 *</label>
                 <input type="text" className="adm-input-text" placeholder="예: 신규회원 10% 할인"
                   value={couponForm.name} onChange={e => setCouponForm(p => ({ ...p, name: e.target.value }))} />
+              </div>
+              <div className="adm-form-row">
+                <label className="adm-label">쿠폰 설명</label>
+                <input type="text" className="adm-input-text" placeholder="예: 첫 구매 시 사용 가능한 신규회원 전용 쿠폰"
+                  value={couponForm.description} onChange={e => setCouponForm(p => ({ ...p, description: e.target.value }))} />
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">쿠폰 코드</label>
