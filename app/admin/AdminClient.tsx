@@ -813,7 +813,7 @@ export default function AdminClient() {
   const [pSaving, setPSaving] = useState(false);
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('rate');
   /* 상품 옵션 (label / add_price / stock) */
-  const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number }[]>([]);
+  const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number; parent_label?: string }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
@@ -1389,11 +1389,11 @@ export default function AdminClient() {
         }
       });
       // 옵션 로드
-      supabase.from('product_options').select('label, add_price, stock, group_name, is_required')
+      supabase.from('product_options').select('label, add_price, stock, group_name, is_required, parent_label')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          setPOptions((data || []).map((o: { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null }) =>
-            ({ group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0 })));
+          setPOptions(((data || []) as { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
+            ({ group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0, parent_label: o.parent_label || '' })));
         });
     } else {
       setEditingProduct(null);
@@ -1467,6 +1467,7 @@ export default function AdminClient() {
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
+            parent_label: o.parent_label?.trim() || null,
             is_default: i === 0,
             sort_order: i + 1,
           }))
@@ -2887,12 +2888,17 @@ export default function AdminClient() {
                   const groupNames = [...new Set(pOptions.map(o => o.group))];
                   return (
                     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-                      {groupNames.map(gName => {
+                      {groupNames.map((gName, gIndex) => {
                         const rows = withIdx.filter(o => o.group === gName);
+                        const isDependent = gIndex > 0;  // 첫 그룹=상위, 이후=하위(종속 가능)
+                        const parentLabels = pOptions.filter(o => o.group === groupNames[0] && o.label.trim()).map(o => o.label.trim());
+                        const colTpl = isDependent ? '120px 1fr 100px 80px 32px' : '1fr 110px 90px 32px';
                         return (
                           <div key={gName} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:'12px', background:'#FAFBFC' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                              <span style={{ fontSize:11, color:'#64748B', fontWeight:700, whiteSpace:'nowrap' }}>그룹명</span>
+                              <span style={{ fontSize:11, color:'#64748B', fontWeight:700, whiteSpace:'nowrap' }}>
+                                {isDependent ? '하위그룹' : '그룹명'}
+                              </span>
                               <input className="adm-input-text" style={{ flex:1, maxWidth:180, fontWeight:600 }} value={gName} placeholder="예: 중량"
                                 onChange={e => { const nv = e.target.value; setPOptions(prev => prev.map(o => o.group === gName ? { ...o, group: nv } : o)); }} />
                               <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
@@ -2906,11 +2912,24 @@ export default function AdminClient() {
                               <button type="button" onClick={() => setPOptions(prev => prev.filter(o => o.group !== gName))}
                                 style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>그룹 삭제</button>
                             </div>
-                            <div style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, fontSize:11, color:'#94A3B8', fontWeight:600, padding:'0 2px', marginBottom:6 }}>
+                            {isDependent && (
+                              <div style={{ fontSize:11, color:'#7C3AED', marginBottom:6 }}>
+                                ⛓ 상위 연결을 지정하면 그 상위 옵션을 골랐을 때만 노출됩니다. (전체 = 모든 상위에서 노출)
+                              </div>
+                            )}
+                            <div style={{ display:'grid', gridTemplateColumns: colTpl, gap:8, fontSize:11, color:'#94A3B8', fontWeight:600, padding:'0 2px', marginBottom:6 }}>
+                              {isDependent && <span>상위 연결</span>}
                               <span>세부옵션명</span><span>추가금액(원)</span><span>재고</span><span></span>
                             </div>
                             {rows.map(o => (
-                              <div key={o._i} style={{ display:'grid', gridTemplateColumns:'1fr 110px 90px 32px', gap:8, alignItems:'center', marginBottom:6 }}>
+                              <div key={o._i} style={{ display:'grid', gridTemplateColumns: colTpl, gap:8, alignItems:'center', marginBottom:6 }}>
+                                {isDependent && (
+                                  <select className="adm-select" style={{ fontSize:12 }} value={o.parent_label || ''}
+                                    onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, parent_label: e.target.value } : x))}>
+                                    <option value="">전체</option>
+                                    {parentLabels.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                                  </select>
+                                )}
                                 <input className="adm-input-text" placeholder="예: 2kg" value={o.label}
                                   onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, label: e.target.value } : x))} />
                                 <input className="adm-input-text" type="number" placeholder="0" value={o.add_price}
@@ -2921,7 +2940,7 @@ export default function AdminClient() {
                                   style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
                               </div>
                             ))}
-                            <button type="button" onClick={() => setPOptions(prev => [...prev, { group: gName, required: prev.find(o => o.group === gName)?.required ?? true, label:'', add_price:0, stock:0 }])}
+                            <button type="button" onClick={() => setPOptions(prev => [...prev, { group: gName, required: prev.find(o => o.group === gName)?.required ?? true, label:'', add_price:0, stock:0, parent_label:'' }])}
                               style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 세부옵션 추가</button>
                           </div>
                         );

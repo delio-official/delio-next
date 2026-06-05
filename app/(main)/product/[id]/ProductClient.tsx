@@ -23,7 +23,7 @@ interface Product {
   seller_score?: { sweet: number; sour: number; texture: number; fresh: number } | null;
 }
 interface ProductOption {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null;
+  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
 }
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
@@ -441,8 +441,18 @@ export default function ProductClient() {
   function allGroupsSelected(): boolean {
     if (options.length === 0) return true;
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+    const parentG = gNames[0];
+    const parentLabel = options.find(o => o.id === selByGroup[parentG])?.label || '';
     const requiredGroups = gNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
-    return requiredGroups.every(g => selByGroup[g]);
+    return requiredGroups.every(g => {
+      if (selByGroup[g]) return true;
+      // 종속(하위) 그룹: 선택된 상위에 해당하는 하위 옵션이 하나도 없으면 충족으로 간주
+      if (gNames.indexOf(g) > 0) {
+        const avail = options.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
+        if (avail.length === 0) return true;
+      }
+      return false;
+    });
   }
   function addCartItem() {
     if (!product) return;
@@ -601,6 +611,14 @@ export default function ProductClient() {
   const bg         = BG_MAP[product.category]    || BG_MAP.default;
   const basePrice  = product.discounted_price    ?? product.price;
   const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
+  /* 2단(종속) 옵션: 첫 그룹=상위, 이후=하위. 하위는 parent_label이 선택된 상위 label과 맞을 때만 노출 */
+  const parentGroup = optGroupNames[0];
+  const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
+  const optsForGroup = (g: string): ProductOption[] => {
+    const inGroup = options.filter(o => (o.group_name || '옵션') === g);
+    if (g === parentGroup) return inGroup;
+    return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
+  };
   const selectedOpts  = getSelectedOpts();
   const allSelected   = allGroupsSelected();
   const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
@@ -1160,15 +1178,28 @@ export default function ProductClient() {
                 {options.length > 0 && (
                   <>
                     {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
-                    {optGroupNames.map(g => {
+                    {optGroupNames.map((g, gIdx) => {
                       const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
+                      const isDependent = gIdx > 0;
+                      const groupOpts = optsForGroup(g);
+                      // 종속 그룹인데 상위 미선택이면 잠금
+                      const locked = isDependent && !selectedParentLabel;
                       return (
                       <div key={g}>
                         <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
-                        <select className="option-select" value={selByGroup[g] || ''}
-                          onChange={e => { setSelByGroup(prev => ({ ...prev, [g]: e.target.value })); setQty(1); }}>
-                          <option value="">{gReq ? '[필수]' : '[선택]'} 옵션 선택</option>
-                          {options.filter(o => (o.group_name || '옵션') === g).map(o => (
+                        <select className="option-select" value={selByGroup[g] || ''} disabled={locked}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSelByGroup(prev => {
+                              const next = { ...prev, [g]: val };
+                              // 상위(첫 그룹) 변경 시 하위 그룹 선택 초기화
+                              if (g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
+                              return next;
+                            });
+                            setQty(1);
+                          }}>
+                          <option value="">{locked ? '상위 옵션을 먼저 선택' : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}</option>
+                          {groupOpts.map(o => (
                             <option key={o.id} value={o.id}>
                               {o.label}
                               {o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
