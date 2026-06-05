@@ -117,7 +117,18 @@ export async function finalizeOrder(
       .eq('id', orderData.userCouponId);
   }
 
-  const earned = Math.floor(orderData.totalAmount * 0.01);
+  /* 포인트 적립: 설정(point_enabled / point_rate) 반영. 미설정 시 1% 기본 */
+  let pointRate = 0.01;
+  let pointEnabled = true;
+  {
+    const { data: ps } = await supabase
+      .from('settings').select('key, value').in('key', ['point_enabled', 'point_rate']);
+    (ps || []).forEach((r: { key: string; value: string }) => {
+      if (r.key === 'point_enabled') pointEnabled = r.value !== 'false';
+      if (r.key === 'point_rate' && r.value) pointRate = (Number(r.value) || 0) / 100;
+    });
+  }
+  const earned = pointEnabled ? Math.floor(orderData.totalAmount * pointRate) : 0;
   if (orderData.userId) {
     const { data: prof } = await supabase
       .from('profiles').select('point_balance').eq('id', orderData.userId).single();

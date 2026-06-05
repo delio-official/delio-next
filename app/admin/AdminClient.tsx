@@ -923,6 +923,9 @@ export default function AdminClient() {
   const [pointSearch, setPointSearch] = useState('');
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
+  const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null } | null }[]>([]);
+  const [pointLogFrom, setPointLogFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
+  const [pointLogTo, setPointLogTo] = useState<string>(() => ymd(new Date()));
   const [givePointModal, setGivePointModal] = useState(false);
   const [givePointTarget, setGivePointTarget] = useState<AdminProfile | null>(null);
   const [givePointForm, setGivePointForm] = useState({ amount: '', desc: '' });
@@ -2335,6 +2338,21 @@ export default function AdminClient() {
     const monthUsed  = (logs || []).filter((l: {amount:number}) => l.amount < 0).reduce((s: number, l: {amount:number}) => s + Math.abs(l.amount), 0);
     setPointStats({ total, monthGiven, monthUsed });
     setPointMembersLoading(false);
+    loadPointLogs();
+  }
+
+  /* 포인트 지급/사용 내역 (기간별) */
+  async function loadPointLogs(from?: string, to?: string) {
+    const f = from ?? pointLogFrom;
+    const t = to ?? pointLogTo;
+    const supabase = createClient();
+    let q = supabase.from('point_logs')
+      .select('id, amount, created_at, description, profiles:user_id(name, email)')
+      .order('created_at', { ascending: false }).limit(500);
+    if (f) q = q.gte('created_at', new Date(`${f}T00:00:00`).toISOString());
+    if (t) q = q.lte('created_at', new Date(`${t}T23:59:59`).toISOString());
+    const { data } = await q;
+    setPointLogs((data as unknown as typeof pointLogs) || []);
   }
 
   async function givePoints() {
@@ -4204,6 +4222,45 @@ export default function AdminClient() {
                       </div>
                     )}
                   </div>
+
+                  {/* 포인트 지급/사용 내역 (기간별) */}
+                  <div className="adm-toolbar" style={{ marginTop:20, flexWrap:'wrap', gap:8 }}>
+                    <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
+                      <span className="adm-card-title">포인트 내역</span>
+                    </div>
+                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
+                      <input type="date" className="adm-select" value={pointLogFrom} onChange={e => setPointLogFrom(e.target.value)} />
+                      <span style={{ color:'#94A3B8' }}>~</span>
+                      <input type="date" className="adm-select" value={pointLogTo} onChange={e => setPointLogTo(e.target.value)} />
+                      <button className="adm-btn adm-btn-primary" onClick={() => loadPointLogs()}>조회</button>
+                    </div>
+                  </div>
+                  <div className="adm-card">
+                    <div className="adm-table-wrap">
+                      <table className="adm-table">
+                        <thead><tr><th>일시</th><th>회원</th><th>구분</th><th>포인트</th><th>사유</th></tr></thead>
+                        <tbody>
+                          {pointLogs.length === 0 ? (
+                            <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 기간 포인트 내역이 없습니다.</td></tr>
+                          ) : pointLogs.map(l => (
+                            <tr key={l.id}>
+                              <td className="adm-muted">{fmtDate(l.created_at)}</td>
+                              <td>{l.profiles?.name || '-'} <span className="adm-muted" style={{ fontSize:11 }}>{l.profiles?.email || ''}</span></td>
+                              <td>
+                                <span className={`adm-badge ${l.amount >= 0 ? 'badge-paid' : 'badge-off'}`}>
+                                  {l.amount >= 0 ? '적립' : '사용'}
+                                </span>
+                              </td>
+                              <td className="adm-mono" style={{ fontWeight:600, color: l.amount >= 0 ? '#2D7A4D' : '#DC2626' }}>
+                                {l.amount >= 0 ? '+' : ''}{fmtPrice(l.amount)}P
+                              </td>
+                              <td className="adm-muted" style={{ fontSize:12 }}>{l.description || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -6037,6 +6094,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         onChange={e => setSiteSettings(prev => ({ ...prev, signup_coupon: e.target.value }))}
                       />
                       <span className="adm-muted">원</span>
+                    </div>
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">포인트 적립 사용</label>
+                    <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'}
+                        onChange={v => setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }))} />
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>끄면 구매 시 포인트가 적립되지 않습니다.</span>
                     </div>
                   </div>
                   <div className="adm-form-row">
