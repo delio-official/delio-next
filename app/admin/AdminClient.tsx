@@ -127,6 +127,8 @@ interface AdminReview {
   image_urls: string[] | null;
   report_count?: number;
   created_at: string;
+  seller_reply?: string | null;
+  seller_replied_at?: string | null;
   profiles: { name: string | null; email: string } | null;
   products: { name: string } | null;
 }
@@ -886,6 +888,15 @@ export default function AdminClient() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
+  const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
+  const [reviewAnswered, setReviewAnswered] = useState<'all'|'unanswered'|'answered'>('all');
+  const [reviewSearch, setReviewSearch] = useState('');
+  const [reviewFrom, setReviewFrom] = useState('');
+  const [reviewTo, setReviewTo] = useState('');
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPageSize, setReviewPageSize] = useState(30);
+  const [reviewReply, setReviewReply] = useState('');
+  const [reviewReplySaving, setReviewReplySaving] = useState(false);
 
   /* ── 이벤트 ── */
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -1671,7 +1682,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
       supabase.from('reviews')
-        .select('id, product_id, rating, content, is_best, likes_count, image_urls, created_at, profiles(name, email), products(name)')
+        .select('id, product_id, rating, content, is_best, likes_count, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name)')
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
@@ -1687,6 +1698,18 @@ export default function AdminClient() {
     }));
     setReviews(reviews as unknown as AdminReview[]);
     setReviewsLoading(false);
+  }
+
+  /* 리뷰 판매자 답변 저장 */
+  async function saveReviewReply(reviewId: string, reply: string) {
+    setReviewReplySaving(true);
+    const supabase = createClient();
+    const payload = { seller_reply: reply.trim() || null, seller_replied_at: reply.trim() ? new Date().toISOString() : null };
+    const { error } = await supabase.from('reviews').update(payload).eq('id', reviewId);
+    setReviewReplySaving(false);
+    if (error) { alert('답변 저장 실패: ' + error.message); return; }
+    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, ...payload } : r));
+    setSelectedReview(prev => prev && prev.id === reviewId ? { ...prev, ...payload } : prev);
   }
 
   async function loadEvents() {
@@ -2698,6 +2721,22 @@ export default function AdminClient() {
     const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
     return matchCat && matchSearch && matchStatus;
   });
+
+  /* 리뷰 필터·페이지 */
+  const reviewUnansweredCount = reviews.filter(r => !r.seller_reply).length;
+  const reviewAvgRating = reviews.length ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) : 0;
+  const filteredReviews = reviews.filter(r => {
+    const matchRating = !reviewRating || r.rating === Number(reviewRating);
+    const matchAns = reviewAnswered === 'all' || (reviewAnswered === 'answered' ? !!r.seller_reply : !r.seller_reply);
+    const q = reviewSearch.toLowerCase();
+    const matchSearch = !q || (r.content || '').toLowerCase().includes(q) || (r.profiles?.email || '').toLowerCase().includes(q) || (r.profiles?.name || '').toLowerCase().includes(q);
+    const matchFrom = !reviewFrom || r.created_at >= new Date(`${reviewFrom}T00:00:00`).toISOString();
+    const matchTo   = !reviewTo   || r.created_at <= new Date(`${reviewTo}T23:59:59`).toISOString();
+    return matchRating && matchAns && matchSearch && matchFrom && matchTo;
+  });
+  const reviewTotalPages = Math.max(1, Math.ceil(filteredReviews.length / reviewPageSize));
+  const reviewCurPage = Math.min(reviewPage, reviewTotalPages);
+  const pagedReviews = filteredReviews.slice((reviewCurPage - 1) * reviewPageSize, reviewCurPage * reviewPageSize);
 
   /* 포인트 필터된 회원 */
   const filteredPointMembers = pointMembers
@@ -4052,12 +4091,39 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <select className="adm-select"><option>별점 전체</option><option>⭐⭐⭐⭐⭐ 5점</option><option>⭐⭐⭐⭐ 4점</option><option>⭐⭐⭐ 3점 이하</option></select>
-                  <input type="text" className="adm-input-text" placeholder="내용 검색" />
+              <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                {[
+                  { l:'전체 리뷰', v:`${reviews.length}건`, red:false },
+                  { l:'미답변', v:`${reviewUnansweredCount}건`, red:true },
+                  { l:'평균 평점', v:`★ ${reviewAvgRating.toFixed(1)}`, red:false },
+                ].map(k => (
+                  <div key={k.l} className="adm-kpi-card">
+                    <div className="adm-kpi-label">{k.l}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && reviewUnansweredCount>0 ? { color:'#DC2626' } : undefined}>{k.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  <select className="adm-select" value={reviewRating} onChange={e => { setReviewRating(e.target.value); setReviewPage(1); }}>
+                    <option value="">별점 전체</option>
+                    {['5','4','3','2','1'].map(s => <option key={s} value={s}>{s}점</option>)}
+                  </select>
+                  <select className="adm-select" value={reviewAnswered} onChange={e => { setReviewAnswered(e.target.value as 'all'|'unanswered'|'answered'); setReviewPage(1); }}>
+                    <option value="all">전체</option>
+                    <option value="unanswered">미답변</option>
+                    <option value="answered">답변완료</option>
+                  </select>
+                  <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
+                  <input type="text" className="adm-input-text" placeholder="내용·아이디 검색"
+                    value={reviewSearch} onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }} />
                 </div>
-                <div className="adm-toolbar-right">
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  <select className="adm-select" value={reviewPageSize} onChange={e => { setReviewPageSize(Number(e.target.value)); setReviewPage(1); }}>
+                    {[10,30,50,100].map(n => <option key={n} value={n}>{n}개씩</option>)}
+                  </select>
                   <button className="adm-btn adm-btn-outline" onClick={loadReviews}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
@@ -4065,16 +4131,20 @@ export default function AdminClient() {
                 {reviewsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>번호</th><th>별점</th><th>내용</th><th>상품</th><th>베스트</th><th>👍도움</th><th>🚨신고</th><th>작성일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>별점</th><th>내용</th><th>상품</th><th>답변</th><th>베스트</th><th>👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
                       <tbody>
-                        {reviews.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>리뷰 없음</td></tr>
-                        ) : reviews.map((r, i) => (
-                          <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => setSelectedReview(r)}>
-                            <td className="adm-mono" style={{ fontSize:12 }}>R-{String(i+1).padStart(3,'0')}</td>
+                        {filteredReviews.length === 0 ? (
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
+                        ) : pagedReviews.map(r => (
+                          <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>
                             <td><StarRating rating={r.rating} size={13} /></td>
                             <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.content}</td>
                             <td className="adm-muted" style={{ fontSize:12 }}>{r.products?.name || '-'}</td>
+                            <td>
+                              {r.seller_reply
+                                ? <span className="adm-badge badge-done">완료</span>
+                                : <span className="adm-badge badge-wait" style={{ color:'#DC2626' }}>미답변</span>}
+                            </td>
                             <td><Toggle defaultOn={r.is_best} onChange={v => toggleReviewBest(r.id, v)} /></td>
                             <td className="adm-mono" style={{ fontSize:12 }}>{r.likes_count || 0}</td>
                             <td>
@@ -4091,6 +4161,14 @@ export default function AdminClient() {
                   </div>
                 )}
               </div>
+              {!reviewsLoading && filteredReviews.length > 0 && (
+                <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14 }}>
+                  <button className="adm-btn adm-btn-outline" disabled={reviewCurPage <= 1} onClick={() => setReviewPage(p => Math.max(1, p - 1))}>이전</button>
+                  <span className="adm-muted" style={{ fontSize:13 }}>{reviewCurPage} / {reviewTotalPages}</span>
+                  <button className="adm-btn adm-btn-outline" disabled={reviewCurPage >= reviewTotalPages} onClick={() => setReviewPage(p => Math.min(reviewTotalPages, p + 1))}>다음</button>
+                  <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredReviews.length}건</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -6372,6 +6450,24 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   ))}
                 </div>
               )}
+
+              {/* 판매자 답변 */}
+              <div style={{ borderTop:'1px solid #F0F0F0', paddingTop:14 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>💬 판매자 답변 {selectedReview.seller_reply ? '(작성됨 · 상품 상세에 노출)' : ''}</div>
+                <textarea className="adm-input-text" style={{ width:'100%', minHeight:80, resize:'vertical', lineHeight:1.6 }}
+                  placeholder="고객 리뷰에 대한 판매자 답변을 입력하세요. (상품 상세 리뷰에 함께 노출됩니다)"
+                  value={reviewReply} onChange={e => setReviewReply(e.target.value)} />
+                <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:8 }}>
+                  {selectedReview.seller_reply && (
+                    <button className="adm-btn adm-btn-outline" disabled={reviewReplySaving}
+                      onClick={() => { setReviewReply(''); saveReviewReply(selectedReview.id, ''); }}>답변 삭제</button>
+                  )}
+                  <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
+                    onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
+                    {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
+                  </button>
+                </div>
+              </div>
 
               {/* 삭제 버튼 */}
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, paddingTop:8, borderTop:'1px solid #F0F0F0' }}>
