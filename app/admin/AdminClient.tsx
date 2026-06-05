@@ -455,17 +455,28 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const [preview,      setPreview]      = useState(false);
   const [smsLogs,      setSmsLogs]      = useState<{ id: string; message: string; target_count: number; msg_type: string; status: string; error_msg: string|null; created_at: string }[]>([]);
   const [logsLoading,  setLogsLoading]  = useState(false);
+  const [smsFrom, setSmsFrom] = useState('');
+  const [smsTo, setSmsTo] = useState('');
+  const [smsTotalCount, setSmsTotalCount] = useState(0);
 
   useEffect(() => {
     if (members.length === 0) loadMembers();
     loadSmsLogs();
   }, []); // eslint-disable-line
 
-  async function loadSmsLogs() {
+  async function loadSmsLogs(from?: string, to?: string) {
     setLogsLoading(true);
+    const f = from ?? smsFrom; const t = to ?? smsTo;
     const supabase = createClient();
-    const { data } = await supabase.from('sms_logs').select('*').order('created_at', { ascending: false }).limit(30);
+    let q = supabase.from('sms_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    if (f) q = q.gte('created_at', new Date(`${f}T00:00:00`).toISOString());
+    if (t) q = q.lte('created_at', new Date(`${t}T23:59:59`).toISOString());
+    const [{ data }, totalRes] = await Promise.all([
+      q,
+      supabase.from('sms_logs').select('id', { count: 'exact', head: true }),
+    ]);
     setSmsLogs((data || []) as typeof smsLogs);
+    setSmsTotalCount(totalRes.count || 0);
     setLogsLoading(false);
   }
 
@@ -521,8 +532,18 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const targetCount  = buildTargets().length;
   const GRADE_LABEL_MAP: Record<string,string> = { normal:'일반', silver:'실버', gold:'골드', vip:'VIP', vvip:'VVIP' };
 
+  const smsPeriodRecipients = smsLogs.reduce((s, l) => s + (l.target_count || 0), 0);
   return (
     <div className="adm-content">
+      <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+        {[
+          ['누적 발송 횟수', `${smsTotalCount.toLocaleString()}회`],
+          ['조회 기간 발송', `${smsLogs.length.toLocaleString()}회`],
+          ['조회 기간 수신자', `${smsPeriodRecipients.toLocaleString()}명`],
+        ].map(([l, v]) => (
+          <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt">{v}</div></div>
+        ))}
+      </div>
       <div className="adm-row" style={{ alignItems:'flex-start' }}>
 
         {/* 좌: 작성 영역 */}
@@ -623,10 +644,17 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
         {/* 우: 발송 이력 */}
         <div className="adm-card adm-card-sm">
           <div className="adm-card-head">
-            <span className="adm-card-title">최근 발송 이력</span>
-            <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }} onClick={loadSmsLogs}>
+            <span className="adm-card-title">발송 이력</span>
+            <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }} onClick={() => loadSmsLogs()}>
               <span className="adm-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></span>새로고침
             </button>
+          </div>
+          {/* 기간 조회 */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 0', flexWrap:'wrap' }}>
+            <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:120 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
+            <span style={{ color:'#94A3B8' }}>~</span>
+            <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:120 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
+            <button className="adm-btn adm-btn-primary" style={{ fontSize:12, padding:'4px 12px' }} onClick={() => loadSmsLogs()}>조회</button>
           </div>
           {logsLoading ? <PanelLoading /> : smsLogs.length === 0 ? (
             <div className="adm-muted" style={{ padding:'24px 0', fontSize:13, textAlign:'center' }}>발송 이력 없음</div>
