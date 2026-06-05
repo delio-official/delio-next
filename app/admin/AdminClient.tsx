@@ -916,6 +916,8 @@ export default function AdminClient() {
   const [memberMemo, setMemberMemo] = useState('');
   const [memberMemoSaving, setMemberMemoSaving] = useState(false);
   const [memberOrders, setMemberOrders] = useState<Order[]>([]);
+  const [memberMemos, setMemberMemos] = useState<{ id: string; content: string; admin_name: string|null; created_at: string }[]>([]);
+  const [memberStats, setMemberStats] = useState({ totalSpent: 0, orderCount: 0 });
   const [memberOrdersLoading, setMemberOrdersLoading] = useState(false);
 
   /* ── 리뷰 ── */
@@ -1561,17 +1563,45 @@ export default function AdminClient() {
 
   async function openMemberDetail(m: AdminProfile) {
     setSelectedMember(m);
-    setMemberMemo(m.memo || '');
+    setMemberMemo('');
+    setMemberMemos([]);
+    setMemberStats({ totalSpent: 0, orderCount: 0 });
     setMemberOrdersLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
-      .from('orders')
-      .select('id, order_no, status, final_amount, created_at')
-      .eq('user_id', m.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const [{ data }, { data: memos }, { data: allOrders }] = await Promise.all([
+      supabase.from('orders').select('id, order_no, status, final_amount, created_at')
+        .eq('user_id', m.id).order('created_at', { ascending: false }).limit(10),
+      supabase.from('member_memos').select('id, content, admin_name, created_at')
+        .eq('user_id', m.id).order('created_at', { ascending: false }),
+      supabase.from('orders').select('final_amount, status').eq('user_id', m.id),
+    ]);
     setMemberOrders((data as Order[]) || []);
+    setMemberMemos(memos || []);
+    /* 누적 구매금액 = 결제완료/배송 단계 주문 합 (취소·환불 제외) */
+    const paid = (allOrders || []).filter((o: { status: string }) => ['paid','preparing','shipped','delivered','confirmed'].includes(o.status));
+    setMemberStats({ totalSpent: paid.reduce((s: number, o: { final_amount: number }) => s + (o.final_amount || 0), 0), orderCount: paid.length });
     setMemberOrdersLoading(false);
+  }
+
+  /* 관리자 메모 추가(누적) */
+  async function addMemberMemo(memberId: string) {
+    if (!memberMemo.trim()) return;
+    setMemberMemoSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('member_memos')
+      .insert({ user_id: memberId, content: memberMemo.trim(), admin_name: user?.email || null })
+      .select('id, content, admin_name, created_at').single();
+    setMemberMemoSaving(false);
+    if (error) { alert('메모 저장 실패: ' + error.message); return; }
+    setMemberMemos(prev => [data, ...prev]);
+    setMemberMemo('');
+  }
+
+  async function deleteMemberMemo(id: string) {
+    const supabase = createClient();
+    await supabase.from('member_memos').delete().eq('id', id);
+    setMemberMemos(prev => prev.filter(m => m.id !== id));
   }
 
   async function changeMemberGrade(memberId: string, grade: string) {
@@ -5231,6 +5261,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
             return (
               <div className="adm-content">
+                <div className="adm-info-box" style={{ marginBottom:12 }}>
+                  💡 리워드는 <strong>피추천인이 첫 구매(배송완료)</strong>하면 <strong>추천인</strong>에게 <strong>5,000원 쿠폰</strong>이 <strong>자동 지급</strong>됩니다. (아래 "추천인"이 리워드 수령자)
+                </div>
                 <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                   {[
                     ['누적 총 추천 수',  `${total.toLocaleString()}건`],
@@ -6408,6 +6441,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   ['이메일', selectedMember.email],
                   ['연락처', selectedMember.phone || '-'],
                   ['포인트', `${(selectedMember.point_balance||0).toLocaleString()}P`],
+                  ['누적 구매', `${memberStats.totalSpent.toLocaleString()}원 (${memberStats.orderCount}건)`],
                   ['가입일', fmtDate(selectedMember.created_at)],
                 ].map(([l,v]) => (
                   <div key={l} style={{ display:'flex', gap:12, marginBottom:8, fontSize:13 }}>
@@ -6450,16 +6484,29 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </button>
               </div>
 
-              {/* 관리자 메모 */}
+              {/* 관리자 메모 (누적) */}
               <div>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>관리자 메모</div>
-                <textarea rows={3} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1.5px solid #E2E8F0', fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
-                  placeholder="내부용 메모 (회원에게 보이지 않음)"
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>관리자 메모 <span style={{ fontWeight:400, color:'#94A3B8' }}>(내부용 · 누적 기록)</span></div>
+                <textarea rows={2} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1.5px solid #E2E8F0', fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
+                  placeholder="새 메모 입력 후 추가 (회원에게 보이지 않음)"
                   value={memberMemo} onChange={e => setMemberMemo(e.target.value)} />
-                <button onClick={() => saveMemberMemo(selectedMember.id)} disabled={memberMemoSaving}
+                <button onClick={() => addMemberMemo(selectedMember.id)} disabled={memberMemoSaving || !memberMemo.trim()}
                   style={{ marginTop:6, padding:'6px 16px', borderRadius:6, border:'none', background:'#1A1A1A', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                  {memberMemoSaving ? '저장 중...' : '메모 저장'}
+                  {memberMemoSaving ? '저장 중...' : '+ 메모 추가'}
                 </button>
+                {memberMemos.length > 0 && (
+                  <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
+                    {memberMemos.map(mm => (
+                      <div key={mm.id} style={{ background:'#F8FAFC', borderRadius:8, padding:'8px 12px', fontSize:13 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                          <span style={{ fontSize:11, color:'#94A3B8' }}>{fmtDate(mm.created_at)}{mm.admin_name ? ` · ${mm.admin_name}` : ''}</span>
+                          <button onClick={() => deleteMemberMemo(mm.id)} style={{ background:'none', border:'none', color:'#DC2626', fontSize:11, cursor:'pointer' }}>삭제</button>
+                        </div>
+                        <div style={{ color:'#334155', whiteSpace:'pre-wrap', lineHeight:1.5 }}>{mm.content}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* 최근 주문 */}
