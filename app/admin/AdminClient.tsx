@@ -281,15 +281,29 @@ const CS_CAT_LABEL: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   pending:'결제대기', paid:'결제완료', preparing:'상품준비중',
-  shipped:'배송중', delivered:'배송완료', cancelled:'취소됨',
+  shipped:'배송중', delivered:'배송완료', confirmed:'구매확정', cancelled:'취소됨',
   refunding:'환불처리중', refunded:'환불완료',
 };
 
 const STATUS_BADGE_CLS: Record<string, string> = {
   pending:'badge-wait', paid:'badge-paid', preparing:'badge-ready',
-  shipped:'badge-shipping', delivered:'badge-done', cancelled:'badge-off',
+  shipped:'badge-shipping', delivered:'badge-done', confirmed:'badge-done', cancelled:'badge-off',
   refunding:'badge-refund', refunded:'badge-off',
 };
+
+/* YYYY-MM-DD 포맷 (날짜 input 값) */
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+/* 주문 단계 플로우 (대시보드·주문관리 공용) — 스마트스토어식 */
+const ORDER_STAGES: { key: string; label: string }[] = [
+  { key:'paid',      label:'신규주문' },
+  { key:'preparing', label:'배송준비' },
+  { key:'shipped',   label:'배송중' },
+  { key:'delivered', label:'배송완료' },
+  { key:'confirmed', label:'구매확정' },
+];
 
 const GRADE_LABEL: Record<string, string> = {
   normal:'일반', silver:'실버', gold:'골드', vip:'VIP', vvip:'VVIP',
@@ -786,6 +800,8 @@ export default function AdminClient() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
+  const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
+  const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
 
   /* ── 주문 ── */
   const [orders, setOrders] = useState<Order[]>([]);
@@ -794,6 +810,11 @@ export default function AdminClient() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
+  const [orderDateBasis, setOrderDateBasis] = useState<'created_at'|'paid_at'>('created_at');
+  const [orderFrom, setOrderFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
+  const [orderTo, setOrderTo] = useState<string>(() => ymd(new Date()));
+  const [orderPageSize, setOrderPageSize] = useState(50);
+  const [orderPage, setOrderPage] = useState(1);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
   const [savingTracking, setSavingTracking] = useState(false);
@@ -1033,10 +1054,19 @@ export default function AdminClient() {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
-    const [ordersRes, membersRes] = await Promise.all([
+    const [ordersRes, membersRes, ...stageRes] = await Promise.all([
       supabase.from('orders').select('final_amount, created_at').gte('created_at', monthStart),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      ...ORDER_STAGES.map(st =>
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', st.key)
+      ),
     ]);
+
+    /* 단계별 실시간 건수 */
+    const counts: Record<string, number> = {};
+    ORDER_STAGES.forEach((st, i) => { counts[st.key] = stageRes[i]?.count || 0; });
+    setStageCounts(counts);
+    setDashRefreshedAt(new Date());
 
     const allOrders = ordersRes.data || [];
     const monthRevenue = allOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
@@ -1084,14 +1114,22 @@ export default function AdminClient() {
     setStatsLoading(false);
   }
 
-  async function loadOrders() {
+  async function loadOrders(opts?: { from?: string; to?: string; basis?: 'created_at'|'paid_at' }) {
     setOrdersLoading(true);
+    setOrderPage(1);
+    const basis = opts?.basis ?? orderDateBasis;
+    const from  = opts?.from  ?? orderFrom;
+    const to    = opts?.to    ?? orderTo;
     const supabase = createClient();
-    const { data } = await supabase
+    let query = supabase
       .from('orders')
       .select('*,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url,products(farm_id,farms(name,carrier)))')
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .order(basis, { ascending: false })
+      .limit(1000);
+    /* 조회 기준(주문일/결제일) + 기간 필터 */
+    if (from) query = query.gte(basis, new Date(`${from}T00:00:00`).toISOString());
+    if (to)   query = query.lte(basis, new Date(`${to}T23:59:59`).toISOString());
+    const { data } = await query;
     // farm_id, farm_name 평탄화
     const orders = (data || []).map((o: Record<string, unknown>) => ({
       ...o,
@@ -1105,6 +1143,20 @@ export default function AdminClient() {
     }));
     setOrders(orders as Order[]);
     setOrdersLoading(false);
+    refreshStageCounts();
+  }
+
+  /* 주문 단계별 실시간 건수 재조회 (대시보드·주문관리 공용) */
+  async function refreshStageCounts() {
+    const supabase = createClient();
+    const res = await Promise.all(
+      ORDER_STAGES.map(st =>
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', st.key)
+      )
+    );
+    const counts: Record<string, number> = {};
+    ORDER_STAGES.forEach((st, i) => { counts[st.key] = res[i]?.count || 0; });
+    setStageCounts(counts);
   }
 
   async function loadProducts() {
@@ -2430,6 +2482,11 @@ export default function AdminClient() {
     return matchStatus && matchFarm && matchSearch;
   });
 
+  /* 페이지네이션 (N개씩) */
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize));
+  const orderCurPage = Math.min(orderPage, orderTotalPages);
+  const pagedOrders = filteredOrders.slice((orderCurPage - 1) * orderPageSize, orderCurPage * orderPageSize);
+
   /* 엑셀 다운로드 (농가별 발주서) */
   async function downloadOrderExcel(farmId?: string) {
     const xlsxMod = await import('xlsx');
@@ -3335,6 +3392,42 @@ export default function AdminClient() {
           {/* ===== 대시보드 ===== */}
           {panel === 'dashboard' && (
             <div className="adm-content">
+              {/* 주문 처리 단계 플로우 (실시간) */}
+              <div className="adm-card" style={{ marginBottom: 22 }}>
+                <div className="adm-card-head">
+                  <span className="adm-card-title">주문 처리 현황</span>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    {dashRefreshedAt && (
+                      <span className="adm-muted" style={{ fontSize:12 }}>
+                        최근 {String(dashRefreshedAt.getHours()).padStart(2,'0')}:{String(dashRefreshedAt.getMinutes()).padStart(2,'0')}
+                      </span>
+                    )}
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setStatsLoading(true); loadDashboard(); }}>
+                      <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', padding:'16px 8px 10px', flexWrap:'wrap' }}>
+                  {ORDER_STAGES.map((st, i) => (
+                    <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:96 }}>
+                      <div onClick={() => { setOrderStatusFilter(st.key); go('orders'); }}
+                        style={{ flex:1, cursor:'pointer', textAlign:'center', padding:'12px 6px', borderRadius:12, background:'#F8FAFC' }}>
+                        <div style={{ fontSize:13, color:'#64748B', marginBottom:6 }}>{st.label}</div>
+                        <div style={{ fontSize:26, fontWeight:800, color:'#1A1A1A', lineHeight:1 }}>
+                          {stageCounts[st.key] ?? 0}
+                          <span style={{ fontSize:13, fontWeight:600, color:'#94A3B8', marginLeft:2 }}>건</span>
+                        </div>
+                      </div>
+                      {i < ORDER_STAGES.length - 1 && (
+                        <div style={{ display:'flex', alignItems:'center', color:'#CBD5E1', padding:'0 2px' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="adm-kpi-section-label">매출 · 주문</div>
               <div className="adm-kpi-grid adm-kpi-5">
                 {statsLoading ? (
@@ -3417,18 +3510,71 @@ export default function AdminClient() {
           {/* ===== 주문 관리 ===== */}
           {panel === 'orders' && (
             <div className="adm-content">
+              {/* 주문 처리 단계 바 — 클릭 시 해당 상태로 필터 */}
+              <div className="adm-card" style={{ marginBottom: 16 }}>
+                <div style={{ display:'flex', alignItems:'center', padding:'14px 8px 8px', flexWrap:'wrap' }}>
+                  {ORDER_STAGES.map((st, i) => {
+                    const active = orderStatusFilter === st.key;
+                    return (
+                      <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:96 }}>
+                        <div onClick={() => setOrderStatusFilter(active ? '' : st.key)}
+                          style={{ flex:1, cursor:'pointer', textAlign:'center', padding:'10px 6px', borderRadius:12,
+                            background: active ? '#1A1A1A' : '#F8FAFC', transition:'background .15s' }}>
+                          <div style={{ fontSize:12, color: active ? '#fff' : '#64748B', marginBottom:5 }}>{st.label}</div>
+                          <div style={{ fontSize:22, fontWeight:800, color: active ? '#fff' : '#1A1A1A', lineHeight:1 }}>
+                            {stageCounts[st.key] ?? 0}
+                            <span style={{ fontSize:12, fontWeight:600, color: active ? '#CBD5E1' : '#94A3B8', marginLeft:2 }}>건</span>
+                          </div>
+                        </div>
+                        {i < ORDER_STAGES.length - 1 && (
+                          <div style={{ display:'flex', alignItems:'center', color:'#CBD5E1', padding:'0 2px' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* 조회 기준 · 기간 · 페이지당 개수 */}
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  <select className="adm-select" value={orderDateBasis} onChange={e => setOrderDateBasis(e.target.value as 'created_at'|'paid_at')}>
+                    <option value="created_at">주문일</option>
+                    <option value="paid_at">결제일</option>
+                  </select>
+                  <div className="adm-btn-group">
+                    {([['오늘',0],['1주',7],['1개월',30],['3개월',90]] as const).map(([label, days]) => (
+                      <button key={label} className="adm-seg-btn" onClick={() => {
+                        const t = new Date(); const f = new Date(); if (days) f.setDate(f.getDate() - days);
+                        const fromS = ymd(f), toS = ymd(t);
+                        setOrderFrom(fromS); setOrderTo(toS); loadOrders({ from: fromS, to: toS });
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                  <input type="date" className="adm-select" value={orderFrom} onChange={e => setOrderFrom(e.target.value)} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={orderTo} onChange={e => setOrderTo(e.target.value)} />
+                  <button className="adm-btn adm-btn-primary" onClick={() => loadOrders()}>검색</button>
+                </div>
+                <div className="adm-toolbar-right">
+                  <select className="adm-select" value={orderPageSize} onChange={e => { setOrderPageSize(Number(e.target.value)); setOrderPage(1); }}>
+                    {[50,100,200].map(n => <option key={n} value={n}>{n}개씩</option>)}
+                  </select>
+                </div>
+              </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={orderStatusFilter} onChange={e => setOrderStatusFilter(e.target.value)}>
+                  <select className="adm-select" value={orderStatusFilter} onChange={e => { setOrderStatusFilter(e.target.value); setOrderPage(1); }}>
                     <option value="">전체 상태</option>
                     {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
-                  <select className="adm-select" value={orderFarmFilter} onChange={e => setOrderFarmFilter(e.target.value)}>
+                  <select className="adm-select" value={orderFarmFilter} onChange={e => { setOrderFarmFilter(e.target.value); setOrderPage(1); }}>
                     <option value="">전체 농가</option>
                     {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                   </select>
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
-                    value={orderSearch} onChange={e => setOrderSearch(e.target.value)} />
+                    value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => downloadOrderExcel(orderFarmFilter || undefined)}>
@@ -3437,7 +3583,7 @@ export default function AdminClient() {
                     </span>
                     {orderFarmFilter ? `${farms.find(f=>f.id===orderFarmFilter)?.name || ''} 발주서` : '발주서 다운로드'}
                   </button>
-                  <button className="adm-btn adm-btn-outline" onClick={loadOrders}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
               <div className="adm-card">
@@ -3455,7 +3601,7 @@ export default function AdminClient() {
                           <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
-                        ) : filteredOrders.map(o => (
+                        ) : pagedOrders.map(o => (
                           <tr key={o.id}>
                             <td className="adm-mono" style={{ fontSize:12 }}>{o.order_no}</td>
                             <td className="adm-muted">{fmtDate(o.created_at)}</td>
@@ -3481,6 +3627,14 @@ export default function AdminClient() {
                   </div>
                 )}
               </div>
+              {!ordersLoading && filteredOrders.length > 0 && (
+                <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14 }}>
+                  <button className="adm-btn adm-btn-outline" disabled={orderCurPage <= 1} onClick={() => setOrderPage(p => Math.max(1, p - 1))}>이전</button>
+                  <span className="adm-muted" style={{ fontSize:13 }}>{orderCurPage} / {orderTotalPages}</span>
+                  <button className="adm-btn adm-btn-outline" disabled={orderCurPage >= orderTotalPages} onClick={() => setOrderPage(p => Math.min(orderTotalPages, p + 1))}>다음</button>
+                  <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredOrders.length}건</span>
+                </div>
+              )}
               <div className="adm-info-box adm-info-mt10">
                 📦 <strong>상태 변경:</strong> 상세 버튼 클릭 → 상태 버튼으로 변경. 변경 사항은 Supabase에 즉시 저장됩니다.
               </div>
