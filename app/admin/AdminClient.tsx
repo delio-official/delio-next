@@ -776,6 +776,7 @@ export default function AdminClient() {
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
+  const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('rate');
   /* 상품 옵션 (label / add_price / stock) */
   const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
@@ -1303,6 +1304,16 @@ export default function AdminClient() {
       if (m) max = Math.max(max, parseInt(m[1]));
     });
     return `${code}-${String(max + 1).padStart(4, '0')}`;
+  }
+
+  /* 상품 이미지 순서 변경 ([대표, ...추가5] 통합 배열에서 스왑) */
+  function movePImg(i: number, dir: -1 | 1) {
+    const arr: (string|null)[] = [pForm.thumbnail_url || null, ...((pForm.image_urls as (string|null)[]) || [null,null,null,null,null])];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    uploadedThumbnailRef.current = arr[0] || '';
+    setPForm(f => ({ ...f, thumbnail_url: arr[0] || '', image_urls: arr.slice(1) }));
   }
 
   function openProductModal(p?: AdminProduct) {
@@ -2722,27 +2733,55 @@ export default function AdminClient() {
                     <option value="import">수입산</option>
                   </select>
                 </div>
-                <div>
-                  <label className="adm-label">정상가 (원) *</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
-                    onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
-                </div>
-                <div>
-                  <label className="adm-label">할인율 (%)</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
-                    onChange={e => setPForm(f => ({ ...f, discount_rate: Number(e.target.value) }))} placeholder="0" />
-                </div>
               </div>
 
-              {/* 판매가 미리보기 */}
-              {pForm.price > 0 && (
-                <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#475569' }}>
-                  판매가: <strong style={{ color:'#1A1A1A', fontSize:15 }}>
-                    {Math.round(pForm.price * (1 - pForm.discount_rate / 100)).toLocaleString()}원
-                  </strong>
-                  {pForm.discount_rate > 0 && <span style={{ color:'#CB1D11', marginLeft:8 }}>({pForm.discount_rate}% 할인)</span>}
+              {/* 판매금액 영역 (정상가 · 할인 · 판매가 한 묶음) */}
+              <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'14px 16px', background:'#FAFBFC' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:10 }}>💰 판매금액</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div>
+                    <label className="adm-label">정상가 (원) *</label>
+                    <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
+                      onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
+                  </div>
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                      <label className="adm-label" style={{ margin:0 }}>할인</label>
+                      <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden' }}>
+                        {(['rate','amount'] as const).map(m => (
+                          <button key={m} type="button" onClick={() => setPDiscMode(m)}
+                            style={{ fontSize:11, padding:'3px 9px', border:'none', cursor:'pointer', fontWeight:600,
+                              background: pDiscMode===m ? '#1A1A1A' : '#fff', color: pDiscMode===m ? '#fff' : '#64748B' }}>
+                            {m==='rate' ? '%' : '원'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {pDiscMode === 'rate' ? (
+                      <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
+                        onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율 %" />
+                    ) : (
+                      <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0"
+                        value={pForm.price > 0 ? Math.round(pForm.price * pForm.discount_rate / 100) || '' : ''}
+                        onChange={e => setPForm(f => ({ ...f, discount_rate: f.price > 0 ? Math.min(99, Math.round(Number(e.target.value) / f.price * 100)) : 0 }))}
+                        placeholder="할인액 원" />
+                    )}
+                  </div>
                 </div>
-              )}
+                {/* 판매가 미리보기 (할인액으로 넣어도 소비자엔 % 자동 표기) */}
+                {pForm.price > 0 && (
+                  <div style={{ marginTop:10, fontSize:13, color:'#475569' }}>
+                    판매가: <strong style={{ color:'#1A1A1A', fontSize:15 }}>
+                      {Math.round(pForm.price * (1 - pForm.discount_rate / 100)).toLocaleString()}원
+                    </strong>
+                    {pForm.discount_rate > 0 && (
+                      <span style={{ color:'#CB1D11', marginLeft:8 }}>
+                        ({pForm.discount_rate}% · {Math.round(pForm.price * pForm.discount_rate / 100).toLocaleString()}원 할인)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* 옵션 */}
               <div>
@@ -2848,11 +2887,11 @@ export default function AdminClient() {
                         {imgUrl
                           ? <img src={imgUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : <span style={{ fontSize:20, color:'#CBD5E1' }}>+</span>}
-                        {/* 대표 뱃지 */}
-                        {i === 0 && (
-                          <div style={{ position:'absolute', bottom:0, left:0, right:0,
-                            background:'rgba(0,0,0,0.45)', fontSize:9, color:'#fff',
-                            textAlign:'center', padding:'2px 0', letterSpacing:'0.04em' }}>
+                        {/* 대표 뱃지 (좌상단) */}
+                        {i === 0 && imgUrl && (
+                          <div style={{ position:'absolute', top:3, left:3,
+                            background:'#1A1A1A', fontSize:9, fontWeight:700, color:'#fff',
+                            borderRadius:4, padding:'2px 6px', letterSpacing:'0.04em' }}>
                             대표
                           </div>
                         )}
@@ -2880,15 +2919,25 @@ export default function AdminClient() {
                             ×
                           </button>
                         )}
+                        {/* 순서 변경 ◀ ▶ (대표 포함 스왑) */}
+                        {imgUrl && (
+                          <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', justifyContent:'space-between',
+                            padding:'2px 3px', background: i===0 ? 'transparent' : 'rgba(0,0,0,0.35)' }}>
+                            <button type="button" disabled={i===0}
+                              onClick={e => { e.stopPropagation(); movePImg(i, -1); }}
+                              style={{ border:'none', background:'rgba(255,255,255,0.85)', color:'#1A1A1A', borderRadius:4, width:18, height:16,
+                                fontSize:10, cursor: i===0 ? 'default':'pointer', opacity: i===0 ? 0.3 : 1, lineHeight:1 }}>◀</button>
+                            <button type="button" disabled={i===5}
+                              onClick={e => { e.stopPropagation(); movePImg(i, 1); }}
+                              style={{ border:'none', background:'rgba(255,255,255,0.85)', color:'#1A1A1A', borderRadius:4, width:18, height:16,
+                                fontSize:10, cursor: i===5 ? 'default':'pointer', opacity: i===5 ? 0.3 : 1, lineHeight:1 }}>▶</button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
+                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>◀ ▶ 로 순서 변경 · 첫 번째(맨 왼쪽)가 대표 이미지</p>
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
-                </div>
-                <div>
-                  <label className="adm-label">당도 (Brix)</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} type="number" step="0.1" value={pForm.brix ?? ''}
-                    onChange={e => setPForm(f => ({ ...f, brix: e.target.value ? Number(e.target.value) : null }))} placeholder="예: 13.5" />
                 </div>
                 <div>
                   <label className="adm-label">출발 마감 시간</label>

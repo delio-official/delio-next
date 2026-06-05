@@ -1062,20 +1062,13 @@ export default function ProductClient() {
 
               <h1 className="product-name">{product.name}</h1>
 
-              {/* 메타: 배송타입 → brix → badge → 별점 */}
+              {/* 메타: 배송타입 → badge → 별점 */}
               <div className="product-meta">
                 <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
                   background: product.is_dawn ? '#FFF9E0' : '#FFF0EE',
                   color:      product.is_dawn ? '#7A5C2E' : '#CB1D11' }}>
                   {product.is_dawn ? '산지직송' : '자사배송'}
                 </span>
-                {product.brix != null && (
-                  <span style={{ fontSize:12, fontWeight:600, padding:'3px 8px',
-                    background:'#F4F4F4', color:'#666',
-                    borderRadius:6 }}>
-                    🍬 {product.brix} brix
-                  </span>
-                )}
                 {product.badge && (
                   <span style={{ fontSize:12, fontWeight:600, padding:'3px 8px',
                     background:'var(--color-bg)', borderRadius:6,
