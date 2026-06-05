@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signUp, signIn } from '@/lib/auth';
+import { createClient } from '@/lib/supabase';
 import '@/styles/signup.css';
 
 /* 원형 체크박스 */
@@ -36,6 +37,13 @@ export default function SignupClient() {
   const [birthD, setBirthD] = useState('');
   const [refCode, setRefCode] = useState('');
   const [showRef, setShowRef] = useState(false);
+
+  /* 회원가입 쿠폰 금액 (관리자 설정값) */
+  const [welcomeAmount, setWelcomeAmount] = useState(0);
+  useEffect(() => {
+    createClient().from('settings').select('value').eq('key', 'signup_coupon').maybeSingle()
+      .then(({ data }) => { if (data?.value) setWelcomeAmount(Number(data.value) || 0); });
+  }, []);
 
   /* ── 약관 ── */
   const [t1, setT1] = useState(false);  // 이용약관 (필수)
@@ -433,12 +441,12 @@ export default function SignupClient() {
           <hr className="done-hr" />
           <p className="done-headline">
             신규 고객 전용<br />
-            <em>3천원 할인쿠폰</em>과<br />
+            <em>{welcomeAmount > 0 ? `${welcomeAmount.toLocaleString()}원 할인쿠폰` : '할인쿠폰'}</em>과<br />
             무료배송 혜택을 받았어요
           </p>
           <div className="done-illus">
             <div className="done-envelope">
-              <div className="done-coupon-amount">3,000</div>
+              <div className="done-coupon-amount">{welcomeAmount > 0 ? welcomeAmount.toLocaleString() : '쿠폰'}</div>
               <div className="done-coupon-sub">+ 첫 주문 무료배송</div>
             </div>
             <span className="done-truck">🚚</span>

@@ -36,6 +36,9 @@ export async function signUp(
     if (refCode?.trim()) {
       await supabase.rpc('register_referral', { p_code: refCode.trim() });
     }
+
+    // 회원가입 웰컴 쿠폰팩 자동 지급 (signup_grant 쿠폰들, 멱등)
+    await supabase.rpc('grant_signup_coupons');
   }
 
   return { data, error };

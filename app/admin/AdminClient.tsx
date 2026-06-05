@@ -250,7 +250,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -933,7 +933,7 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false, signup_grant: false });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -2376,10 +2376,10 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false });
+      setCouponForm({ code: '', name: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false, signup_grant: false });
     }
     setCouponModal(true);
   }
@@ -2407,6 +2407,7 @@ export default function AdminClient() {
       expires_at: couponForm.expires_at || null,
       is_active: couponForm.is_active,
       is_public: couponForm.is_public,
+      signup_grant: couponForm.signup_grant,
     };
     if (editingCoupon) {
       const { error } = await supabase.from('coupons').update(payload).eq('id', editingCoupon.id);
@@ -6727,6 +6728,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
                   <Toggle defaultOn={couponForm.is_public} onChange={v => setCouponForm(p => ({ ...p, is_public: v }))} />
                   <span style={{ fontSize:11, color:'#94A3B8' }}>켜면 마이페이지·결제창의 &lsquo;쿠폰 다운받기&rsquo;에서 회원이 직접 받을 수 있습니다.</span>
+                </div>
+              </div>
+              <div className="adm-form-row">
+                <label className="adm-label">회원가입 자동 지급</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                  <Toggle defaultOn={couponForm.signup_grant} onChange={v => setCouponForm(p => ({ ...p, signup_grant: v }))} />
+                  <span style={{ fontSize:11, color:'#94A3B8' }}>켜면 신규 회원가입 시 이 쿠폰이 자동으로 지급됩니다(웰컴 쿠폰팩). 여러 개 켜면 모두 지급됩니다.</span>
                 </div>
               </div>
               <div className="adm-form-actions">
