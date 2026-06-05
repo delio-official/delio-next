@@ -299,6 +299,19 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+/* 출발 마감 시간 선택지 (08:00~21:00, 30분 간격) */
+const CUTOFF_TIMES: string[] = (() => {
+  const arr: string[] = [];
+  for (let h = 8; h <= 21; h++) { arr.push(`${String(h).padStart(2,'0')}:00`); if (h !== 21) arr.push(`${String(h).padStart(2,'0')}:30`); }
+  return arr;
+})();
+function cutoffLabel(t: string): string {
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ampm} ${h12}시${m ? ' 30분' : ''}`;
+}
+
 /* 주문 단계 플로우 (대시보드·주문관리 공용) — 스마트스토어식 */
 const ORDER_STAGES: { key: string; label: string }[] = [
   { key:'paid',      label:'신규주문' },
@@ -769,10 +782,12 @@ export default function AdminClient() {
   const [detailEditor, setDetailEditor] = useState<{ id: string; name: string } | null>(null);
   const [infoEditor,   setInfoEditor]   = useState<{ id: string; name: string } | null>(null);
   const [farmList, setFarmList] = useState<AdminFarmSimple[]>([]);
+  const [farmSearch, setFarmSearch] = useState('');
+  const [farmPickOpen, setFarmPickOpen] = useState(false);
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
     sku: '', name: '', category: 'apple', origin: 'domestic', price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
-    dispatch_cutoff: '', brix: null, badge: '', is_new: false,
+    dispatch_cutoff: '11:00', brix: null, badge: '', is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
@@ -2956,10 +2971,12 @@ export default function AdminClient() {
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
                 <div>
-                  <label className="adm-label">출발 마감 시간</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.dispatch_cutoff || ''}
-                    onChange={e => setPForm(f => ({ ...f, dispatch_cutoff: e.target.value }))}
-                    placeholder="예: 14:00 (비우면 전체 설정 적용)" />
+                  <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
+                  <select className="adm-select" style={{ width:'100%' }} value={pForm.dispatch_cutoff || ''}
+                    onChange={e => setPForm(f => ({ ...f, dispatch_cutoff: e.target.value }))}>
+                    <option value="">전체 설정 적용</option>
+                    {CUTOFF_TIMES.map(t => <option key={t} value={t}>{cutoffLabel(t)}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="adm-label">뱃지</label>
@@ -2967,12 +2984,30 @@ export default function AdminClient() {
                     onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 한정수량" />
                 </div>
                 <div>
-                  <label className="adm-label">연결 농가</label>
-                  <select className="adm-select" style={{ width:'100%' }} value={pForm.farm_id || ''}
-                    onChange={e => setPForm(f => ({ ...f, farm_id: e.target.value || null }))}>
-                    <option value="">농가 없음</option>
-                    {farmList.map(fm => <option key={fm.id} value={fm.id}>{fm.name}</option>)}
-                  </select>
+                  <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
+                  <div style={{ position:'relative' }}>
+                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="농가 없음 — 이름으로 검색"
+                      value={farmPickOpen ? farmSearch : (farmList.find(fm => fm.id === pForm.farm_id)?.name || '')}
+                      onFocus={() => { setFarmPickOpen(true); setFarmSearch(''); }}
+                      onBlur={() => setTimeout(() => setFarmPickOpen(false), 150)}
+                      onChange={e => setFarmSearch(e.target.value)} />
+                    {farmPickOpen && (() => {
+                      const matched = farmList.filter(fm => fm.name.toLowerCase().includes(farmSearch.toLowerCase()));
+                      return (
+                        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, maxHeight:220,
+                          overflowY:'auto', background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 6px 18px rgba(0,0,0,0.1)' }}>
+                          <div onMouseDown={() => { setPForm(f => ({ ...f, farm_id: null })); setFarmPickOpen(false); }}
+                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>농가 없음</div>
+                          {matched.map(fm => (
+                            <div key={fm.id} onMouseDown={() => { setPForm(f => ({ ...f, farm_id: fm.id })); setFarmPickOpen(false); }}
+                              style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, fontWeight: pForm.farm_id===fm.id ? 700 : 400,
+                                background: pForm.farm_id===fm.id ? '#F1F5F9' : '#fff' }}>{fm.name}</div>
+                          ))}
+                          {matched.length === 0 && <div style={{ padding:'9px 12px', fontSize:12, color:'#94A3B8' }}>검색 결과 없음</div>}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div>
                   <label className="adm-label">정렬 순서</label>
