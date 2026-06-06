@@ -254,7 +254,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; description?: string | null; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; description?: string | null; valid_days?: number | null; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -983,7 +983,7 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', is_active: true, is_public: false, signup_grant: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -2532,10 +2532,10 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', is_active: true, is_public: false, signup_grant: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false });
     }
     setCouponModal(true);
   }
@@ -2562,6 +2562,7 @@ export default function AdminClient() {
       max_discount_amount: couponForm.max_discount_amount ? Number(couponForm.max_discount_amount) : null,
       starts_at: couponForm.starts_at || new Date().toISOString(),
       expires_at: couponForm.expires_at || null,
+      valid_days: couponForm.valid_days.trim() ? Number(couponForm.valid_days) : null,
       is_active: couponForm.is_active,
       is_public: couponForm.is_public,
       signup_grant: couponForm.signup_grant,
@@ -2604,10 +2605,14 @@ export default function AdminClient() {
     if (!confirm(`${targets.length}명에게 "${giveCouponTarget.name}" 쿠폰을 지급하시겠습니까?`)) return;
     setGiveCouponSaving(true);
     const supabase = createClient();
+    // 유효기간(발급일+N일) 설정 시 그 만료일, 아니면 절대 만료일
+    const giveExpires = giveCouponTarget.valid_days != null
+      ? new Date(Date.now() + giveCouponTarget.valid_days * 86400000).toISOString()
+      : giveCouponTarget.expires_at;
     const { data, error } = await supabase.rpc('give_coupon_to_users', {
       p_coupon_id: giveCouponTarget.id,
       p_user_ids: targets,
-      p_expires_at: giveCouponTarget.expires_at,
+      p_expires_at: giveExpires,
     });
     setGiveCouponSaving(false);
     if (error) { alert('지급 실패: ' + error.message); return; }
@@ -7182,6 +7187,17 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <input type="datetime-local" className="adm-input-text"
                       value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
                   )}
+                </div>
+              </div>
+              <div className="adm-form-row">
+                <label className="adm-label">유효기간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(발급일 기준)</span></label>
+                <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                  <div className="adm-flex-center-gap">
+                    <input type="number" min={1} className="adm-input-text adm-input-w100" placeholder="예: 30"
+                      value={couponForm.valid_days} onChange={e => setCouponForm(p => ({ ...p, valid_days: e.target.value }))} />
+                    <span className="adm-muted">일 (발급일로부터)</span>
+                  </div>
+                  <span style={{ fontSize:11, color:'#94A3B8' }}>회원가입 자동지급·다운로드 쿠폰의 만료일을 <strong>발급일 + N일</strong>로 계산합니다. 비우면 위 만료일(고정) 사용.</span>
                 </div>
               </div>
               <div className="adm-form-row">
