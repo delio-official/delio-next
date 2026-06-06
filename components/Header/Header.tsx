@@ -123,7 +123,7 @@ export default function Header() {
                 <>
                   {isAdmin && (
                     <>
-                      <Link href="/admin" style={{ fontWeight: 700, color: 'var(--color-accent)' }}>관리자페이지</Link>
+                      <Link href="/admin">관리자페이지</Link>
                       <span className="utility-sep">|</span>
                     </>
                   )}
