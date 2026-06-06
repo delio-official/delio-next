@@ -33,6 +33,13 @@ export default function Header() {
   const [recent, setRecent] = useState<string[]>([]);
   const [popular, setPopular] = useState<string[]>(POPULAR_FALLBACK);
   const [showShipping, setShowShipping] = useState(true); // 배송안내 탭 노출
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // 관리자 여부 확인 (로그인 시) → 상단에 관리자페이지 버튼 노출
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    createClient().rpc('is_current_user_admin').then(({ data }) => setIsAdmin(data === true));
+  }, [user]);
 
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const popularLoadedRef = useRef(false);
@@ -114,6 +121,12 @@ export default function Header() {
             <div className="utility-links">
               {user ? (
                 <>
+                  {isAdmin && (
+                    <>
+                      <Link href="/admin" style={{ fontWeight: 700, color: 'var(--color-accent)' }}>관리자페이지</Link>
+                      <span className="utility-sep">|</span>
+                    </>
+                  )}
                   <Link href="/mypage">마이페이지</Link>
                   <span className="utility-sep">|</span>
                   <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 'inherit', color: 'inherit' }}>로그아웃</button>
