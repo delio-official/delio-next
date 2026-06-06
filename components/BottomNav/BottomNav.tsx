@@ -170,8 +170,9 @@ export default function BottomNav() {
 
           {/* 홈 */}
           <Link href="/" className={`bottom-nav-item nav-home${pathname === '/' ? ' active' : ''}`}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5z"/>
+              <path d="M9.5 20v-4.5a2.5 2.5 0 0 1 5 0V20"/>
             </svg>
             <span>홈</span>
           </Link>
