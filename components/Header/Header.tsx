@@ -7,6 +7,7 @@ import { useCartCount } from '@/hooks/useCartCount';
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
+import { Menu, Search, ShoppingCart } from 'lucide-react';
 
 const POPULAR_FALLBACK = [
   '한라봉', '샤인머스캣', '제스프리 골드키위', '충주 사과', '블루베리',
@@ -149,9 +150,7 @@ export default function Header() {
           <div className="container">
             <div className="header-main-inner">
               <button className="hamburger-btn" onClick={() => setDrawerOpen(true)}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                </svg>
+                <Menu size={22} strokeWidth={1.8} />
               </button>
 
               <Link href="/" className="header-logo">
@@ -171,9 +170,7 @@ export default function Header() {
                     autoComplete="off"
                   />
                   <button type="submit" className="header-search-btn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
-                    </svg>
+                    <Search size={20} strokeWidth={1.8} />
                   </button>
                 </form>
                 {dropOpen && (
@@ -219,15 +216,10 @@ export default function Header() {
 
               <div className="header-actions">
                 <button className="mob-search-btn" onClick={() => router.push('/search')} title="검색">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
-                  </svg>
+                  <Search size={22} strokeWidth={1.8} />
                 </button>
                 <Link href="/cart" className="cart-icon-wrap header-icon-btn" title="장바구니">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
-                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
-                  </svg>
+                  <ShoppingCart size={22} strokeWidth={1.8} />
                   {cartCount > 0 && <span className="cart-count cart-badge">{cartCount}</span>}
                 </Link>
               </div>

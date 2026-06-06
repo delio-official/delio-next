@@ -128,6 +128,8 @@ export default function MypageClient() {
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
   const [trackingTarget, setTrackingTarget] = useState<{ carrierId: string; trackingNumber: string } | null>(null);
   const [wishlist,       setWishlist]       = useState<WishItem[]>([]);
+  const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
+  const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
@@ -498,16 +500,28 @@ export default function MypageClient() {
     async function loadWish() {
       setWishLoading(true);
       const supabase = createClient();
-      const { data } = await supabase
-        .from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
-        .eq('user_id', user!.id)
-        .limit(40);
+      const [{ data }, { data: farmData }] = await Promise.all([
+        supabase.from('wishlist')
+          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
+          .eq('user_id', user!.id).limit(40),
+        supabase.from('farm_wishlist')
+          .select('id, farms(id,slug,name,region,farm_type,intro)')
+          .eq('user_id', user!.id).limit(40),
+      ]);
       setWishlist((data as unknown as WishItem[]) || []);
+      setFarmWishlist((farmData as unknown as typeof farmWishlist) || []);
       setWishLoading(false);
     }
     loadWish();
   }, [activePanel, user]);
+
+  /* 농가 찜 삭제 */
+  async function removeFarmWish(rowId: string) {
+    const supabase = createClient();
+    await supabase.from('farm_wishlist').delete().eq('id', rowId);
+    setFarmWishlist(prev => prev.filter(f => f.id !== rowId));
+    showToastMsg('농가 찜을 해제했습니다');
+  }
 
   /* 로그아웃 */
   async function handleLogout() {
@@ -1495,12 +1509,43 @@ export default function MypageClient() {
               <div className="mp-section">
                 <div className="mp-section-header">
                   <span className="mp-section-title">나의 위시리스트</span>
-                  {wishlist.length > 0 && (
-                    <span className="mp-section-sub mp-wish-count">{wishlist.length}개</span>
-                  )}
+                </div>
+                {/* 상품 / 농가 탭 */}
+                <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+                  {([['product', `상품 ${wishlist.length}`], ['farm', `농가 ${farmWishlist.length}`]] as const).map(([id, label]) => (
+                    <button key={id} onClick={() => setWishTab(id)}
+                      style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
+                        borderColor: wishTab===id ? '#1A1A1A' : '#E2E2E0',
+                        background: wishTab===id ? '#1A1A1A' : '#fff',
+                        color: wishTab===id ? '#fff' : '#888' }}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
                 {wishLoading ? (
                   <div className="mp-empty">불러오는 중...</div>
+                ) : wishTab === 'farm' ? (
+                  farmWishlist.length === 0 ? (
+                    <div className="mp-empty">찜한 농가가 없습니다.</div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                      {farmWishlist.map(fw => {
+                        const f = fw.farms;
+                        if (!f) return null;
+                        return (
+                          <div key={fw.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px', border:'1px solid #EBEBEB', borderRadius:12 }}>
+                            <div style={{ width:44, height:44, borderRadius:'50%', background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🍊</div>
+                            <Link href={`/farm/${f.slug}`} style={{ flex:1, textDecoration:'none', color:'inherit', minWidth:0 }}>
+                              <div style={{ fontSize:14, fontWeight:700 }}>{f.name}</div>
+                              <div style={{ fontSize:12, color:'#999' }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                            </Link>
+                            <button onClick={() => removeFarmWish(fw.id)}
+                              style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#E55A4B', flexShrink:0 }}>♥</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
                 ) : wishlist.length === 0 ? (
                   <div className="mp-empty">찜한 상품이 없습니다.</div>
                 ) : (

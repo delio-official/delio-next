@@ -1334,19 +1334,15 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }] = await Promise.all([
       supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, created_at').order('name'),
-      supabase.from('wishlist').select('product_id, products!inner(farm_id)').limit(5000),
+      supabase.from('farm_wishlist').select('farm_id').limit(10000),
     ]);
-    // 농가별 찜 수 집계
-    const wishMap: Record<string, Set<string>> = {};
-    (wishData || []).forEach((w: Record<string, unknown>) => {
-      const farmId = (w.products as Record<string, unknown>)?.farm_id as string;
-      if (farmId) {
-        if (!wishMap[farmId]) wishMap[farmId] = new Set();
-        wishMap[farmId].add(w.product_id as string);
-      }
+    // 농가별 찜(팔로워) 수 집계 — 실제 농장 하트 기준
+    const wishMap: Record<string, number> = {};
+    (wishData || []).forEach((w: { farm_id: string }) => {
+      if (w.farm_id) wishMap[w.farm_id] = (wishMap[w.farm_id] || 0) + 1;
     });
     const farms = (farmData || []).map((f: Record<string, unknown>) => ({
-      ...f, wish_count: wishMap[f.id as string]?.size || 0,
+      ...f, wish_count: wishMap[f.id as string] || 0,
     }));
     setFarms(farms as AdminFarm[]);
     setFarmsLoading(false);

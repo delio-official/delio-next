@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { addToCart, showCartToast } from '@/lib/cart';
 import { useAuth } from '@/hooks/useAuth';
+import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 
@@ -129,6 +130,7 @@ export default function ProductClient() {
   const [options,    setOptions]    = useState<ProductOption[]>([]);
   const [farm,       setFarm]       = useState<Farm | null>(null);
   const [farmWishCount, setFarmWishCount] = useState(0);
+  const [farmWished, setFarmWished] = useState(false);
   const [reviews,    setReviews]    = useState<Review[]>([]);
   const [inquiries,  setInquiries]  = useState<ProductInquiry[]>([]);
   const [inqPage,    setInqPage]    = useState(0);
@@ -336,14 +338,20 @@ export default function ProductClient() {
           .from('farms').select('*').eq('id', prod.farm_id).single();
         setFarm(farmData as Farm);
 
-        // 농가 위시 수: 이 농가 상품을 찜한 유니크 사용자 수
+        // 농장 팔로워 수 (farm_wishlist)
         const { count: wishCount } = await supabase
-          .from('wishlist')
-          .select('user_id', { count: 'exact', head: true })
-          .in('product_id',
-            (await supabase.from('products').select('id').eq('farm_id', prod.farm_id)).data?.map((p: {id: string}) => p.id) || []
-          );
+          .from('farm_wishlist')
+          .select('id', { count: 'exact', head: true })
+          .eq('farm_id', prod.farm_id);
         setFarmWishCount(wishCount || 0);
+        // 내가 이 농장을 팔로우 중인지
+        const fid = prod.farm_id;
+        const { data: { user: u } } = await supabase.auth.getUser();
+        if (u) {
+          const { data: ff } = await supabase.from('farm_wishlist')
+            .select('id').eq('farm_id', fid).eq('user_id', u.id).maybeSingle();
+          setFarmWished(!!ff);
+        }
       }
 
       if (user) {
@@ -431,6 +439,22 @@ export default function ProductClient() {
     } else {
       await supabase.from('wishlist').insert({ product_id: id, user_id: user.id });
       setWishlisted(true);
+    }
+  }
+
+  /* 농장 찜(팔로우) — 상품 찜과 별개 */
+  async function toggleFarmWish() {
+    if (!user) { router.push('/login'); return; }
+    if (!farm) return;
+    const supabase = createClient();
+    if (farmWished) {
+      await supabase.from('farm_wishlist').delete().eq('farm_id', farm.id).eq('user_id', user.id);
+      setFarmWished(false);
+      setFarmWishCount(c => Math.max(0, c - 1));
+    } else {
+      await supabase.from('farm_wishlist').insert({ farm_id: farm.id, user_id: user.id });
+      setFarmWished(true);
+      setFarmWishCount(c => c + 1);
     }
   }
 
@@ -1057,9 +1081,9 @@ export default function ProductClient() {
                   </div>
                   <div className="brand-card-wish">
                     <button className="brand-card-wish-btn"
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleWishlist(); }}
-                      style={{ color: wishlisted ? '#E55A4B' : undefined }}>
-                      {wishlisted ? '♥' : '♡'}
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFarmWish(); }}
+                      style={{ color: farmWished ? '#E55A4B' : undefined }}>
+                      {farmWished ? '♥' : '♡'}
                     </button>
                     <span className="brand-card-wish-count">{farmWishCount.toLocaleString()}</span>
                   </div>
@@ -2383,6 +2407,12 @@ export default function ProductClient() {
 
       {/* ── 모바일 고정 CTA ── */}
       <div className="mobile-cta-bar">
+        <button onClick={toggleWishlist} aria-label="찜하기"
+          style={{ flexShrink:0, width:46, border:'1.5px solid #DDDDD9',
+            background:'#fff', borderRadius:8, cursor:'pointer', color: wishlisted ? '#E53935' : '#1A1A1A',
+            display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Heart size={20} strokeWidth={1.8} fill={wishlisted ? '#E53935' : 'none'} />
+        </button>
         <button onClick={() => showToast('선물하기 기능은 준비 중입니다.')}
           style={{ flexShrink:0, width:46, border:'1.5px solid #DDDDD9',
             background:'#fff', borderRadius:8, cursor:'pointer', color:'var(--color-accent)',
