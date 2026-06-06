@@ -432,7 +432,7 @@ input, select, textarea { font-family: inherit; }
   .header-main-inner { gap: 4px; }
   .search-wrap { display: none; }
   .header-logo { flex: 1; font-size: 28px; }
-  .header-logo img { height: 40px !important; }
+  .header-logo img { height: 34px !important; }
   .header-actions { display: flex; align-items: center; margin-left: auto; gap: 2px; }
   .header-inner { height: 52px; }
   /* 모바일 nav-row: 헤더(60px) 바로 아래 sticky */
