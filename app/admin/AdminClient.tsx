@@ -308,6 +308,9 @@ function ymd(d: Date): string {
 /* 농가 유형 프리셋 (추가 가능 — 직접입력도 허용) */
 const FARM_TYPE_PRESETS = ['자사배송', '산지직송'];
 
+/* 마케팅 분석 기본 Looker Studio 임베드 URL (설정값 없을 때 사용) */
+const LOOKER_DEFAULT_URL = 'https://datastudio.google.com/embed/reporting/246d1604-471d-46e6-ab6f-f385f581ea36/page/e7Z0F';
+
 /* 국내 시·도 (원산지 계층 입력용) */
 const SIDO_LIST: string[] = [
   '서울특별시','부산광역시','대구광역시','인천광역시','광주광역시','대전광역시','울산광역시','세종특별자치시',
@@ -6234,7 +6237,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </div>
                 <div className="adm-toolbar-right" style={{ flex:1, gap:8, minWidth:280 }}>
                   <input type="text" className="adm-input-text" style={{ flex:1 }}
-                    placeholder="Looker Studio 임베드 URL 붙여넣기 (https://lookerstudio.google.com/embed/...)"
+                    placeholder="(기본값 적용 중) Looker Studio 임베드 URL 붙여넣어 변경"
                     value={siteSettings.looker_embed_url ?? ''}
                     onChange={e => setSiteSettings(prev => ({ ...prev, looker_embed_url: e.target.value }))} />
                   <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
@@ -6243,22 +6246,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
                 </div>
               </div>
-              {siteSettings.looker_embed_url ? (
-                <div className="adm-card" style={{ padding:0, overflow:'hidden' }}>
-                  <iframe src={siteSettings.looker_embed_url} title="마케팅 분석"
-                    style={{ width:'100%', height:'80vh', border:'none', display:'block' }}
-                    allowFullScreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
-                </div>
-              ) : (
-                <div className="adm-card" style={{ textAlign:'center', padding:'48px 24px', color:'#64748B' }}>
-                  <div style={{ fontSize:32, marginBottom:12 }}>📊</div>
-                  <div style={{ fontWeight:700, marginBottom:6 }}>아직 분석 대시보드가 연결되지 않았어요</div>
-                  <div style={{ fontSize:13, lineHeight:1.7 }}>
-                    Looker Studio에서 GA4를 연결한 보고서를 만들고 <strong>공유 → 보고서 삽입</strong>의<br/>
-                    <strong>임베드 URL</strong>을 위 칸에 붙여넣고 저장하면 여기에 대시보드가 표시됩니다.
-                  </div>
-                </div>
-              )}
+              <div className="adm-card" style={{ padding:0, overflow:'hidden' }}>
+                <iframe src={(siteSettings.looker_embed_url || LOOKER_DEFAULT_URL)} title="마케팅 분석"
+                  style={{ width:'100%', height:'80vh', border:'none', display:'block' }}
+                  allowFullScreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+              </div>
             </div>
           )}
 
