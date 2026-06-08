@@ -19,7 +19,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'tasteprofile'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'tasteprofile'|'analytics'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -275,7 +275,7 @@ const TITLES: Record<PanelKey, string> = {
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  refund:'환불 관리', settlement:'정산 관리', tasteprofile:'취향 프로파일', settings:'설정',
+  refund:'환불 관리', settlement:'정산 관리', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
 const FAQ_CATS: Record<string, string> = {
@@ -2728,6 +2728,7 @@ export default function AdminClient() {
       case 'cs':        loadCsInquiries(); break;
       case 'refund':    loadRefundRequests(); loadOrders(); break;
       case 'settings':    loadSettings(); loadSearchStats(7); break;
+      case 'analytics':   loadSettings(); break;
       case 'settlement':  loadSettlement(settlementMonth); break;
     }
   }
@@ -3817,6 +3818,7 @@ export default function AdminClient() {
               <div className="adm-nav-label">정산·설정</div>
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="정산 관리" />
               <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
+              <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
             </div>
           </nav>
@@ -6222,6 +6224,43 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
             );
           })()}
+
+          {/* ===== 마케팅 분석 (Looker Studio 임베드) ===== */}
+          {panel === 'analytics' && (
+            <div className="adm-content">
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left">
+                  <span className="adm-card-title">마케팅 분석 (GA4 / Looker Studio)</span>
+                </div>
+                <div className="adm-toolbar-right" style={{ flex:1, gap:8, minWidth:280 }}>
+                  <input type="text" className="adm-input-text" style={{ flex:1 }}
+                    placeholder="Looker Studio 임베드 URL 붙여넣기 (https://lookerstudio.google.com/embed/...)"
+                    value={siteSettings.looker_embed_url ?? ''}
+                    onChange={e => setSiteSettings(prev => ({ ...prev, looker_embed_url: e.target.value }))} />
+                  <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
+                    {settingsSaving ? '저장 중...' : '저장'}
+                  </button>
+                  <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
+                </div>
+              </div>
+              {siteSettings.looker_embed_url ? (
+                <div className="adm-card" style={{ padding:0, overflow:'hidden' }}>
+                  <iframe src={siteSettings.looker_embed_url} title="마케팅 분석"
+                    style={{ width:'100%', height:'80vh', border:'none', display:'block' }}
+                    allowFullScreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
+                </div>
+              ) : (
+                <div className="adm-card" style={{ textAlign:'center', padding:'48px 24px', color:'#64748B' }}>
+                  <div style={{ fontSize:32, marginBottom:12 }}>📊</div>
+                  <div style={{ fontWeight:700, marginBottom:6 }}>아직 분석 대시보드가 연결되지 않았어요</div>
+                  <div style={{ fontSize:13, lineHeight:1.7 }}>
+                    Looker Studio에서 GA4를 연결한 보고서를 만들고 <strong>공유 → 보고서 삽입</strong>의<br/>
+                    <strong>임베드 URL</strong>을 위 칸에 붙여넣고 저장하면 여기에 대시보드가 표시됩니다.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ===== 설정 ===== */}
           {panel === 'settings' && (
