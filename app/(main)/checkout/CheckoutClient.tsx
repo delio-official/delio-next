@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
+import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
@@ -217,6 +218,15 @@ export default function CheckoutClient() {
   const appliedPoint = Math.min(pointUsed, maxPoint);
   const total = Math.max(0, afterCoupon - appliedPoint);
 
+  /* GA4: 결제 시작 (장바구니 항목 로드되면 1회) */
+  const beganCheckoutRef = useRef(false);
+  useEffect(() => {
+    if (!beganCheckoutRef.current && items.length > 0) {
+      beganCheckoutRef.current = true;
+      gaBeginCheckout(items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), subtotal);
+    }
+  }, [items, subtotal]);
+
   /* ── 결제 처리 ── */
   async function handleOrder() {
     if (!user) { router.push('/login'); return; }
@@ -316,6 +326,7 @@ export default function CheckoutClient() {
             amount: String(total),
           }),
         }).catch(() => {});
+        gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
         router.push(`/order-complete?order=${order.order_no}&point=${Math.floor(total * 0.01)}`);
         return;
       } else {
@@ -383,6 +394,7 @@ export default function CheckoutClient() {
       }
 
       clearCart();
+      gaPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
       router.push(`/order-complete?order=${verifyData.orderNo}&point=${verifyData.earnedPoint}`);
 
     } catch (err) {

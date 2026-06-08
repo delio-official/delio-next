@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { addToCart, showCartToast } from '@/lib/cart';
+import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
 import { Heart } from 'lucide-react';
 import '@/styles/product.css';
@@ -483,17 +484,24 @@ export default function ProductClient() {
     if (!product) return;
     const sel = getSelectedOpts();
     const addP = sel.reduce((s, o) => s + (o.add_price || 0), 0);
+    const unitPrice = (product.discounted_price ?? product.price) + addP;
     addToCart({
       id: product.id,
       name: product.name,
-      price: (product.discounted_price ?? product.price) + addP,
+      price: unitPrice,
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
       optionId: sel.map(o => o.id).join(',') || undefined,
       options: sel.map(o => o.label).join(' / ') || undefined,
       deliveryType: product.is_dawn ? '산지직송' : '자사배송',
     });
+    gaAddToCart({ id: product.id, name: product.name, price: unitPrice, quantity: qty, category: product.category });
   }
+  /* GA4: 상품 조회 */
+  useEffect(() => {
+    if (product) gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
+  }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleAddCart() {
     if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
     addCartItem();
