@@ -900,7 +900,7 @@ export default function MypageClient() {
           <div className="mp-mb-profile">
             <label className="mp-mb-avatar-wrap">
               <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden disabled={avatarUploading} />
-              <div className="mp-mb-avatar">
+              <div className={`mp-mb-avatar${profile?.avatar_url ? ' has-img' : ''}`}>
                 {profile?.avatar_url
                   ? <img src={profile.avatar_url} alt="프로필" />
                   : (profile?.name || user.email || '?').trim().charAt(0).toUpperCase()}
