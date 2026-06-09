@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn, signInWithKakao } from '@/lib/auth';
+import { signIn, signInWithKakao, signInWithNaver } from '@/lib/auth';
 import '@/styles/login.css';
 
 export default function LoginClient() {
@@ -41,10 +41,6 @@ export default function LoginClient() {
 
     router.push('/');
     router.refresh();
-  }
-
-  function handleSns(name: string) {
-    alert(`${name} 로그인은 준비 중입니다.`);
   }
 
   return (
@@ -114,7 +110,7 @@ export default function LoginClient() {
 
         <div className="sns-icon-row">
           {/* 네이버 */}
-          <button className="sns-circle sns-naver-btn" onClick={() => handleSns('네이버')} title="네이버로 로그인">
+          <button className="sns-circle sns-naver-btn" onClick={() => signInWithNaver()} title="네이버로 로그인">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
               <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="#ffffff"/>
             </svg>

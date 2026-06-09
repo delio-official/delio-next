@@ -66,6 +66,11 @@ export async function signInWithKakao(next: string = '/') {
   });
 }
 
+/** 네이버 OAuth 로그인 (커스텀 서버 플로우) */
+export function signInWithNaver(next: string = '/') {
+  window.location.href = `/api/auth/naver/start?next=${encodeURIComponent(next)}`;
+}
+
 export async function getUser() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
