@@ -812,6 +812,28 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
   );
 }
 
+/* ===== 미니 스파크라인 (판매 성과 그래프 보기) ===== */
+function Spark({ data, color }: { data:number[]; color:string }) {
+  const w = 120, h = 36, pad = 3;
+  const n = data.length;
+  if (!n) return <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} />;
+  const max = Math.max(...data, 1), min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const X = (i:number) => n>1 ? pad + (i/(n-1))*(w-pad*2) : w/2;
+  const Y = (v:number) => h-pad - ((v-min)/range)*(h-pad*2);
+  const pts = data.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`);
+  const line = `M ${pts.join(' L ')}`;
+  const area = `${line} L ${X(n-1).toFixed(1)},${(h-pad).toFixed(1)} L ${X(0).toFixed(1)},${(h-pad).toFixed(1)} Z`;
+  const last = data[n-1];
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display:'block' }}>
+      <path d={area} fill={color} opacity={0.1} />
+      <path d={line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {n>1 && <circle cx={X(n-1)} cy={Y(last)} r={2.4} fill={color} />}
+    </svg>
+  );
+}
+
 /* ===== 메인 컴포넌트 ===== */
 export default function AdminClient() {
   const [panel, setPanel] = useState<PanelKey>('dashboard');
@@ -888,9 +910,11 @@ export default function AdminClient() {
   const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0 });
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
   type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
+  type PerfSeries = { visits:number[]; orders:number[]; payment:number[]; aov:number[]; conv:number[] };
   const [perfRange, setPerfRange] = useState<'day'|'week'|'month'>('month');
+  const [perfView, setPerfView] = useState<'number'|'graph'>('number');
   const [perfLoading, setPerfLoading] = useState(false);
-  const [salesPerf, setSalesPerf] = useState<{ cur:PerfMetrics; prev:PerfMetrics; gaConfigured:boolean; label:string } | null>(null);
+  const [salesPerf, setSalesPerf] = useState<{ cur:PerfMetrics; prev:PerfMetrics; series:PerfSeries; gaConfigured:boolean; label:string } | null>(null);
 
   async function loadSalesPerf(range: 'day'|'week'|'month') {
     setPerfLoading(true);
@@ -911,31 +935,62 @@ export default function AdminClient() {
       prevStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
       prevEnd = new Date(today.getFullYear(), today.getMonth()-1, today.getDate());
     }
+    /* 현재 기간의 일자 키 목록 (그래프 X축) */
+    const dayKeys:string[] = [];
+    { const d = new Date(curStart); while (d <= curEnd) { dayKeys.push(fmt(d)); d.setDate(d.getDate()+1); } }
+
     const supabase = createClient();
     const valid = ['paid','preparing','shipped','delivered','confirmed'];
-    const fetchOrders = async (s:Date, e:Date) => {
-      const { data } = await supabase.from('orders').select('final_amount')
-        .gte('created_at', new Date(s.getFullYear(),s.getMonth(),s.getDate(),0,0,0).toISOString())
-        .lte('created_at', new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59).toISOString())
-        .in('status', valid).limit(10000);
-      const orders = (data||[]).length;
-      const payment = (data||[]).reduce((sum, o:{final_amount:number}) => sum + (o.final_amount||0), 0);
-      return { orders, payment };
-    };
-    const [curO, prevO] = await Promise.all([fetchOrders(curStart, curEnd), fetchOrders(prevStart, prevEnd)]);
+    /* 현재 기간: 일자별 집계까지 (created_at 포함) */
+    const { data: curRows } = await supabase.from('orders').select('final_amount, created_at')
+      .gte('created_at', new Date(curStart.getFullYear(),curStart.getMonth(),curStart.getDate(),0,0,0).toISOString())
+      .lte('created_at', new Date(curEnd.getFullYear(),curEnd.getMonth(),curEnd.getDate(),23,59,59).toISOString())
+      .in('status', valid).limit(10000);
+    const ordByDay:Record<string,number> = {}, payByDay:Record<string,number> = {};
+    dayKeys.forEach(k => { ordByDay[k]=0; payByDay[k]=0; });
+    (curRows||[]).forEach((o:{final_amount:number; created_at:string}) => {
+      const k = fmt(new Date(o.created_at));
+      if (k in ordByDay) { ordByDay[k]++; payByDay[k]+=(o.final_amount||0); }
+    });
+    const curOrders = (curRows||[]).length;
+    const curPayment = (curRows||[]).reduce((s, o:{final_amount:number}) => s+(o.final_amount||0), 0);
+    /* 이전 기간: 합계만 */
+    const { data: prevRows } = await supabase.from('orders').select('final_amount')
+      .gte('created_at', new Date(prevStart.getFullYear(),prevStart.getMonth(),prevStart.getDate(),0,0,0).toISOString())
+      .lte('created_at', new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59).toISOString())
+      .in('status', valid).limit(10000);
+    const prevOrders = (prevRows||[]).length;
+    const prevPayment = (prevRows||[]).reduce((s, o:{final_amount:number}) => s+(o.final_amount||0), 0);
+
+    /* GA 방문수 (현재=일자별, 이전=합계) */
     let gaConfigured = false, curVisits = 0, prevVisits = 0;
+    const visByDay:Record<string,number> = {};
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/ga-stats?start=${fmt(curStart)}&end=${fmt(curEnd)}`).then(r=>r.json()),
+        fetch(`/api/ga-stats?daily=1&start=${fmt(curStart)}&end=${fmt(curEnd)}`).then(r=>r.json()),
         fetch(`/api/ga-stats?start=${fmt(prevStart)}&end=${fmt(prevEnd)}`).then(r=>r.json()),
       ]);
-      if (r1?.configured) { gaConfigured = true; curVisits = r1.sessions||0; prevVisits = r2?.sessions||0; }
+      if (r1?.configured) {
+        gaConfigured = true; curVisits = r1.sessions||0; prevVisits = r2?.sessions||0;
+        (r1.series||[]).forEach((d:{date:string; sessions:number}) => {
+          const k = `${d.date.slice(0,4)}-${d.date.slice(4,6)}-${d.date.slice(6,8)}`;
+          visByDay[k] = d.sessions;
+        });
+      }
     } catch { /* GA 미연동 */ }
+
+    const visSeries = dayKeys.map(k => visByDay[k] || 0);
+    const ordSeries = dayKeys.map(k => ordByDay[k]);
+    const paySeries = dayKeys.map(k => payByDay[k]);
+    const aovSeries = dayKeys.map((_, i) => ordSeries[i]>0 ? Math.round(paySeries[i]/ordSeries[i]) : 0);
+    const convSeries = dayKeys.map((_, i) => visSeries[i]>0 ? (ordSeries[i]/visSeries[i]*100) : 0);
+
     const mk = (o:number, p:number, v:number): PerfMetrics =>
       ({ visits:v, orders:o, payment:p, aov: o>0?Math.round(p/o):0, conv: v>0?(o/v*100):0 });
     setSalesPerf({
-      cur: mk(curO.orders, curO.payment, curVisits),
-      prev: mk(prevO.orders, prevO.payment, prevVisits),
+      cur: mk(curOrders, curPayment, curVisits),
+      prev: mk(prevOrders, prevPayment, prevVisits),
+      series: { visits:visSeries, orders:ordSeries, payment:paySeries, aov:aovSeries, conv:convSeries },
       gaConfigured,
       label: `${fmt(curStart).slice(5).replace('-','.')} ~ ${fmt(curEnd).slice(5).replace('-','.')}`,
     });
@@ -4307,7 +4362,14 @@ export default function AdminClient() {
               <div className="adm-card" style={{ marginBottom:24 }}>
                 <div className="adm-card-head" style={{ alignItems:'center' }}>
                   <span className="adm-card-title">판매 성과</span>
-                  <div style={{ display:'flex', alignItems:'center', gap:12, marginLeft:'auto' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginLeft:'auto' }}>
+                    {/* 숫자 / 그래프 보기 토글 */}
+                    <div className="adm-perf-toggle">
+                      {([['number','숫자'],['graph','그래프']] as const).map(([k,lb]) => (
+                        <button key={k} className={`adm-perf-tab ${perfView===k?'active':''}`} onClick={() => setPerfView(k)}>{lb}</button>
+                      ))}
+                    </div>
+                    {/* 일별 / 주별 / 월간 */}
                     <div className="adm-perf-toggle">
                       {([['day','일별'],['week','주별'],['month','월간']] as const).map(([k,lb]) => (
                         <button key={k} className={`adm-perf-tab ${perfRange===k?'active':''}`} onClick={() => setPerfRange(k)}>{lb}</button>
@@ -4319,14 +4381,15 @@ export default function AdminClient() {
                 <div className="adm-perf-grid">
                   {(() => {
                     const c = salesPerf?.cur, p = salesPerf?.prev;
+                    const s = salesPerf?.series;
                     const ga = salesPerf?.gaConfigured;
                     const diff = (a:number, b:number) => b>0 ? ((a-b)/b*100) : (a>0?100:0);
                     const items = [
-                      { label:'방문 수',      val: ga ? (c?.visits||0).toLocaleString() : '—', unit: ga?'':'', d: ga?diff(c!.visits,p!.visits):0, na:!ga },
-                      { label:'상품 주문건수', val: (c?.orders||0).toLocaleString(),         unit:'건', d: diff(c?.orders||0,p?.orders||0), na:false },
-                      { label:'구매전환율',    val: ga ? (c?.conv||0).toFixed(1) : '—',     unit: ga?'%':'', d: ga?diff(c!.conv,p!.conv):0, na:!ga },
-                      { label:'상품주문단가',  val: fmtPrice(c?.aov||0),                     unit:'원', d: diff(c?.aov||0,p?.aov||0), na:false },
-                      { label:'결제금액',      val: fmtPrice(c?.payment||0),                 unit:'원', d: diff(c?.payment||0,p?.payment||0), na:false },
+                      { label:'방문 수',      val: ga ? (c?.visits||0).toLocaleString() : '—', unit: ga?'':'', d: ga?diff(c!.visits,p!.visits):0, na:!ga, series:s?.visits||[],  color:'#16A34A' },
+                      { label:'상품 주문건수', val: (c?.orders||0).toLocaleString(),         unit:'건', d: diff(c?.orders||0,p?.orders||0), na:false, series:s?.orders||[],  color:'#2563EB' },
+                      { label:'구매전환율',    val: ga ? (c?.conv||0).toFixed(1) : '—',     unit: ga?'%':'', d: ga?diff(c!.conv,p!.conv):0, na:!ga, series:s?.conv||[],    color:'#9333EA' },
+                      { label:'상품주문단가',  val: fmtPrice(c?.aov||0),                     unit:'원', d: diff(c?.aov||0,p?.aov||0), na:false, series:s?.aov||[],     color:'#0891B2' },
+                      { label:'결제금액',      val: fmtPrice(c?.payment||0),                 unit:'원', d: diff(c?.payment||0,p?.payment||0), na:false, series:s?.payment||[], color:'#DB2777' },
                     ];
                     return items.map(it => (
                       <div key={it.label} className="adm-perf-item">
@@ -4336,6 +4399,11 @@ export default function AdminClient() {
                           {it.na ? <span className="adm-muted">GA 연동 필요</span>
                             : <>전기 동기 대비 <span className={it.d>0?'up':it.d<0?'down':''}>{it.d>0?'+':''}{it.d.toFixed(1)}%</span></>}
                         </div>
+                        {perfView==='graph' && (
+                          <div className="adm-perf-spark">
+                            {it.na ? <div className="adm-perf-spark-empty">GA 연동 시 표시</div> : <Spark data={it.series} color={it.color} />}
+                          </div>
+                        )}
                       </div>
                     ));
                   })()}

@@ -635,6 +635,11 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
 .adm-perf-diff { font-size: 12px; color: #94A3B8; margin-top: 8px; }
 .adm-perf-diff .up   { color: #DC2626; font-weight: 700; }
 .adm-perf-diff .down { color: #2563EB; font-weight: 700; }
+.adm-perf-spark { margin-top: 12px; height: 36px; }
+.adm-perf-spark-empty {
+  height: 36px; display: flex; align-items: center;
+  font-size: 11px; color: #CBD5E1;
+}
 
 /* ===== 인기 검색어 ===== */
 .adm-keyword-list { padding: 4px 0; }

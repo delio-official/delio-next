@@ -16,6 +16,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const startDate = searchParams.get('start') || '7daysAgo';
   const endDate = searchParams.get('end') || 'today';
+  const daily = searchParams.get('daily') === '1';
 
   try {
     const { BetaAnalyticsDataClient } = await import('@google-analytics/data');
@@ -25,7 +26,16 @@ export async function GET(req: Request) {
       property: `properties/${propertyId}`,
       dateRanges: [{ startDate, endDate }],
       metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+      ...(daily ? { dimensions: [{ name: 'date' }], orderBys: [{ dimension: { dimensionName: 'date' } }] } : {}),
     });
+    if (daily) {
+      const series = (resp.rows || []).map(r => ({
+        date: r.dimensionValues?.[0]?.value || '',          // YYYYMMDD
+        sessions: Number(r.metricValues?.[0]?.value || 0),
+      }));
+      const sessions = series.reduce((s, d) => s + d.sessions, 0);
+      return NextResponse.json({ configured: true, sessions, series });
+    }
     const row = resp.rows?.[0];
     const sessions = Number(row?.metricValues?.[0]?.value || 0);
     const users = Number(row?.metricValues?.[1]?.value || 0);
