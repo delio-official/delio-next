@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Menu, Truck, Home, Heart, User } from 'lucide-react';
-import { loadTabsFor, tabHref, type FilterTab } from '@/lib/filterTabs';
+import { loadTabsFor, loadCategoryTabs, tabHref, type FilterTab } from '@/lib/filterTabs';
+
+type AccItem = { icon: string; bg: string; name: string; subs: { label: string; href: string }[] };
 
 const CAT_DATA = [
   {
@@ -67,6 +69,7 @@ function BottomNavInner() {
   const [catOpen, setCatOpen] = useState(false);
   const [openAcc, setOpenAcc] = useState<number | null>(null);
   const [shortcuts, setShortcuts] = useState(SHORTCUTS_FALLBACK);
+  const [catItems, setCatItems] = useState<AccItem[]>([]);
 
   /* 하단바 바로가기 로드 (filter_tabs.show_in_shortcut) */
   useEffect(() => {
@@ -74,6 +77,22 @@ function BottomNavInner() {
       if (rows.length) setShortcuts(rows.map(t => ({ icon: t.emoji, bg: t.bg || '#F5F5F5', label: t.label, href: tabHref(t) })));
     });
   }, []);
+
+  /* 카테고리 대분류→소분류 아코디언 로드 */
+  useEffect(() => {
+    loadCategoryTabs().then(tabs => {
+      const majors = tabs.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
+      setCatItems(majors.map(m => ({
+        icon: m.emoji || '🍎', bg: m.bg || '#FFE8E8', name: m.label,
+        subs: [{ label: '전체보기', href: `/category?cat=${m.tab_value}` },
+          ...tabs.filter(t => t.parent === m.tab_value).sort((a, b) => a.sort_order - b.sort_order)
+            .map(s => ({ label: s.label, href: `/category?cat=${s.tab_value}` }))],
+      })));
+    });
+  }, []);
+
+  /* 동적 카테고리(있으면) + 하드코딩 메뉴(브랜드/서비스) */
+  const accData: AccItem[] = catItems.length > 0 ? [...catItems, ...CAT_DATA.slice(2)] : CAT_DATA;
 
   /* history.state 기준으로 드로어 표시 동기화 */
   const syncFromHistory = useCallback(() => {
@@ -177,7 +196,7 @@ function BottomNavInner() {
 
             {/* 카테고리 아코디언 */}
             <div className="cd-acc-wrap">
-              {CAT_DATA.map((cat, i) => (
+              {accData.map((cat, i) => (
                 <div key={cat.name} className={`cat-drawer-acc-item${openAcc === i ? ' open' : ''}`}>
                   <div className="cat-drawer-acc-header" onClick={() => toggleAcc(i)}>
                     <div className="cat-drawer-thumb" style={{ background: cat.bg }}>{cat.icon}</div>

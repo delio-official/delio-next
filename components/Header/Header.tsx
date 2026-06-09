@@ -7,6 +7,7 @@ import { useCartCount } from '@/hooks/useCartCount';
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
+import { loadCategoryTabs, type FilterTab } from '@/lib/filterTabs';
 import { Menu, Search, ShoppingCart } from 'lucide-react';
 
 const POPULAR_FALLBACK = [
@@ -35,6 +36,18 @@ export default function Header() {
   const [popular, setPopular] = useState<string[]>(POPULAR_FALLBACK);
   const [showShipping, setShowShipping] = useState(true); // 배송안내 탭 노출
   const [isAdmin, setIsAdmin] = useState(false);
+  const [catTree, setCatTree] = useState<{ major: FilterTab; subs: FilterTab[] }[]>([]);
+
+  // 카테고리 대분류→소분류 트리 로드
+  useEffect(() => {
+    loadCategoryTabs().then(tabs => {
+      const majors = tabs.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
+      setCatTree(majors.map(m => ({
+        major: m,
+        subs: tabs.filter(t => t.parent === m.tab_value).sort((a, b) => a.sort_order - b.sort_order),
+      })));
+    });
+  }, []);
 
   // 관리자 여부 확인 (로그인 시) → 상단에 관리자페이지 버튼 노출
   useEffect(() => {
@@ -246,14 +259,26 @@ export default function Header() {
                 <div className="container mega-dropdown-inner-container">
                   <div className="mega-card">
                     <div className="mega-inner">
-                      <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/domestic">국산과일</Link></div>
-                        <Link href="/category?origin=domestic" className="mega-link">전체보기</Link>
-                      </div>
-                      <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/import">수입과일</Link></div>
-                        <Link href="/category?origin=import" className="mega-link">전체보기</Link>
-                      </div>
+                      {catTree.length > 0 ? catTree.map(({ major, subs }) => (
+                        <div key={major.id} className="mega-col">
+                          <div className="mega-col-title"><Link href={`/category?cat=${major.tab_value}`}>{major.label}</Link></div>
+                          <Link href={`/category?cat=${major.tab_value}`} className="mega-link">전체보기</Link>
+                          {subs.map(s => (
+                            <Link key={s.id} href={`/category?cat=${s.tab_value}`} className="mega-link">{s.label}</Link>
+                          ))}
+                        </div>
+                      )) : (
+                        <>
+                          <div className="mega-col">
+                            <div className="mega-col-title"><Link href="/domestic">국산과일</Link></div>
+                            <Link href="/category?origin=domestic" className="mega-link">전체보기</Link>
+                          </div>
+                          <div className="mega-col">
+                            <div className="mega-col-title"><Link href="/import">수입과일</Link></div>
+                            <Link href="/category?origin=import" className="mega-link">전체보기</Link>
+                          </div>
+                        </>
+                      )}
                       <div className="mega-col">
                         <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
                         <Link href="/brand" className="mega-link">브랜드 소개</Link>
