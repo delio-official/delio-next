@@ -5048,7 +5048,24 @@ export default function AdminClient() {
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             필탭 없음 — add_filter_tabs.sql 을 먼저 실행하세요.
                           </td></tr>
-                        ) : [...filterTabs].sort((a,b)=>a.sort_order-b.sort_order).map(t => (
+                        ) : (() => {
+                          // 대분류 → 그 소분류 → ... → 비카테고리(태그/정렬/링크) 순으로 정렬
+                          const cats = filterTabs.filter(t => t.tab_type === 'category');
+                          const majors = cats.filter(t => !t.parent).sort((a,b)=>a.sort_order-b.sort_order);
+                          const others = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
+                          const ordered: FilterTab[] = [];
+                          majors.forEach(m => {
+                            ordered.push(m);
+                            cats.filter(t => t.parent === m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).forEach(s => ordered.push(s));
+                          });
+                          const placed = new Set(ordered.map(t => t.id));
+                          cats.filter(t => !placed.has(t.id)).forEach(s => ordered.push(s)); // 미연결 소분류
+                          ordered.push(...others);
+                          return ordered;
+                        })().map(t => {
+                          const isSub = t.tab_type === 'category' && !!t.parent;
+                          const isMajor = t.tab_type === 'category' && !t.parent;
+                          return (
                           <tr key={t.id}>
                             <td>
                               <div style={{ display:'inline-flex', gap:4 }}>
@@ -5056,10 +5073,14 @@ export default function AdminClient() {
                                 <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
                               </div>
                             </td>
-                            <td><span style={{ fontWeight:600 }}>{t.label}{t.emoji ? ` ${t.emoji}` : ''}</span></td>
+                            <td>
+                              <span style={{ fontWeight: isMajor ? 800 : 600, paddingLeft: isSub ? 20 : 0, color: isSub ? '#475569' : '#1A1A1A' }}>
+                                {isSub && <span style={{ color:'#CBD5E1' }}>└ </span>}{t.label}{t.emoji ? ` ${t.emoji}` : ''}
+                              </span>
+                            </td>
                             <td>
                               <span className={`adm-badge ${t.tab_type==='category'?'badge-paid':t.tab_type==='flag'?'badge-on':'badge-off'}`}>
-                                {t.tab_type==='category'?'카테고리':t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}
+                                {isMajor ? '대분류' : isSub ? '소분류' : t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}
                               </span>
                             </td>
                             <td className="adm-mono adm-muted" style={{ fontSize:12 }}>{t.tab_value}</td>
@@ -5072,7 +5093,8 @@ export default function AdminClient() {
                               <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFilterTab(t)}>삭제</button>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
