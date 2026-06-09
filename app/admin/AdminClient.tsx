@@ -3680,6 +3680,21 @@ export default function AdminClient() {
                             border: active ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }} />
                       );
                     })}
+                    {/* 직접 색상 선택 (컬러피커) */}
+                    {(() => {
+                      const cur = pForm.badge_color || BADGE_DEFAULT_COLOR;
+                      const isCustom = !BADGE_COLORS.some(c => c.value === cur);
+                      return (
+                        <label title="직접 색상 선택" style={{ position:'relative', width:24, height:24, borderRadius:'50%', cursor:'pointer', overflow:'hidden',
+                          background: isCustom ? cur : 'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)',
+                          border: isCustom ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
+                          <input type="color" value={cur}
+                            onChange={e => setPForm(f => ({ ...f, badge_color: e.target.value }))}
+                            style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
+                        </label>
+                      );
+                    })()}
+                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 직접 선택</span>
                     {pForm.badge && (
                       <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
                         background: pForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
