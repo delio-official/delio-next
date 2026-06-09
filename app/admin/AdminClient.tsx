@@ -873,32 +873,48 @@ function Spark({ data, color }: { data:number[]; color:string }) {
 function BadgeColorRow({ value, presets, onPick }: {
   value: string; presets: string[]; onPick: (v: string) => void;
 }) {
-  const [local, setLocal] = useState(value);
+  // 각 칸이 자기 색을 기억 (커스텀 색은 첫 칸에)
+  const [colors, setColors] = useState<string[]>(() => {
+    const arr = [...presets];
+    if (!presets.includes(value)) arr[0] = value;
+    return arr;
+  });
   const [selIdx, setSelIdx] = useState(() => { const i = presets.indexOf(value); return i >= 0 ? i : 0; });
+  const [local, setLocal] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCommit = useRef(value); // 우리가 마지막으로 부모에 커밋한 값
+
+  // 외부에서 value가 바뀌면(다른 상품 로드 등) 재동기화. 우리 변경의 echo는 무시.
   useEffect(() => {
+    if (value === lastCommit.current) return;
+    lastCommit.current = value;
     setLocal(value);
     const i = presets.indexOf(value);
-    if (i >= 0) setSelIdx(i);
+    if (i >= 0) { setSelIdx(i); setColors([...presets]); }
+    else { setSelIdx(0); setColors(prev => { const n = [...presets]; n[0] = value; return n; }); }
   }, [value, presets]);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  function selectPreset(i: number) {
-    setSelIdx(i); setLocal(presets[i]);
+
+  function commit(v: string) { lastCommit.current = v; onPick(v); }
+  function pick(i: number) {
     if (timer.current) clearTimeout(timer.current);
-    onPick(presets[i]);
+    setSelIdx(i); setLocal(colors[i]); commit(colors[i]); // 그 칸의 현재 색 커밋
   }
   function recolor(v: string) {
-    setLocal(v); // 선택된 칸만 즉시 갱신 (드래그 부드럽게)
+    setLocal(v);
+    setColors(prev => prev.map((c, idx) => idx === selIdx ? v : c)); // 선택 칸 색 교체
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => onPick(v), 140); // 멈추면 부모에 1회 커밋
+    timer.current = setTimeout(() => commit(v), 140);
   }
+  function commitNow() { if (timer.current) clearTimeout(timer.current); commit(local); }
+
   return (
     <>
-      {presets.map((preset, i) => {
-        const color = i === selIdx ? local : preset;
+      {colors.map((c, i) => {
+        const color = i === selIdx ? local : c;
         const active = i === selIdx;
         return (
           <button key={i} type="button" title="이 색 선택"
-            onClick={() => selectPreset(i)}
+            onClick={() => pick(i)}
             style={{ width:24, height:24, borderRadius:'50%', background: color, cursor:'pointer',
               border: active ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }} />
         );
@@ -908,7 +924,7 @@ function BadgeColorRow({ value, presets, onPick }: {
         background:'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)', border:'2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
         <input type="color" value={local}
           onChange={e => recolor(e.target.value)}
-          onBlur={() => { if (timer.current) clearTimeout(timer.current); onPick(local); }}
+          onBlur={commitNow}
           style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
       </label>
     </>
