@@ -6828,27 +6828,28 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     surveyResults.forEach(r => { const v = (r[field] as string) || '미응답'; m[v] = (m[v]||0)+1; });
                     return Object.entries(m).sort((a,b) => b[1]-a[1]).map(([k,c]) => ({ label: labelMap?.[k] || k, c }));
                   };
-                  const blocks: [string, { label:string; c:number }[]][] = [
-                    ['나이대', dist('age_group', AGE_LABEL)],
-                    ['성별', dist('gender', GENDER_LABEL)],
-                    ['구매 목적', dist('purchase_purpose')],
-                    ['구매 빈도', dist('purchase_frequency')],
+                  const blocks: [string, { label:string; c:number }[], string][] = [
+                    ['나이대', dist('age_group', AGE_LABEL), '#16A34A'],
+                    ['성별', dist('gender', GENDER_LABEL), '#2563EB'],
+                    ['구매 목적', dist('purchase_purpose'), '#9333EA'],
+                    ['구매 빈도', dist('purchase_frequency'), '#EA580C'],
                   ];
                   return (
-                    <div className="adm-row" style={{ marginBottom:16, flexWrap:'wrap' }}>
-                      {blocks.map(([title, rows]) => (
-                        <div key={title} className="adm-card" style={{ flex:'1 1 240px', minWidth:220 }}>
-                          <div className="adm-card-head"><span className="adm-card-title" style={{ fontSize:13 }}>{title} 분포</span></div>
-                          <div style={{ display:'flex', flexDirection:'column', gap:6, padding:'4px 0' }}>
-                            {rows.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>응답 없음</div> : rows.map(({label, c}) => {
+                    <div className="adm-dist-grid">
+                      {blocks.map(([title, rows, color]) => (
+                        <div key={title} className="adm-dist-card">
+                          <div className="adm-dist-title" style={{ ['--dist-c' as string]: color } as React.CSSProperties}>{title} 분포</div>
+                          <div className="adm-dist-rows">
+                            {rows.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>응답 없음</div> : rows.map(({label, c}, i) => {
                               const pct = total > 0 ? Math.round(c/total*100) : 0;
                               return (
-                                <div key={label}>
-                                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
-                                    <span>{label}</span><span className="adm-muted">{c}건 ({pct}%)</span>
+                                <div key={label} className="adm-dist-row">
+                                  <div className="adm-dist-row-head">
+                                    <span className="adm-dist-label">{i === 0 && <span className="adm-dist-rank" style={{ background:color }} />}{label}</span>
+                                    <span className="adm-dist-val"><b>{c}건</b> {pct}%</span>
                                   </div>
-                                  <div style={{ height:6, background:'#F1F5F9', borderRadius:99 }}>
-                                    <div style={{ width:`${pct}%`, height:'100%', background:'#1A1A1A', borderRadius:99 }} />
+                                  <div className="adm-dist-bar">
+                                    <div className="adm-dist-bar-fill" style={{ width:`${pct}%`, background:color }} />
                                   </div>
                                 </div>
                               );

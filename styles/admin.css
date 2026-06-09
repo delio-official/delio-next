@@ -641,6 +641,42 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
   font-size: 11px; color: #CBD5E1;
 }
 
+/* ===== 응답 분포 카드 ===== */
+.adm-dist-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px; margin-bottom: 20px;
+}
+.adm-dist-card {
+  background: #fff; border: 1px solid #EEF2F6; border-radius: 14px;
+  padding: 20px 22px;
+}
+.adm-dist-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 800; color: #1A1A1A; margin-bottom: 18px;
+}
+.adm-dist-title::before {
+  content: ''; width: 4px; height: 15px; border-radius: 2px;
+  background: var(--dist-c, #16A34A);
+}
+.adm-dist-rows { display: flex; flex-direction: column; gap: 14px; }
+.adm-dist-row-head {
+  display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px;
+}
+.adm-dist-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: #334155;
+}
+.adm-dist-rank { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.adm-dist-val { font-size: 12px; color: #94A3B8; white-space: nowrap; }
+.adm-dist-val b { color: #1A1A1A; font-weight: 700; font-size: 13px; margin-right: 1px; }
+.adm-dist-bar {
+  height: 8px; background: #F1F5F9; border-radius: 99px; overflow: hidden;
+}
+.adm-dist-bar-fill {
+  height: 100%; border-radius: 99px; min-width: 3px;
+  transition: width .35s cubic-bezier(.4,0,.2,1);
+}
+
 /* ===== 인기 검색어 ===== */
 .adm-keyword-list { padding: 4px 0; }
 .adm-keyword-row {
