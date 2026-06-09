@@ -3542,11 +3542,11 @@ export default function AdminClient() {
                                     onChange={v => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, parent_label: v } : x))}
                                     options={[{ value:'', label:'전체' }, ...parentLabels.map(pl => ({ value:pl, label:pl }))]} />
                                 )}
-                                <input className="adm-input-text" placeholder="예: 2kg" value={o.label}
+                                <input className="adm-input-text" style={{ minWidth:0, width:'100%' }} placeholder="예: 2kg" value={o.label}
                                   onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, label: e.target.value } : x))} />
-                                <input className="adm-input-text" type="number" placeholder="0" value={o.add_price}
+                                <input className="adm-input-text" style={{ minWidth:0, width:'100%' }} type="number" placeholder="0" value={o.add_price}
                                   onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, add_price: Number(e.target.value) } : x))} />
-                                <input className="adm-input-text" type="number" placeholder="0" value={o.stock}
+                                <input className="adm-input-text" style={{ minWidth:0, width:'100%' }} type="number" placeholder="0" value={o.stock}
                                   onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, stock: Number(e.target.value) } : x))} />
                                 <button type="button" onClick={() => setPOptions(prev => prev.filter((_, idx) => idx !== o._i))}
                                   style={{ width:32, height:32, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', fontSize:14 }}>✕</button>
