@@ -55,6 +55,17 @@ export async function signOut() {
   await supabase.auth.signOut();
 }
 
+/** 카카오 OAuth 로그인 (Supabase 기본 provider) */
+export async function signInWithKakao(next: string = '/') {
+  const supabase = createClient();
+  return supabase.auth.signInWithOAuth({
+    provider: 'kakao',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+}
+
 export async function getUser() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();

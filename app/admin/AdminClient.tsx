@@ -117,6 +117,7 @@ interface AdminProfile {
   phone: string | null;
   is_blocked: boolean;
   memo: string | null;
+  provider?: string | null;
 }
 
 interface AdminReview {
@@ -812,6 +813,18 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
   );
 }
 
+/* ===== 가입경로 (provider) ===== */
+function providerKey(p?: string | null): 'kakao'|'naver'|'email' {
+  if (p === 'kakao') return 'kakao';
+  if (p === 'naver') return 'naver';
+  return 'email';
+}
+const PROVIDER_META: Record<'kakao'|'naver'|'email', { label:string; bg:string; color:string }> = {
+  kakao: { label:'카카오', bg:'#FEE500', color:'#3A1D1D' },
+  naver: { label:'네이버', bg:'#03C75A', color:'#fff' },
+  email: { label:'일반',   bg:'#EEF2F6', color:'#475569' },
+};
+
 /* ===== 미니 스파크라인 (판매 성과 그래프 보기) ===== */
 function Spark({ data, color }: { data:number[]; color:string }) {
   const w = 120, h = 36, pad = 3;
@@ -1035,6 +1048,7 @@ export default function AdminClient() {
   const [memberSearch, setMemberSearch] = useState('');
   const [memberGradeFilter, setMemberGradeFilter] = useState('');
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
+  const [memberProviderFilter, setMemberProviderFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<AdminProfile | null>(null);
   const [memberMemo, setMemberMemo] = useState('');
   const [memberMemoSaving, setMemberMemoSaving] = useState(false);
@@ -1861,7 +1875,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo')
+      .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo, provider')
       .order('created_at', { ascending: false })
       .limit(300);
     setMembers((data as AdminProfile[]) || []);
@@ -3183,9 +3197,10 @@ export default function AdminClient() {
   const filteredMembers = members.filter(m => {
     const matchGrade   = !memberGradeFilter || m.grade === memberGradeFilter;
     const matchBlock   = memberBlockFilter === 'all' ? true : memberBlockFilter === 'blocked' ? m.is_blocked : !m.is_blocked;
+    const matchProvider = !memberProviderFilter || providerKey(m.provider) === memberProviderFilter;
     const q = memberSearch.toLowerCase();
     const matchSearch  = !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.phone || '').includes(q);
-    return matchGrade && matchBlock && matchSearch;
+    return matchGrade && matchBlock && matchProvider && matchSearch;
   });
 
   /* 필터된 라운지 */
@@ -5835,6 +5850,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <option value="active">정상</option>
                     <option value="blocked">블랙리스트</option>
                   </select>
+                  <select className="adm-select" value={memberProviderFilter} onChange={e => setMemberProviderFilter(e.target.value)}>
+                    <option value="">전체 가입경로</option>
+                    <option value="email">일반</option>
+                    <option value="kakao">카카오</option>
+                    <option value="naver">네이버</option>
+                  </select>
                   <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
                     value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                 </div>
@@ -5847,10 +5868,10 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 {membersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>등급</th><th>포인트</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>가입경로</th><th>등급</th><th>포인트</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredMembers.length === 0 ? (
-                          <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {members.length === 0 ? '회원 없음' : '검색 결과 없음'}
                           </td></tr>
                         ) : filteredMembers.map(m => (
@@ -5861,6 +5882,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                             </td>
                             <td className="adm-muted" style={{ fontSize:12 }}>{m.email}</td>
                             <td className="adm-muted" style={{ fontSize:12 }}>{m.phone || '-'}</td>
+                            <td>
+                              {(() => { const pm = PROVIDER_META[providerKey(m.provider)]; return (
+                                <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700, background:pm.bg, color:pm.color }}>{pm.label}</span>
+                              ); })()}
+                            </td>
                             <td>
                               <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade] || 'badge-normal'}`}>
                                 {GRADE_LABEL[m.grade] || m.grade}
