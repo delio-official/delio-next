@@ -4996,7 +4996,11 @@ export default function AdminClient() {
                                   </span>
                                   {!c.is_active && <span className="adm-badge badge-off" style={{ fontSize:11 }}>비활성</span>}
                                   {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700 }}>⚠️ 고정 만료일이 지남 → 유효기간(N일)으로 변경 필요</span>}
-                                  <button className="adm-row-btn" style={{ marginLeft:'auto' }} onClick={() => openCouponModal(c)}>수정</button>
+                                  <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+                                    <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                    <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                    <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                  </div>
                                 </div>
                               );
                             })}
