@@ -3351,6 +3351,8 @@ export default function AdminClient() {
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
               {/* 기본 정보 */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">📋 기본 정보</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품명 *</label>
@@ -3417,10 +3419,11 @@ export default function AdminClient() {
                   )}
                 </div>
               </div>
+              </div>
 
               {/* 판매금액 영역 (정상가 · 할인 · 판매가 한 묶음) */}
-              <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'14px 16px', background:'#FAFBFC' }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:10 }}>💰 판매금액</div>
+              <div className="adm-formsec">
+                <div className="adm-formsec-title">💰 판매금액 · 정산</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                   <div>
                     <label className="adm-label">정상가 (원) *</label>
@@ -3482,9 +3485,9 @@ export default function AdminClient() {
               </div>
 
               {/* 옵션 */}
-              <div>
+              <div className="adm-formsec">
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                  <label className="adm-label" style={{ margin:0 }}>판매 옵션 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 단품 — 옵션 선택 없이 바로구매)</span></label>
+                  <label className="adm-label" style={{ margin:0 }}>🧩 판매 옵션 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 단품 — 옵션 선택 없이 바로구매)</span></label>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
                     onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, required: true, label:'', add_price:0, stock:0 }])}>
                     + 옵션 그룹 추가
@@ -3559,7 +3562,9 @@ export default function AdminClient() {
                 })()}
               </div>
 
-              {/* 상세 정보 */}
+              {/* 이미지 · 설명 */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">🖼 이미지 · 설명</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">한 줄 설명</label>
@@ -3653,6 +3658,13 @@ export default function AdminClient() {
                   <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>◀ ▶ 로 순서 변경 · 첫 번째(맨 왼쪽)가 대표 이미지</p>
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
+              </div>
+              </div>
+
+              {/* 배송 · 표시 */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">🚚 배송 · 표시</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
                   <AdmSelect className="adm-cs-full" value={pForm.dispatch_cutoff || ''}
@@ -3729,10 +3741,11 @@ export default function AdminClient() {
                   </label>
                 ))}
               </div>
+              </div>
 
               {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 저장 후 자동 진입) */}
-              <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'14px 16px', background:'#FAFBFC' }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:4 }}>📄 상세페이지</div>
+              <div className="adm-formsec">
+                <div className="adm-formsec-title">📄 상세페이지</div>
                 <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
                   {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '버튼을 누르면 먼저 상품이 저장된 뒤 상세 작성 화면이 열립니다.'}
                 </div>
