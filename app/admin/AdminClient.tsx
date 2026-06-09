@@ -3415,6 +3415,27 @@ export default function AdminClient() {
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
+              {/* 상품 유형: 자사 / 산지 (맨 위에서 먼저 선택) */}
+              <div style={{ display:'flex', gap:8 }}>
+                {([
+                  { dawn:false, label:'🏢 자사 상품', desc:'자사배송' },
+                  { dawn:true,  label:'🚜 산지 상품', desc:'산지직송' },
+                ] as const).map(opt => {
+                  const active = !!pForm.is_dawn === opt.dawn;
+                  return (
+                    <button key={String(opt.dawn)} type="button"
+                      onClick={() => setPForm(f => ({ ...f, is_dawn: opt.dawn }))}
+                      style={{ flex:1, padding:'12px 10px', borderRadius:10, cursor:'pointer', textAlign:'center',
+                        border: active ? '2px solid #16A34A' : '1px solid #E2E8F0',
+                        background: active ? '#F0FDF4' : '#fff',
+                        color: active ? '#16A34A' : '#475569' }}>
+                      <div style={{ fontSize:14, fontWeight: active ? 800 : 700 }}>{opt.label}</div>
+                      <div style={{ fontSize:11, color: active ? '#16A34A' : '#94A3B8', marginTop:2 }}>{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* 기본 정보 */}
               <div className="adm-formsec">
               <div className="adm-formsec-title">📋 기본 정보</div>
@@ -3787,7 +3808,6 @@ export default function AdminClient() {
                 {([
                   ['is_new',  'NEW 태그'],
                   ['is_best', '인기 태그'],
-                  ['is_dawn', '산지직송'],
                   ['is_active', '판매중'],
                 ] as const).map(([key, label]) => (
                   <label key={key} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14 }}>
