@@ -912,7 +912,6 @@ export default function AdminClient() {
   type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
   type PerfSeries = { visits:number[]; orders:number[]; payment:number[]; aov:number[]; conv:number[] };
   const [perfRange, setPerfRange] = useState<'day'|'week'|'month'>('month');
-  const [perfView, setPerfView] = useState<'number'|'graph'>('number');
   const [perfLoading, setPerfLoading] = useState(false);
   const [salesPerf, setSalesPerf] = useState<{ cur:PerfMetrics; prev:PerfMetrics; series:PerfSeries; gaConfigured:boolean; label:string } | null>(null);
 
@@ -4363,12 +4362,6 @@ export default function AdminClient() {
                 <div className="adm-card-head" style={{ alignItems:'center' }}>
                   <span className="adm-card-title">판매 성과</span>
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginLeft:'auto' }}>
-                    {/* 숫자 / 그래프 보기 토글 */}
-                    <div className="adm-perf-toggle">
-                      {([['number','숫자'],['graph','그래프']] as const).map(([k,lb]) => (
-                        <button key={k} className={`adm-perf-tab ${perfView===k?'active':''}`} onClick={() => setPerfView(k)}>{lb}</button>
-                      ))}
-                    </div>
                     {/* 일별 / 주별 / 월간 */}
                     <div className="adm-perf-toggle">
                       {([['day','일별'],['week','주별'],['month','월간']] as const).map(([k,lb]) => (
@@ -4399,11 +4392,9 @@ export default function AdminClient() {
                           {it.na ? <span className="adm-muted">GA 연동 필요</span>
                             : <>전기 동기 대비 <span className={it.d>0?'up':it.d<0?'down':''}>{it.d>0?'+':''}{it.d.toFixed(1)}%</span></>}
                         </div>
-                        {perfView==='graph' && (
-                          <div className="adm-perf-spark">
-                            {it.na ? <div className="adm-perf-spark-empty">GA 연동 시 표시</div> : <Spark data={it.series} color={it.color} />}
-                          </div>
-                        )}
+                        <div className="adm-perf-spark">
+                          {it.na ? <div className="adm-perf-spark-empty">GA 연동 시 표시</div> : <Spark data={it.series} color={it.color} />}
+                        </div>
                       </div>
                     ));
                   })()}
