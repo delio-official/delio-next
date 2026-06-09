@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Menu, Truck, Home, Heart, User } from 'lucide-react';
 import { loadTabsFor, loadCategoryTabs, tabHref, type FilterTab } from '@/lib/filterTabs';
+import { loadMenuItems, megaColumns } from '@/lib/menu';
 
 type AccItem = { icon: string; bg: string; name: string; subs: { label: string; href: string }[] };
 
@@ -91,8 +92,21 @@ function BottomNavInner() {
     });
   }, []);
 
-  /* 동적 카테고리(있으면) + 하드코딩 메뉴(브랜드/서비스) */
-  const accData: AccItem[] = catItems.length > 0 ? [...catItems, ...CAT_DATA.slice(2)] : CAT_DATA;
+  const [menuAccItems, setMenuAccItems] = useState<AccItem[]>([]);
+  /* 메뉴(브랜드/서비스 등) 아코디언 로드 */
+  useEffect(() => {
+    loadMenuItems().then(items => {
+      setMenuAccItems(megaColumns(items).map(({ group, links }) => ({
+        icon: group.emoji || '🏪', bg: '#E8EAF6', name: group.label,
+        subs: links.map(l => ({ label: l.label, href: l.href })),
+      })));
+    }).catch(() => {});
+  }, []);
+
+  /* 동적 카테고리 + 동적 메뉴 (없으면 하드코딩 폴백) */
+  const cats: AccItem[] = catItems.length > 0 ? catItems : CAT_DATA.slice(0, 2);
+  const menus: AccItem[] = menuAccItems.length > 0 ? menuAccItems : CAT_DATA.slice(2);
+  const accData: AccItem[] = [...cats, ...menus];
 
   /* history.state 기준으로 드로어 표시 동기화 */
   const syncFromHistory = useCallback(() => {

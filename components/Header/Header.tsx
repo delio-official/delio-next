@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 import { loadCategoryTabs, type FilterTab } from '@/lib/filterTabs';
+import { loadMenuItems, megaColumns, topNav, type MenuItem } from '@/lib/menu';
 import { Menu, Search, ShoppingCart } from 'lucide-react';
 
 const POPULAR_FALLBACK = [
@@ -37,6 +38,7 @@ export default function Header() {
   const [showShipping, setShowShipping] = useState(true); // 배송안내 탭 노출
   const [isAdmin, setIsAdmin] = useState(false);
   const [catTree, setCatTree] = useState<{ major: FilterTab; subs: FilterTab[] }[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   // 카테고리 대분류→소분류 트리 로드
   useEffect(() => {
@@ -47,7 +49,10 @@ export default function Header() {
         subs: tabs.filter(t => t.parent === m.tab_value).sort((a, b) => a.sort_order - b.sort_order),
       })));
     });
+    loadMenuItems().then(setMenuItems).catch(() => {});
   }, []);
+  const megaMenus = megaColumns(menuItems);
+  const navLinks = topNav(menuItems);
 
   // 관리자 여부 확인 (로그인 시) → 상단에 관리자페이지 버튼 노출
   useEffect(() => {
@@ -279,27 +284,44 @@ export default function Header() {
                           </div>
                         </>
                       )}
-                      <div className="mega-col">
-                        <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
-                        <Link href="/brand" className="mega-link">브랜드 소개</Link>
-                        <Link href="/farms" className="mega-link">파트너 농가</Link>
-                      </div>
-                      <div className="mega-col mega-col-last">
-                        <div className="mega-col-title"><Link href="/service">서비스</Link></div>
-                        {showShipping && <Link href="/shipping" className="mega-link">배송안내</Link>}
-                        <Link href="/inquiry" className="mega-link">입점/협업문의</Link>
-                        <Link href="/faq" className="mega-link">고객센터</Link>
-                      </div>
+                      {megaMenus.length > 0 ? megaMenus.map(({ group, links }, gi) => (
+                        <div key={group.id} className={`mega-col${gi === megaMenus.length - 1 ? ' mega-col-last' : ''}`}>
+                          <div className="mega-col-title"><Link href={group.href}>{group.label}</Link></div>
+                          {links.map(l => (
+                            <Link key={l.id} href={l.href} className="mega-link">{l.label}</Link>
+                          ))}
+                        </div>
+                      )) : (
+                        <>
+                          <div className="mega-col">
+                            <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
+                            <Link href="/brand" className="mega-link">브랜드 소개</Link>
+                            <Link href="/farms" className="mega-link">파트너 농가</Link>
+                          </div>
+                          <div className="mega-col mega-col-last">
+                            <div className="mega-col-title"><Link href="/service">서비스</Link></div>
+                            {showShipping && <Link href="/shipping" className="mega-link">배송안내</Link>}
+                            <Link href="/inquiry" className="mega-link">입점/협업문의</Link>
+                            <Link href="/faq" className="mega-link">고객센터</Link>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <Link href="/category?new=true" className="header-nav-link">신상품</Link>
-            <Link href="/brand-intro" className="header-nav-link">브랜드소개관</Link>
-            <Link href="/event" className="header-nav-link">이벤트</Link>
-            <Link href="/lounge" className="header-nav-link">라운지</Link>
-            <Link href="/survey" className="header-nav-link">취향진단</Link>
+            {navLinks.length > 0 ? navLinks.map(l => (
+              <Link key={l.id} href={l.href} className="header-nav-link">{l.label}</Link>
+            )) : (
+              <>
+                <Link href="/category?new=true" className="header-nav-link">신상품</Link>
+                <Link href="/brand-intro" className="header-nav-link">브랜드소개관</Link>
+                <Link href="/event" className="header-nav-link">이벤트</Link>
+                <Link href="/lounge" className="header-nav-link">라운지</Link>
+                <Link href="/survey" className="header-nav-link">취향진단</Link>
+              </>
+            )}
           </nav>
         </div>
       </div>
