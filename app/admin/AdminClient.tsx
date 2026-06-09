@@ -576,10 +576,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 
               {/* 등급별 선택 */}
               {targetMode === 'grade' && (
-                <select className="adm-select" value={gradeFilter} onChange={e => setGradeFilter(e.target.value)}>
-                  <option value="gold">골드·VIP·VVIP</option>
-                  {Object.entries(GRADE_LABEL_MAP).map(([v,l]) => <option key={v} value={v}>{l}만</option>)}
-                </select>
+                <AdmSelect value={gradeFilter} onChange={setGradeFilter}
+                  options={[{ value:'gold', label:'골드·VIP·VVIP' }, ...Object.entries(GRADE_LABEL_MAP).map(([v,l]) => ({ value:v, label:`${l}만` }))]} />
               )}
 
               {/* 번호 직접입력 */}
@@ -844,6 +842,50 @@ function Spark({ data, color }: { data:number[]; color:string }) {
       <path d={line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       {n>1 && <circle cx={X(n-1)} cy={Y(last)} r={2.4} fill={color} />}
     </svg>
+  );
+}
+
+/* ===== 커스텀 셀렉트 (네이티브 select 대체) ===== */
+type AdmOption = { value: string; label: string };
+function AdmSelect({ value, onChange, options, placeholder, className, style, disabled }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: AdmOption[];
+  placeholder?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+  const selected = options.find(o => o.value === value);
+  return (
+    <div ref={ref} className={`adm-cs${className ? ' ' + className : ''}`} style={style}>
+      <button type="button" className={`adm-cs-btn${open ? ' open' : ''}`} disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}>
+        <span className={selected ? 'adm-cs-val' : 'adm-cs-ph'}>{selected ? selected.label : (placeholder || '선택')}</span>
+        <svg className="adm-cs-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div className="adm-cs-list">
+          {options.map(o => (
+            <button type="button" key={o.value} className={`adm-cs-item${o.value === value ? ' active' : ''}`}
+              onClick={() => { onChange(o.value); setOpen(false); }}>
+              {o.label}
+              {o.value === value && <svg className="adm-cs-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -3301,24 +3343,20 @@ export default function AdminClient() {
                 </div>
                 <div>
                   <label className="adm-label">카테고리 *</label>
-                  <select className="adm-select" style={{ width:'100%' }} value={pForm.category}
-                    onChange={e => {
-                      const category = e.target.value;
+                  <AdmSelect className="adm-cs-full" value={pForm.category}
+                    onChange={category => {
                       setPForm(f => ({ ...f, category }));
                       // 신규 등록 시 카테고리 바뀌면 SKU 재생성
                       if (!editingProduct) generateSku(category).then(sku => setPForm(f => ({ ...f, sku })));
-                    }}>
-                    {Object.entries(catOptions).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                    }}
+                    options={Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))} />
                 </div>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">원산지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(국내산: 시·도 → 시·군·구 / 수입산: 국가)</span></label>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                    <select className="adm-select" style={{ flex:'0 0 130px' }} value={pForm.origin || 'domestic'}
-                      onChange={e => setPForm(f => ({ ...f, origin: e.target.value, origin_region: '' }))}>
-                      <option value="domestic">국내산</option>
-                      <option value="import">수입산</option>
-                    </select>
+                    <AdmSelect style={{ flex:'0 0 130px' }} value={pForm.origin || 'domestic'}
+                      onChange={v => setPForm(f => ({ ...f, origin: v, origin_region: '' }))}
+                      options={[{ value:'domestic', label:'국내산' }, { value:'import', label:'수입산' }]} />
                     {pForm.origin === 'import' ? (
                       <input className="adm-input-text" style={{ flex:1, minWidth:160 }} placeholder="국가명 (예: 미국, 칠레)"
                         value={pForm.origin_region || ''} onChange={e => setPForm(f => ({ ...f, origin_region: e.target.value }))} />
@@ -3326,11 +3364,9 @@ export default function AdminClient() {
                       const [sido = '', sigungu = ''] = (pForm.origin_region || '').split(' ');
                       return (
                         <>
-                          <select className="adm-select" style={{ flex:'0 0 160px' }} value={sido}
-                            onChange={e => setPForm(f => ({ ...f, origin_region: `${e.target.value}${sigungu ? ' ' + sigungu : ''}`.trim() }))}>
-                            <option value="">시·도 선택</option>
-                            {SIDO_LIST.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
+                          <AdmSelect style={{ flex:'0 0 160px' }} value={sido}
+                            onChange={v => setPForm(f => ({ ...f, origin_region: `${v}${sigungu ? ' ' + sigungu : ''}`.trim() }))}
+                            options={[{ value:'', label:'시·도 선택' }, ...SIDO_LIST.map(s => ({ value:s, label:s }))]} />
                           <input className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="시·군·구 (예: 고양시)"
                             value={sigungu} onChange={e => setPForm(f => ({ ...f, origin_region: `${sido}${e.target.value ? ' ' + e.target.value : ''}`.trim() }))} />
                         </>
@@ -3462,11 +3498,9 @@ export default function AdminClient() {
                             {rows.map(o => (
                               <div key={o._i} style={{ display:'grid', gridTemplateColumns: colTpl, gap:8, alignItems:'center', marginBottom:6 }}>
                                 {isDependent && (
-                                  <select className="adm-select" style={{ fontSize:12 }} value={o.parent_label || ''}
-                                    onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, parent_label: e.target.value } : x))}>
-                                    <option value="">전체</option>
-                                    {parentLabels.map(pl => <option key={pl} value={pl}>{pl}</option>)}
-                                  </select>
+                                  <AdmSelect style={{ fontSize:12 }} value={o.parent_label || ''}
+                                    onChange={v => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, parent_label: v } : x))}
+                                    options={[{ value:'', label:'전체' }, ...parentLabels.map(pl => ({ value:pl, label:pl }))]} />
                                 )}
                                 <input className="adm-input-text" placeholder="예: 2kg" value={o.label}
                                   onChange={e => setPOptions(prev => prev.map((x, idx) => idx === o._i ? { ...x, label: e.target.value } : x))} />
@@ -3584,11 +3618,9 @@ export default function AdminClient() {
                 </div>
                 <div>
                   <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
-                  <select className="adm-select" style={{ width:'100%' }} value={pForm.dispatch_cutoff || ''}
-                    onChange={e => setPForm(f => ({ ...f, dispatch_cutoff: e.target.value }))}>
-                    <option value="">전체 설정 적용</option>
-                    {CUTOFF_TIMES.map(t => <option key={t} value={t}>{cutoffLabel(t)}</option>)}
-                  </select>
+                  <AdmSelect className="adm-cs-full" value={pForm.dispatch_cutoff || ''}
+                    onChange={v => setPForm(f => ({ ...f, dispatch_cutoff: v }))}
+                    options={[{ value:'', label:'전체 설정 적용' }, ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) }))]} />
                 </div>
                 <div>
                   <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
@@ -3818,10 +3850,9 @@ export default function AdminClient() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">카테고리 *</label>
-                  <select className="adm-select" style={{ width:'100%' }} value={faqForm.category}
-                    onChange={e => setFaqForm(f => ({ ...f, category: e.target.value }))}>
-                    {Object.entries(FAQ_CATS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <AdmSelect className="adm-cs-full" value={faqForm.category}
+                    onChange={v => setFaqForm(f => ({ ...f, category: v }))}
+                    options={Object.entries(FAQ_CATS).map(([v, l]) => ({ value:v, label:l as string }))} />
                 </div>
                 <div>
                   <label className="adm-label">정렬 순서</label>
@@ -3869,14 +3900,15 @@ export default function AdminClient() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">유형 *</label>
-                  <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_type}
-                    onChange={e => setFtForm(f => ({ ...f, tab_type: e.target.value as TabType }))}
-                    disabled={!!editingFt}>
-                    <option value="category">카테고리 (상품 분류)</option>
-                    <option value="flag">태그 (베스트/새벽배송/신상품)</option>
-                    <option value="sort">정렬 (당도순/할인특가 등)</option>
-                    <option value="link">링크 (페이지 이동)</option>
-                  </select>
+                  <AdmSelect className="adm-cs-full" value={ftForm.tab_type}
+                    onChange={v => setFtForm(f => ({ ...f, tab_type: v as TabType }))}
+                    disabled={!!editingFt}
+                    options={[
+                      { value:'category', label:'카테고리 (상품 분류)' },
+                      { value:'flag', label:'태그 (베스트/새벽배송/신상품)' },
+                      { value:'sort', label:'정렬 (당도순/할인특가 등)' },
+                      { value:'link', label:'링크 (페이지 이동)' },
+                    ]} />
                   {editingFt && <p style={{ fontSize:11, color:'#94A3B8', margin:'4px 0 0' }}>* 유형은 수정 불가</p>}
                 </div>
                 <div>
@@ -3894,21 +3926,23 @@ export default function AdminClient() {
                       : '이동 경로 *'}
                   </label>
                   {ftForm.tab_type === 'flag' ? (
-                    <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_value}
-                      onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}>
-                      <option value="">선택</option>
-                      <option value="is_best">베스트 (is_best)</option>
-                      <option value="is_dawn">새벽배송 (is_dawn)</option>
-                      <option value="is_new">신상품 (is_new)</option>
-                    </select>
+                    <AdmSelect className="adm-cs-full" value={ftForm.tab_value}
+                      onChange={v => setFtForm(f => ({ ...f, tab_value: v }))}
+                      options={[
+                        { value:'', label:'선택' },
+                        { value:'is_best', label:'베스트 (is_best)' },
+                        { value:'is_dawn', label:'새벽배송 (is_dawn)' },
+                        { value:'is_new', label:'신상품 (is_new)' },
+                      ]} />
                   ) : ftForm.tab_type === 'sort' ? (
-                    <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_value}
-                      onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}>
-                      <option value="">선택</option>
-                      <option value="brix">당도순</option>
-                      <option value="best">베스트순</option>
-                      <option value="price_asc">낮은 가격순</option>
-                    </select>
+                    <AdmSelect className="adm-cs-full" value={ftForm.tab_value}
+                      onChange={v => setFtForm(f => ({ ...f, tab_value: v }))}
+                      options={[
+                        { value:'', label:'선택' },
+                        { value:'brix', label:'당도순' },
+                        { value:'best', label:'베스트순' },
+                        { value:'price_asc', label:'낮은 가격순' },
+                      ]} />
                   ) : (
                     <input className="adm-input-text" style={{ width:'100%' }} value={ftForm.tab_value}
                       onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}
@@ -4080,15 +4114,9 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">담당 택배사</label>
-                  <select className="adm-select adm-select-full" value={farmForm.carrier}
-                    onChange={e => setFarmForm(p => ({ ...p, carrier: e.target.value }))}>
-                    <option value="">택배사 선택</option>
-                    <option value="CJ대한통운">CJ대한통운</option>
-                    <option value="롯데택배">롯데택배</option>
-                    <option value="한진택배">한진택배</option>
-                    <option value="우체국택배">우체국택배</option>
-                    <option value="로젠택배">로젠택배</option>
-                  </select>
+                  <AdmSelect className="adm-cs-full" value={farmForm.carrier}
+                    onChange={v => setFarmForm(p => ({ ...p, carrier: v }))}
+                    options={['', 'CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'].map(c => ({ value:c, label:c || '택배사 선택' }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">농가 소개</label>
@@ -4179,23 +4207,21 @@ export default function AdminClient() {
               <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적</div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                  <select
+                  <AdmSelect
                     value={trackingInput.courier}
-                    onChange={e => setTrackingInput(p => ({ ...p, courier: e.target.value }))}
-                    style={{ height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6,
-                      fontSize:13, background:'#fff', fontFamily:'inherit', minWidth:140 }}>
-                    <option value="">택배사 선택</option>
-                    {[
-                      ['kr.cjlogistics',  'CJ대한통운'],
-                      ['kr.lotte',        '롯데택배'],
-                      ['kr.hanjin',       '한진택배'],
-                      ['kr.epost',        '우체국택배'],
-                      ['kr.logen',        '로젠택배'],
-                      ['kr.lotteglogis',  '롯데글로벌로지스'],
-                      ['kr.coupang',      '쿠팡로켓배송'],
-                      ['kr.cupost',       'CU편의점택배'],
-                    ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                    onChange={v => setTrackingInput(p => ({ ...p, courier: v }))}
+                    style={{ minWidth:140 }}
+                    options={[
+                      { value:'', label:'택배사 선택' },
+                      { value:'kr.cjlogistics', label:'CJ대한통운' },
+                      { value:'kr.lotte', label:'롯데택배' },
+                      { value:'kr.hanjin', label:'한진택배' },
+                      { value:'kr.epost', label:'우체국택배' },
+                      { value:'kr.logen', label:'로젠택배' },
+                      { value:'kr.lotteglogis', label:'롯데글로벌로지스' },
+                      { value:'kr.coupang', label:'쿠팡로켓배송' },
+                      { value:'kr.cupost', label:'CU편의점택배' },
+                    ]} />
                   <input
                     placeholder="운송장번호"
                     value={trackingInput.tracking_number}
@@ -4538,10 +4564,8 @@ export default function AdminClient() {
               {/* 조회 기준 · 기간 · 페이지당 개수 */}
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <select className="adm-select" value={orderDateBasis} onChange={e => setOrderDateBasis(e.target.value as 'created_at'|'paid_at')}>
-                    <option value="created_at">주문일</option>
-                    <option value="paid_at">결제일</option>
-                  </select>
+                  <AdmSelect value={orderDateBasis} onChange={v => setOrderDateBasis(v as 'created_at'|'paid_at')}
+                    options={[{ value:'created_at', label:'주문일' }, { value:'paid_at', label:'결제일' }]} />
                   <div className="adm-btn-group">
                     {([['오늘',0],['1주',7],['1개월',30],['3개월',90]] as const).map(([label, days]) => (
                       <button key={label} className="adm-seg-btn" onClick={() => {
@@ -4557,21 +4581,16 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-primary" onClick={() => loadOrders()}>검색</button>
                 </div>
                 <div className="adm-toolbar-right">
-                  <select className="adm-select" value={orderPageSize} onChange={e => { setOrderPageSize(Number(e.target.value)); setOrderPage(1); }}>
-                    {[50,100,200].map(n => <option key={n} value={n}>{n}개씩</option>)}
-                  </select>
+                  <AdmSelect value={String(orderPageSize)} onChange={v => { setOrderPageSize(Number(v)); setOrderPage(1); }}
+                    options={[50,100,200].map(n => ({ value:String(n), label:`${n}개씩` }))} />
                 </div>
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={orderStatusFilter} onChange={e => { setOrderStatusFilter(e.target.value); setOrderPage(1); }}>
-                    <option value="">전체 상태</option>
-                    {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <select className="adm-select" value={orderFarmFilter} onChange={e => { setOrderFarmFilter(e.target.value); setOrderPage(1); }}>
-                    <option value="">전체 농가</option>
-                    {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
+                  <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); }}
+                    options={[{ value:'', label:'전체 상태' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
+                  <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
+                    options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
                     value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
                 </div>
@@ -4659,10 +4678,8 @@ export default function AdminClient() {
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={productCatFilter} onChange={e => setProductCatFilter(e.target.value)}>
-                    <option value="">전체 카테고리</option>
-                    {Object.entries(catOptions).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <AdmSelect value={productCatFilter} onChange={setProductCatFilter}
+                    options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <input type="text" className="adm-input-text" placeholder="상품명 검색"
                     value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 </div>
@@ -4882,15 +4899,10 @@ export default function AdminClient() {
               </div>
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <select className="adm-select" value={reviewRating} onChange={e => { setReviewRating(e.target.value); setReviewPage(1); }}>
-                    <option value="">별점 전체</option>
-                    {['5','4','3','2','1'].map(s => <option key={s} value={s}>{s}점</option>)}
-                  </select>
-                  <select className="adm-select" value={reviewAnswered} onChange={e => { setReviewAnswered(e.target.value as 'all'|'unanswered'|'answered'); setReviewPage(1); }}>
-                    <option value="all">전체</option>
-                    <option value="unanswered">미답변</option>
-                    <option value="answered">답변완료</option>
-                  </select>
+                  <AdmSelect value={reviewRating} onChange={v => { setReviewRating(v); setReviewPage(1); }}
+                    options={[{ value:'', label:'별점 전체' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
+                  <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
+                    options={[{ value:'all', label:'전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
@@ -4898,9 +4910,8 @@ export default function AdminClient() {
                     value={reviewSearch} onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
-                  <select className="adm-select" value={reviewPageSize} onChange={e => { setReviewPageSize(Number(e.target.value)); setReviewPage(1); }}>
-                    {[10,30,50,100].map(n => <option key={n} value={n}>{n}개씩</option>)}
-                  </select>
+                  <AdmSelect value={String(reviewPageSize)} onChange={v => { setReviewPageSize(Number(v)); setReviewPage(1); }}
+                    options={[10,30,50,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
                   <button className="adm-btn adm-btn-outline" onClick={loadReviews}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
@@ -5069,12 +5080,8 @@ export default function AdminClient() {
                   {/* 툴바 */}
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left">
-                      <select className="adm-select" value={pointFilter}
-                        onChange={e => setPointFilter(e.target.value as 'all'|'has'|'none')}>
-                        <option value="all">전체 회원</option>
-                        <option value="has">포인트 있는 회원</option>
-                        <option value="none">포인트 없는 회원</option>
-                      </select>
+                      <AdmSelect value={pointFilter} onChange={v => setPointFilter(v as 'all'|'has'|'none')}
+                        options={[{ value:'all', label:'전체 회원' }, { value:'has', label:'포인트 있는 회원' }, { value:'none', label:'포인트 없는 회원' }]} />
                       <input type="text" className="adm-input-text" placeholder="이름·이메일·연락처 검색"
                         value={pointSearch} onChange={e => setPointSearch(e.target.value)} />
                     </div>
@@ -5474,15 +5481,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {/* 링크 URL */}
                         <div>
                           <label className="adm-label">클릭 시 이동 페이지</label>
-                          <select className="adm-select" style={{ width:'100%', marginBottom:8 }} value={ppDropVal}
-                            onChange={e => {
-                              if (e.target.value === '__custom__') setPpForm(f => ({ ...f, link_url: f.link_url || '/' }));
-                              else setPpForm(f => ({ ...f, link_url: e.target.value }));
-                            }}>
-                            {QUICK_LINKS_PP.map(l => (
-                              <option key={l.url} value={l.url}>{l.label}{l.url !== '__custom__' ? ` — ${l.url}` : ''}</option>
-                            ))}
-                          </select>
+                          <AdmSelect className="adm-cs-full" style={{ marginBottom:8 }} value={ppDropVal}
+                            onChange={v => {
+                              if (v === '__custom__') setPpForm(f => ({ ...f, link_url: f.link_url || '/' }));
+                              else setPpForm(f => ({ ...f, link_url: v }));
+                            }}
+                            options={QUICK_LINKS_PP.map(l => ({ value:l.url, label:`${l.label}${l.url !== '__custom__' ? ` — ${l.url}` : ''}` }))} />
                           {(isPpCustom || ppDropVal === '__custom__') && (
                             <input className="adm-input-text" style={{ width:'100%' }}
                               placeholder="예: /event/spring-sale"
@@ -5503,12 +5507,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           </div>
                           <div>
                             <label className="adm-label">팝업 위치</label>
-                            <select className="adm-select" style={{ width:'100%' }} value={ppForm.position}
-                              onChange={e => setPpForm(f => ({ ...f, position: e.target.value }))}>
-                              <option value="center">중앙</option>
-                              <option value="left">좌측</option>
-                              <option value="right">우측</option>
-                            </select>
+                            <AdmSelect className="adm-cs-full" value={ppForm.position}
+                              onChange={v => setPpForm(f => ({ ...f, position: v }))}
+                              options={[{ value:'center', label:'중앙' }, { value:'left', label:'좌측' }, { value:'right', label:'우측' }]} />
                           </div>
                         </div>
 
@@ -5599,11 +5600,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           return (
                             <div>
                               <label className="adm-label">배너 종류</label>
-                              <select className="adm-select" style={{ width:'100%' }} value={bnForm.type}
-                                onChange={e => setBnForm(f => ({ ...f, type: e.target.value }))}>
-                                <option value="main">메인 배너 (상단 슬라이더)</option>
-                                <option value="mid">중간 배너 (중단 슬라이더)</option>
-                              </select>
+                              <AdmSelect className="adm-cs-full" value={bnForm.type}
+                                onChange={v => setBnForm(f => ({ ...f, type: v }))}
+                                options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }]} />
                               {hint && (
                                 <div style={{ marginTop:6, display:'flex', gap:12, fontSize:12 }}>
                                   <span style={{ background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
@@ -5723,15 +5722,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {/* 링크 URL */}
                         <div>
                           <label className="adm-label">클릭 시 이동 페이지</label>
-                          <select className="adm-select" style={{ width:'100%', marginBottom:8 }} value={dropVal}
-                            onChange={e => {
-                              if (e.target.value === '__custom__') setBnForm(f => ({ ...f, link_url: f.link_url || '/' }));
-                              else setBnForm(f => ({ ...f, link_url: e.target.value }));
-                            }}>
-                            {QUICK_LINKS.map(l => (
-                              <option key={l.url} value={l.url}>{l.label}{l.url !== '__custom__' ? ` — ${l.url}` : ''}</option>
-                            ))}
-                          </select>
+                          <AdmSelect className="adm-cs-full" style={{ marginBottom:8 }} value={dropVal}
+                            onChange={v => {
+                              if (v === '__custom__') setBnForm(f => ({ ...f, link_url: f.link_url || '/' }));
+                              else setBnForm(f => ({ ...f, link_url: v }));
+                            }}
+                            options={QUICK_LINKS.map(l => ({ value:l.url, label:`${l.label}${l.url !== '__custom__' ? ` — ${l.url}` : ''}` }))} />
                           {(isCustomUrl || dropVal === '__custom__') && (
                             <input className="adm-input-text" style={{ width:'100%' }}
                               placeholder="예: /event/summer-sale"
@@ -5775,7 +5771,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
             <div className="adm-content">
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select"><option>전체 상태</option><option>진행중</option><option>예정</option><option>종료</option></select>
+                  <AdmSelect value="" onChange={() => {}}
+                    options={[{ value:'', label:'전체 상태' }, { value:'ongoing', label:'진행중' }, { value:'scheduled', label:'예정' }, { value:'ended', label:'종료' }]} />
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadEvents}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
@@ -5831,13 +5828,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
             <div className="adm-content">
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={loungeFilter} onChange={e => setLoungeFilter(e.target.value)}>
-                    <option value="">전체 카테고리</option>
-                    <option value="recipe">레시피</option>
-                    <option value="story">과일이야기</option>
-                    <option value="farm">산지소식</option>
-                    <option value="health">건강팁</option>
-                  </select>
+                  <AdmSelect value={loungeFilter} onChange={setLoungeFilter}
+                    options={[
+                      { value:'', label:'전체 카테고리' },
+                      { value:'recipe', label:'레시피' },
+                      { value:'story', label:'과일이야기' },
+                      { value:'farm', label:'산지소식' },
+                      { value:'health', label:'건강팁' },
+                    ]} />
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadLounge}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
@@ -5896,21 +5894,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={memberGradeFilter} onChange={e => setMemberGradeFilter(e.target.value)}>
-                    <option value="">전체 등급</option>
-                    {Object.entries(GRADE_LABEL).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  <select className="adm-select" value={memberBlockFilter} onChange={e => setMemberBlockFilter(e.target.value as 'all'|'active'|'blocked')}>
-                    <option value="all">전체</option>
-                    <option value="active">정상</option>
-                    <option value="blocked">블랙리스트</option>
-                  </select>
-                  <select className="adm-select" value={memberProviderFilter} onChange={e => setMemberProviderFilter(e.target.value)}>
-                    <option value="">전체 가입경로</option>
-                    <option value="email">일반</option>
-                    <option value="kakao">카카오</option>
-                    <option value="naver">네이버</option>
-                  </select>
+                  <AdmSelect value={memberGradeFilter} onChange={setMemberGradeFilter}
+                    options={[{ value:'', label:'전체 등급' }, ...Object.entries(GRADE_LABEL).map(([v,l]) => ({ value:v, label:l as string }))]} />
+                  <AdmSelect value={memberBlockFilter} onChange={v => setMemberBlockFilter(v as 'all'|'active'|'blocked')}
+                    options={[{ value:'all', label:'전체' }, { value:'active', label:'정상' }, { value:'blocked', label:'블랙리스트' }]} />
+                  <AdmSelect value={memberProviderFilter} onChange={setMemberProviderFilter}
+                    options={[{ value:'', label:'전체 가입경로' }, { value:'email', label:'일반' }, { value:'kakao', label:'카카오' }, { value:'naver', label:'네이버' }]} />
                   <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
                     value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                 </div>
@@ -6007,12 +5996,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
                 <div className="adm-toolbar">
                   <div className="adm-toolbar-left">
-                    <select className="adm-select" value={referralStatusFilter}
-                      onChange={e => setReferralStatusFilter(e.target.value as 'all'|'pending'|'rewarded')}>
-                      <option value="all">전체 상태</option>
-                      <option value="pending">대기중</option>
-                      <option value="rewarded">지급 완료</option>
-                    </select>
+                    <AdmSelect value={referralStatusFilter} onChange={v => setReferralStatusFilter(v as 'all'|'pending'|'rewarded')}
+                      options={[{ value:'all', label:'전체 상태' }, { value:'pending', label:'대기중' }, { value:'rewarded', label:'지급 완료' }]} />
                     <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
                       value={referralSearch} onChange={e => setReferralSearch(e.target.value)} />
                   </div>
@@ -6154,17 +6139,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <select className="adm-select" value={faqCatFilter} onChange={e => { setFaqCatFilter(e.target.value); setFaqPage(1); }}>
-                    <option value="">전체 카테고리</option>
-                    {Object.entries(FAQ_CATS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <AdmSelect value={faqCatFilter} onChange={v => { setFaqCatFilter(v); setFaqPage(1); }}
+                    options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(FAQ_CATS).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <input type="text" className="adm-input-text" placeholder="질문 · 답변 검색"
                     value={faqSearch} onChange={e => { setFaqSearch(e.target.value); setFaqPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right">
-                  <select className="adm-select" value={faqPageSize} onChange={e => { setFaqPageSize(Number(e.target.value)); setFaqPage(1); }}>
-                    {[10,30,100].map(n => <option key={n} value={n}>{n}개씩</option>)}
-                  </select>
+                  <AdmSelect value={String(faqPageSize)} onChange={v => { setFaqPageSize(Number(v)); setFaqPage(1); }}
+                    options={[10,30,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
                   <button className="adm-btn adm-btn-outline" onClick={loadFaq}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFaqModal()}>+ FAQ 등록</button>
                 </div>
@@ -6240,10 +6222,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 ]} />
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <select className="adm-select" value={csCatFilter} onChange={e => setCsCatFilter(e.target.value)}>
-                    <option value="">전체 카테고리</option>
-                    {Object.entries(CS_CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <AdmSelect value={csCatFilter} onChange={setCsCatFilter}
+                    options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(CS_CAT_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <input type="date" className="adm-select" value={csFrom} onChange={e => setCsFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={csTo} onChange={e => setCsTo(e.target.value)} />
@@ -6322,12 +6302,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </div>
                 <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                   <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                    <select className="adm-select" value={piqStatusFilter}
-                      onChange={e => setPiqStatusFilter(e.target.value as 'all'|'pending'|'answered')}>
-                      <option value="all">전체</option>
-                      <option value="answered">답변 완료</option>
-                      <option value="pending">답변 대기</option>
-                    </select>
+                    <AdmSelect value={piqStatusFilter} onChange={v => setPiqStatusFilter(v as 'all'|'pending'|'answered')}
+                      options={[{ value:'all', label:'전체' }, { value:'answered', label:'답변 완료' }, { value:'pending', label:'답변 대기' }]} />
                     <input type="date" className="adm-select" value={piqFrom} onChange={e => setPiqFrom(e.target.value)} />
                     <span style={{ color:'#94A3B8' }}>~</span>
                     <input type="date" className="adm-select" value={piqTo} onChange={e => setPiqTo(e.target.value)} />
@@ -6403,14 +6379,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
                     ))}
                   </div>
-                  <select className="adm-select" value={refundStatusFilter} onChange={e => setRefundStatusFilter(e.target.value)}>
-                    <option value="">전체 상태</option>
-                    <option value="pending">환불 요청</option>
-                    <option value="hold">환불 보류</option>
-                    <option value="processing">진행중</option>
-                    <option value="completed">환불 완료</option>
-                    <option value="rejected">환불 불가</option>
-                  </select>
+                  <AdmSelect value={refundStatusFilter} onChange={setRefundStatusFilter}
+                    options={[
+                      { value:'', label:'전체 상태' },
+                      { value:'pending', label:'환불 요청' },
+                      { value:'hold', label:'환불 보류' },
+                      { value:'processing', label:'진행중' },
+                      { value:'completed', label:'환불 완료' },
+                      { value:'rejected', label:'환불 불가' },
+                    ]} />
                   <input type="date" className="adm-select" value={refundFrom} onChange={e => setRefundFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={refundTo} onChange={e => setRefundTo(e.target.value)} />
@@ -7815,13 +7792,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
               {/* 카테고리 */}
               <div className="adm-form-row">
                 <label className="adm-label">카테고리</label>
-                <select className="adm-select" value={loungeForm.filter}
-                  onChange={e => setLoungeForm(p => ({ ...p, filter: e.target.value }))}>
-                  <option value="recipe">레시피</option>
-                  <option value="story">과일이야기</option>
-                  <option value="farm">산지소식</option>
-                  <option value="health">건강팁</option>
-                </select>
+                <AdmSelect className="adm-cs-full" value={loungeForm.filter}
+                  onChange={v => setLoungeForm(p => ({ ...p, filter: v }))}
+                  options={[
+                    { value:'recipe', label:'레시피' },
+                    { value:'story', label:'과일이야기' },
+                    { value:'farm', label:'산지소식' },
+                    { value:'health', label:'건강팁' },
+                  ]} />
               </div>
 
               {/* 제목 */}
@@ -7952,11 +7930,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">할인 유형</label>
-                <select className="adm-select" value={couponForm.discount_type}
-                  onChange={e => setCouponForm(p => ({ ...p, discount_type: e.target.value as 'percent'|'fixed' }))}>
-                  <option value="percent">정률 (%)</option>
-                  <option value="fixed">정액 (원)</option>
-                </select>
+                <AdmSelect value={couponForm.discount_type} onChange={v => setCouponForm(p => ({ ...p, discount_type: v as 'percent'|'fixed' }))}
+                  options={[{ value:'percent', label:'정률 (%)' }, { value:'fixed', label:'정액 (원)' }]} />
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">할인값</label>
