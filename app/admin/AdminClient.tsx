@@ -308,8 +308,8 @@ function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/* 농가 유형 프리셋 (추가 가능 — 직접입력도 허용) */
-const FARM_TYPE_PRESETS = ['자사배송', '산지직송'];
+/* 농가 유형 = 재배 형태 프리셋 (추가 가능 — 직접입력도 허용) */
+const FARM_TYPE_PRESETS = ['과수원', '비닐하우스', '노지', '스마트팜'];
 
 /* 마케팅 분석 기본 Looker Studio 임베드 URL (설정값 없을 때 사용) */
 const LOOKER_DEFAULT_URL = 'https://datastudio.google.com/embed/reporting/246d1604-471d-46e6-ab6f-f385f581ea36/page/e7Z0F';
@@ -1120,7 +1120,7 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '자사배송', intro: '', carrier: '' });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '' });
   const [farmTypeFilter, setFarmTypeFilter] = useState('');
 
 
@@ -1924,10 +1924,10 @@ export default function AdminClient() {
   function openFarmModal(farm?: AdminFarm) {
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || 'fruit', intro: farm.intro || '', carrier: farm.carrier || '' });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '' });
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: 'fruit', intro: '', carrier: '' });
+      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '' });
     }
     setFarmModal(true);
   }
@@ -4282,7 +4282,7 @@ export default function AdminClient() {
                     value={farmForm.region} onChange={e => setFarmForm(p => ({ ...p, region: e.target.value }))} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">농가 유형</label>
+                  <label className="adm-label">농가 유형 <span style={{ fontWeight:400, color:'#94A3B8' }}>(재배 형태)</span></label>
                   <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'center' }}>
                     <div className="adm-btn-group">
                       {FARM_TYPE_PRESETS.map(t => (
@@ -4290,7 +4290,7 @@ export default function AdminClient() {
                           onClick={() => setFarmForm(p => ({ ...p, farm_type: t }))}>{t}</button>
                       ))}
                     </div>
-                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="직접 입력(예: 새 유형)"
+                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="직접 입력(예: 친환경/유기농)"
                       value={farmForm.farm_type} onChange={e => setFarmForm(p => ({ ...p, farm_type: e.target.value }))} />
                   </div>
                 </div>
