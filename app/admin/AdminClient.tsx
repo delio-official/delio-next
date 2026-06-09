@@ -3418,8 +3418,8 @@ export default function AdminClient() {
               {/* 상품 유형: 자사 / 산지 (맨 위에서 먼저 선택) */}
               <div style={{ display:'flex', gap:8 }}>
                 {([
-                  { dawn:false, label:'🏢 자사 상품', desc:'자사배송' },
-                  { dawn:true,  label:'🚜 산지 상품', desc:'산지직송' },
+                  { dawn:false, label:'자사 상품', desc:'자사배송' },
+                  { dawn:true,  label:'산지 상품', desc:'산지직송' },
                 ] as const).map(opt => {
                   const active = !!pForm.is_dawn === opt.dawn;
                   return (
