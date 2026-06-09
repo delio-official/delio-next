@@ -594,6 +594,18 @@ export default function HomeClient() {
   const [pickProds, setPickProds] = useState<PickProduct[]>([]);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
 
+  /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
+  const [secOff, setSecOff] = useState<Set<string>>(new Set());
+  const secOn = (k: string) => !secOff.has(`sec_${k}`);
+  useEffect(() => {
+    async function loadSecs() {
+      const supabase = createClient();
+      const { data } = await supabase.from('site_settings').select('key,value').like('key', 'sec_%');
+      if (data) setSecOff(new Set(data.filter(r => r.value === 'false').map(r => r.key)));
+    }
+    loadSecs();
+  }, []);
+
   /* 픽 캐러셀 */
   const pickWrapRef = useRef<HTMLDivElement>(null);
   const [pickIndex, setPickIndex] = useState(0);
@@ -713,9 +725,10 @@ export default function HomeClient() {
       <PopupOverlay />
 
       {/* 메인 배너 */}
-      <MainBanner />
+      {secOn('topbanner') && <MainBanner />}
 
       {/* ── 델리오 픽 ── */}
+      {secOn('pick') && (
       <section className="curation-section" id="section-pick">
         <div className="container">
           <div className="g-section-head">
@@ -832,11 +845,13 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── 퀵 가이드 ── */}
-      <QuickGuide />
+      {secOn('quickguide') && <QuickGuide />}
 
       {/* ── 브랜드 직송관 ── */}
+      {secOn('brand') && (
       <section className="brand-direct-section" id="section-brand">
         <div className="container">
           <div className="g-section-head">
@@ -878,10 +893,13 @@ export default function HomeClient() {
         </div>
       </section>
 
+      )}
+
       {/* ── 중간 배너 ── */}
-      <MidBanner />
+      {secOn('midbanner') && <MidBanner />}
 
       {/* ── 리뷰 하이라이트 ── */}
+      {secOn('review') && (
       <section className="review-section" id="section-review">
         <div className="container">
           <div className="g-section-head">
@@ -926,7 +944,10 @@ export default function HomeClient() {
         </div>
       </section>
 
+      )}
+
       {/* ── 델리오 라운지 ── */}
+      {secOn('lounge') && (
       <section className="lounge-section" id="section-lounge">
         <div className="container">
           <div className="g-section-head">
@@ -965,7 +986,10 @@ export default function HomeClient() {
         </div>
       </section>
 
+      )}
+
       {/* ── 취향찾기 CTA ── */}
+      {secOn('survey') && (
       <section className="survey-cta-section">
         <div className="container">
           <div className="survey-cta-inner">
@@ -981,6 +1005,7 @@ export default function HomeClient() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── 푸터 ── */}
       <footer className="site-footer">
