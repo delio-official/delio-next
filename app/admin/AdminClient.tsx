@@ -2871,6 +2871,10 @@ export default function AdminClient() {
 
   async function saveCoupon() {
     if (!couponForm.name.trim()) { alert('쿠폰명을 입력해주세요.'); return; }
+    if (couponForm.signup_grant && !couponForm.valid_days.trim()) {
+      alert('신규회원 쿠폰은 유효기간(발급일로부터 N일)을 반드시 입력해주세요.\n(고정 만료일이 아니라 가입일 기준으로 만료되어야 합니다.)');
+      return;
+    }
     setCouponSaving(true);
     const supabase = createClient();
     const payload = {
@@ -7983,20 +7987,23 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <input type="datetime-local" className="adm-input-text"
                   value={couponForm.starts_at} onChange={e => setCouponForm(p => ({ ...p, starts_at: e.target.value }))} />
               </div>
-              <div className="adm-form-row">
-                <label className="adm-label">만료일</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={!couponForm.expires_at}
-                      onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.checked ? '' : new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,16) }))} />
-                    무제한 (만료일 없음)
-                  </label>
-                  {couponForm.expires_at && (
-                    <input type="datetime-local" className="adm-input-text"
-                      value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
-                  )}
+              {/* 일반 쿠폰: 고정 만료일 선택 가능 (신규회원 쿠폰은 발급일 기준이라 숨김) */}
+              {!couponForm.signup_grant && (
+                <div className="adm-form-row">
+                  <label className="adm-label">만료일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(고정 날짜)</span></label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={!couponForm.expires_at}
+                        onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.checked ? '' : new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,16) }))} />
+                      무제한 (만료일 없음)
+                    </label>
+                    {couponForm.expires_at && (
+                      <input type="datetime-local" className="adm-input-text"
+                        value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="adm-form-row">
                 <label className="adm-label">유효기간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(발급일 기준)</span></label>
                 <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
@@ -8005,7 +8012,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       value={couponForm.valid_days} onChange={e => setCouponForm(p => ({ ...p, valid_days: e.target.value }))} />
                     <span className="adm-muted">일 (발급일로부터)</span>
                   </div>
-                  <span style={{ fontSize:11, color:'#94A3B8' }}>회원가입 자동지급·다운로드 쿠폰의 만료일을 <strong>발급일 + N일</strong>로 계산합니다. 비우면 위 만료일(고정) 사용.</span>
+                  <span style={{ fontSize:11, color: couponForm.signup_grant ? '#B45309' : '#94A3B8' }}>
+                    {couponForm.signup_grant
+                      ? <>신규회원 쿠폰은 <strong>각 회원 가입일 + N일</strong>로 만료됩니다. (고정 만료일은 사용 안 함 — 반드시 일수 입력)</>
+                      : <>회원가입 자동지급·다운로드 쿠폰의 만료일을 <strong>발급일 + N일</strong>로 계산합니다. 비우면 위 만료일(고정) 사용.</>}
+                  </span>
                 </div>
               </div>
               <div className="adm-form-row">
