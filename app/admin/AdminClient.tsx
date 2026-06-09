@@ -2854,6 +2854,13 @@ export default function AdminClient() {
     setCouponModal(true);
   }
 
+  /* 신규회원 쿠폰 추가 — signup_grant·정액·유효기간 30일 프리셋 */
+  function openSignupCouponModal() {
+    setEditingCoupon(null);
+    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true });
+    setCouponModal(true);
+  }
+
   /* 쿠폰 코드 자동생성: 영문대문자+숫자 10자리 (혼동문자 0,O,1,I 제외) */
   function genCouponCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -4959,6 +4966,46 @@ export default function AdminClient() {
                       </div>
                     ))}
                   </div>
+                  {/* 신규회원 웰컴 쿠폰팩 (signup_grant) */}
+                  {(() => {
+                    const pack = coupons.filter(c => c.signup_grant);
+                    const today = new Date().toISOString().slice(0,10);
+                    const totalAmt = pack.filter(c => c.is_active && c.discount_type === 'fixed').reduce((s,c) => s + c.discount_value, 0);
+                    return (
+                      <div className="adm-card" style={{ marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                        <div className="adm-card-head" style={{ alignItems:'center' }}>
+                          <span className="adm-card-title">🎁 신규회원 웰컴 쿠폰팩</span>
+                          <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openSignupCouponModal}>+ 신규회원 쿠폰 추가</button>
+                        </div>
+                        <div style={{ fontSize:12, color:'#92400E', margin:'2px 0 12px' }}>
+                          신규 회원이 가입하면 아래 쿠폰이 <strong>각자 가입일 기준으로 자동 발급</strong>됩니다. (정액 합계 <strong>{fmtPrice(totalAmt)}원</strong> · {pack.filter(c=>c.is_active).length}종 활성)
+                        </div>
+                        {pack.length === 0 ? (
+                          <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 신규회원 쿠폰이 없습니다. 우측 “+ 신규회원 쿠폰 추가”로 만드세요.</div>
+                        ) : (
+                          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                            {pack.map(c => {
+                              const relative = c.valid_days != null;
+                              const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                              return (
+                                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap', background:'#fff', borderRadius:8, padding:'11px 14px', border:'1px solid #FEF3C7', opacity: c.is_active ? 1 : 0.55 }}>
+                                  <span style={{ fontWeight:700, minWidth:120 }}>{c.name}</span>
+                                  <span style={{ fontWeight:800, color:'#B45309', minWidth:70 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</span>
+                                  <span style={{ fontSize:12, color:'#475569' }}>
+                                    유효기간: {relative ? <strong>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                  </span>
+                                  {!c.is_active && <span className="adm-badge badge-off" style={{ fontSize:11 }}>비활성</span>}
+                                  {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700 }}>⚠️ 고정 만료일이 지남 → 유효기간(N일)으로 변경 필요</span>}
+                                  <button className="adm-row-btn" style={{ marginLeft:'auto' }} onClick={() => openCouponModal(c)}>수정</button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
