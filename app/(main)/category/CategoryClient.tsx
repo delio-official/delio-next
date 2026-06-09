@@ -224,7 +224,7 @@ export default function CategoryClient() {
     }
 
     const { data } = await q.limit(200);
-    setProducts((data as Product[]) || []);
+    setProducts((data as unknown as Product[]) || []);
     setLoading(false);
   }, [catParam, originParam, sortParam, newParam]);
 

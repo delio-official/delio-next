@@ -151,7 +151,7 @@ export default function FarmClient() {
 
       setCerts((certData as Certification[]) || []);
       setGallery((gallData as GalleryItem[]) || []);
-      setProducts((prodData as Product[]) || []);
+      setProducts((prodData as unknown as Product[]) || []);
       setLoading(false);
     }
     load();

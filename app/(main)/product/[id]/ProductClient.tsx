@@ -250,7 +250,8 @@ export default function ProductClient() {
         ]);
 
       if (!prod) { router.push('/'); return; }
-      setProduct(prod as Product);
+      const prodT = prod as unknown as Product;
+      setProduct(prodT);
       setOptions((opts as ProductOption[]) || []);
       setReviews((revs as Review[]) || []);
       setInquiries((inqs as unknown as ProductInquiry[]) || []);
@@ -269,7 +270,7 @@ export default function ProductClient() {
       /* 상세정보 편집 데이터 */
       const defaultInfoData = {
         table: [
-          [(prod as Product).name, '과일'],
+          [(prod as unknown as Product).name, '과일'],
           ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
           ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
           ['상품설명 및 이미지 참조', '상품설명 및 이미지 참조'],
@@ -309,15 +310,15 @@ export default function ProductClient() {
       try {
         const RECENT_KEY = 'delio_recent_products';
         const existing: {id:string}[] = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        const filtered = existing.filter(p => p.id !== (prod as Product).id);
+        const filtered = existing.filter(p => p.id !== (prod as unknown as Product).id);
         const item = {
-          id: (prod as Product).id,
-          name: (prod as Product).name,
-          price: (prod as Product).discounted_price ?? (prod as Product).price,
-          discount_rate: (prod as Product).discount_rate,
-          thumbnail_url: (prod as Product).thumbnail_url,
-          avg_rating: (prod as Product).avg_rating,
-          category: (prod as Product).category,
+          id: (prod as unknown as Product).id,
+          name: (prod as unknown as Product).name,
+          price: (prod as unknown as Product).discounted_price ?? (prod as unknown as Product).price,
+          discount_rate: (prod as unknown as Product).discount_rate,
+          thumbnail_url: (prod as unknown as Product).thumbnail_url,
+          avg_rating: (prod as unknown as Product).avg_rating,
+          category: (prod as unknown as Product).category,
         };
         localStorage.setItem(RECENT_KEY, JSON.stringify([item, ...filtered].slice(0, 20)));
       } catch { /* ignore */ }
@@ -334,19 +335,19 @@ export default function ProductClient() {
         if (s.key === 'point_rate'      && s.value) setPointRate(Number(s.value));
       });
 
-      if (prod.farm_id) {
+      if (prodT.farm_id) {
         const { data: farmData } = await supabase
-          .from('farms').select('*').eq('id', prod.farm_id).single();
+          .from('farms').select('*').eq('id', prodT.farm_id).single();
         setFarm(farmData as Farm);
 
         // 농장 팔로워 수 (farm_wishlist)
         const { count: wishCount } = await supabase
           .from('farm_wishlist')
           .select('id', { count: 'exact', head: true })
-          .eq('farm_id', prod.farm_id);
+          .eq('farm_id', prodT.farm_id);
         setFarmWishCount(wishCount || 0);
         // 내가 이 농장을 팔로우 중인지
-        const fid = prod.farm_id;
+        const fid = prodT.farm_id;
         const { data: { user: u } } = await supabase.auth.getUser();
         if (u) {
           const { data: ff } = await supabase.from('farm_wishlist')

@@ -215,7 +215,7 @@ export default function SearchClient() {
     }
 
     const { data } = await req.limit(40);
-    const results = (data as Product[]) || [];
+    const results = (data as unknown as Product[]) || [];
     setProducts(results);
     setLoading(false);
 
