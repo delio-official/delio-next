@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Menu, Truck, Home, Heart, User } from 'lucide-react';
+import { loadTabsFor, tabHref, type FilterTab } from '@/lib/filterTabs';
 
 const CAT_DATA = [
   {
@@ -32,7 +33,7 @@ const CAT_DATA = [
   },
 ];
 
-const SHORTCUTS = [
+const SHORTCUTS_FALLBACK = [
   { icon: '✨', bg: '#F5F0FF', label: '신상품',     href: '/category?new=true' },
   { icon: '🏪', bg: '#E8EAF6', label: '브랜드소개관', href: '/brand' },
   { icon: '🎉', bg: '#FFF0F5', label: '이벤트',     href: '/event' },
@@ -48,40 +49,96 @@ const SHORTCUTS = [
 ];
 
 export default function BottomNav() {
+  return (
+    <Suspense fallback={null}>
+      <BottomNavInner />
+    </Suspense>
+  );
+}
+
+function BottomNavInner() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const panel = searchParams.get('panel');
+  const onMypage = pathname === '/mypage' || pathname.startsWith('/mypage/');
   const { loggedIn } = useAuth();
 
   const [catOpen, setCatOpen] = useState(false);
   const [openAcc, setOpenAcc] = useState<number | null>(null);
+  const [shortcuts, setShortcuts] = useState(SHORTCUTS_FALLBACK);
+
+  /* 하단바 바로가기 로드 (filter_tabs.show_in_shortcut) */
+  useEffect(() => {
+    loadTabsFor('shortcut').then((rows: FilterTab[]) => {
+      if (rows.length) setShortcuts(rows.map(t => ({ icon: t.emoji, bg: t.bg || '#F5F5F5', label: t.label, href: tabHref(t) })));
+    });
+  }, []);
+
+  /* history.state 기준으로 드로어 표시 동기화 */
+  const syncFromHistory = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.catDrawer) {
+      setCatOpen(true);
+      document.body.style.overflow = 'hidden';
+    } else {
+      setCatOpen(false);
+      setOpenAcc(null);
+      document.body.style.overflow = '';
+    }
+  }, []);
 
   function openCat() {
     setCatOpen(true);
     document.body.style.overflow = 'hidden';
+    // 드로어 열림을 히스토리 항목으로 기록 → 항목 클릭 후 뒤로가기 시 카테고리로 복귀
+    window.history.pushState({ ...window.history.state, catDrawer: true }, '');
   }
   function closeCat() {
-    setCatOpen(false);
-    document.body.style.overflow = '';
-    setOpenAcc(null);
+    // 드로어 항목이 히스토리에 있으면 back으로 제거(popstate가 닫음), 아니면 직접 닫기
+    if (typeof window !== 'undefined' && window.history.state?.catDrawer) {
+      window.history.back();
+    } else {
+      setCatOpen(false);
+      setOpenAcc(null);
+      document.body.style.overflow = '';
+    }
   }
   function toggleAcc(i: number) {
     setOpenAcc(prev => prev === i ? null : i);
   }
   function goAndClose(href: string) {
-    closeCat();
+    // 카테고리 항목 클릭 → 앞으로 이동(드로어 항목은 히스토리에 남겨 뒤로가기로 복귀 가능)
+    setCatOpen(false);
+    setOpenAcc(null);
+    document.body.style.overflow = '';
     router.push(href);
+  }
+  /* 하단 탭(홈/찜/마이/배송조회) 클릭 → 경로 변화 여부와 무관하게 드로어 즉시 닫기 */
+  function closeCatForNav() {
+    if (!catOpen) return;
+    setCatOpen(false);
+    setOpenAcc(null);
+    document.body.style.overflow = '';
+    // 현재 히스토리 항목의 드로어 플래그 제거 → 탭 이동 후 뒤로가기로 재오픈 안 되게
+    if (typeof window !== 'undefined' && window.history.state?.catDrawer) {
+      window.history.replaceState({ ...window.history.state, catDrawer: false }, '');
+    }
   }
 
   function isActive(path: string) {
     return pathname === path || pathname.startsWith(path + '/');
   }
 
-  /* 경로 변경 시 카테고리 드로어 자동 닫기 (다른 탭 눌러도 페이지가 가려지던 버그 수정) */
+  /* 뒤로/앞으로 가기 → history.state 기준 동기화 (뒤로가기로 카테고리 복귀) */
   useEffect(() => {
-    setCatOpen(false);
-    setOpenAcc(null);
-    document.body.style.overflow = '';
-  }, [pathname]);
+    window.addEventListener('popstate', syncFromHistory);
+    return () => window.removeEventListener('popstate', syncFromHistory);
+  }, [syncFromHistory]);
+
+  /* 경로 변경 시에도 동기화 (다른 탭 이동 시 닫힘, 뒤로 복귀 시 열림) */
+  useEffect(() => {
+    syncFromHistory();
+  }, [pathname, syncFromHistory]);
 
   return (
     <>
@@ -110,10 +167,10 @@ export default function BottomNav() {
 
             {/* 바로가기 그리드 */}
             <div className="cd-sc-grid">
-              {SHORTCUTS.map(sc => (
+              {shortcuts.map(sc => (
                 <div key={sc.label} className="cd-sc-item" onClick={() => goAndClose(sc.href)}>
-                  <div className="cd-sc-icon" style={{ background: sc.bg }}>{sc.icon}</div>
                   <span className="cd-sc-label">{sc.label}</span>
+                  {sc.icon && <span className="cd-sc-emoji">{sc.icon}</span>}
                 </div>
               ))}
             </div>
@@ -151,31 +208,31 @@ export default function BottomNav() {
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
           {/* 카테고리 */}
-          <button className={`bottom-nav-item${catOpen ? ' active' : ''}`} onClick={openCat}>
+          <button className={`bottom-nav-item${catOpen ? ' active' : ''}`} onClick={() => catOpen ? closeCat() : openCat()}>
             <Menu size={21} strokeWidth={1.8} />
             <span>카테고리</span>
           </button>
 
           {/* 배송조회 */}
-          <Link href="/mypage?panel=order" className={`bottom-nav-item${isActive('/mypage') && pathname.includes('order') ? ' active' : ''}`}>
+          <Link href="/mypage?panel=order" onClick={closeCatForNav} className={`bottom-nav-item${onMypage && panel === 'order' ? ' active' : ''}`}>
             <Truck size={21} strokeWidth={1.8} />
             <span>배송조회</span>
           </Link>
 
           {/* 홈 */}
-          <Link href="/" className={`bottom-nav-item nav-home${pathname === '/' ? ' active' : ''}`}>
+          <Link href="/" onClick={closeCatForNav} className={`bottom-nav-item nav-home${pathname === '/' ? ' active' : ''}`}>
             <Home size={21} strokeWidth={1.8} />
             <span>홈</span>
           </Link>
 
           {/* 찜 */}
-          <Link href="/mypage?panel=wish" className="bottom-nav-item">
+          <Link href="/mypage?panel=wish" onClick={closeCatForNav} className={`bottom-nav-item${onMypage && panel === 'wish' ? ' active' : ''}`}>
             <Heart size={21} strokeWidth={1.8} />
             <span>찜</span>
           </Link>
 
           {/* 마이/로그인 */}
-          <Link href={loggedIn ? '/mypage' : '/login'} className={`bottom-nav-item${isActive('/mypage') || isActive('/login') ? ' active' : ''}`}>
+          <Link href={loggedIn ? '/mypage' : '/login'} onClick={closeCatForNav} className={`bottom-nav-item${(onMypage && panel !== 'order' && panel !== 'wish') || isActive('/login') ? ' active' : ''}`}>
             <User size={21} strokeWidth={1.8} />
             <span>{loggedIn ? '마이' : '로그인'}</span>
           </Link>

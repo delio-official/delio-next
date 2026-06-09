@@ -508,32 +508,31 @@ input, select, textarea { font-family: inherit; }
   display: flex; align-items: center; gap: 12px;
   padding: 13px 16px; cursor: pointer; transition: background .15s;
 }
-.cat-drawer-acc-item.open .cat-drawer-acc-header { background: var(--color-accent-bg); }
-.cat-drawer-acc-item.open .cat-drawer-name { color: var(--color-accent); font-weight: 700; }
+.cat-drawer-acc-item.open .cat-drawer-acc-header { background: #fff; }
+.cat-drawer-acc-item.open .cat-drawer-name { color: #1A1A1A; font-weight: 700; }
 .cat-drawer-chevron {
   color: #C0C0C0;
   transition: transform .3s cubic-bezier(0.4,0,0.2,1), color .2s;
 }
-.cat-drawer-acc-item.open .cat-drawer-chevron { transform: rotate(180deg); color: var(--color-accent); }
+.cat-drawer-acc-item.open .cat-drawer-chevron { transform: rotate(180deg); color: #1A1A1A; }
 /* 2열 서브 그리드 */
 .cat-drawer-sub-grid {
   display: grid; grid-template-columns: 1fr 1fr;
   height: 0; overflow: hidden;
   transition: height .3s cubic-bezier(0.4,0,0.2,1);
-  background: #FAFAFA;
+  background: #F5F5F5;
 }
 .cat-drawer-sub2 {
   display: flex; align-items: center;
-  padding: 13px 16px;
-  font-size: 15px; color: var(--color-ink-soft);
-  border-right: 1px solid #EEEEEE; border-bottom: 1px solid #EEEEEE;
-  text-decoration: none; transition: background .15s, color .15s;
+  padding: 12px 16px;
+  font-size: 14px; color: #1A1A1A;
+  text-decoration: none; transition: background .15s;
   line-height: 1.4;
 }
 .cat-drawer-sub2:hover, .cat-drawer-sub2:active {
-  background: var(--color-accent-bg); color: var(--color-accent);
+  background: #ECECEC;
 }
-.cat-drawer-sub2.full-view { color: var(--color-accent); font-weight: 700; }
+.cat-drawer-sub2.full-view { color: #1A1A1A; font-weight: 700; }
 /* 드로어 내 프로모 배너 */
 .cd-promo {
   margin: 12px 12px 0;
@@ -559,21 +558,17 @@ input, select, textarea { font-family: inherit; }
   border-top: 1px solid #F4F4F4; border-bottom: 1px solid #F4F4F4;
 }
 .cd-sc-item {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 13px 6px 7px;
-  background: #F5F5F3; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 8px 14px;
+  background: #fff; border: 1px solid #E5E5E5; border-radius: 999px;
   text-decoration: none; cursor: pointer;
-  transition: background .15s;
+  transition: border-color .15s;
 }
-.cd-sc-item:hover, .cd-sc-item:active { background: var(--color-accent-bg); }
-.cd-sc-icon {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 17px; flex-shrink: 0;
-}
-.cd-sc-label { font-size: 15px; font-weight: 500; color: var(--color-ink); white-space: nowrap; }
+.cd-sc-item:hover, .cd-sc-item:active { border-color: #BDBDBD; }
+.cd-sc-emoji { font-size: 15px; line-height: 1; flex-shrink: 0; }
+.cd-sc-label { font-size: 14px; font-weight: 600; color: #555; white-space: nowrap; }
 /* 드로어 아코디언 래퍼 */
-.cd-acc-wrap { margin-top: 8px; }
+.cd-acc-wrap { margin-top: 8px; padding-bottom: 40px; }
 
 /* 모바일 드로어 */
 .mobile-drawer {

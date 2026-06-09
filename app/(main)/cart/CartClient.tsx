@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getCart, saveCart, removeFromCart, updateQty, type CartItem } from '@/lib/cart';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { getOrderPrefs, setOrderPrefs } from '@/lib/orderPrefs';
 import '@/styles/cart.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -31,7 +32,13 @@ export default function CartClient() {
   const { user } = useAuth();
   const [items, setItems] = useState<CartItem[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [coupons, setCoupons] = useState<{ discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null }[]>([]);
+  const [coupons, setCoupons] = useState<{ ucId:string; name:string; discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null; starts_at:string|null; expires_at:string|null }[]>([]);
+  const [selCoupon, setSelCoupon] = useState('');
+  const [couponModal, setCouponModal] = useState(false);
+  const [modalSel, setModalSel] = useState('');
+  const [pointBalance, setPointBalance] = useState(0);
+  const [pointUsed, setPointUsed] = useState(0);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -44,26 +51,43 @@ export default function CartClient() {
     return () => window.removeEventListener('cartUpdated', load);
   }, []);
 
-  /* 보유 쿠폰 로드 (최대 할인 계산용) */
+  /* 보유 쿠폰 + 적립금 로드 + 저장된 선택(prefs) 복원 */
   useEffect(() => {
     if (!user) return;
     const now = new Date().toISOString();
     createClient()
       .from('user_coupons')
-      .select('coupons:coupon_id(discount_type, discount_value, min_order_amount, max_discount_amount, is_active, expires_at)')
+      .select('id, expires_at, coupons:coupon_id(name, discount_type, discount_value, min_order_amount, max_discount_amount, is_active, starts_at, expires_at)')
       .eq('user_id', user.id).eq('is_used', false)
       .then(({ data }) => {
         const list = (data || [])
-          .map((r: Record<string, unknown>) => r.coupons as Record<string, unknown>)
-          .filter((c) => c?.is_active && (!c.expires_at || (c.expires_at as string) > now))
-          .map((c) => ({
-            discount_type: c.discount_type as 'percent'|'fixed',
-            discount_value: c.discount_value as number,
-            min_order_amount: (c.min_order_amount as number) ?? 0,
-            max_discount_amount: (c.max_discount_amount as number) ?? null,
-          }));
+          .filter((r: Record<string, unknown>) => {
+            const c = r.coupons as Record<string, unknown> | null;
+            const exp = (r.expires_at as string) || (c?.expires_at as string);
+            return c?.is_active && (!exp || exp > now);
+          })
+          .map((r: Record<string, unknown>) => {
+            const c = r.coupons as Record<string, unknown>;
+            return {
+              ucId: r.id as string,
+              name: c.name as string,
+              discount_type: c.discount_type as 'percent'|'fixed',
+              discount_value: c.discount_value as number,
+              min_order_amount: (c.min_order_amount as number) ?? 0,
+              max_discount_amount: (c.max_discount_amount as number) ?? null,
+              starts_at: (c.starts_at as string) ?? null,
+              expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null,
+            };
+          });
         setCoupons(list);
+        // 저장된 쿠폰 선택 복원 (보유 목록에 있을 때만)
+        const prefs = getOrderPrefs();
+        if (prefs.couponUcId && list.some(c => c.ucId === prefs.couponUcId)) setSelCoupon(prefs.couponUcId);
+        if (prefs.pointUsed > 0) setPointUsed(prefs.pointUsed);
+        setPrefsLoaded(true);
       });
+    createClient().from('profiles').select('point_balance').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setPointBalance(data?.point_balance || 0));
   }, [user]);
 
   function toggleSelect(idx: number) {
@@ -108,19 +132,29 @@ export default function CartClient() {
   /* 금액 계산 */
   const selItems = items.filter(i => selected.has(i.idx));
   const subtotal = selItems.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
+  /* 원가 합계 + 상품 할인 (원가 - 판매가) */
+  const origSubtotal = selItems.reduce((s, i) => s + ((i.originalPrice ?? i.price) * (i.quantity ?? 1)), 0);
+  const productDisc = Math.max(0, origSubtotal - subtotal);
 
-  /* 보유 쿠폰 중 최대 할인액 (주문금액 기준) */
-  let bestCouponDisc = 0;
-  for (const c of coupons) {
-    if (subtotal < c.min_order_amount) continue;
-    let d = c.discount_type === 'percent'
-      ? Math.floor(subtotal * c.discount_value / 100)
-      : c.discount_value;
-    if (c.max_discount_amount) d = Math.min(d, c.max_discount_amount);
-    bestCouponDisc = Math.max(bestCouponDisc, d);
+  /* 선택 쿠폰 할인 + 적립금 → 결제 예정금액 (체크아웃과 동일 계산) */
+  const coupon = coupons.find(c => c.ucId === selCoupon);
+  let couponDisc = 0;
+  if (coupon && subtotal >= coupon.min_order_amount) {
+    couponDisc = coupon.discount_type === 'percent'
+      ? Math.floor(subtotal * coupon.discount_value / 100)
+      : coupon.discount_value;
+    if (coupon.max_discount_amount) couponDisc = Math.min(couponDisc, coupon.max_discount_amount);
   }
-  const total = subtotal;                          // 결제 예정금액 (쿠폰 미적용)
-  const couponFinal = Math.max(0, subtotal - bestCouponDisc); // 쿠폰 적용가
+  const afterCoupon = Math.max(0, subtotal - couponDisc);
+  const maxPoint = Math.min(pointBalance, afterCoupon);
+  const appliedPoint = Math.min(pointUsed, maxPoint);
+  const total = Math.max(0, afterCoupon - appliedPoint);
+
+  /* 선택을 localStorage에 저장 → 체크아웃으로 공유 */
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    setOrderPrefs({ couponUcId: selCoupon, pointUsed: appliedPoint });
+  }, [selCoupon, appliedPoint, prefsLoaded]);
 
   function handleCheckout() {
     if (selItems.length === 0) { alert('주문할 상품을 선택해주세요.'); return; }
@@ -175,58 +209,64 @@ export default function CartClient() {
             return (
               <div key={type} className="delivery-group">
                 <div className="delivery-group-header">
-                  <span className={`delivery-group-badge ${type === '산지직송' ? 'tag-dawn' : 'tag-regular'}`}>{type}</span>
-                  <span className="delivery-group-title">전 상품 무료배송</span>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                    <input type="checkbox"
+                      checked={groupItems.every(i => selected.has(i.idx))}
+                      onChange={() => {
+                        const allSel = groupItems.every(i => selected.has(i.idx));
+                        setSelected(prev => { const next = new Set(prev); groupItems.forEach(i => allSel ? next.delete(i.idx) : next.add(i.idx)); return next; });
+                      }}
+                      style={{ width:16, height:16, accentColor:'#1A1A1A', flexShrink:0 }} />
+                    <span className={`delivery-group-badge ${type === '산지직송' ? 'tag-dawn' : 'tag-regular'}`}>{type}</span>
+                    <span className="delivery-group-title">전 상품 무료배송</span>
+                  </label>
                 </div>
 
-                {groupItems.map(item => (
-                  <div key={item.idx} className="cart-item">
-                    {/* 체크박스 + 이미지 + 상품정보 */}
-                    <label style={{ display:'flex', alignItems:'center', gap:12, flex:1, cursor:'pointer', minWidth:0 }}>
-                      <input type="checkbox" checked={selected.has(item.idx)}
-                        onChange={() => toggleSelect(item.idx)}
-                        style={{ width:12, height:12, accentColor:'#1A1A1A', flexShrink:0 }} />
-
+                {groupItems.map(item => {
+                  const qty = item.quantity ?? 1;
+                  const showOrig = item.originalPrice != null && item.originalPrice > item.price;
+                  return (
+                  <div key={item.idx} className="cart-item-card">
+                    {/* 상단: 이미지 + 상품명/뱃지 + X */}
+                    <div className="cart-item-top">
                       <div className="cart-item-img" style={{ background:'#F7F7F5' }}>
                         {item.thumbnail
                           ? <img src={item.thumbnail} alt={item.name}
                               style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:10 }} />
-                          : <span>🍑</span>
-                        }
+                          : <span>🍑</span>}
                       </div>
-
                       <div className="cart-item-info">
                         <div className="cart-item-name">{item.name}</div>
-                        {item.options && (
-                          <div style={{ fontSize:12, color:'#888', marginTop:3, display:'flex', alignItems:'center', gap:4 }}>
-                            <span style={{ color:'#bbb' }}>ㄴ</span>{item.options}
-                          </div>
-                        )}
-                        <div className="cart-item-bottom">
-                          <QtyControl value={item.quantity ?? 1}
-                            onChange={v => handleQtyChange(item.idx, v)} />
-                        </div>
                       </div>
-                    </label>
-
-                    {/* 가격 + X — 같은 높이로 정렬 */}
-                    <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-                      <span className="cart-item-price">
-                        {fmtPrice(item.price * (item.quantity ?? 1))}원
-                      </span>
                       <button onClick={() => handleRemove(item.idx)}
-                        style={{ background:'none', border:'none', cursor:'pointer', color:'#bbb',
-                          padding:6, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
-                          borderRadius:4, transition:'color .15s' }}
+                        style={{ background:'none', border:'none', cursor:'pointer', color:'#bbb', padding:4, flexShrink:0, alignSelf:'flex-start' }}
                         onMouseEnter={e => (e.currentTarget.style.color='#555')}
                         onMouseLeave={e => (e.currentTarget.style.color='#bbb')}>
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                       </button>
                     </div>
+
+                    {/* 옵션 + 옵션변경 */}
+                    {item.options && (
+                      <div className="cart-item-option-row">
+                        <span className="cart-item-option-text">{item.options}</span>
+                        <Link href={`/product/${item.id}`} className="cart-item-option-change">옵션변경</Link>
+                      </div>
+                    )}
+
+                    {/* 수량 + 가격 */}
+                    <div className="cart-item-bottom-row">
+                      <QtyControl value={qty} onChange={v => handleQtyChange(item.idx, v)} />
+                      <div className="cart-item-price-wrap">
+                        {showOrig && <span className="cart-item-price-orig">{fmtPrice(item.originalPrice! * qty)}원</span>}
+                        <span className="cart-item-price">{fmtPrice(item.price * qty)}원</span>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}
@@ -237,20 +277,54 @@ export default function CartClient() {
           <div className="order-summary">
             <div className="summary-title">주문 요약</div>
 
-            {/* 금액 */}
-            <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 합계</span><span>{fmtPrice(subtotal)}원</span></div>
-            <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
-            <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
-            {bestCouponDisc > 0 && (
-              <div className="summary-row total" style={{ borderTop:'none', marginTop:0, paddingTop:4 }}>
-                <span style={{ color:'var(--color-accent)' }}>쿠폰 적용 금액</span>
-                <span style={{ color:'var(--color-accent)' }}>{fmtPrice(couponFinal)}원</span>
+            {/* 쿠폰 / 적립금 (로그인 시) */}
+            {user && (
+              <div style={{ padding:'4px 0 10px', borderBottom:'1px solid #F0F0F0', marginBottom:6 }}>
+                {/* 쿠폰 — 버튼 + 모달 */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', gap:10 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:13, fontWeight:600 }}>쿠폰</span>
+                    <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
+                      style={{ padding:'6px 12px', border:'1px solid #1A1A1A', borderRadius:6, background:'#fff', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+                      쿠폰선택
+                    </button>
+                  </div>
+                  <span style={{ fontSize:12, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#999' }}>
+                    {coupon ? `−${fmtPrice(couponDisc)}원` : `${coupons.length}장 보유`}
+                  </span>
+                </div>
+                {/* 적립금 — 전액 버튼 + 입력 */}
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', gap:8, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:13, fontWeight:600 }}>포인트 <span style={{ fontSize:11, color:'#999', fontWeight:400 }}>(보유 {fmtPrice(pointBalance)}P)</span></span>
+                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                    <button onClick={() => setPointUsed(maxPoint)}
+                      style={{ padding:'0 12px', height:36, border:'1px solid #1A1A1A', background:'#fff', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>전액 사용</button>
+                    <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
+                      onChange={e => setPointUsed(Math.max(0, Math.min(maxPoint, Number(e.target.value) || 0)))} placeholder="0"
+                      style={{ width:80, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none', textAlign:'right' }} />
+                    <span style={{ fontSize:12, color:'#666' }}>원</span>
+                  </div>
+                </div>
               </div>
             )}
 
+            {/* 금액 */}
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 금액</span><span>{fmtPrice(origSubtotal)}원</span></div>
+            {productDisc > 0 && (
+              <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 할인</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(productDisc)}원</span></div>
+            )}
+            {couponDisc > 0 && (
+              <div className="summary-row" style={{ borderBottom:'none' }}><span>쿠폰 할인</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(couponDisc)}원</span></div>
+            )}
+            {appliedPoint > 0 && (
+              <div className="summary-row" style={{ borderBottom:'none' }}><span>포인트 사용</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(appliedPoint)}원</span></div>
+            )}
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
+            <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
+
             <div className="cta-group">
               <button className="cart-checkout-all" onClick={handleCheckout}>
-                전체 주문하기 ({fmtPrice(bestCouponDisc > 0 ? couponFinal : total)}원)
+                주문하기 ({fmtPrice(total)}원)
               </button>
               <button className="cart-checkout-sel" onClick={handleCheckout}>
                 선택 주문하기 ({selItems.length}개)
@@ -273,7 +347,7 @@ export default function CartClient() {
       <div className="cta-sticky-mobile">
         <div className="mobile-cta-total-row">
           <span className="mobile-cta-total-label">결제 예정금액</span>
-          <span className="mobile-cta-total-val">{fmtPrice(bestCouponDisc > 0 ? couponFinal : total)}원</span>
+          <span className="mobile-cta-total-val">{fmtPrice(total)}원</span>
         </div>
         <div className="mobile-cta-btns">
           <button className="btn-purchase btn-purchase-flex" onClick={handleCheckout}>
@@ -281,6 +355,68 @@ export default function CartClient() {
           </button>
         </div>
       </div>
+
+      {/* 쿠폰 선택 모달 (체크아웃과 동일) */}
+      {couponModal && (
+        <div onClick={() => setCouponModal(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:600, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>사용 가능 쿠폰 <span style={{ color:'#CB1D11' }}>{coupons.length}</span>장</span>
+              <button onClick={() => setCouponModal(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
+              <button onClick={() => setModalSel('')}
+                style={{ width:'100%', textAlign:'center', padding:'12px 16px', marginBottom:14, border:`1.5px solid ${modalSel==='' ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor:'pointer', fontSize:13, fontWeight:600, color: modalSel==='' ? '#1A1A1A' : '#888' }}>
+                쿠폰 사용 안 함
+              </button>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                {coupons.map(c => {
+                  const usable = subtotal >= c.min_order_amount;
+                  const sel = modalSel === c.ucId;
+                  const fmtD = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+                  const start = c.starts_at ? new Date(c.starts_at) : null;
+                  const exp = c.expires_at ? new Date(c.expires_at) : null;
+                  const periodStr = exp ? `${start ? fmtD(start) : ''} ~ ${fmtD(exp)}` : '상시 사용 가능';
+                  let dday: number | null = null;
+                  if (exp) { const t0 = new Date(); t0.setHours(0,0,0,0); const e0 = new Date(exp); e0.setHours(0,0,0,0); dday = Math.round((e0.getTime()-t0.getTime())/86400000); }
+                  const imminent = dday !== null && dday >= 0 && dday <= 3;
+                  const ddayStr = dday === 0 ? '오늘 마감' : `D-${dday}`;
+                  return (
+                    <button key={c.ucId} disabled={!usable} onClick={() => setModalSel(c.ucId)}
+                      style={{ textAlign:'left', padding:'18px 16px', border:`1.5px solid ${sel ? '#1A1A1A' : '#EFEFEF'}`, borderRadius:10,
+                        background: usable ? '#fff' : '#FAFAFA', cursor: usable ? 'pointer' : 'not-allowed', opacity: usable ? 1 : 0.55, position:'relative' }}>
+                      <div style={{ position:'absolute', top:14, right:14, display:'flex', gap:5 }}>
+                        {imminent && <span style={{ fontSize:10, color:'#fff', background:'#CB1D11', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:700 }}>{ddayStr}</span>}
+                        <span style={{ fontSize:10, color:'#999', border:'1px solid #E2E2E2', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:500 }}>1장</span>
+                      </div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A', lineHeight:1.1 }}>
+                        {c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
+                      {c.max_discount_amount ? <div style={{ fontSize:12, color:'#CB1D11', fontWeight:600, marginTop:4 }}>최대 {fmtPrice(c.max_discount_amount)}원 할인</div> : null}
+                      <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
+                        {c.min_order_amount > 0 ? `${fmtPrice(c.min_order_amount)}원 이상 구매` : '0원 이상 구매'}<br/>{periodStr}
+                      </div>
+                      {!usable && <div style={{ fontSize:11, color:'#CB1D11', fontWeight:600, marginTop:6 }}>{fmtPrice(c.min_order_amount)}원 이상 구매 시 사용 가능</div>}
+                    </button>
+                  );
+                })}
+              </div>
+              {coupons.length === 0 && <div style={{ textAlign:'center', color:'#AAA', fontSize:13, padding:'30px 0' }}>보유한 쿠폰이 없습니다</div>}
+            </div>
+            <div style={{ padding:'14px 22px', borderTop:'1px solid #F0F0F0' }}>
+              <button onClick={() => { setSelCoupon(modalSel); setCouponModal(false); }}
+                style={{ width:'100%', padding:'14px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+                {modalSel === '' ? '쿠폰 미적용' : '쿠폰 사용하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,1 +1,7 @@
 @import '../styles/style.css';
+
+/* 체크아웃: 모바일/태블릿에서 결제 요약을 전체 폭으로 (인라인 width:300 override) */
+@media (max-width: 1024px) {
+  .checkout-side { width: 100% !important; position: static !important; }
+}
+

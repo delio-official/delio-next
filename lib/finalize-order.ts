@@ -99,6 +99,14 @@ export async function finalizeOrder(
     return { success: false, error: `주문 저장 실패: ${oe?.message || ''}${oe?.code ? ` (${oe.code})` : ''}${oe?.details ? ` · ${oe.details}` : ''}`, status: 500 };
   }
 
+  /* 농가 정산용: 판매 시점 공급가 스냅샷 */
+  const productIds = [...new Set(orderData.items.map(i => i.id).filter(Boolean))];
+  const supplyMap: Record<string, number> = {};
+  if (productIds.length > 0) {
+    const { data: sp } = await supabase.from('products').select('id, supply_price').in('id', productIds);
+    (sp || []).forEach((p: { id: string; supply_price: number | null }) => { supplyMap[p.id] = p.supply_price ?? 0; });
+  }
+
   await supabase.from('order_items').insert(
     orderData.items.map(i => ({
       order_id:      order.id,
@@ -107,6 +115,7 @@ export async function finalizeOrder(
       unit_price:    i.price,
       quantity:      i.quantity,
       subtotal:      i.price * i.quantity,
+      supply_price:  supplyMap[i.id] ?? 0,
       thumbnail_url: i.thumbnail || null,
     }))
   );

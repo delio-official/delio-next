@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
+import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
 
@@ -31,16 +32,16 @@ interface Product {
 }
 
 /* ── 카테고리 탭 ── */
-const CAT_TABS = [
+const CAT_TABS_FALLBACK = [
   { value: '', label: '전체' },
-  { value: 'apple',  label: '🍎 사과/배' },
-  { value: 'citrus', label: '🍊 감귤' },
-  { value: 'berry',  label: '🫐 베리류' },
-  { value: 'melon',  label: '🍈 멜론/참외' },
-  { value: 'kiwi',   label: '🥝 키위' },
-  { value: 'mango',  label: '🥭 망고' },
-  { value: 'grape',  label: '🍇 포도' },
-  { value: 'gift',   label: '🎁 선물세트' },
+  { value: 'apple',  label: '사과/배 🍎' },
+  { value: 'citrus', label: '감귤 🍊' },
+  { value: 'berry',  label: '베리류 🫐' },
+  { value: 'melon',  label: '멜론/참외 🍈' },
+  { value: 'kiwi',   label: '키위 🥝' },
+  { value: 'mango',  label: '망고 🥭' },
+  { value: 'grape',  label: '포도 🍇' },
+  { value: 'gift',   label: '선물세트 🎁' },
 ];
 
 const SORT_OPTS = [
@@ -182,6 +183,16 @@ export default function CategoryClient() {
   const [loading, setLoading] = useState(true);
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [catTabs, setCatTabs] = useState(CAT_TABS_FALLBACK);
+
+  /* 카테고리 상단 필탭 로드 (filter_tabs.show_in_category) — 카테고리형만 */
+  useEffect(() => {
+    loadTabsFor('category').then((rows: FilterTab[]) => {
+      const cats = rows.filter(t => t.tab_type === 'category')
+        .map(t => ({ value: t.tab_value, label: `${t.label}${t.emoji ? ' ' + t.emoji : ''}` }));
+      if (cats.length) setCatTabs([{ value: '', label: '전체' }, ...cats]);
+    });
+  }, []);
 
   /* 현재 정렬 라벨 */
   const sortLabel = SORT_OPTS.find(o => o.value === sortParam)?.label || '정렬';
@@ -243,7 +254,7 @@ export default function CategoryClient() {
       {/* ── 모바일 뷰 ── */}
       <div className="mob-product-view active">
         <div className="mob-pv-filter">
-          {CAT_TABS.map(tab => (
+          {catTabs.map(tab => (
             <button key={tab.value}
               className={`mob-pv-chip${catParam === tab.value ? ' active' : ''}`}
               onClick={() => setCat(tab.value)}>
@@ -259,10 +270,23 @@ export default function CategoryClient() {
 
         <div className="mob-pv-result-bar">
           <span>총 {products.length}개</span>
-          <select className="mob-pv-sort" value={sortParam}
-            onChange={e => setSort(e.target.value)}>
-            {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          <div className={`custom-select${sortOpen ? ' open' : ''}`}>
+            <button className="custom-select-btn" onClick={() => setSortOpen(v => !v)}>
+              <span>{sortLabel}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <ul className="custom-select-list">
+              {SORT_OPTS.map(o => (
+                <li key={o.value}
+                  className={`custom-select-item${sortParam === o.value ? ' selected' : ''}`}
+                  onClick={() => setSort(o.value)}>
+                  {o.label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         <div className="mob-pv-grid">
@@ -279,7 +303,7 @@ export default function CategoryClient() {
 
           {/* 카테고리 탭 */}
           <div className="pc-cat-tabs">
-            {CAT_TABS.map(tab => (
+            {catTabs.map(tab => (
               <a key={tab.value}
                 className={`pc-cat-tab${catParam === tab.value ? ' active' : ''}`}
                 href="#" onClick={e => { e.preventDefault(); setCat(tab.value); }}>

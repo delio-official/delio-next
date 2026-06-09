@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
 import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
+import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
@@ -62,6 +63,7 @@ export default function CheckoutClient() {
   const [claiming, setClaiming]     = useState(false);
   const [pointBalance, setPointBalance] = useState(0);
   const [pointUsed, setPointUsed]   = useState(0);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   /* 배송지 모달 폼용 주소검색 */
   function openAddrFormPost() {
@@ -163,7 +165,11 @@ export default function CheckoutClient() {
           expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null };
       });
     setCoupons(list);
-    if (autoSelect) {
+    // 장바구니에서 고른 쿠폰(prefs)이 보유 목록에 있으면 그걸 우선 적용
+    const prefs = getOrderPrefs();
+    if (prefs.couponUcId && list.some(c => c.ucId === prefs.couponUcId)) {
+      setSelCoupon(prefs.couponUcId);
+    } else if (autoSelect) {
       const st = items.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
       let best = ''; let bestDisc = 0;
       for (const c of list) {
@@ -182,14 +188,28 @@ export default function CheckoutClient() {
     setDlCount(list.length);
   }
 
-  /* 쿠폰 + 포인트 로드 */
+  /* 쿠폰 + 포인트 로드 (prefs 복원 끝난 뒤에만 동기화 허용) */
   useEffect(() => {
     if (!user) return;
-    loadHeldCoupons(true);
-    refreshDownloadable();
-    createClient().from('profiles').select('point_balance').eq('id', user.id).maybeSingle()
-      .then(({ data }) => setPointBalance(data?.point_balance || 0));
+    (async () => {
+      await loadHeldCoupons(true);
+      refreshDownloadable();
+      const { data } = await createClient().from('profiles').select('point_balance').eq('id', user.id).maybeSingle();
+      const bal = data?.point_balance || 0;
+      setPointBalance(bal);
+      // 장바구니에서 입력한 적립금(prefs) 복원
+      const prefs = getOrderPrefs();
+      if (prefs.pointUsed > 0) setPointUsed(Math.min(prefs.pointUsed, bal));
+      // 복원이 모두 끝난 뒤에야 동기화 허용 → 마운트 시 빈 값으로 prefs 덮어쓰기 방지
+      setPrefsLoaded(true);
+    })();
   }, [user]); // eslint-disable-line
+
+  /* 체크아웃에서 바꾼 선택도 prefs에 동기화 (장바구니로 돌아가도 유지) */
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    setOrderPrefs({ couponUcId: selCoupon, pointUsed });
+  }, [selCoupon, pointUsed, prefsLoaded]);
 
   /* 쿠폰 다운받기 */
   async function handleClaimCoupons() {
@@ -217,6 +237,15 @@ export default function CheckoutClient() {
   const maxPoint = Math.min(pointBalance, afterCoupon);
   const appliedPoint = Math.min(pointUsed, maxPoint);
   const total = Math.max(0, afterCoupon - appliedPoint);
+
+  /* 최대할인 쿠폰 ID 계산 (자동적용 체크박스용) */
+  let bestCouponId = ''; let bestCouponDisc = 0;
+  for (const c of coupons) {
+    if (subtotal < c.min_order_amount) continue;
+    let d = c.discount_type === 'percent' ? Math.floor(subtotal * c.discount_value / 100) : c.discount_value;
+    if (c.max_discount_amount) d = Math.min(d, c.max_discount_amount);
+    if (d > bestCouponDisc) { bestCouponDisc = d; bestCouponId = c.ucId; }
+  }
 
   /* GA4: 결제 시작 (장바구니 항목 로드되면 1회) */
   const beganCheckoutRef = useRef(false);
@@ -313,7 +342,7 @@ export default function CheckoutClient() {
           await supabase.from('profiles').update({ point_balance: Math.max(0, newBalance) }).eq('id', user.id);
         }
 
-        clearCart();
+        clearCart(); clearOrderPrefs();
         // 주문 완료 SMS 발송 (비동기, 실패해도 주문은 정상 처리)
         fetch('/api/notify', {
           method: 'POST',
@@ -393,7 +422,7 @@ export default function CheckoutClient() {
         return;
       }
 
-      clearCart();
+      clearCart(); clearOrderPrefs();
       gaPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
       router.push(`/order-complete?order=${verifyData.orderNo}&point=${verifyData.earnedPoint}`);
 
@@ -408,9 +437,9 @@ export default function CheckoutClient() {
     <div className="container" style={{ paddingTop:24, paddingBottom:100 }}>
       <h1 style={{ fontSize:22, fontWeight:700, marginBottom:24 }}>주문/결제</h1>
 
-      <div style={{ display:'flex', gap:24, alignItems:'flex-start', flexWrap:'wrap' }}>
+      <div className="checkout-layout" style={{ display:'flex', gap:24, alignItems:'flex-start', flexWrap:'wrap' }}>
         {/* 왼쪽 */}
-        <div style={{ flex:1, minWidth:280 }}>
+        <div className="checkout-main" style={{ flex:1, minWidth:280 }}>
 
           {/* ① 주문상품 */}
           <div style={{ marginBottom:28 }}>
@@ -447,6 +476,13 @@ export default function CheckoutClient() {
                   style={{ padding:'7px 14px', border:'1px solid #1A1A1A', borderRadius:6, background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                   쿠폰선택
                 </button>
+                <label style={{ display:'flex', alignItems:'center', gap:6, cursor: bestCouponId ? 'pointer' : 'not-allowed', userSelect:'none', opacity: bestCouponId ? 1 : 0.45 }}>
+                  <input type="checkbox" disabled={!bestCouponId}
+                    checked={!!bestCouponId && selCoupon === bestCouponId}
+                    onChange={e => setSelCoupon(e.target.checked ? bestCouponId : '')}
+                    style={{ width:15, height:15, accentColor:'#1A1A1A', cursor: bestCouponId ? 'pointer' : 'not-allowed' }} />
+                  <span style={{ fontSize:13, color:'#555' }}>최대할인 자동적용</span>
+                </label>
               </div>
               <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
                 {coupon ? `${coupon.name} · −${fmtPrice(couponDisc)}원` : `${coupons.length}장 보유`}
@@ -455,7 +491,7 @@ export default function CheckoutClient() {
             {/* 적립금 */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 0', gap:10, flexWrap:'wrap' }}>
               <span style={{ fontSize:14, fontWeight:600 }}>
-                적립금 <span style={{ fontSize:12, color:'#94A3B8', fontWeight:400 }}>(사용가능 {fmtPrice(pointBalance)}원)</span>
+                포인트 <span style={{ fontSize:12, color:'#94A3B8', fontWeight:400 }}>(사용가능 {fmtPrice(pointBalance)}원)</span>
               </span>
               <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                 <button onClick={() => setPointUsed(maxPoint)}
@@ -468,7 +504,7 @@ export default function CheckoutClient() {
                 <span style={{ fontSize:13, color:'#666' }}>원</span>
               </div>
             </div>
-            <p style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 0' }}>* 적립금은 상품판매가에 먼저 적용됩니다.</p>
+            <p style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 0' }}>* 포인트는 상품판매가에 먼저 적용됩니다.</p>
           </div>
 
           {/* ③ 배송지 설정 */}
@@ -568,7 +604,7 @@ export default function CheckoutClient() {
         </div>
 
         {/* 오른쪽: 결제 요약 */}
-        <div style={{ width:300, flexShrink:0, position:'sticky', top:80 }}>
+        <div className="checkout-side" style={{ width:300, flexShrink:0, position:'sticky', top:80 }}>
           <div style={{ border:'1px solid #E2E2E2', borderRadius:12, padding:'22px' }}>
             <h2 style={{ fontSize:17, fontWeight:800, marginBottom:18 }}>결제 금액</h2>
 
@@ -582,13 +618,13 @@ export default function CheckoutClient() {
             )}
             {appliedPoint > 0 && (
               <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
-                <span>적립금 사용</span><span style={{ color:'#CB1D11', fontWeight:600 }}>−{fmtPrice(appliedPoint)}원</span>
+                <span>포인트 사용</span><span style={{ color:'#CB1D11', fontWeight:600 }}>−{fmtPrice(appliedPoint)}원</span>
               </div>
             )}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
               <span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f0f0f0', fontSize:13, color:'#666' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', fontSize:13, color:'#666' }}>
               <span>포인트 적립 예정</span>
               <span style={{ color:'#1A1A1A', fontWeight:600 }}>+{fmtPrice(Math.floor(total*0.01))}P</span>
             </div>

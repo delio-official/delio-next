@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
+import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode } from '@/lib/coupons';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
+import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
 
@@ -26,6 +27,9 @@ interface Order {
 }
 interface Profile {
   name: string | null; email: string; point_balance: number; grade: string;
+  avatar_url?: string | null;
+  phone?: string | null; birth?: string | null;
+  marketing_email?: boolean; marketing_sms?: boolean; push_enabled?: boolean;
 }
 interface WishItem {
   id: string;
@@ -125,6 +129,10 @@ export default function MypageClient() {
 
   const [profile,        setProfile]        = useState<Profile | null>(null);
   const [orders,         setOrders]         = useState<Order[]>([]);
+  const [orderCount,     setOrderCount]     = useState(0);     // 전체 주문 건수(정확)
+  const [orderSearch,    setOrderSearch]    = useState('');    // 주문내역 검색어
+  const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
+  const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
   const [trackingTarget, setTrackingTarget] = useState<{ carrierId: string; trackingNumber: string } | null>(null);
   const [wishlist,       setWishlist]       = useState<WishItem[]>([]);
@@ -161,6 +169,14 @@ export default function MypageClient() {
   const [editPwNew,     setEditPwNew]     = useState('');
   const [editPwNew2,    setEditPwNew2]    = useState('');
   const [infoSaving,    setInfoSaving]    = useState(false);
+  /* 아르르 레이아웃 — 추가 필드 */
+  const [editPhone,     setEditPhone]     = useState('');
+  const [editBirth,     setEditBirth]     = useState('');
+  const [phoneEditing,  setPhoneEditing]  = useState(false);
+  const [mEmail,        setMEmail]        = useState(false);
+  const [mSms,          setMSms]          = useState(false);
+  const [mPush,         setMPush]         = useState(false);
+  const [mktSaving,     setMktSaving]     = useState(false);
 
   /* 내 환불 신청 내역 */
   interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; reject_reason?: string | null; created_at: string; orders: { order_no: string } | null; }
@@ -195,7 +211,7 @@ export default function MypageClient() {
   const [qnaOpenId,   setQnaOpenId]   = useState<string | null>(null);
 
   /* 1:1 문의 */
-  const [csTab,       setCsTab]       = useState<'write'|'history'>('write');
+  const [csFormOpen,  setCsFormOpen]  = useState(false);
   const [csCategory,  setCsCategory]  = useState<CsCategory>('order');
   const [csTitle,     setCsTitle]     = useState('');
   const [csMessage,   setCsMessage]   = useState('');
@@ -233,6 +249,30 @@ export default function MypageClient() {
     setTimeout(() => setToast(''), 2500);
   }
 
+  /* 프로필 이미지 업로드 (cs-attachments 버킷 재사용) */
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // 같은 파일 다시 선택 가능하게 리셋
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) { showToastMsg('이미지 파일만 업로드할 수 있어요.'); return; }
+    setAvatarUploading(true);
+    const supabase = createClient();
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path = `${user.id}/avatar_${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('cs-attachments')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (upErr) { showToastMsg('업로드 실패: ' + upErr.message); setAvatarUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('cs-attachments').getPublicUrl(path);
+    const url = urlData.publicUrl;
+    const { error: updErr } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
+    if (updErr) { showToastMsg('저장 실패: ' + updErr.message); setAvatarUploading(false); return; }
+    setProfile(prev => prev ? { ...prev, avatar_url: url } : prev);
+    showToastMsg('프로필 사진이 변경되었어요.');
+    setAvatarUploading(false);
+  }
+
   /* 로그인 체크 + 데이터 로드 */
   useEffect(() => {
     if (authLoading) return;
@@ -241,12 +281,12 @@ export default function MypageClient() {
     async function load() {
       const supabase = createClient();
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
-        supabase.from('profiles').select('name,email,point_balance,grade,referral_code').eq('id', user!.id).single(),
+        supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
           .select('id,order_no,status,final_amount,created_at,delivered_at,courier,tracking_number,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
-          .limit(20),
+          .limit(200),
         supabase.from('reviews')
           .select('id,rating,content,created_at,image_urls,video_url,products(id,name,thumbnail_url)')
           .eq('user_id', user!.id)
@@ -257,16 +297,38 @@ export default function MypageClient() {
       if ((prof as Profile & { referral_code?: string })?.referral_code) {
         setReferralCode((prof as Profile & { referral_code?: string }).referral_code!);
       }
+      // 회원정보 수정 폼 초기값
+      const pf = prof as Profile;
+      if (pf) {
+        setEditName(pf.name || '');
+        setEditPhone(pf.phone || '');
+        setEditBirth(pf.birth || '');
+        setMEmail(!!pf.marketing_email);
+        setMSms(!!pf.marketing_sms);
+        setMPush(!!pf.push_enabled);
+      }
       setOrders((ords as Order[]) || []);
       setMyReviews((revs as unknown as MyReview[]) || []);
 
-      // 사용 가능 쿠폰 수 (요약 카드용)
+      // 전체 주문 건수 (정확한 카운트)
+      const { count: ordCnt } = await supabase
+        .from('orders').select('id', { count: 'exact', head: true }).eq('user_id', user!.id);
+      setOrderCount(ordCnt ?? 0);
+
+      // 사용 가능 쿠폰 수 (요약 카드용) — 미사용 + 미만료만
       const { count } = await supabase
         .from('user_coupons')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user!.id)
-        .eq('is_used', false);
+        .eq('is_used', false)
+        .or(`expires_at.is.null,expires_at.gte.${new Date().toISOString()}`);
       setAvailableCouponCount(count ?? 0);
+
+      // 관심상품 미리보기용 위시리스트 프리로드 (모바일 메뉴 하단)
+      const { data: wishData } = await supabase.from('wishlist')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
+        .eq('user_id', user!.id).limit(20);
+      setWishlist((wishData as unknown as WishItem[]) || []);
     }
 
     // 최근 본 상품 — localStorage
@@ -295,20 +357,21 @@ export default function MypageClient() {
     loadReferrals();
   }, [activePanel, user]);
 
-  /* 1:1 문의 내역 — 패널·탭 열릴 때 로드 */
+  /* 1:1 문의 내역 로드 (제출 후에도 재호출) */
+  async function loadCsInquiries() {
+    if (!user) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('cs_inquiries')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (data) setCsInquiries(data as CsInquiry[]);
+  }
   useEffect(() => {
-    if (activePanel !== 'cs' || csTab !== 'history' || !user) return;
-    async function loadCsInquiries() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('cs_inquiries')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false });
-      if (data) setCsInquiries(data as CsInquiry[]);
-    }
-    loadCsInquiries();
-  }, [activePanel, csTab, user]);
+    if (activePanel === 'cs' && user) loadCsInquiries();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, user]);
 
   /* 상품 Q&A 내역 — 패널·탭 열릴 때 로드 */
   useEffect(() => {
@@ -433,6 +496,7 @@ export default function MypageClient() {
     if (error) { showToastMsg('문의 등록 실패: ' + error.message); return; }
     setCsFiles([]);
     setCsDone(true);
+    loadCsInquiries(); // 항상 보이는 문의 내역 갱신
   }
 
   /* 쿠폰 — 패널 열릴 때 로드 */
@@ -441,6 +505,21 @@ export default function MypageClient() {
   const [availableCouponCount, setAvailableCouponCount] = useState(0);
   const [dlCount, setDlCount] = useState(0);          // 다운가능 쿠폰 수
   const [claimingCoupon, setClaimingCoupon] = useState(false);
+  const [couponCode, setCouponCode] = useState('');   // 쿠폰 등록 코드
+  const [redeemingCode, setRedeemingCode] = useState(false);
+
+  async function handleRedeemCode() {
+    if (redeemingCode || !couponCode.trim()) return;
+    setRedeemingCode(true);
+    const res = await redeemCouponByCode(couponCode);
+    showToastMsg(res.message);
+    if (res.ok) {
+      setCouponCode('');
+      await loadUserCoupons();
+      await refreshDownloadable();
+    }
+    setRedeemingCode(false);
+  }
 
   async function loadUserCoupons() {
     if (!user) return;
@@ -493,6 +572,21 @@ export default function MypageClient() {
     if (activePanel === 'address' && user) loadAddresses();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, user]);
+
+  /* 포인트 내역 — 패널 열릴 때 / 기간 바뀔 때 로드 */
+  useEffect(() => {
+    if (activePanel !== 'point' || !user) return;
+    const from = new Date();
+    from.setMonth(from.getMonth() - pointPeriod);
+    createClient().from('point_logs')
+      .select('id, amount, created_at, description')
+      .eq('user_id', user.id)
+      .gte('created_at', from.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .then(({ data }) => setPointLogs((data as typeof pointLogs) || []));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, user, pointPeriod]);
 
   /* 위시리스트 — 패널 열릴 때 로드 */
   useEffect(() => {
@@ -642,19 +736,29 @@ export default function MypageClient() {
     if (!editName.trim()) { showToastMsg('이름을 입력해주세요.'); return; }
     setInfoSaving(true);
     const supabase = createClient();
-    await supabase.from('profiles').update({ name: editName.trim() }).eq('id', user!.id);
-    setProfile(prev => prev ? { ...prev, name: editName.trim() } : prev);
-
-    if (editPwNew) {
-      if (editPwNew !== editPwNew2) { showToastMsg('새 비밀번호가 일치하지 않습니다.'); setInfoSaving(false); return; }
-      if (editPwNew.length < 8) { showToastMsg('비밀번호는 8자 이상이어야 합니다.'); setInfoSaving(false); return; }
-      const { error } = await supabase.auth.updateUser({ password: editPwNew });
-      if (error) { showToastMsg('비밀번호 변경 실패: ' + error.message); setInfoSaving(false); return; }
-    }
-
+    const payload = { name: editName.trim(), phone: editPhone.trim() || null, birth: editBirth.trim() || null };
+    const { error } = await supabase.from('profiles').update(payload).eq('id', user!.id);
     setInfoSaving(false);
-    setInfoStep('view');
-    showToastMsg('회원정보가 저장되었습니다 ✓');
+    if (error) { showToastMsg('저장 실패: ' + error.message); return; }
+    setProfile(prev => prev ? { ...prev, ...payload } : prev);
+    setPhoneEditing(false);
+    showToastMsg('회원정보가 저장되었습니다');
+  }
+  /* 마케팅 수신동의 저장 */
+  async function saveMarketing() {
+    setMktSaving(true);
+    const supabase = createClient();
+    const payload = { marketing_email: mEmail, marketing_sms: mSms, push_enabled: mPush };
+    const { error } = await supabase.from('profiles').update(payload).eq('id', user!.id);
+    setMktSaving(false);
+    if (error) { showToastMsg('저장 실패: ' + error.message); return; }
+    setProfile(prev => prev ? { ...prev, ...payload } : prev);
+    showToastMsg('수신 설정이 변경되었습니다');
+  }
+  /* 회원 탈퇴 (안내) */
+  function handleWithdraw() {
+    if (!confirm('정말 탈퇴하시겠어요?\n탈퇴 처리는 고객센터(1:1 문의)를 통해 진행됩니다.')) return;
+    goPanel('cs');
   }
 
   /* ── 배송지 관리 ── */
@@ -739,6 +843,20 @@ export default function MypageClient() {
     refund:    orders.filter(o => o.status === 'refunding' || o.status === 'refunded').length,
   };
   const totalOrderAmount = orders.reduce((s, o) => s + o.final_amount, 0);
+  /* 주문내역 검색 (주문번호 · 상품명 · 날짜) */
+  const filteredOrders = (() => {
+    const q = orderSearch.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter(o => {
+      const dateStr = new Date(o.created_at).toLocaleDateString('ko-KR'); // 2026. 3. 10.
+      const dateCompact = dateStr.replace(/[\s.]/g, ''); // 2026310 형태
+      return (
+        (o.order_no || '').toLowerCase().includes(q) ||
+        dateStr.includes(q) || dateCompact.includes(q.replace(/[\s.]/g, '')) ||
+        (o.order_items || []).some(it => (it.product_name || '').toLowerCase().includes(q))
+      );
+    });
+  })();
   const gradeLabel = ({ normal:'일반', vip:'VIP', vvip:'VVIP' } as Record<string,string>)[profile?.grade || 'normal'] || '일반';
 
   /* ─── Loading ─── */
@@ -775,37 +893,49 @@ export default function MypageClient() {
 
       <div className="container">
 
-        {/* ── 브레드크럼 (PC) ── */}
-        <div className="mp-breadcrumb">
-          <Link href="/">Home</Link> / <span>마이페이지</span>
-        </div>
-
-        {/* ── 모바일 탑바 ── */}
-        <div className="mp-mobile-topbar">
-          <span className="mp-mobile-topbar-title">마이페이지</span>
-        </div>
-
         {/* ── 모바일 메뉴 ── */}
         <div className="mp-mobile-menu" style={{ display: showMobileMenu ? undefined : 'none' }}>
 
-          {/* 유저 요약 */}
-          <div style={{ padding:'20px', borderBottom:'8px solid #F2F2F2',
-            display:'flex', alignItems:'center', gap:14 }}>
-            <div style={{ width:50, height:50, borderRadius:'50%', background:'#F2F2F2',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>
-              👤
-            </div>
-            <div>
-              <div style={{ fontSize:16, fontWeight:700 }}>
-                {profile?.name || user.email?.split('@')[0]}님
+          {/* 프로필 헤더 */}
+          <div className="mp-mb-profile">
+            <label className="mp-mb-avatar-wrap">
+              <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden disabled={avatarUploading} />
+              <div className="mp-mb-avatar">
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="프로필" />
+                  : (profile?.name || user.email || '?').trim().charAt(0).toUpperCase()}
               </div>
-              <div style={{ fontSize:12, color:'#888', marginTop:3 }}>
-                <span style={{ background:'#F2F2F2', padding:'2px 8px', borderRadius:4, fontWeight:600, fontSize:11 }}>
-                  {gradeLabel}
-                </span>
-                <span style={{ marginLeft:8 }}>{fmtPrice(profile?.point_balance||0)}P 보유</span>
+              <span className="mp-mb-avatar-cam">
+                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                </svg>
+              </span>
+            </label>
+            <button className="mp-mb-profile-main" onClick={() => goPanel('info')}>
+              <div className="mp-mb-name">
+                {profile?.name || user.email?.split('@')[0]}님 <IconArrowRight />
               </div>
-            </div>
+              <div className="mp-mb-grade">현재 {gradeLabel} 등급입니다.</div>
+            </button>
+            <button className="mp-mb-membership" onClick={() => goPanel('grade')}>
+              멤버십 혜택 보기
+            </button>
+          </div>
+
+          {/* 통계 3열 카드 */}
+          <div className="mp-mb-stats">
+            <button className="mp-mb-stat" onClick={() => goPanel('myreviews')}>
+              <span className="mp-mb-stat-label">상품 후기</span>
+              <span className="mp-mb-stat-val">{myReviews.length}</span>
+            </button>
+            <button className="mp-mb-stat" onClick={() => goPanel('point')}>
+              <span className="mp-mb-stat-label">포인트</span>
+              <span className="mp-mb-stat-val">{fmtPrice(profile?.point_balance || 0)}</span>
+            </button>
+            <button className="mp-mb-stat" onClick={() => goPanel('coupon')}>
+              <span className="mp-mb-stat-label">쿠폰</span>
+              <span className="mp-mb-stat-val">{availableCouponCount}</span>
+            </button>
           </div>
 
           {/* 쇼핑 정보 */}
@@ -819,9 +949,6 @@ export default function MypageClient() {
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('coupon')}>
               <span>쿠폰 내역</span><IconArrowRight />
-            </button>
-            <button className="mp-menu-item" onClick={() => goPanel('csrefund')}>
-              <span>환불 내역</span><IconArrowRight />
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('cs')}>
               <span>1:1 문의</span><IconArrowRight />
@@ -876,6 +1003,28 @@ export default function MypageClient() {
               <span>로그아웃</span><IconArrowRight />
             </button>
           </div>
+
+          {/* 관심상품 미리보기 */}
+          {wishlist.filter(w => w.products).length > 0 && (
+            <div className="mp-mb-wishprev">
+              <div className="mp-mb-wishprev-head">
+                <span>관심상품</span>
+                <button onClick={() => goPanel('wish')}>전체보기 <IconArrowRight /></button>
+              </div>
+              <div className="mp-mb-wishprev-scroll">
+                {wishlist.filter(w => w.products).slice(0, 12).map(w => (
+                  <button key={w.id} className="mp-mb-wishprev-item" onClick={() => router.push(`/product/${w.products!.id}`)}>
+                    <div className="mp-mb-wishprev-thumb">
+                      {w.products!.thumbnail_url
+                        ? <img src={w.products!.thumbnail_url} alt={w.products!.name} />
+                        : <div className="mp-mb-wishprev-noimg">🍎</div>}
+                    </div>
+                    <span className="mp-mb-wishprev-name">{w.products!.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {/* /mp-mobile-menu */}
 
@@ -890,7 +1039,6 @@ export default function MypageClient() {
                 <button className={`mp-nav-link${activePanel==='order'?' active':''}`} onClick={() => switchPanel('order')}>주문/배송 내역</button>
                 <button className={`mp-nav-link${activePanel==='point'?' active':''}`} onClick={() => switchPanel('point')}>포인트 내역</button>
                 <button className={`mp-nav-link${activePanel==='coupon'?' active':''}`} onClick={() => switchPanel('coupon')}>쿠폰 내역</button>
-                <button className={`mp-nav-link${activePanel==='csrefund'?' active':''}`} onClick={() => switchPanel('csrefund')}>환불 내역</button>
                 <button className={`mp-nav-link${activePanel==='cs'?' active':''}`} onClick={() => switchPanel('cs')}>1:1 문의</button>
               </div>
               <div className="mp-nav-section">
@@ -948,7 +1096,7 @@ export default function MypageClient() {
                     </svg>
                   </div>
                   <div>
-                    <div className="mp-stat-value">{fmtPrice(totalOrderAmount)}원({orders.length}회)</div>
+                    <div className="mp-stat-value">{fmtPrice(totalOrderAmount)}원</div>
                     <div className="mp-stat-label">총주문</div>
                   </div>
                 </div>
@@ -960,49 +1108,18 @@ export default function MypageClient() {
                   <span className="mp-section-title">나의 주문처리 현황</span>
                   <span className="mp-section-sub">(최근 3개월 기준)</span>
                 </div>
-                <div style={{ display:'flex', alignItems:'stretch', gap:12, paddingTop:4 }}>
-                  {/* 왼쪽: 배송 흐름 */}
-                  <div className="mp-order-flow" style={{ flex:1 }}>
-                    <div className="mp-order-step" style={{ cursor:'default' }}>
-                      <div className="mp-order-num">{orderCounts.pending}</div>
-                      <div className="mp-order-label">입금전</div>
-                    </div>
-                    <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step" style={{ cursor:'default' }}>
-                      <div className="mp-order-num">{orderCounts.preparing}</div>
-                      <div className="mp-order-label">배송준비중</div>
-                    </div>
-                    <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step" style={{ cursor:'default' }}>
-                      <div className="mp-order-num">{orderCounts.shipped}</div>
-                      <div className="mp-order-label">배송중</div>
-                    </div>
-                    <div className="mp-order-arrow">›</div>
-                    <div className="mp-order-step" style={{ cursor:'default' }}>
-                      <div className="mp-order-num">{orderCounts.delivered}</div>
-                      <div className="mp-order-label">배송완료</div>
-                    </div>
+                <div className="mp-order-summary3">
+                  <div className="mp-os3-col">
+                    <div className="mp-os3-label">배송중</div>
+                    <div className="mp-os3-num">{orderCounts.pending + orderCounts.preparing + orderCounts.shipped}</div>
                   </div>
-
-                  {/* 구분선 */}
-                  <div style={{ width:1, background:'#E8E8E8', flexShrink:0, margin:'8px 4px' }} />
-
-                  {/* 오른쪽: 취소·교환·반품 */}
-                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', gap:6, minWidth:180 }}>
-                    {[
-                      { label:'취소/환불', count: orderCounts.cancelled + orderCounts.refund },
-                    ].map(item => (
-                      <div key={item.label}
-                        onClick={() => switchPanel('csrefund')}
-                        style={{
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          padding:'7px 14px', border:'1px solid #E8E8E8', borderRadius:8,
-                          cursor:'pointer', background:'#fff', gap:6,
-                        }}>
-                        <span style={{ fontSize:13, color:'#555' }}>{item.label} :</span>
-                        <span style={{ fontSize:13, fontWeight:700, color:'#111' }}>{item.count}</span>
-                      </div>
-                    ))}
+                  <div className="mp-os3-col">
+                    <div className="mp-os3-label">배송완료</div>
+                    <div className="mp-os3-num">{orders.filter(o => o.status === 'delivered' || o.status === 'confirmed').length}</div>
+                  </div>
+                  <div className="mp-os3-col">
+                    <div className="mp-os3-label">취소/환불</div>
+                    <div className="mp-os3-num">{orderCounts.cancelled + orderCounts.refund}</div>
                   </div>
                 </div>
               </div>
@@ -1011,29 +1128,57 @@ export default function MypageClient() {
               <div className="mp-section">
                 <div className="mp-section-header">
                   <span className="mp-section-title">주문내역 조회</span>
+                  {orderCount > 0 && (
+                    <span className="mp-section-sub" style={{ marginLeft:'auto' }}>{orderCount}건</span>
+                  )}
+                </div>
+                {/* 주문내역 검색 */}
+                <div className="mp-order-search">
+                  <input
+                    value={orderSearch}
+                    onChange={e => setOrderSearch(e.target.value)}
+                    placeholder="주문번호 · 상품명 · 날짜로 검색" />
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
                 </div>
                 {orders.length === 0 ? (
                   <div className="mp-empty">주문 내역이 없습니다.</div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="mp-empty">검색 결과가 없습니다.</div>
                 ) : (
-                  orders.map(o => {
+                  filteredOrders.map(o => {
                     const isExpanded = expandedOrder === o.id;
                     const displayItems = isExpanded ? o.order_items : o.order_items?.slice(0, 2);
                     const hiddenCount = (o.order_items?.length ?? 0) - 2;
                     return (
                       <div key={o.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
-                        {/* 헤더 */}
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                          <span style={{ fontSize:12, color:'#aaa' }}>
-                            {new Date(o.created_at).toLocaleDateString('ko-KR')} · {o.order_no}
+                        {/* 날짜 헤더 + 배송조회/주문상세 링크 */}
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                          <span style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>
+                            {new Date(o.created_at).toLocaleDateString('ko-KR')}
                           </span>
-                          <span style={{
-                            fontSize:11, fontWeight:700,
-                            color:  o.status==='delivered'?'#2D7A4D': o.status==='cancelled'?'#e00':'var(--color-accent)',
-                            background: o.status==='delivered'?'#E8F5E9': o.status==='cancelled'?'#FEE':'var(--color-accent-bg)',
-                            padding:'4px 10px', borderRadius:999,
-                          }}>
-                            {STATUS_LABEL[o.status] || o.status}
-                          </span>
+                          {o.tracking_number ? (
+                            <button
+                              onClick={() => setTrackingTarget({
+                                carrierId: o.courier || 'kr.cjlogistics',
+                                trackingNumber: o.tracking_number!,
+                              })}
+                              style={{ fontSize:13, color:'#888', background:'none', border:'none',
+                                cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:2 }}>
+                              배송조회 ›
+                            </button>
+                          ) : (
+                            <span style={{ fontSize:12, color:'#bbb' }}>{o.order_no}</span>
+                          )}
+                        </div>
+                        {/* 상태 라인 */}
+                        <div style={{ fontSize:13, fontWeight:700, marginBottom:10,
+                          color: o.status==='delivered'?'#1A1A1A': o.status==='cancelled'?'#e00':'var(--color-accent)' }}>
+                          {STATUS_LABEL[o.status] || o.status}
+                          {o.status==='delivered' && o.delivered_at
+                            ? ` · ${new Date(o.delivered_at).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' })} 도착 완료`
+                            : ''}
                         </div>
 
                         {/* 상품 목록 */}
@@ -1084,32 +1229,20 @@ export default function MypageClient() {
                           borderTop:'1px solid #f5f5f5', paddingTop:10, marginTop:4 }}>
                           <span style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(o.final_amount)}원</span>
                           <div style={{ display:'flex', gap:6 }}>
-                            {o.tracking_number && (
-                              <button
-                                onClick={() => setTrackingTarget({
-                                  carrierId: o.courier || 'kr.cjlogistics',
-                                  trackingNumber: o.tracking_number!,
-                                })}
-                                style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #1A1A1A',
-                                  borderRadius:6, background:'#1A1A1A', color:'#fff',
-                                  cursor:'pointer', fontWeight:600, fontFamily:'inherit' }}>
-                                배송추적
-                              </button>
-                            )}
                             {o.status === 'delivered' && (
                               <>
                                 <button onClick={() => showToastMsg('리뷰 작성 기능은 준비 중입니다.')}
-                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid var(--color-accent)',
+                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid var(--color-accent)',
                                     borderRadius:6, cursor:'pointer', background:'#fff', color:'var(--color-accent)', fontWeight:600, fontFamily:'inherit' }}>
                                   리뷰쓰기
                                 </button>
                                 <button onClick={() => goPanel('cs')}
-                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #DDDDD9',
+                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9',
                                     borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
                                   문의
                                 </button>
                                 <button onClick={() => showToastMsg('재구매 기능은 준비 중입니다.')}
-                                  style={{ fontSize:12, padding:'6px 12px', border:'1.5px solid #DDDDD9',
+                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9',
                                     borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
                                   재구매
                                 </button>
@@ -1129,20 +1262,60 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='point'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">포인트 내역</span>
+                {/* 사용 가능 포인트 */}
+                <div className="mp-pt-top">
+                  <div className="mp-pt-top-label">사용 가능 포인트</div>
+                  <div className="mp-pt-top-value">{fmtPrice(profile?.point_balance||0)}원</div>
                 </div>
-                <div className="mp-benefit-row mp-benefit-row-top">
-                  <div className="mp-benefit-item">
-                    <div className="mp-benefit-num">{fmtPrice(profile?.point_balance||0)}</div>
-                    <div className="mp-benefit-label">보유 포인트 (P)</div>
+                {/* 적립예정 / 소멸예정 카드 */}
+                <div className="mp-pt-card">
+                  <div className="mp-pt-card-col">
+                    <div className="mp-pt-card-label">적립 예정</div>
+                    <div className="mp-pt-card-num">0 원</div>
                   </div>
-                  <div className="mp-benefit-item">
-                    <div className="mp-benefit-num">0</div>
-                    <div className="mp-benefit-label">소멸 예정 (원)</div>
+                  <div className="mp-pt-card-col">
+                    <div className="mp-pt-card-label">30일 이내 소멸예정</div>
+                    <div className="mp-pt-card-num">0 원</div>
                   </div>
                 </div>
-                <div className="mp-empty">포인트 내역이 없습니다.</div>
+                {/* 기간 필터 */}
+                <div className="mp-pt-periods">
+                  {([[3,'3개월'],[6,'6개월'],[12,'1년'],[36,'3년']] as const).map(([m, label]) => (
+                    <button key={m}
+                      className={`mp-pt-period${pointPeriod===m?' active':''}`}
+                      onClick={() => setPointPeriod(m)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* 내역 리스트 */}
+                {pointLogs.length === 0 ? (
+                  <div className="mp-empty">포인트 내역이 없습니다.</div>
+                ) : (
+                  <div className="mp-pt-list">
+                    {pointLogs.map(log => {
+                      const earned = log.amount >= 0;
+                      return (
+                        <div key={log.id} className="mp-pt-item">
+                          <div className="mp-pt-item-left">
+                            <span className={`mp-pt-tag${earned?'':' use'}`}>{earned?'적립':'사용'}</span>
+                            <span className="mp-pt-item-date">
+                              {new Date(log.created_at).toLocaleDateString('ko-KR')}
+                            </span>
+                          </div>
+                          <div className="mp-pt-item-body">
+                            <div className="mp-pt-item-main">
+                              <span className="mp-pt-item-desc">{log.description || (earned?'포인트 적립':'포인트 사용')}</span>
+                              <span className={`mp-pt-item-amt${earned?'':' use'}`}>
+                                {earned?'+':'−'}{fmtPrice(Math.abs(log.amount))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1163,9 +1336,9 @@ export default function MypageClient() {
                     return !exp || new Date(exp) >= now;
                   });
                   const used = userCoupons.filter(uc => uc.used);
-                  const fmtDT = (s: string) => {
+                  const fmtDate = (s: string) => {
                     const d = new Date(s);
-                    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
                   };
                   const renderCard = (uc: UserCoupon, dim: boolean) => {
                     const c = uc.coupon;
@@ -1175,23 +1348,30 @@ export default function MypageClient() {
                     const daysLeft = expRaw ? Math.ceil((new Date(expRaw).getTime() - now.getTime()) / 86400000) : null;
                     const soon = !dim && daysLeft !== null && daysLeft >= 0 && daysLeft <= 14;
                     return (
-                      <div key={uc.id} style={{
-                        position:'relative', padding:'18px 16px', border:'1.5px solid #EFEFEF',
-                        borderRadius:10, background: dim ? '#FAFAFA' : '#fff', opacity: dim ? 0.6 : 1,
-                      }}>
-                        <span style={{ position:'absolute', top:14, right:14, fontSize:10,
-                          color: soon ? '#CB1D11' : (dim ? '#AAA' : '#999'),
-                          border:'1px solid ' + (soon ? '#F0CFCC' : '#E2E2E2'), borderRadius:4,
-                          padding:'2px 6px', lineHeight:1, fontWeight: soon ? 700 : 500 }}>
-                          {dim ? '사용완료' : soon ? `${daysLeft}일 후 소멸` : '1장'}
-                        </span>
-                        <div style={{ fontSize:24, fontWeight:800, color:'var(--color-accent)', lineHeight:1.1 }}>
-                          {isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}
+                      <div key={uc.id} className={`mp-cp-card${dim ? ' dim' : ''}`}>
+                        <div className="mp-cp-main">
+                          <div className="mp-cp-toprow">
+                            <span className="mp-cp-badge">할인쿠폰</span>
+                          </div>
+                          <div className="mp-cp-value">
+                            {isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}
+                          </div>
+                          <div className="mp-cp-name">{c.name}</div>
+                          <div className="mp-cp-meta">
+                            {c.min_order_amount > 0 && <div>최소주문 {c.min_order_amount.toLocaleString()}원</div>}
+                            {c.max_discount_amount ? <div>최대할인 {c.max_discount_amount.toLocaleString()}원</div> : null}
+                            {expRaw && <div>사용기간 {fmtDate(expRaw)}까지</div>}
+                          </div>
                         </div>
-                        <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
-                        <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
-                          {c.min_order_amount > 0 ? `${c.min_order_amount.toLocaleString()}원 이상 구매` : '0원 이상 구매'}
-                          {(uc.expires_at ?? c.expires_at) && <><br/>~{fmtDT((uc.expires_at ?? c.expires_at)!)}</>}
+                        <div className="mp-cp-side">
+                          {!dim && daysLeft !== null && daysLeft >= 0 && (
+                            <span className={`mp-cp-side-exp${soon ? ' soon' : ''}`}>
+                              {daysLeft === 0 ? '오늘 소멸' : `${daysLeft}일 후 소멸`}
+                            </span>
+                          )}
+                          {dim
+                            ? <span className="mp-cp-side-done">사용완료</span>
+                            : <Link href="/category" className="mp-cp-side-use">사용하기 ›</Link>}
                         </div>
                       </div>
                     );
@@ -1199,23 +1379,38 @@ export default function MypageClient() {
                   return (
                     <>
                       {/* 다운받기 헤더 */}
-                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginTop:16, padding:'16px 20px', border:'1px solid #EEE', borderRadius:12 }}>
-                        <div style={{ display:'flex', alignItems:'center', flex:1 }}>
-                          <div style={{ flex:1, textAlign:'center', fontSize:15, fontWeight:700 }}>
-                            사용가능 쿠폰 <span style={{ color:'#CB1D11' }}>{available.length}</span>장
-                          </div>
-                          <div style={{ width:1, height:24, background:'#E5E5E5' }} />
-                          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:12 }}>
-                            <span style={{ fontSize:15, fontWeight:700 }}>다운가능 쿠폰 <span style={{ color:'#CB1D11' }}>{dlCount}</span>장</span>
-                            <button onClick={handleClaimCoupons} disabled={claimingCoupon || dlCount === 0}
-                              style={{ padding:'8px 14px', borderRadius:8, fontSize:13, fontWeight:600, whiteSpace:'nowrap',
-                                border:'1px solid ' + (dlCount === 0 ? '#E5E5E5' : '#1A1A1A'),
-                                background:'#fff', color: dlCount === 0 ? '#BBB' : '#1A1A1A',
-                                cursor: (claimingCoupon || dlCount === 0) ? 'default' : 'pointer' }}>
-                              {claimingCoupon ? '받는 중...' : '쿠폰 다운받기'}
-                            </button>
-                          </div>
+                      <div className="mp-cp-dl">
+                        <div className="mp-cp-dl-counts">
+                          <div className="mp-cp-dl-count">사용가능 쿠폰 <b>{available.length}</b>장</div>
+                          <div className="mp-cp-dl-sep" />
+                          <div className="mp-cp-dl-count">다운가능 쿠폰 <b>{dlCount}</b>장</div>
                         </div>
+                        <button className="mp-cp-dl-btn" onClick={handleClaimCoupons}
+                          disabled={claimingCoupon || dlCount === 0}>
+                          {claimingCoupon ? '받는 중...' : '쿠폰 다운받기'}
+                        </button>
+                      </div>
+
+                      {/* 쿠폰 등록 */}
+                      <div className="mp-cp-register">
+                        <div className="mp-cp-register-title">쿠폰 등록</div>
+                        <div className="mp-cp-register-row">
+                          <input
+                            value={couponCode}
+                            onChange={e => setCouponCode(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleRedeemCode(); }}
+                            placeholder="쿠폰코드를 입력해주세요." />
+                          <button onClick={handleRedeemCode} disabled={redeemingCode || !couponCode.trim()}>
+                            {redeemingCode ? '등록 중...' : '쿠폰등록'}
+                          </button>
+                        </div>
+                        <ul className="mp-cp-register-help">
+                          <li>메일, 모바일, 인쇄물 등에서 받은 쿠폰 코드를 입력해 주세요.</li>
+                          <li>쿠폰 코드는 한글, 영문, 숫자 혼합으로 이루어져 있습니다.</li>
+                          <li>쿠폰 코드는 영문 대/소문자를 구분합니다.</li>
+                          <li>쿠폰은 유효 기간이 있으며, 쿠폰에 따라 최소 구매 금액이나 최대 할인 금액 제한이 있을 수 있습니다.</li>
+                          <li>타 쿠폰 사용 시 중복 사용 불가할 수 있으며, 일부 브랜드/품목은 쿠폰 사용에 제한이 있을 수 있습니다.</li>
+                        </ul>
                       </div>
 
                       {/* 사용 가능 쿠폰 */}
@@ -1223,7 +1418,7 @@ export default function MypageClient() {
                       {available.length === 0 ? (
                         <div className="mp-empty">사용 가능한 쿠폰이 없습니다.</div>
                       ) : (
-                        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                        <div className="mp-cp-list">
                           {available.map(uc => renderCard(uc, false))}
                         </div>
                       )}
@@ -1232,7 +1427,7 @@ export default function MypageClient() {
                       {used.length > 0 && (
                         <>
                           <div style={{ fontSize:16, fontWeight:800, marginTop:32, marginBottom:14, color:'#888' }}>사용 완료 쿠폰</div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:12 }}>
+                          <div className="mp-cp-list">
                             {used.map(uc => renderCard(uc, true))}
                           </div>
                         </>
@@ -1671,7 +1866,7 @@ export default function MypageClient() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(referralCode)
-                          .then(() => showToastMsg(`코드가 복사되었습니다 📋  ${referralCode}`));
+                          .then(() => showToastMsg('코드가 복사되었습니다'));
                       }}
                       style={{ width:'100%', padding:'16px', background:'#1A1A1A', color:'#fff',
                         border:'none', borderRadius:12, fontSize:15, fontWeight:800,
@@ -1693,131 +1888,86 @@ export default function MypageClient() {
               <div className="mp-section">
                 <div className="mp-section-header">
                   <span className="mp-section-title">회원정보 수정</span>
-                  {infoStep === 'view' && (
-                    <button onClick={() => { setVerifyPw(''); setVerifyError(''); setInfoStep('verify'); }}
-                      style={{ marginLeft:'auto', fontSize:12, color:'#111', background:'none',
-                        border:'1px solid #111', borderRadius:6, padding:'4px 10px',
-                        cursor:'pointer', fontFamily:'inherit' }}>
-                      수정하기
-                    </button>
-                  )}
                 </div>
-                <div style={{ paddingTop:16 }}>
-
-                  {/* ── 보기 모드 ── */}
-                  {infoStep === 'view' && (
-                    <>
-                      {([
-                        ['이름',       profile?.name || '-'],
-                        ['이메일',     profile?.email || user.email || '-'],
-                        ['회원등급',   gradeLabel],
-                        ['보유포인트', `${fmtPrice(profile?.point_balance||0)}P`],
-                      ] as [string, string][]).map(([k, v]) => (
-                        <div key={k} style={{ display:'flex', padding:'14px 0', borderBottom:'1px solid #f0f0f0' }}>
-                          <span style={{ width:100, fontSize:13, color:'#888', flexShrink:0 }}>{k}</span>
-                          <span style={{ fontSize:14, fontWeight:600 }}>{v}</span>
-                        </div>
-                      ))}
-                      <button onClick={handleLogout}
-                        style={{ width:'100%', marginTop:24, padding:'14px', border:'1.5px solid #EBEBEB',
-                          borderRadius:8, background:'#fff', fontSize:14, fontWeight:600,
-                          cursor:'pointer', color:'#888', fontFamily:'inherit' }}>
-                        로그아웃
-                      </button>
-                    </>
-                  )}
-
-                  {/* ── 비밀번호 확인 단계 ── */}
-                  {infoStep === 'verify' && (
-                    <div style={{ maxWidth:400 }}>
-                      <div style={{ fontSize:14, color:'#555', marginBottom:20, lineHeight:1.6 }}>
-                        회원정보 수정을 위해<br />현재 비밀번호를 확인해주세요.
-                      </div>
-                      <div style={{ marginBottom:12 }}>
-                        <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:6 }}>현재 비밀번호</label>
-                        <input type="password" value={verifyPw}
-                          onChange={e => { setVerifyPw(e.target.value); setVerifyError(''); }}
-                          onKeyDown={e => e.key === 'Enter' && verifyPassword()}
-                          placeholder="비밀번호 입력"
-                          style={{ width:'100%', height:46, padding:'0 12px',
-                            border:`1.5px solid ${verifyError ? '#E55A4B' : '#EBEBEB'}`,
-                            borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                        {verifyError && <p style={{ fontSize:12, color:'#E55A4B', marginTop:6 }}>{verifyError}</p>}
-                      </div>
-                      <div style={{ display:'flex', gap:10, marginTop:20 }}>
-                        <button onClick={() => setInfoStep('view')}
-                          style={{ flex:1, padding:'14px', border:'1.5px solid #EBEBEB', borderRadius:8,
-                            background:'#fff', fontSize:14, fontWeight:600, cursor:'pointer',
-                            color:'#888', fontFamily:'inherit' }}>
-                          취소
-                        </button>
-                        <button onClick={verifyPassword} disabled={verifyLoading}
-                          style={{ flex:2, padding:'14px', background:'#1A1A1A', color:'#fff',
-                            border:'none', borderRadius:8, fontSize:14, fontWeight:700,
-                            cursor:'pointer', opacity: verifyLoading ? 0.7 : 1, fontFamily:'inherit' }}>
-                          {verifyLoading ? '확인 중...' : '확인'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── 편집 모드 ── */}
-                  {infoStep === 'edit' && (
-                    <>
-                      {/* 이름 */}
-                      <div style={{ marginBottom:16 }}>
-                        <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:6 }}>이름</label>
-                        <input value={editName} onChange={e => setEditName(e.target.value)}
-                          style={{ width:'100%', height:46, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                            borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                      </div>
-                      {/* 이메일 (읽기 전용) */}
-                      <div style={{ marginBottom:20 }}>
-                        <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:6 }}>이메일 (변경 불가)</label>
-                        <input value={profile?.email || user.email || ''} readOnly
-                          style={{ width:'100%', height:46, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                            borderRadius:8, fontSize:14, background:'#F7F7F5', color:'#aaa',
-                            outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                      </div>
-                      {/* 비밀번호 변경 */}
-                      <div style={{ background:'#F7F7F5', borderRadius:10, padding:'16px', marginBottom:20 }}>
-                        <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>비밀번호 변경 (선택)</div>
-                        {[
-                          ['새 비밀번호', editPwNew, setEditPwNew],
-                          ['새 비밀번호 확인', editPwNew2, setEditPwNew2],
-                        ].map(([label, val, setter]) => (
-                          <div key={label as string} style={{ marginBottom:10 }}>
-                            <label style={{ display:'block', fontSize:12, color:'#888', marginBottom:5 }}>{label as string}</label>
-                            <input type="password" value={val as string}
-                              onChange={e => (setter as (v:string)=>void)(e.target.value)}
-                              placeholder="8자 이상"
-                              style={{ width:'100%', height:44, padding:'0 12px', border:'1.5px solid #EBEBEB',
-                                borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit',
-                                background:'#fff', boxSizing:'border-box' }} />
+                <div style={{ paddingTop:16 }} data-info-body>
+                  {(() => {
+                    const email = profile?.email || user.email || '';
+                    const [emLocal, emDomain] = email.includes('@') ? email.split('@') : [email, ''];
+                    return (
+                      <>
+                        {/* 정보 테이블 */}
+                        <div className="mp-info-table">
+                          <div className="mp-info-row">
+                            <div className="mp-info-label"><span className="req">*</span> 이름</div>
+                            <div className="mp-info-value">
+                              <input className="mp-info-input" value={editName} onChange={e => setEditName(e.target.value)} placeholder="이름" />
+                            </div>
                           </div>
-                        ))}
-                        {editPwNew && editPwNew2 && editPwNew !== editPwNew2 && (
-                          <p style={{ fontSize:12, color:'#E55A4B', margin:'4px 0 0' }}>비밀번호가 일치하지 않습니다.</p>
-                        )}
-                      </div>
-                      {/* 버튼 */}
-                      <div style={{ display:'flex', gap:10 }}>
-                        <button onClick={() => setInfoStep('view')}
-                          style={{ flex:1, padding:'14px', border:'1.5px solid #EBEBEB', borderRadius:8,
-                            background:'#fff', fontSize:14, fontWeight:600, cursor:'pointer',
-                            color:'#888', fontFamily:'inherit' }}>
-                          취소
-                        </button>
-                        <button onClick={saveInfo} disabled={infoSaving}
-                          style={{ flex:2, padding:'14px', background:'#1A1A1A', color:'#fff',
-                            border:'none', borderRadius:8, fontSize:14, fontWeight:700,
-                            cursor:'pointer', opacity: infoSaving ? 0.7 : 1, fontFamily:'inherit' }}>
-                          {infoSaving ? '저장 중...' : '저장하기'}
-                        </button>
-                      </div>
-                    </>
-                  )}
+                          <div className="mp-info-row">
+                            <div className="mp-info-label"><span className="req">*</span> 회원아이디</div>
+                            <div className="mp-info-value"><b style={{ fontSize:14 }}>{email}</b></div>
+                          </div>
+                          <div className="mp-info-row">
+                            <div className="mp-info-label"><span className="req">*</span> E-mail</div>
+                            <div className="mp-info-value mp-info-email">
+                              <input className="mp-info-input" value={emLocal} readOnly />
+                              <span className="mp-info-at">@</span>
+                              <input className="mp-info-input" value={emDomain} readOnly />
+                            </div>
+                          </div>
+                          <div className="mp-info-row">
+                            <div className="mp-info-label"><span className="req">*</span> 휴대폰번호</div>
+                            <div className="mp-info-value">
+                              {phoneEditing ? (
+                                <input className="mp-info-input" value={editPhone} autoFocus
+                                  onChange={e => setEditPhone(e.target.value)} placeholder="010-0000-0000" />
+                              ) : (
+                                <div className="mp-info-phone">
+                                  <span>{profile?.phone || editPhone || '미등록'}</span>
+                                  <button className="mp-info-btn" onClick={() => setPhoneEditing(true)}>휴대폰변경</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mp-info-row">
+                            <div className="mp-info-label"><span className="req">*</span> 생년월일</div>
+                            <div className="mp-info-value">
+                              <input className="mp-info-input" value={editBirth}
+                                onChange={e => setEditBirth(e.target.value)} placeholder="1998.06.27" />
+                            </div>
+                          </div>
+                        </div>
 
+                        {/* 탈퇴 / 저장 */}
+                        <div className="mp-info-actions">
+                          <button className="mp-info-withdraw" onClick={handleWithdraw}>탈퇴하기</button>
+                          <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
+                            {infoSaving ? '저장 중...' : '저장'}
+                          </button>
+                        </div>
+
+                        {/* 마케팅 수신동의 */}
+                        <div className="mp-mkt">
+                          <div className="mp-mkt-title">마케팅 수신동의 설정</div>
+                          <p className="mp-mkt-desc">이벤트 및 혜택에 대한 다양한 정보를<br />받으실 수 있어요</p>
+                          {([
+                            ['메일 수신동의', mEmail, setMEmail],
+                            ['SMS 수신 동의', mSms, setMSms],
+                          ] as [string, boolean, (v:(p:boolean)=>boolean)=>void][]).map(([label, on, set]) => (
+                            <div key={label} className="mp-mkt-row">
+                              <span>{label}</span>
+                              <span className={`mp-toggle${on ? ' on' : ''}`} onClick={() => set(v => !v)}>
+                                <span className="mp-toggle-knob" />
+                              </span>
+                            </div>
+                          ))}
+                          <button className="mp-mkt-save" onClick={saveMarketing} disabled={mktSaving}>
+                            {mktSaving ? '변경 중...' : '변경하기'}
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1825,27 +1975,15 @@ export default function MypageClient() {
             {/* ═══ 배송지 관리 ═══ */}
             <div className={`mp-panel${activePanel==='address'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
-              <div className="mp-section">
+              <div className="mp-section mp-addr-section">
 
                 {/* 타이틀 */}
                 {addrFormOpen ? (
                   <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
                     <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>{addrEditing ? '배송지 수정' : '배송지 추가'}</div>
                   </div>
-                ) : isMobileView ? (
-                  <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
-                    <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>배송지 목록</div>
-                  </div>
                 ) : (
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
-                    <div style={{ fontSize:20, fontWeight:700, color:'#111' }}>배송지 관리</div>
-                    {addresses.length < 5 && (
-                      <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
-                        style={{ padding:'10px 18px', background:'#fff', border:'1px solid #CFCFCF', borderRadius:8, fontSize:14, fontWeight:600, color:'#333', cursor:'pointer', fontFamily:'inherit' }}>
-                        + 배송지 추가
-                      </button>
-                    )}
-                  </div>
+                  <div style={{ fontSize:18, fontWeight:800, color:'#111', marginBottom:18 }}>배송지 관리</div>
                 )}
 
                 {addrLoading ? (
@@ -1915,17 +2053,15 @@ export default function MypageClient() {
                 ) : (
                   /* ════ 배송지 목록 ════ */
                   <>
-                    {/* 전체 N건 + 정렬 */}
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                      <span style={{ fontSize:14, color:'#333' }}>전체 <b style={{ fontWeight:700 }}>{addresses.length}</b>건</span>
-                      <div style={{ display:'flex', gap:14, fontSize:13 }}>
-                        {([['recent_use','최근 사용순'],['recent_reg','최근 등록순'],['name','가나다순']] as const).map(([k, l]) => (
-                          <span key={k} onClick={() => setAddrSort(k)}
-                            style={{ cursor:'pointer', fontWeight: addrSort===k ? 700 : 400, color: addrSort===k ? '#111' : '#bbb' }}>
-                            {l}
-                          </span>
-                        ))}
-                      </div>
+                    {/* 전체 N건 + 정렬 드롭다운 */}
+                    <div className="mp-addr-top">
+                      <span>전체 <b>{addresses.length}</b>건</span>
+                      <select className="mp-addr-sort" value={addrSort}
+                        onChange={e => setAddrSort(e.target.value as 'recent_use'|'recent_reg'|'name')}>
+                        <option value="recent_use">최근 사용 순</option>
+                        <option value="recent_reg">최근 등록 순</option>
+                        <option value="name">가나다 순</option>
+                      </select>
                     </div>
 
                     {addresses.length === 0 ? (
@@ -1937,71 +2073,37 @@ export default function MypageClient() {
                         // 최근 사용순 = 기본배송지 우선 (로드 시 is_default desc)
                         return (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0);
                       }).map(a => (
-                        <div key={a.id} style={{ border:'1px solid #E5E5E5', borderRadius:10, padding:'18px', marginBottom:12 }}>
-                          {/* 상단: 배송명 + 기본배송지 / (모바일)선택됨 (PC)수정·삭제 */}
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, gap:10 }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-                              <span style={{ fontSize:15, fontWeight:700, color:'#111', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.label || '배송지'}</span>
-                              {a.is_default && (
-                                <span style={{ fontSize:11, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px', flexShrink:0 }}>기본배송지</span>
-                              )}
+                        <div key={a.id} className={`mp-addr-card${a.is_default ? ' selected' : ''}`}>
+                          <div className="mp-addr-head">
+                            <div className="mp-addr-name">
+                              <span className="t">{a.label || '배송지'}</span>
+                              {a.is_default && <span className="badge">기본배송지</span>}
                             </div>
-                            {isMobileView ? (
-                              a.is_default ? (
-                                <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:13, color:'#111', fontWeight:600, flexShrink:0 }}>
-                                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                                  선택됨
-                                </span>
-                              ) : (
-                                <button onClick={() => setDefaultAddress(a.id)}
-                                  style={{ fontSize:13, color:'#aaa', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', flexShrink:0 }}>
-                                  선택
-                                </button>
-                              )
+                            {a.is_default ? (
+                              <span className="mp-addr-selected">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                선택됨
+                              </span>
                             ) : (
-                              /* PC: 우측 박스 버튼 */
-                              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                                {!a.is_default && (
-                                  <button onClick={() => setDefaultAddress(a.id)}
-                                    style={{ padding:'6px 12px', fontSize:13, color:'#555', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
-                                    기본 설정
-                                  </button>
-                                )}
-                                <button onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
-                                  style={{ padding:'6px 14px', fontSize:13, color:'#333', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
-                                  수정
-                                </button>
-                                <button onClick={() => deleteAddress(a.id)}
-                                  style={{ padding:'6px 14px', fontSize:13, color:'#333', background:'#fff', border:'1px solid #DDD', borderRadius:6, cursor:'pointer', fontFamily:'inherit' }}>
-                                  삭제
-                                </button>
-                              </div>
+                              <button className="mp-addr-select" onClick={() => setDefaultAddress(a.id)}>선택</button>
                             )}
                           </div>
-                          {/* 받는분 + 전화 */}
-                          <div style={{ fontSize:14, color:'#333', marginBottom:6 }}>{a.recipient} {a.phone}</div>
-                          {/* 주소 */}
-                          <div style={{ fontSize:13, color:'#777', lineHeight:1.5, marginBottom: isMobileView ? 14 : 0 }}>
-                            {a.zipcode && <span style={{ color:'#aaa' }}>[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
+                          <div className="mp-addr-recipient">{a.recipient}  {a.phone}</div>
+                          <div className="mp-addr-addr">
+                            {a.zipcode && <span className="zip">[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
                           </div>
-                          {/* 모바일 전용: 하단 수정 / 삭제 */}
-                          {isMobileView && (
-                            <div style={{ display:'flex', gap:12, fontSize:13, color:'#888' }}>
-                              <span onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}
-                                style={{ cursor:'pointer' }}>수정</span>
-                              <span style={{ color:'#E0E0E0' }}>|</span>
-                              <span onClick={() => deleteAddress(a.id)} style={{ cursor:'pointer' }}>삭제</span>
-                            </div>
-                          )}
+                          <div className="mp-addr-actions">
+                            <button className="mp-addr-btn" onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}>수정</button>
+                            <button className="mp-addr-btn" onClick={() => deleteAddress(a.id)}>삭제</button>
+                          </div>
                         </div>
                       ))
                     )}
 
-                    {/* + 배송지 추가 (모바일 전용: 하단 알약 / PC는 상단 우측 버튼) */}
-                    {isMobileView && addresses.length < 5 && (
-                      <div style={{ display:'flex', justifyContent:'center', marginTop:24 }}>
-                        <button onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}
-                          style={{ padding:'15px 44px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                    {/* + 배송지 추가 (PC·모바일 하단 알약) */}
+                    {addresses.length < 5 && (
+                      <div className="mp-addr-add-wrap">
+                        <button className="mp-addr-add" onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}>
                           + 배송지 추가
                         </button>
                       </div>
@@ -2188,137 +2290,6 @@ export default function MypageClient() {
               </div>
             </div>
 
-            {/* ═══ CS/환불 내역 ═══ */}
-            <div className={`mp-panel${activePanel==='csrefund'?' active':''}`}>
-              <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
-              <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">환불 내역</span>
-                </div>
-                {/* 환불 가능 주문 (이미 환불 신청한 주문은 제외) */}
-                {(() => {
-                const REFUND_DAYS = 7;
-                const requestedOrderIds = new Set(
-                  myRefundReqs.filter(r => r.status !== 'rejected').map(r => r.order_id).filter(Boolean) as string[]
-                );
-                // 배송완료 후 N일 이내만 환불 가능 (delivered_at 없으면(레거시) 허용)
-                const withinWindow = (o: Order) => {
-                  if (!o.delivered_at) return true;
-                  return (Date.now() - new Date(o.delivered_at).getTime()) <= REFUND_DAYS * 86400000;
-                };
-                const refundable = orders.filter(o => o.status === 'delivered' && !requestedOrderIds.has(o.id) && withinWindow(o));
-                return (
-                <div style={{ paddingTop:16 }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>환불 신청 가능한 주문</div>
-                  {refundable.length === 0 ? (
-                    <div style={{ textAlign:'center', padding:'24px 0', fontSize:13, color:'#aaa',
-                      background:'#F7F7F5', borderRadius:10 }}>
-                      환불 신청 가능한 주문이 없습니다.
-                    </div>
-                  ) : (
-                    refundable.map(o => (
-                      <div key={o.id} style={{ padding:'14px', border:'1px solid #EBEBEB',
-                        borderRadius:10, marginBottom:10 }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                          <span style={{ fontSize:12, color:'#aaa' }}>
-                            {new Date(o.created_at).toLocaleDateString('ko-KR')} · {o.order_no}
-                          </span>
-                          <span style={{ fontSize:11, fontWeight:700, background:'#E8F5E9',
-                            color:'#2D7A4D', padding:'3px 8px', borderRadius:4 }}>배송완료</span>
-                        </div>
-                        <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>
-                          {o.order_items?.[0]?.product_name}
-                          {(o.order_items?.length ?? 0) > 1 && ` 외 ${o.order_items.length-1}건`}
-                        </div>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                          <span style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(o.final_amount)}원</span>
-                          <button
-                            onClick={() => router.push(`/refund?order=${o.id}`)}
-                            style={{ fontSize:12, padding:'6px 14px',
-                              background:'var(--color-accent)', color:'#fff',
-                              border:'none', borderRadius:6, cursor:'pointer', fontFamily:'inherit', fontWeight:700 }}>
-                            환불 신청
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-
-                  {/* 처리 중/완료 환불 내역 */}
-                  {orders.filter(o => ['cancelled','refunding','refunded'].includes(o.status)).length > 0 && (
-                    <div style={{ marginTop:24 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>처리 내역</div>
-                      {orders.filter(o => ['cancelled','refunding','refunded'].includes(o.status)).map(o => (
-                        <div key={o.id} style={{ padding:'14px', border:'1px solid #EBEBEB',
-                          borderRadius:10, marginBottom:10, background:'#FAFAFA' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                            <span style={{ fontSize:12, color:'#aaa' }}>
-                              {new Date(o.created_at).toLocaleDateString('ko-KR')} · {o.order_no}
-                            </span>
-                            <span style={{ fontSize:11, fontWeight:700,
-                              color: o.status==='refunded'?'#888': o.status==='refunding'?'#C8841C':'#E55A4B',
-                              background: o.status==='refunded'?'#F2F2F2': o.status==='refunding'?'#FFF3E0':'#FEE',
-                              padding:'3px 8px', borderRadius:4 }}>
-                              {STATUS_LABEL[o.status]}
-                            </span>
-                          </div>
-                          <div style={{ fontSize:13, color:'#555' }}>
-                            {o.order_items?.[0]?.product_name}
-                            {(o.order_items?.length ?? 0) > 1 && ` 외 ${o.order_items.length-1}건`}
-                          </div>
-                          <div style={{ fontSize:14, fontWeight:700, marginTop:6 }}>{fmtPrice(o.final_amount)}원</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* 내 환불 신청 내역 */}
-                  {myRefundReqs.length > 0 && (
-                    <div style={{ marginTop:24 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#111', marginBottom:12 }}>내 환불 신청</div>
-                      {myRefundReqs.map(req => {
-                        const stLabel: Record<string,string> = { pending:'신청 접수', hold:'보류', processing:'처리중', completed:'환불완료', rejected:'환불 불가' };
-                        const stColor: Record<string,string> = { pending:'#C8841C', hold:'#C8841C', processing:'#C8841C', completed:'#888', rejected:'#E55A4B' };
-                        const stBg: Record<string,string> = { pending:'#FFF3E0', hold:'#FFF3E0', processing:'#FFF3E0', completed:'#F2F2F2', rejected:'#FEE' };
-                        return (
-                          <div key={req.id} style={{ padding:'14px', border:'1px solid #EBEBEB', borderRadius:10, marginBottom:10 }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                              <span style={{ fontSize:12, color:'#aaa' }}>
-                                {new Date(req.created_at).toLocaleDateString('ko-KR')}{req.orders?.order_no ? ` · ${req.orders.order_no}` : ''}
-                              </span>
-                              <span style={{ fontSize:11, fontWeight:700, color: stColor[req.status] || '#888', background: stBg[req.status] || '#F2F2F2', padding:'3px 8px', borderRadius:4 }}>
-                                {stLabel[req.status] || req.status}
-                              </span>
-                            </div>
-                            <div style={{ fontSize:13, fontWeight:600, marginBottom: req.detail ? 4 : 0 }}>{req.reason}</div>
-                            {req.detail && <div style={{ fontSize:12, color:'#888', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{req.detail}</div>}
-                            {req.status === 'rejected' && req.reject_reason && (
-                              <div style={{ marginTop:8, padding:'8px 10px', background:'#FEE', borderRadius:6, fontSize:12, color:'#B23B2E', lineHeight:1.6 }}>
-                                <strong>환불 불가 사유</strong><br/>{req.reject_reason}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* 고객센터 안내 */}
-                  <div style={{ marginTop:24, background:'#F7F7F5', borderRadius:10, padding:'16px' }}>
-                    <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>📞 고객센터 문의</div>
-                    <p style={{ fontSize:13, color:'#666', lineHeight:1.8, margin:0 }}>
-                      · 전화: 1588-0000 (평일 09~18시)<br/>
-                      · 이메일: help@delio.co.kr<br/>
-                      · 카카오 채널: @델리오<br/>
-                      · 환불은 배송완료 후 7일 이내 신청 가능합니다.
-                    </p>
-                  </div>
-                </div>
-                );
-                })()}
-              </div>
-            </div>
-
             {/* ═══ 1:1 문의 ═══ */}
             <div className={`mp-panel${activePanel==='cs'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
@@ -2343,6 +2314,13 @@ export default function MypageClient() {
 
                 {/* ── 상품 Q&A ── */}
                 {csMainTab === 'qna' && (
+                  <>
+                  {/* 상품 Q&A 요약 3열 */}
+                  <div className="mp-cs-summary">
+                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">전체문의</span><span className="mp-cs-sum-num">{myQna.length}개</span></div>
+                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}개</span></div>
+                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></div>
+                  </div>
                   <div style={{ marginTop:20, overflowX:'auto' }}>
                     <div style={{ minWidth:560 }}>
                       <div style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
@@ -2400,29 +2378,35 @@ export default function MypageClient() {
                       )}
                     </div>
                   </div>
+                  </>
                 )}
 
                 {/* ── 1:1 문의 ── */}
                 {csMainTab === 'inquiry' && (
                 <>
-                {/* 탭 (문의하기 / 문의 내역) */}
-                <div style={{ display:'flex', borderBottom:'1px solid #E5E5E5', marginTop:16 }}>
-                  {(['write','history'] as const).map(t => (
-                    <button key={t}
-                      onClick={() => { setCsTab(t); if(csDone && t==='write') { setCsDone(false); setCsTitle(''); setCsMessage(''); setCsCategory('order'); setCsFiles([]); } }}
-                      style={{ flex:1, textAlign:'center', padding:'13px 0', background:'none', border:'none',
-                        fontFamily:'inherit', cursor:'pointer', fontSize:14,
-                        fontWeight: csTab===t ? 700 : 500,
-                        color: csTab===t ? '#1A1A1A' : '#999',
-                        borderBottom: csTab===t ? '2px solid #1A1A1A' : '2px solid transparent',
-                        marginBottom:-1, transition:'color .15s' }}>
-                      {t==='write' ? '문의하기' : '문의 내역'}
-                    </button>
-                  ))}
+                {/* 문의 요약 3열 */}
+                <div className="mp-cs-summary">
+                  <div className="mp-cs-sum-col">
+                    <span className="mp-cs-sum-label">전체문의</span>
+                    <span className="mp-cs-sum-num">{csInquiries.length}개</span>
+                  </div>
+                  <div className="mp-cs-sum-col">
+                    <span className="mp-cs-sum-label">답변완료</span>
+                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status === 'answered').length}개</span>
+                  </div>
+                  <div className="mp-cs-sum-col">
+                    <span className="mp-cs-sum-label">답변대기</span>
+                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status !== 'answered').length}개</span>
+                  </div>
                 </div>
+                {/* 문의하기 토글 버튼 */}
+                <button className="mp-cs-ask"
+                  onClick={() => { setCsFormOpen(v => !v); if (csDone) { setCsDone(false); setCsTitle(''); setCsMessage(''); setCsCategory('order'); setCsFiles([]); } }}>
+                  문의하기
+                </button>
 
-                {/* ── 문의하기 ── */}
-                {csTab === 'write' && (
+                {/* ── 문의하기 폼 (토글) ── */}
+                {csFormOpen && (
                   <div style={{ padding:'20px 0', marginBottom:12 }}>
                     {csDone ? (
                       /* 완료 메시지 */
@@ -2437,10 +2421,10 @@ export default function MypageClient() {
                         <div style={{ fontSize:16, fontWeight:800, marginBottom:8 }}>문의가 접수되었습니다!</div>
                         <p style={{ fontSize:13, color:'#888', lineHeight:1.8, marginBottom:20 }}>
                           영업일 기준 1~2일 이내 답변드립니다.<br/>
-                          문의 내역 탭에서 확인 가능합니다.
+                          아래 문의 내역에서 확인 가능합니다.
                         </p>
                         <div style={{ display:'flex', gap:8 }}>
-                          <button onClick={() => setCsTab('history')}
+                          <button onClick={() => setCsFormOpen(false)}
                             style={{ flex:1, padding:'12px', border:'1.5px solid #EBEBEB', borderRadius:10,
                               background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', color:'#555' }}>
                             내역 보기
@@ -2595,9 +2579,9 @@ export default function MypageClient() {
                   </div>
                 )}
 
-                {/* ── 문의 내역 ── */}
-                {csTab === 'history' && (
-                  <div style={{ padding:'8px 0 16px', marginBottom:12 }}>
+                {/* ── 문의 내역 (항상 표시) ── */}
+                <div style={{ padding:'8px 0 16px', marginBottom:12 }}>
+                  <div style={{ fontSize:16, fontWeight:800, margin:'8px 0 10px' }}>문의 내역</div>
                     {csInquiries.length === 0 ? (
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13 }}>
                         아직 문의 내역이 없습니다.
@@ -2678,7 +2662,6 @@ export default function MypageClient() {
                       })
                     )}
                   </div>
-                )}
 
                 {/* 운영 안내 */}
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px',
@@ -2732,44 +2715,19 @@ export default function MypageClient() {
                   return (
                     <div style={{ paddingTop:20 }}>
 
-                      {/* 결과 카드 */}
-                      <div style={{ background: info.bg, borderRadius:20, padding:'28px 24px', marginBottom:16, position:'relative', overflow:'hidden' }}>
-                        {/* 배경 장식 원 */}
-                        <div style={{ position:'absolute', right:-20, top:-20, width:100, height:100,
-                          borderRadius:'50%', background:'rgba(255,255,255,0.25)' }} />
-                        <div style={{ position:'absolute', right:20, bottom:-30, width:60, height:60,
-                          borderRadius:'50%', background:'rgba(255,255,255,0.2)' }} />
-
-                        <div style={{ position:'relative' }}>
-                          <div style={{ fontSize:48, marginBottom:12 }}>{info.emoji}</div>
-                          <div style={{ fontSize:11, fontWeight:700, letterSpacing:2, color: info.color, marginBottom:6 }}>
-                            나의 취향 유형
-                          </div>
-                          <div style={{ fontSize:26, fontWeight:900, color:'#1A1A1A', marginBottom:8 }}>
-                            {info.name}
-                          </div>
-                          <div style={{ fontSize:13, color:'#555', lineHeight:1.7, marginBottom:16 }}>
-                            {info.tagline}
-                          </div>
-                          <div style={{ padding:'12px 14px', background:'rgba(255,255,255,0.6)',
-                            borderRadius:10, fontSize:13, fontStyle:'italic', color: info.color,
-                            fontWeight:700, lineHeight:1.6 }}>
-                            {info.wellness}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 추천 과일 칩 */}
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16,
-                        padding:'12px 16px', background:'#F7F7F5', borderRadius:12 }}>
-                        <span style={{ fontSize:20 }}>🍑</span>
-                        <div>
-                          <div style={{ fontSize:11, color:'#aaa', fontWeight:600, marginBottom:2 }}>추천 과일</div>
-                          <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{info.fruitRec}</div>
-                        </div>
-                      </div>
+                      {/* 결과 — 포스텔러 무드 (공유 컴포넌트) */}
+                      <SurveyResultView
+                        info={info}
+                        currentKey={key}
+                        userName={profile?.name || undefined}
+                        allTypes={Object.entries(SURVEY_MAP).map(([k, v]) => ({ key: k, name: v.name, emoji: v.emoji }))}
+                        recProducts={surveyRecProducts}
+                        showRec={surveyShowRec}
+                        onShop={() => router.push('/category')}
+                      />
 
                       {/* 진단일 */}
+                      <div style={{ marginTop:16 }} />
                       <div style={{ fontSize:11, color:'#bbb', textAlign:'right', marginBottom:20 }}>
                         마지막 진단: {new Date(surveyResult.created_at).toLocaleDateString('ko-KR')}
                       </div>
@@ -2795,65 +2753,6 @@ export default function MypageClient() {
                           cursor:'pointer', fontFamily:'inherit' }}>
                         재검사하기
                       </button>
-
-                      {/* 맞춤 상품 추천 */}
-                      {surveyShowRec && surveyRecProducts.length > 0 && (
-                        <div style={{ marginTop:24 }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                            <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>나를 위한 추천 상품</div>
-                            <button onClick={() => router.push('/category')}
-                              style={{ fontSize:11, color:'#888', background:'none', border:'none',
-                                cursor:'pointer', fontFamily:'inherit', fontWeight:600 }}>
-                              전체보기 →
-                            </button>
-                          </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:10 }}>
-                            {surveyRecProducts.map(p => {
-                              const EM: Record<string,string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑' };
-                              const price = p.discounted_price ?? p.price;
-                              return (
-                                <Link key={p.id} href={`/product/${p.id}`}
-                                  style={{ textDecoration:'none', color:'inherit' }}>
-                                  <div style={{ borderRadius:14, border:'1px solid #EBEBEB', overflow:'hidden',
-                                    background:'#fff', cursor:'pointer',
-                                    display:'flex', flexDirection:'column', height:'100%',
-                                    transition:'box-shadow .15s' }}
-                                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'}
-                                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow='none'}>
-                                    {/* 이미지 — 고정 높이 */}
-                                    <div style={{ height:110, flexShrink:0, background:'#F7F7F5',
-                                      display:'flex', alignItems:'center', justifyContent:'center',
-                                      fontSize:36, overflow:'hidden' }}>
-                                      {p.thumbnail_url
-                                        ? <img src={p.thumbnail_url} alt={p.name}
-                                            style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                        : (EM[p.category] || EM.default)}
-                                    </div>
-                                    {/* 텍스트 */}
-                                    <div style={{ padding:'10px 12px 12px', flex:1,
-                                      display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
-                                      <div style={{ fontSize:12, fontWeight:600, color:'#1A1A1A',
-                                        marginBottom:6, lineHeight:1.4, height:'2.8em', overflow:'hidden' }}>
-                                        {p.name}
-                                      </div>
-                                      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                                        {p.discount_rate > 0 && (
-                                          <span style={{ fontSize:11, fontWeight:700, color:'var(--color-accent)' }}>
-                                            {p.discount_rate}%
-                                          </span>
-                                        )}
-                                        <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>
-                                          {price.toLocaleString('ko-KR')}원
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
 
                       {/* ─ 숨김 캡처 카드 ─ */}
                       <div style={{ position:'fixed', top:0, left:0, width:0, height:0, overflow:'hidden', pointerEvents:'none' }} aria-hidden="true">

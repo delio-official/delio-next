@@ -298,13 +298,6 @@ export default function SearchClient() {
       <main className="search-pre-page">
         <div className="container search-pre-container">
 
-          {/* 브레드크럼 */}
-          <div className="search-breadcrumb">
-            <Link href="/">Home</Link>
-            <span className="search-breadcrumb-sep">/</span>
-            <span className="search-breadcrumb-cur">SEARCH</span>
-          </div>
-
           {/* 히어로 */}
           <div className="search-hero">
             <h1 className="search-hero-title">SEARCH</h1>
@@ -369,9 +362,9 @@ export default function SearchClient() {
                   <button
                     key={i}
                     onClick={() => handleSearch(kw)}
-                    style={{ padding: '7px 18px', border: '1px solid var(--color-line)', borderRadius: 999, fontSize: 13, background: '#fff', cursor: 'pointer', color: 'var(--color-ink)', transition: 'all .15s' }}
+                    style={{ padding: '7px 18px', border: '1px solid #E0DEDB', borderRadius: 999, fontSize: 13, background: '#fff', cursor: 'pointer', color: 'var(--color-ink)', transition: 'all .15s' }}
                     onMouseOver={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = 'var(--color-accent)'; b.style.color = 'var(--color-accent)'; }}
-                    onMouseOut={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = 'var(--color-line)'; b.style.color = 'var(--color-ink)'; }}
+                    onMouseOut={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = '#E0DEDB'; b.style.color = 'var(--color-ink)'; }}
                   >{kw}</button>
                 ))}
               </div>
@@ -389,7 +382,7 @@ export default function SearchClient() {
                 {recent.map((kw, i) => (
                   <span
                     key={i}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--color-line)', background: '#fff', fontSize: 13, cursor: 'pointer' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 999, border: '1px solid #E0DEDB', background: '#fff', fontSize: 13, cursor: 'pointer' }}
                   >
                     <span onClick={() => handleSearch(kw)}>{kw}</span>
                     <span

@@ -7,13 +7,13 @@ body { background: #fff; }
       padding: 24px 0 120px;
       align-items: flex-start;
     }
-    @media (max-width: 768px) {
-      .cart-layout { flex-direction: column; padding: 16px 0 100px; }
-    }
-
     .cart-main { flex: 1; min-width: 0; }
     .cart-side { width: 320px; flex-shrink: 0; }
-    @media (max-width: 768px) { .cart-side { width: 100%; } }
+    @media (max-width: 1024px) {
+      .cart-layout { flex-direction: column; align-items: stretch; padding: 16px 0 100px; }
+      .cart-main { width: 100%; }
+      .cart-side { width: 100%; }
+    }
 
     /* 전체 선택 바 */
     .select-bar {
@@ -73,6 +73,23 @@ body { background: #fff; }
       font-family: 'Pretendard', sans-serif;
       font-size: 16px; font-weight: 700; color: var(--color-ink);
     }
+
+    /* ── 장바구니 상품 카드 (신규 레이아웃) ── */
+    .cart-item-card { padding: 18px 16px; border-bottom: 1px solid #F4F4F4; }
+    .cart-item-card:last-child { border-bottom: none; }
+    .cart-item-top { display: flex; align-items: flex-start; gap: 14px; }
+    .cart-item-card .cart-item-img { width: 104px; height: 104px; font-size: 46px; }
+    .cart-item-card .cart-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; padding-top: 2px; }
+    .cart-item-card .cart-item-name { font-size: 14px; }
+    .cart-item-option-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid #F0F0EE;
+    }
+    .cart-item-option-text { font-size: 13px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .cart-item-option-change { font-size: 12px; color: #999; text-decoration: underline; flex-shrink: 0; white-space: nowrap; }
+    .cart-item-bottom-row { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .cart-item-price-wrap { display: flex; align-items: baseline; gap: 8px; }
+    .cart-item-price-orig { font-size: 13px; color: #BBB; text-decoration: line-through; }
 
     /* 결제 요약 (사이드 / 모바일 하단) */
     .order-summary {

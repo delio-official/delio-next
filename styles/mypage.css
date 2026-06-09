@@ -87,6 +87,17 @@ body { background: #fff; }
       width: 1px; height: 32px;
       background: #ddd; flex-shrink: 0;
     }
+    /* 모바일: 아이콘 위 → 텍스트 아래(세로), 칸 넓게 */
+    @media (max-width: 768px) {
+      .mp-stats { padding: 18px 4px; margin-bottom: 20px; }
+      .mp-stat {
+        flex-direction: column; gap: 8px; text-align: center; min-width: 0;
+      }
+      .mp-stat-icon { width: 34px; height: 34px; font-size: 12px; }
+      .mp-stat-value { font-size: 14px; white-space: nowrap; }
+      .mp-stat-label { font-size: 11px; }
+      .mp-stat-divider { height: 58px; }
+    }
 
     /* ===== 섹션 공통 ===== */
     .mp-section { margin-bottom: 36px; }
@@ -116,6 +127,317 @@ body { background: #fff; }
     .mp-order-arrow {
       color: #ccc; font-size: 22px; flex-shrink: 0;
       padding-bottom: 20px;
+    }
+
+    /* ===== 주문 처리 현황 3열 요약 (에이블리 스타일) ===== */
+    .mp-order-summary3 {
+      display: flex; align-items: stretch;
+      padding: 22px 0 16px;
+    }
+    .mp-os3-col {
+      flex: 1; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      position: relative;
+    }
+    .mp-os3-col-btn { cursor: pointer; }
+    .mp-os3-col + .mp-os3-col::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 1px; height: 40px; background: #EEEEEE;
+    }
+    .mp-os3-label { font-size: 13px; color: #888; }
+    .mp-os3-num { font-size: 30px; font-weight: 800; color: #1A1A1A; }
+
+    /* ===== 주문내역 검색바 ===== */
+    .mp-order-search {
+      position: relative;
+      margin: 4px 0 14px;
+    }
+    .mp-order-search input {
+      width: 100%;
+      padding: 11px 40px 11px 14px;
+      border: 1px solid #E5E5E5;
+      border-radius: 8px;
+      background: #F7F7F7;
+      font-size: 13px;
+      color: #1A1A1A;
+      outline: none;
+      font-family: inherit;
+    }
+    .mp-order-search input::placeholder { color: #AEAEAE; }
+    .mp-order-search input:focus { border-color: #1A1A1A; background: #fff; }
+    .mp-order-search svg {
+      position: absolute;
+      right: 14px; top: 50%; transform: translateY(-50%);
+      color: #999; pointer-events: none;
+    }
+
+    /* ===== 포인트 내역 (에이블리 스타일) ===== */
+    .mp-pt-top { text-align: center; padding: 18px 0 22px; }
+    .mp-pt-top-label { font-size: 14px; font-weight: 700; color: #1A1A1A; }
+    .mp-pt-top-value { font-size: 30px; font-weight: 800; color: #CB1D11; margin-top: 8px; }
+    .mp-pt-card {
+      display: flex; align-items: stretch;
+      background: #F6F6F6; border-radius: 12px; padding: 18px 0; margin-bottom: 18px;
+    }
+    .mp-pt-card-col {
+      flex: 1; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      position: relative;
+    }
+    .mp-pt-card-col + .mp-pt-card-col::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 1px; height: 32px; background: #E2E2E2;
+    }
+    .mp-pt-card-label { font-size: 13px; color: #888; }
+    .mp-pt-card-num { font-size: 18px; font-weight: 700; color: #1A1A1A; }
+    .mp-pt-periods { display: flex; gap: 8px; margin-bottom: 8px; }
+    .mp-pt-period {
+      flex: 1; padding: 11px 0; border-radius: 8px;
+      border: 1px solid #E5E5E5; background: #fff;
+      font-size: 13px; font-weight: 600; color: #888; cursor: pointer;
+      font-family: inherit; transition: all .15s;
+    }
+    .mp-pt-period.active { border-color: #1A1A1A; color: #1A1A1A; }
+    .mp-pt-list { margin-top: 6px; }
+    .mp-pt-item { padding: 16px 0; border-bottom: 1px solid #F2F2F2; }
+    .mp-pt-item:last-child { border-bottom: none; }
+    .mp-pt-item-left { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .mp-pt-tag {
+      font-size: 11px; font-weight: 700; color: #1E8A4C;
+      background: #EAF6EE; padding: 3px 8px; border-radius: 5px;
+    }
+    .mp-pt-tag.use { color: #888; background: #F0F0F0; }
+    .mp-pt-item-date { font-size: 13px; color: #888; }
+    .mp-pt-item-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .mp-pt-item-desc { font-size: 14px; color: #1A1A1A; font-weight: 500; line-height: 1.4; }
+    .mp-pt-item-amt { font-size: 15px; font-weight: 800; color: #1E8A4C; white-space: nowrap; }
+    .mp-pt-item-amt.use { color: #1A1A1A; }
+
+    /* ===== 배송지 관리 (쿠팡/아르르 스타일) ===== */
+    .mp-addr-top {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+    }
+    .mp-addr-top > span { font-size: 14px; color: #555; }
+    .mp-addr-top b { font-weight: 700; color: #1A1A1A; }
+    .mp-addr-sort {
+      border: none; background: none; font-size: 13px; color: #555; cursor: pointer;
+      font-family: inherit; outline: none; padding: 4px 2px;
+    }
+    .mp-addr-card {
+      border: 1px solid #E5E5E5; border-radius: 12px; padding: 18px; margin-bottom: 12px;
+    }
+    .mp-addr-card.selected { border: 2px solid #1A1A1A; padding: 17px; }
+    .mp-addr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .mp-addr-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .mp-addr-name .t { font-size: 15px; font-weight: 700; color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mp-addr-name .badge { flex-shrink: 0; font-size: 11px; color: #888; border: 1px solid #DADADA; border-radius: 4px; padding: 2px 7px; }
+    .mp-addr-selected { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: #1A1A1A; flex-shrink: 0; }
+    .mp-addr-select { background: none; border: none; font-size: 13px; color: #AAA; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+    .mp-addr-recipient { font-size: 14px; color: #1A1A1A; margin-bottom: 5px; }
+    .mp-addr-addr { font-size: 13px; color: #777; line-height: 1.5; }
+    .mp-addr-addr .zip { color: #AAA; }
+    .mp-addr-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .mp-addr-btn {
+      padding: 8px 18px; border: 1px solid #DCDCDC; border-radius: 7px;
+      background: #fff; font-size: 13px; font-weight: 600; color: #444; cursor: pointer; font-family: inherit;
+    }
+    .mp-addr-btn:active { background: #F5F5F5; }
+    .mp-addr-add-wrap { display: flex; justify-content: center; margin-top: 28px; }
+    .mp-addr-add {
+      padding: 15px 48px; border: none; border-radius: 999px;
+      background: #1A1A1A; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    /* 모바일: 배송지 추가 — 가운데 알약 그대로 하단에 고정 */
+    @media (max-width: 768px) {
+      .mp-addr-add-wrap {
+        position: fixed; left: 0; right: 0; bottom: 74px; z-index: 200;
+        margin: 0; padding: 0; justify-content: center; pointer-events: none;
+      }
+      .mp-addr-add { pointer-events: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+      .mp-addr-section { padding-bottom: 96px; }
+    }
+
+    /* ===== 회원정보 수정 (아르르 테이블) ===== */
+    .mp-info-table { border-top: 1px solid #E5E5E5; }
+    .mp-info-row {
+      display: flex; align-items: stretch;
+      border-bottom: 1px solid #E5E5E5;
+    }
+    .mp-info-label {
+      flex: 0 0 110px; display: flex; align-items: center;
+      padding: 14px 14px; background: #F7F7F7;
+      font-size: 13px; font-weight: 700; color: #333;
+      border-right: 1px solid #E5E5E5;
+    }
+    .mp-info-label .req { color: #E0533F; margin-right: 2px; }
+    .mp-info-value {
+      flex: 1; min-width: 0; display: flex; align-items: center;
+      padding: 10px 12px; gap: 8px; font-size: 14px; color: #1A1A1A;
+    }
+    .mp-info-input {
+      flex: 1; min-width: 0; height: 38px; padding: 0 11px;
+      border: 1px solid #DDD; border-radius: 6px; font-size: 13px;
+      color: #1A1A1A; outline: none; font-family: inherit; background: #fff;
+    }
+    .mp-info-input:focus { border-color: #1A1A1A; }
+    .mp-info-input[readonly] { background: #F7F7F7; color: #888; }
+    .mp-info-email { gap: 6px; }
+    .mp-info-at { color: #888; flex-shrink: 0; }
+    .mp-info-phone { display: flex; align-items: center; gap: 10px; }
+    .mp-info-btn {
+      padding: 7px 12px; border: 1px solid #CFCFCF; border-radius: 6px;
+      background: #fff; font-size: 12px; font-weight: 600; color: #444; cursor: pointer; font-family: inherit; white-space: nowrap;
+    }
+    .mp-info-actions {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 22px;
+    }
+    .mp-info-withdraw {
+      background: none; border: none; padding: 4px 0; cursor: pointer;
+      font-size: 13px; color: #777; text-decoration: underline; font-family: inherit;
+    }
+    .mp-info-save {
+      padding: 12px 34px; border: none; border-radius: 6px;
+      background: #3D7068; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .mp-info-save:disabled { background: #9DB8B3; cursor: default; }
+
+    /* 마케팅 수신동의 */
+    .mp-mkt { margin-top: 36px; border-top: 8px solid #F2F2F2; padding-top: 22px; }
+    .mp-mkt-title { font-size: 15px; font-weight: 800; color: #1A1A1A; }
+    .mp-mkt-desc { font-size: 12.5px; color: #999; line-height: 1.6; margin: 6px 0 18px; }
+    .mp-mkt-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid #F2F2F2;
+      font-size: 14px; font-weight: 600; color: #1A1A1A;
+    }
+    .mp-toggle {
+      width: 46px; height: 26px; border-radius: 999px; background: #D5D5D5;
+      position: relative; cursor: pointer; flex-shrink: 0; transition: background .2s;
+    }
+    .mp-toggle.on { background: #3D7068; }
+    .mp-toggle-knob {
+      position: absolute; top: 3px; left: 3px; width: 20px; height: 20px;
+      border-radius: 50%; background: #fff; transition: left .2s;
+    }
+    .mp-toggle.on .mp-toggle-knob { left: 23px; }
+    .mp-mkt-save {
+      width: 100%; margin-top: 22px; padding: 15px;
+      border: none; border-radius: 8px; background: #3D7068; color: #fff;
+      font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .mp-mkt-save:disabled { background: #9DB8B3; cursor: default; }
+
+    /* ===== 1:1 문의 요약 + 문의하기 ===== */
+    .mp-cs-summary {
+      display: flex; align-items: stretch;
+      background: #F5F5F5; border-radius: 10px; padding: 18px 0; margin: 18px 0 12px;
+    }
+    .mp-cs-sum-col {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      position: relative;
+    }
+    .mp-cs-sum-col + .mp-cs-sum-col::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 1px; height: 30px; background: #E2E2E2;
+    }
+    .mp-cs-sum-label { font-size: 13px; color: #888; }
+    .mp-cs-sum-num { font-size: 18px; font-weight: 800; color: #1A1A1A; }
+    .mp-cs-ask {
+      width: 100%; padding: 14px; margin-bottom: 4px;
+      border: 1px solid #DCDCDC; border-radius: 10px; background: #fff;
+      font-size: 15px; font-weight: 700; color: #1A1A1A; cursor: pointer; font-family: inherit;
+      transition: background .15s;
+    }
+    .mp-cs-ask:active { background: #F5F5F5; }
+
+    /* ===== 쿠폰 다운받기 헤더 ===== */
+    .mp-cp-dl {
+      margin-top: 16px; padding: 16px;
+      border: 1px solid #EEE; border-radius: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .mp-cp-dl-counts { display: flex; align-items: center; }
+    .mp-cp-dl-count {
+      flex: 1; text-align: center; font-size: 14px; font-weight: 600; color: #333; white-space: nowrap;
+    }
+    .mp-cp-dl-count b { color: #CB1D11; font-weight: 800; }
+    .mp-cp-dl-sep { width: 1px; height: 22px; background: #E5E5E5; flex-shrink: 0; }
+    .mp-cp-dl-btn {
+      width: 100%; padding: 12px; border-radius: 8px;
+      border: 1px solid #1A1A1A; background: #1A1A1A; color: #fff;
+      font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .mp-cp-dl-btn:disabled { border-color: #E5E5E5; background: #F5F5F5; color: #BBB; cursor: default; }
+
+    /* ===== 쿠폰 카드 (프레딧 티켓 스타일) ===== */
+    .mp-cp-list { display: flex; flex-direction: column; gap: 12px; }
+    .mp-cp-card {
+      display: flex; align-items: stretch;
+      border: 1px solid #ECECEC; border-radius: 12px; background: #fff; overflow: hidden;
+    }
+    .mp-cp-card.dim { opacity: 0.55; }
+    .mp-cp-main { flex: 1; min-width: 0; padding: 16px 18px; }
+    .mp-cp-toprow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .mp-cp-badge {
+      font-size: 11px; font-weight: 700; color: #555;
+      background: #F2F2F2; padding: 3px 9px; border-radius: 5px;
+    }
+    .mp-cp-soon {
+      font-size: 11px; font-weight: 700; color: #CB1D11; margin-left: auto;
+    }
+    .mp-cp-soon.used { color: #999; }
+    .mp-cp-value { font-size: 26px; font-weight: 800; color: #1A1A1A; line-height: 1.05; }
+    .mp-cp-name { font-size: 14px; font-weight: 600; color: #333; margin-top: 6px; line-height: 1.4; }
+    .mp-cp-meta { margin-top: 12px; }
+    .mp-cp-meta > div { font-size: 12px; color: #AAA; line-height: 1.7; }
+    /* 오른쪽 티켓(점선 + 노치) */
+    .mp-cp-side {
+      position: relative; flex-shrink: 0; width: 96px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-left: 1.5px dashed #E2E2E2;
+    }
+    .mp-cp-side-exp {
+      position: absolute; top: 12px; left: 0; right: 0; text-align: center;
+      font-size: 12px; font-weight: 700; color: #AAA; white-space: nowrap;
+    }
+    .mp-cp-side-exp.soon { color: #CB1D11; }
+    .mp-cp-side::before, .mp-cp-side::after {
+      content: ''; position: absolute; left: -7px; width: 12px; height: 12px;
+      border-radius: 50%; background: #fff; border: 1px solid #ECECEC;
+    }
+    .mp-cp-side::before { top: -7px; }
+    .mp-cp-side::after { bottom: -7px; }
+    .mp-cp-side-use {
+      font-size: 13px; font-weight: 600; color: #888; text-decoration: none;
+      text-align: center; line-height: 1.4; white-space: nowrap;
+    }
+    .mp-cp-side-done { font-size: 13px; font-weight: 600; color: #BBB; }
+
+    /* ===== 쿠폰 등록 ===== */
+    .mp-cp-register { margin-top: 34px; }
+    .mp-cp-register-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+    .mp-cp-register-row { display: flex; gap: 8px; }
+    .mp-cp-register-row input {
+      flex: 1; min-width: 0; padding: 13px 14px;
+      border: 1px solid #DDD; border-radius: 8px; background: #fff;
+      font-size: 14px; color: #1A1A1A; outline: none; font-family: inherit;
+    }
+    .mp-cp-register-row input:focus { border-color: #1A1A1A; }
+    .mp-cp-register-row input::placeholder { color: #B5B5B5; }
+    .mp-cp-register-row button {
+      flex-shrink: 0; padding: 0 20px;
+      background: #1A1A1A; color: #fff; border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .mp-cp-register-row button:disabled { background: #C8C8C8; cursor: default; }
+    .mp-cp-register-help { margin: 16px 0 0; padding: 0; list-style: none; }
+    .mp-cp-register-help li {
+      position: relative; padding-left: 12px; margin-bottom: 7px;
+      font-size: 12px; color: #999; line-height: 1.6;
+    }
+    .mp-cp-register-help li::before {
+      content: '·'; position: absolute; left: 2px; color: #BBB;
     }
 
     /* ===== 주문 내역 빈 상태 ===== */
@@ -270,7 +592,11 @@ body { background: #fff; }
       .mp-mobile-menu {
         display: block;
         background: #fff;
+        padding-top: 14px;
         padding-bottom: 80px;
+        /* container 좌우 패딩 상쇄 → 구분선 화면 끝까지 풀블리드 */
+        margin-left: calc(-1 * var(--space-4));
+        margin-right: calc(-1 * var(--space-4));
       }
       .mp-layout { display: none; }
 
@@ -281,10 +607,10 @@ body { background: #fff; }
         border-top: 8px solid #F2F2F2;
       }
       .mp-menu-section-title {
-        font-size: 14px;
-        font-weight: 500;
-        color: #888;
-        padding: 16px 20px 10px;
+        font-size: 15px;
+        font-weight: 400;
+        color: #9A9A9A;
+        padding: 20px 20px 8px;
         background: #fff;
         letter-spacing: 0.2px;
       }
@@ -293,17 +619,17 @@ body { background: #fff; }
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 16px 20px;
+        padding: 15px 20px;
         background: #fff;
         border: none;
         font-size: 15px;
         font-weight: 500;
-        color: #111;
+        color: #1A1A1A;
         cursor: pointer;
         text-align: left;
       }
       .mp-menu-item:active { background: #F9F9F9; }
-      .mp-menu-item svg { color: #111; flex-shrink: 0; }
+      .mp-menu-item svg { color: #1A1A1A; flex-shrink: 0; width: 20px; height: 20px; }
       .mp-menu-item-logout span { color: #888; }
       .mp-menu-badge {
         font-size: 11px;
@@ -314,22 +640,116 @@ body { background: #fff; }
         border-radius: 99px;
       }
 
-      /* 패널 뒤로가기 버튼 */
-      .mp-panel-back {
-        display: flex !important;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        margin: 8px 0 8px 12px;
-        background: none;
-        border: none;
-        color: #111;
-        cursor: pointer;
-        padding: 0;
-        border-radius: 50%;
+      /* ── 탑바 좌측(백 + 제목) ── */
+      .mp-topbar-left { display: flex; align-items: center; gap: 4px; }
+      .mp-topbar-back {
+        width: 22px; height: 22px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: none; border: none; padding: 0; margin-left: -6px;
+        cursor: pointer; color: #1A1A1A; line-height: 0;
       }
-      .mp-panel-back:active { background: #F2F2F2; }
+      .mp-topbar-back svg { width: 20px; height: 20px; }
+      /* 메뉴 화면: 자리만 차지하고 숨김 → 제목 위치를 패널 화면과 동일하게 */
+      .mp-topbar-back.is-hidden { visibility: hidden; pointer-events: none; }
+      /* ── 탑바 벨 ── */
+      .mp-mobile-topbar-bell {
+        background: none; border: none; padding: 4px; cursor: pointer; color: #1A1A1A; line-height: 0;
+      }
+
+      /* ── 프로필 헤더 ── */
+      .mp-mb-profile {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 20px 18px; background: #fff;
+      }
+      .mp-mb-avatar-wrap { position: relative; flex-shrink: 0; cursor: pointer; line-height: 0; }
+      .mp-mb-avatar {
+        width: 48px; height: 48px; border-radius: 50%; overflow: hidden;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #FF7A59, #FF5630);
+        color: #fff; font-size: 20px; font-weight: 800;
+      }
+      .mp-mb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+      .mp-mb-avatar-cam {
+        position: absolute; right: -2px; bottom: -2px;
+        width: 19px; height: 19px; border-radius: 50%;
+        background: #fff; border: 1px solid #E2E2E2;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .mp-mb-profile-main {
+        flex: 1; min-width: 0; background: none; border: none; padding: 0;
+        text-align: left; cursor: pointer;
+      }
+      .mp-mb-name {
+        display: flex; align-items: center; gap: 2px;
+        font-size: 17px; font-weight: 800; color: #1A1A1A;
+      }
+      .mp-mb-name svg { color: #9A9A9A; }
+      .mp-mb-grade { font-size: 12.5px; color: #888; margin-top: 3px; }
+      .mp-mb-membership {
+        flex-shrink: 0; padding: 8px 12px;
+        border: 1px solid #E0E0E0; border-radius: 8px; background: #fff;
+        font-size: 12px; font-weight: 600; color: #555; cursor: pointer; white-space: nowrap;
+      }
+
+      /* ── 통계 3열 카드 ── */
+      .mp-mb-stats {
+        display: flex; align-items: stretch;
+        margin: 0 20px 8px; padding: 4px 0;
+        border: 1px solid #EFEFEF; border-radius: 12px; background: #fff;
+      }
+      .mp-mb-stat {
+        flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+        padding: 12px 4px; background: none; border: none; cursor: pointer;
+        position: relative;
+      }
+      .mp-mb-stat + .mp-mb-stat::before {
+        content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+        width: 1px; height: 28px; background: #EFEFEF;
+      }
+      .mp-mb-stat-label { font-size: 12.5px; color: #888; }
+      .mp-mb-stat-val { font-size: 17px; font-weight: 800; color: #1A1A1A; }
+      .mp-mb-stats + .mp-menu-section { border-top: 8px solid #F2F2F2; }
+
+      /* ── 관심상품 미리보기 ── */
+      .mp-mb-wishprev {
+        border-top: 8px solid #F2F2F2; padding: 18px 0 8px; background: #fff;
+      }
+      .mp-mb-wishprev-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 20px 12px;
+      }
+      .mp-mb-wishprev-head > span { font-size: 15px; font-weight: 700; color: #1A1A1A; }
+      .mp-mb-wishprev-head button {
+        display: flex; align-items: center; gap: 2px;
+        background: none; border: none; cursor: pointer;
+        font-size: 12.5px; color: #888;
+      }
+      .mp-mb-wishprev-head button svg { color: #C5C5C5; }
+      .mp-mb-wishprev-scroll {
+        display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none;
+        padding: 0 20px 6px;
+      }
+      .mp-mb-wishprev-scroll::-webkit-scrollbar { display: none; }
+      .mp-mb-wishprev-item {
+        flex: 0 0 auto; width: 88px; background: none; border: none; padding: 0;
+        cursor: pointer; text-align: left;
+      }
+      .mp-mb-wishprev-thumb {
+        width: 88px; height: 88px; border-radius: 10px; overflow: hidden;
+        background: #F5F5F3; margin-bottom: 6px;
+      }
+      .mp-mb-wishprev-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .mp-mb-wishprev-noimg {
+        width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 32px;
+      }
+      .mp-mb-wishprev-name {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        font-size: 12px; color: #444; line-height: 1.35;
+      }
+
+      /* 패널 뒤로가기 버튼 */
+      /* 패널 내 백 버튼 → 탑바로 이동했으므로 모바일에서도 숨김 */
+      .mp-panel-back { display: none !important; }
     }
     /* PC에서는 뒤로가기 버튼 숨김 */
     .mp-panel-back { display: none; }

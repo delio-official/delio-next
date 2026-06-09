@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -49,6 +49,7 @@ interface Review {
   image_urls: string[] | null; video_url: string | null;
   likes_count: number; is_best: boolean;
   seller_reply?: string | null;
+  user_id?: string | null;
   profiles: { name: string | null } | null;
 }
 interface DetailSection {
@@ -62,10 +63,6 @@ const EMOJI_MAP: Record<string, string> = {
 const BG_MAP: Record<string, string> = {
   apple:'#FFE8E8', citrus:'#FFF3E0', berry:'#F3E5F5', melon:'#E8F5E9',
   kiwi:'#F1F8E9', mango:'#FFF9E6', grape:'#EDE7F6', gift:'#E8EAF6', default:'#F4EFE6',
-};
-const CAT_NAME: Record<string, string> = {
-  apple:'사과/배', citrus:'감귤', berry:'베리류', melon:'멜론/참외',
-  kiwi:'키위', mango:'망고', grape:'포도', gift:'선물세트',
 };
 
 /* ── 맛 프로파일 설정 ── */
@@ -148,7 +145,9 @@ export default function ProductClient() {
   const [detailImages,  setDetailImages]  = useState<string[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [selThumb,   setSelThumb]   = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
+  const [openOptGroup, setOpenOptGroup] = useState<string | null>(null);
   const [qty,        setQty]        = useState(1);
   const [activeTab,  setActiveTab]  = useState(0);
   const [wishlisted,       setWishlisted]       = useState(false);
@@ -372,20 +371,14 @@ export default function ProductClient() {
 
     async function loadCoupons() {
       const supabase = createClient();
-      const { data } = await supabase
+      // coupons(*) → 컬럼 구성이 달라도(applicable_* 유무 등) select가 깨지지 않게
+      const { data, error } = await supabase
         .from('user_coupons')
-        .select(`
-          id,
-          coupons:coupon_id (
-            id, name, discount_type, discount_value,
-            min_order_amount, max_discount_amount,
-            applicable_categories, applicable_product_ids,
-            expires_at, is_active
-          )
-        `)
+        .select('id, coupons:coupon_id (*)')
         .eq('user_id', user!.id)
         .eq('is_used', false);
 
+      if (error) { console.error('[bestCoupon]', error.message); setBestCoupon(null); return; }
       if (!data || data.length === 0) { setBestCoupon(null); return; }
 
       const now = new Date();
@@ -489,6 +482,7 @@ export default function ProductClient() {
       id: product.id,
       name: product.name,
       price: unitPrice,
+      originalPrice: product.price + addP,
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
       optionId: sel.map(o => o.id).join(',') || undefined,
@@ -673,6 +667,11 @@ export default function ProductClient() {
     if (reviewSort === 'helpful') return (b.likes_count || 0) - (a.likes_count || 0);
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+  /* 내가 쓴 리뷰는 정렬과 무관하게 항상 최상단 고정 (안정 정렬) */
+  if (user) {
+    sortedReviews.sort((a, b) =>
+      (a.user_id === user.id ? 0 : 1) - (b.user_id === user.id ? 0 : 1));
+  }
   const reviewTotalPages = Math.max(1, Math.ceil(sortedReviews.length / REVIEWS_PER_PAGE));
   const pagedReviews = sortedReviews.slice(reviewPage * REVIEWS_PER_PAGE, (reviewPage + 1) * REVIEWS_PER_PAGE);
 
@@ -703,6 +702,22 @@ export default function ProductClient() {
     extraUrls[3] ?? null,
     extraUrls[4] ?? null,
   ];
+  /* 메인 이미지 좌우 스와이프 (유효 이미지 슬롯만 순환 이동) */
+  const validImgIdx = productImages.map((u, i) => (u ? i : -1)).filter(i => i >= 0);
+  function swipeImage(dir: 1 | -1) {
+    if (validImgIdx.length < 2) return;
+    const pos = validImgIdx.indexOf(selThumb);
+    const next = (pos + dir + validImgIdx.length) % validImgIdx.length;
+    setSelThumb(validImgIdx[next]);
+  }
+  function onImgTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX; }
+  function onImgTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 40) return;
+    swipeImage(dx < 0 ? 1 : -1); // 왼쪽으로 밀면 다음, 오른쪽이면 이전
+  }
 
   /* 포토리뷰 수 (실제 이미지 있는 리뷰) */
   const photoReviewCount = reviews.filter(r => r.image_urls && r.image_urls.length > 0).length;
@@ -1039,6 +1054,7 @@ export default function ProductClient() {
 
               {/* 메인 이미지 */}
               <div className="img-main"
+                onTouchStart={onImgTouchStart} onTouchEnd={onImgTouchEnd}
                 style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 65%)` }}>
                 {productImages[selThumb]
                   ? <img src={productImages[selThumb]!} alt={product.name}
@@ -1103,25 +1119,17 @@ export default function ProductClient() {
             <div className="pd-right">
 
               {/* 브레드크럼 */}
-              <div className="breadcrumb">
-                <Link href="/">홈</Link> ›{' '}
-                <Link href={`/category?cat=${product.category}`}>
-                  {CAT_NAME[product.category] || product.category}
-                </Link>{' '}
-                › {product.name}
-              </div>
-
               <h1 className="product-name">{product.name}</h1>
 
               {/* 메타: 배송타입 → badge → 별점 */}
               <div className="product-meta">
-                <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
+                <span style={{ fontSize:13, fontWeight:700, padding:'3px 9px', borderRadius:6,
                   background: product.is_dawn ? '#FFF9E0' : '#FFF0EE',
                   color:      product.is_dawn ? '#7A5C2E' : '#CB1D11' }}>
                   {product.is_dawn ? '산지직송' : '자사배송'}
                 </span>
                 {product.badge && (
-                  <span style={{ fontSize:12, fontWeight:700, padding:'3px 8px', borderRadius:6,
+                  <span style={{ fontSize:13, fontWeight:700, padding:'3px 9px', borderRadius:6,
                     background: product.badge_color || 'var(--color-bg)',
                     color: product.badge_color ? '#fff' : 'var(--color-ink-soft)' }}>
                     {product.badge}
@@ -1141,24 +1149,23 @@ export default function ProductClient() {
 
               {/* 가격 */}
               <div className="price-block">
-                {product.discount_rate > 0 && (
-                  <div style={{ fontSize:14, color:'var(--color-ink-mute)',
-                    textDecoration:'line-through', marginBottom:4 }}>
-                    {fmtPrice(product.price)}원
-                  </div>
-                )}
-                <div className="price-line" style={{ marginBottom:4 }}>
+                <div className="price-line" style={{ marginBottom:4, alignItems:'center' }}>
                   {product.discount_rate > 0 && (
                     <span className="price-discount-rate">{product.discount_rate}%</span>
                   )}
                   <span className="price-discount-val">
                     {fmtPrice(basePrice)}<span className="price-won-suffix">원</span>
                   </span>
+                  {product.discount_rate > 0 && (
+                    <span style={{ fontSize:14, color:'var(--color-ink-mute)', textDecoration:'line-through', marginLeft:4 }}>
+                      {fmtPrice(product.price)}원
+                    </span>
+                  )}
                 </div>
                 {/* 쿠폰 최대혜택가 — 실제 보유 쿠폰 기반 */}
                 {bestCoupon === 'loading' ? null
                 : bestCoupon ? (
-                  <div className="price-line">
+                  <div className="price-line" style={{ alignItems:'center' }}>
                     <span className="price-coupon-rate">{bestCoupon.totalRate}%</span>
                     <span className="price-coupon-val">
                       {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원</span>
@@ -1198,7 +1205,7 @@ export default function ProductClient() {
                     <td>무료</td>
                   </tr>
                   <tr>
-                    <th>적립금</th>
+                    <th>포인트</th>
                     <td style={{ color:'#1A1A1A', fontWeight:700 }}>
                       {pointRate}% ({fmtPrice(Math.round(basePrice * pointRate / 100))}원)
                     </td>
@@ -1220,25 +1227,47 @@ export default function ProductClient() {
                       return (
                       <div key={g}>
                         <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
-                        <select className="option-select" value={selByGroup[g] || ''} disabled={locked}
-                          onChange={e => {
-                            const val = e.target.value;
+                        {(() => {
+                          const selOpt = groupOpts.find(o => o.id === selByGroup[g]);
+                          const open = openOptGroup === g;
+                          const choose = (val: string) => {
                             setSelByGroup(prev => {
                               const next = { ...prev, [g]: val };
-                              // 상위(첫 그룹) 변경 시 하위 그룹 선택 초기화
                               if (g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
                               return next;
                             });
                             setQty(1);
-                          }}>
-                          <option value="">{locked ? '상위 옵션을 먼저 선택' : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}</option>
-                          {groupOpts.map(o => (
-                            <option key={o.id} value={o.id}>
-                              {o.label}
-                              {o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
-                            </option>
-                          ))}
-                        </select>
+                            setOpenOptGroup(null);
+                          };
+                          return (
+                            <div className="opt-dd">
+                              <button type="button" className={`opt-dd-btn${open ? ' open' : ''}`} disabled={locked}
+                                onClick={() => setOpenOptGroup(open ? null : g)}>
+                                <span className={selOpt ? '' : 'ph'}>
+                                  {locked ? '상위 옵션을 먼저 선택'
+                                    : selOpt ? `${selOpt.label}${selOpt.add_price > 0 ? ` (+${fmtPrice(selOpt.add_price)}원)` : ''}`
+                                    : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}
+                                </span>
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                              </button>
+                              {open && !locked && (
+                                <>
+                                  <div className="opt-dd-backdrop" onClick={() => setOpenOptGroup(null)} />
+                                  <div className="opt-dd-list">
+                                    {groupOpts.map(o => (
+                                      <button type="button" key={o.id}
+                                        className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}
+                                        onClick={() => choose(o.id)}>
+                                        {o.label}{o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
+                                      </button>
+                                    ))}
+                                    {groupOpts.length === 0 && <div className="opt-dd-empty">선택 가능한 옵션이 없습니다</div>}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                       );
                     })}
@@ -1381,7 +1410,7 @@ export default function ProductClient() {
                 <div className="cta-bar-pc" style={{ alignItems:'stretch' }}>
                   <button onClick={() => showToast('선물하기 기능은 준비 중입니다.')}
                     style={{ flexShrink:0, width:50, border:'1.5px solid #DDDDD9',
-                      background:'#fff', borderRadius:8, cursor:'pointer',
+                      background:'#fff', borderRadius:8, cursor:'pointer', color:'var(--color-accent)',
                       display:'flex', alignItems:'center', justifyContent:'center' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22">
                       <polyline points="20 12 20 22 4 22 4 12"/>
@@ -1882,7 +1911,7 @@ export default function ProductClient() {
             {/* ✅ 리뷰 수 + 포토 필터 (원본 구조 그대로) */}
             <div style={{ display:'flex', alignItems:'center',
               justifyContent:'space-between', padding:'12px 0',
-              borderTop:'1px solid #EBEBEB', borderBottom:'1px solid #EBEBEB',
+              borderBottom:'1px solid #EBEBEB',
               marginBottom:4 }}>
               <span style={{ fontSize:14, fontWeight:700 }}>
                 리뷰 {product.review_count.toLocaleString()}건

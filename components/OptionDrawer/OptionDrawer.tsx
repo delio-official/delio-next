@@ -88,6 +88,7 @@ export default function OptionDrawer() {
       id: product.id,
       name: product.name,
       price: unitPrice,
+      originalPrice: product.price + totalAddPrice,
       thumbnail: product.thumbnail_url || '',
       quantity: qty,
       optionId: isDefault ? undefined : (selectedOpts.map(o => o.id).join(',') || undefined),

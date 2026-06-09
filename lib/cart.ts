@@ -3,6 +3,7 @@ export interface CartItem {
   id: string;
   name: string;
   price: number;
+  originalPrice?: number;  // 할인 전 단가 (취소선 표시용)
   quantity: number;
   thumbnail: string;
   deliveryType?: '산지직송' | '자사배송'; // 배송 구분

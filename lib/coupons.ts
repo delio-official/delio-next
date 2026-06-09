@@ -35,6 +35,17 @@ export async function getDownloadableCoupons(userId: string): Promise<PublicCoup
   );
 }
 
+/** 쿠폰 코드로 본인 계정에 쿠폰 등록 (SECURITY DEFINER RPC) */
+export async function redeemCouponByCode(code: string): Promise<{ ok: boolean; message: string }> {
+  const trimmed = code.trim();
+  if (!trimmed) return { ok: false, message: '쿠폰 코드를 입력해주세요.' };
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc('redeem_coupon_code', { p_code: trimmed });
+  if (error) return { ok: false, message: '등록 실패: ' + error.message };
+  const res = data as { ok: boolean; message: string };
+  return res ?? { ok: false, message: '등록에 실패했습니다.' };
+}
+
 /** 미보유 공개 쿠폰 전체를 회원 본인 계정으로 발급. 받은 개수 반환 (RLS: 본인 insert 허용) */
 export async function claimAllPublic(userId: string): Promise<number> {
   const list = await getDownloadableCoupons(userId);

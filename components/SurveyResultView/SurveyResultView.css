@@ -1,0 +1,73 @@
+.srv { display: flex; flex-direction: column; gap: 16px; }
+
+/* ① 히어로 */
+.srv-hero {
+  position: relative; overflow: hidden;
+  border-radius: 20px; padding: 30px 24px; min-height: 150px;
+}
+.srv-hero-deco { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.25); }
+.srv-hero-deco1 { width: 110px; height: 110px; right: -24px; top: -28px; }
+.srv-hero-deco2 { width: 70px; height: 70px; right: 30px; bottom: -34px; background: rgba(255,255,255,0.2); }
+.srv-hero-emoji { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); font-size: 64px; line-height: 1; }
+.srv-hero-body { position: relative; max-width: 70%; }
+.srv-hero-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
+.srv-hero-name { font-size: 30px; font-weight: 900; color: #1A1A1A; line-height: 1.1; margin-bottom: 10px; }
+.srv-hero-tagline { font-size: 13px; color: #444; line-height: 1.6; }
+
+/* ② 3축 지표 바 */
+.srv-axes { background: #fff; border: 1px solid #EEE; border-radius: 16px; padding: 20px 18px; }
+.srv-card-title { font-size: 14px; font-weight: 800; color: #1A1A1A; margin-bottom: 16px; }
+.srv-axis { margin-bottom: 18px; }
+.srv-axis:last-child { margin-bottom: 0; }
+.srv-axis-labels { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.srv-axis-label { font-size: 13px; font-weight: 500; color: #BCBCBC; transition: all .2s; }
+.srv-axis-label.on { font-weight: 800; color: #1A1A1A; }
+.srv-axis-track { position: relative; height: 8px; border-radius: 999px; background: #EEEEEE; }
+.srv-axis-fill { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.srv-axis-dot {
+  position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border-radius: 50%; background: #fff; border: 3px solid #ccc;
+}
+
+/* ③ CTA */
+.srv-cta { background: #F6F6F6; border-radius: 16px; padding: 18px; }
+.srv-cta-row { display: flex; align-items: center; gap: 12px; }
+.srv-cta-emoji { font-size: 26px; }
+.srv-cta-cap { font-size: 11px; color: #999; font-weight: 600; margin-bottom: 2px; }
+.srv-cta-fruit { font-size: 15px; font-weight: 800; color: #1A1A1A; }
+.srv-cta-time { font-size: 12px; color: #888; margin: 10px 0 0; line-height: 1.6; }
+.srv-cta-btn {
+  width: 100%; margin-top: 16px; padding: 14px;
+  background: #1A1A1A; color: #fff; border: none; border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+
+/* ④ 유형 쇼케이스 */
+.srv-types { background: #fff; border: 1px solid #EEE; border-radius: 16px; padding: 18px; }
+.srv-types-head { font-size: 14px; font-weight: 800; color: #1A1A1A; }
+.srv-types-sub { font-size: 12px; color: #999; margin: 4px 0 14px; }
+.srv-types-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
+.srv-types-scroll::-webkit-scrollbar { display: none; }
+.srv-type-chip {
+  flex: 0 0 auto; position: relative; width: 80px; padding: 14px 8px;
+  border: 1.5px solid #EEE; border-radius: 12px; background: #FAFAFA; text-align: center;
+}
+.srv-type-chip.cur { border-width: 2px; }
+.srv-type-emoji { display: block; font-size: 26px; margin-bottom: 6px; }
+.srv-type-name { font-size: 12px; font-weight: 700; color: #1A1A1A; }
+.srv-type-badge {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; font-weight: 700; color: #fff; padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
+
+/* ⑤ 추천 상품 */
+.srv-recs { margin-top: 4px; }
+.srv-recs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.srv-recs-head > span { font-size: 14px; font-weight: 800; color: #1A1A1A; }
+.srv-recs-head button { background: none; border: none; font-size: 12px; color: #888; font-weight: 600; cursor: pointer; font-family: inherit; }
+.srv-recs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.srv-rec { text-decoration: none; color: inherit; border: 1px solid #EBEBEB; border-radius: 14px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.srv-rec-img { height: 110px; background: #F7F7F5; display: flex; align-items: center; justify-content: center; font-size: 34px; overflow: hidden; }
+.srv-rec-img img { width: 100%; height: 100%; object-fit: cover; }
+.srv-rec-name { font-size: 12px; color: #333; line-height: 1.4; padding: 8px 10px 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.srv-rec-price { font-size: 14px; font-weight: 800; color: #1A1A1A; padding: 0 10px 10px; }

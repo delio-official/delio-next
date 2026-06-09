@@ -7,6 +7,7 @@ import '@/styles/admin.css';
 import '@/styles/login.css';
 import { StarRating } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
+import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import dynamic from 'next/dynamic';
 
 const ImageDetailEditor = dynamic(
@@ -19,7 +20,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'tasteprofile'|'analytics'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'filtertabs'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -73,6 +74,7 @@ interface AdminProduct {
 
 interface AdminProductFull extends AdminProduct {
   sku: string;
+  supply_price: number;
   origin: string;
   origin_region: string | null;
   short_desc: string | null;
@@ -271,11 +273,11 @@ interface CsInquiryAdmin {
 
 /* ===== 상수 ===== */
 const TITLES: Record<PanelKey, string> = {
-  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', farms:'농가 관리',
+  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', filtertabs:'필탭 / 카테고리', farms:'농가 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  refund:'환불 관리', settlement:'정산 관리', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
+  refund:'환불 관리', settlement:'정산 관리', farmsettle:'농가 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
 const FAQ_CATS: Record<string, string> = {
@@ -400,7 +402,6 @@ const Icon = {
   Settlement: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
   Taste: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Settings: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-  Bell: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="18" height="18"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
   Download: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   ExternalLink: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>,
   Menu: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
@@ -843,7 +844,7 @@ export default function AdminClient() {
   const [farmSearch, setFarmSearch] = useState('');
   const [farmPickOpen, setFarmPickOpen] = useState(false);
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
-    sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', price: 0, discount_rate: 0,
+    sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
@@ -908,6 +909,15 @@ export default function AdminClient() {
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
+
+  /* ── 필탭 / 카테고리 ── */
+  const FT_EMPTY = { tab_type: 'category' as TabType, tab_value: '', label: '', emoji: '', bg: '#F5F5F5',
+    is_active: true, show_in_home: false, show_in_category: false, show_in_shortcut: false };
+  const [filterTabs, setFilterTabs] = useState<FilterTab[]>([]);
+  const [ftLoading, setFtLoading] = useState(false);
+  const [ftModal, setFtModal] = useState(false);
+  const [editingFt, setEditingFt] = useState<FilterTab | null>(null);
+  const [ftForm, setFtForm] = useState(FT_EMPTY);
 
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
@@ -1120,6 +1130,72 @@ export default function AdminClient() {
     daily: { date: string; amount: number }[];
   } | null>(null);
   const [settlementLoading, setSettlementLoading] = useState(false);
+  /* ── 농가 정산 ── */
+  const [farmSettleMonth, setFarmSettleMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  });
+  const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number }[]>([]);
+  const [farmSettleLoading, setFarmSettleLoading] = useState(false);
+  const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, string>>({}); // farmId → paid_at
+
+  async function loadFarmSettlement(month: string) {
+    setFarmSettleLoading(true);
+    const supabase = createClient();
+    const [year, mon] = month.split('-').map(Number);
+    const from = new Date(year, mon - 1, 1).toISOString();
+    const to   = new Date(year, mon,     1).toISOString();
+    // 이미 정산완료한 내역
+    const { data: paidData } = await supabase
+      .from('farm_settlements').select('farm_id, paid_at').eq('period', month).eq('status', 'paid');
+    const paidMap: Record<string, string> = {};
+    (paidData || []).forEach((p: { farm_id: string; paid_at: string|null }) => { paidMap[p.farm_id] = p.paid_at || ''; });
+    setFarmSettlePaid(paidMap);
+    // 배송완료/구매확정 주문의 상품항목 + 농가 정보
+    const { data } = await supabase
+      .from('order_items')
+      .select('quantity, subtotal, supply_price, orders!inner(status, created_at), products!inner(farm_id, supply_price, farms(id, name))')
+      .gte('orders.created_at', from).lt('orders.created_at', to)
+      .in('orders.status', ['delivered', 'confirmed'])
+      .limit(10000);
+    const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number }> = {};
+    (data as Record<string, unknown>[] | null || []).forEach(row => {
+      const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
+      const farmId = prod?.farm_id ?? null;
+      const farmName = prod?.farms?.name ?? '농가 미지정';
+      const key = farmId ?? '__none__';
+      const qty = Number(row.quantity) || 0;
+      const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
+      if (!map[key]) map[key] = { farmId, farmName, qty: 0, sales: 0, payout: 0 };
+      map[key].qty    += qty;
+      map[key].sales  += Number(row.subtotal) || 0;
+      map[key].payout += unitSupply * qty;
+    });
+    const rows = Object.values(map)
+      .map(r => ({ ...r, margin: r.sales - r.payout }))
+      .sort((a, b) => b.payout - a.payout);
+    setFarmSettleRows(rows);
+    setFarmSettleLoading(false);
+  }
+  /* 정산 완료 처리 (upsert) */
+  async function markFarmSettled(row: { farmId: string|null; sales: number; payout: number; margin: number }) {
+    if (!row.farmId) { alert('농가 미지정 항목은 정산할 수 없습니다.'); return; }
+    const supabase = createClient();
+    const { error } = await supabase.from('farm_settlements').upsert({
+      farm_id: row.farmId, period: farmSettleMonth,
+      payout: row.payout, sales: row.sales, margin: row.margin,
+      status: 'paid', paid_at: new Date().toISOString(),
+    }, { onConflict: 'farm_id,period' });
+    if (error) { alert('정산 처리 실패: ' + error.message); return; }
+    setFarmSettlePaid(prev => ({ ...prev, [row.farmId!]: new Date().toISOString() }));
+  }
+  /* 정산 취소 */
+  async function unmarkFarmSettled(farmId: string) {
+    const supabase = createClient();
+    const { error } = await supabase.from('farm_settlements').delete().eq('farm_id', farmId).eq('period', farmSettleMonth);
+    if (error) { alert('취소 실패: ' + error.message); return; }
+    setFarmSettlePaid(prev => { const n = { ...prev }; delete n[farmId]; return n; });
+  }
   const [settlementView, setSettlementView] = useState<'daily'|'monthly'>('daily');
   const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
 
@@ -1332,6 +1408,87 @@ export default function AdminClient() {
     setProductsLoading(false);
   }
 
+  /* ========== 필탭 / 카테고리 ========== */
+  async function loadFilterTabs() {
+    setFtLoading(true);
+    setFilterTabs(await loadAllTabs());
+    setFtLoading(false);
+  }
+  function openFtModal(t?: FilterTab) {
+    if (t) {
+      setEditingFt(t);
+      setFtForm({ tab_type: t.tab_type, tab_value: t.tab_value, label: t.label, emoji: t.emoji || '',
+        bg: t.bg || '#F5F5F5', is_active: t.is_active,
+        show_in_home: t.show_in_home, show_in_category: t.show_in_category, show_in_shortcut: t.show_in_shortcut });
+    } else {
+      setEditingFt(null);
+      setFtForm(FT_EMPTY);
+    }
+    setFtModal(true);
+  }
+  async function saveFilterTab() {
+    const f = ftForm;
+    if (!f.label.trim()) { alert('이름을 입력하세요.'); return; }
+    if (!f.tab_value.trim()) {
+      alert(f.tab_type === 'category' ? '카테고리 키(영문, 예: apple)를 입력하세요.'
+        : f.tab_type === 'link' ? '이동 경로(예: /brand)를 입력하세요.'
+        : '값을 입력하세요.'); return;
+    }
+    const supabase = createClient();
+    const payload = {
+      tab_type: f.tab_type, tab_value: f.tab_value.trim(), label: f.label.trim(),
+      emoji: f.emoji.trim(), bg: f.bg || '#F5F5F5', is_active: f.is_active,
+      show_in_home: f.show_in_home, show_in_category: f.show_in_category, show_in_shortcut: f.show_in_shortcut,
+    };
+    if (editingFt) {
+      const { error } = await supabase.from('filter_tabs').update(payload).eq('id', editingFt.id);
+      if (error) { alert('저장 실패: ' + error.message); return; }
+    } else {
+      const maxOrder = filterTabs.reduce((m, t) => Math.max(m, t.sort_order), 0);
+      const { error } = await supabase.from('filter_tabs').insert({ ...payload, sort_order: maxOrder + 10 });
+      if (error) { alert('추가 실패: ' + error.message); return; }
+    }
+    setFtModal(false);
+    loadFilterTabs();
+  }
+  async function deleteFilterTab(t: FilterTab) {
+    const supabase = createClient();
+    if (t.tab_type === 'category') {
+      // 이 카테고리를 쓰는 상품 수 확인
+      const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category', t.tab_value);
+      const n = count || 0;
+      if (n > 0) {
+        if (!confirm(`'${t.label}' 카테고리를 쓰는 상품 ${n}개가 있습니다.\n삭제하면 해당 상품들의 카테고리가 '기타'로 변경됩니다. 계속할까요?`)) return;
+        const { error: upErr } = await supabase.from('products').update({ category: 'etc' }).eq('category', t.tab_value);
+        if (upErr) { alert('상품 이동 실패: ' + upErr.message); return; }
+      } else {
+        if (!confirm(`'${t.label}' 필탭을 삭제할까요?`)) return;
+      }
+    } else {
+      if (!confirm(`'${t.label}' 필탭을 삭제할까요?`)) return;
+    }
+    const { error } = await supabase.from('filter_tabs').delete().eq('id', t.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    loadFilterTabs();
+  }
+  async function toggleFtField(t: FilterTab, field: 'is_active'|'show_in_home'|'show_in_category'|'show_in_shortcut', val: boolean) {
+    await createClient().from('filter_tabs').update({ [field]: val }).eq('id', t.id);
+    setFilterTabs(prev => prev.map(x => x.id === t.id ? { ...x, [field]: val } : x));
+  }
+  async function moveFilterTab(t: FilterTab, dir: -1 | 1) {
+    const sorted = [...filterTabs].sort((a, b) => a.sort_order - b.sort_order);
+    const i = sorted.findIndex(x => x.id === t.id);
+    const j = i + dir;
+    if (j < 0 || j >= sorted.length) return;
+    const a = sorted[i], b = sorted[j];
+    const supabase = createClient();
+    await Promise.all([
+      supabase.from('filter_tabs').update({ sort_order: b.sort_order }).eq('id', a.id),
+      supabase.from('filter_tabs').update({ sort_order: a.sort_order }).eq('id', b.id),
+    ]);
+    loadFilterTabs();
+  }
+
   async function loadFarms() {
     setFarmsLoading(true);
     const supabase = createClient();
@@ -1437,7 +1594,7 @@ export default function AdminClient() {
           ];
           setPForm({
             sku: data.sku || '', name: data.name, category: data.category,
-            origin: data.origin || '', origin_region: data.origin_region || '', price: data.price, discount_rate: data.discount_rate,
+            origin: data.origin || '', origin_region: data.origin_region || '', supply_price: data.supply_price ?? 0, price: data.price, discount_rate: data.discount_rate,
             short_desc: data.short_desc || '', thumbnail_url: thumb, image_urls: imageUrls,
             dispatch_cutoff: data.dispatch_cutoff || '',
             brix: data.brix, badge: data.badge || '', badge_color: data.badge_color || BADGE_DEFAULT_COLOR, is_new: data.is_new,
@@ -1485,6 +1642,7 @@ export default function AdminClient() {
       category:       pForm.category,
       origin:         pForm.origin?.trim()        || 'domestic',
       origin_region:  pForm.origin_region?.trim() || null,
+      supply_price:   Number(pForm.supply_price)  || 0,
       price,
       discount_rate,
       short_desc:     pForm.short_desc?.trim()    || null,
@@ -2715,7 +2873,8 @@ export default function AdminClient() {
     loadedPanels.current.add(p);
     switch (p) {
       case 'orders':    loadOrders(); loadFarms(); break;
-      case 'products':  loadProducts(); break;
+      case 'products':  loadProducts(); loadFilterTabs(); break;
+      case 'filtertabs': loadFilterTabs(); break;
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
@@ -2733,6 +2892,7 @@ export default function AdminClient() {
       case 'settings':    loadSettings(); loadSearchStats(7); break;
       case 'analytics':   loadSettings(); break;
       case 'settlement':  loadSettlement(settlementMonth); break;
+      case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
     }
   }
 
@@ -2828,6 +2988,12 @@ export default function AdminClient() {
     soldout: products.filter(p => productSellState(p) === 'soldout').length,
     stopped: products.filter(p => productSellState(p) === 'stopped').length,
   };
+  /* 카테고리 라벨 — filter_tabs(category형)에서 동적 생성, 없으면 하드코딩 폴백 */
+  const dynCatLabel: Record<string, string> = filterTabs
+    .filter(t => t.tab_type === 'category')
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .reduce((m, t) => { m[t.tab_value] = `${t.emoji ? t.emoji + ' ' : ''}${t.label}`; return m; }, {} as Record<string, string>);
+  const catOptions = Object.keys(dynCatLabel).length ? dynCatLabel : CAT_LABEL;
   const filteredProducts = products.filter(p => {
     const matchCat = !productCatFilter || p.category === productCatFilter;
     const q = productSearch.toLowerCase();
@@ -2967,7 +3133,7 @@ export default function AdminClient() {
                       // 신규 등록 시 카테고리 바뀌면 SKU 재생성
                       if (!editingProduct) generateSku(category).then(sku => setPForm(f => ({ ...f, sku })));
                     }}>
-                    {Object.entries(CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {Object.entries(catOptions).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
                 <div style={{ gridColumn:'1 / -1' }}>
@@ -3036,6 +3202,21 @@ export default function AdminClient() {
                         placeholder="할인액 원" />
                     )}
                   </div>
+                </div>
+                {/* 농가 공급가 (농가 정산 기준) */}
+                <div style={{ marginTop:12 }}>
+                  <label className="adm-label">농가 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 농가에게 줄 정산 단가</span></label>
+                  <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pForm.supply_price || ''}
+                    onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
+                  {pForm.supply_price > 0 && pForm.price > 0 && (() => {
+                    const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
+                    const margin = sellPrice - Number(pForm.supply_price);
+                    return (
+                      <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
+                        마진(판매가−공급가): <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* 판매가 미리보기 (할인액으로 넣어도 소비자엔 % 자동 표기) */}
                 {pForm.price > 0 && (
@@ -3501,6 +3682,120 @@ export default function AdminClient() {
         </div>
       )}
 
+      {/* ===== 필탭 등록/수정 모달 ===== */}
+      {ftModal && (
+        <div className="adm-modal-bg open" onClick={() => setFtModal(false)}>
+          <div className="adm-modal" style={{ maxWidth:540, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">{editingFt ? '필탭 수정' : '필탭 추가'}</span>
+              <button className="adm-modal-close" onClick={() => setFtModal(false)}>✕</button>
+            </div>
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label className="adm-label">유형 *</label>
+                  <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_type}
+                    onChange={e => setFtForm(f => ({ ...f, tab_type: e.target.value as TabType }))}
+                    disabled={!!editingFt}>
+                    <option value="category">카테고리 (상품 분류)</option>
+                    <option value="flag">태그 (베스트/새벽배송/신상품)</option>
+                    <option value="sort">정렬 (당도순/할인특가 등)</option>
+                    <option value="link">링크 (페이지 이동)</option>
+                  </select>
+                  {editingFt && <p style={{ fontSize:11, color:'#94A3B8', margin:'4px 0 0' }}>* 유형은 수정 불가</p>}
+                </div>
+                <div>
+                  <label className="adm-label">이름 *</label>
+                  <input className="adm-input-text" style={{ width:'100%' }} value={ftForm.label}
+                    onChange={e => setFtForm(f => ({ ...f, label: e.target.value }))} placeholder="예: 사과/배" />
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label className="adm-label">
+                    {ftForm.tab_type === 'category' ? '카테고리 키 (영문) *'
+                      : ftForm.tab_type === 'flag' ? '플래그 *'
+                      : ftForm.tab_type === 'sort' ? '정렬 값 *'
+                      : '이동 경로 *'}
+                  </label>
+                  {ftForm.tab_type === 'flag' ? (
+                    <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_value}
+                      onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}>
+                      <option value="">선택</option>
+                      <option value="is_best">베스트 (is_best)</option>
+                      <option value="is_dawn">새벽배송 (is_dawn)</option>
+                      <option value="is_new">신상품 (is_new)</option>
+                    </select>
+                  ) : ftForm.tab_type === 'sort' ? (
+                    <select className="adm-select" style={{ width:'100%' }} value={ftForm.tab_value}
+                      onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}>
+                      <option value="">선택</option>
+                      <option value="brix">당도순</option>
+                      <option value="best">베스트순</option>
+                      <option value="price_asc">낮은 가격순</option>
+                    </select>
+                  ) : (
+                    <input className="adm-input-text" style={{ width:'100%' }} value={ftForm.tab_value}
+                      onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}
+                      placeholder={ftForm.tab_type === 'category' ? '예: apple' : '예: /brand'} />
+                  )}
+                </div>
+                <div>
+                  <label className="adm-label">이모지</label>
+                  <input className="adm-input-text" style={{ width:'100%' }} value={ftForm.emoji}
+                    onChange={e => setFtForm(f => ({ ...f, emoji: e.target.value }))} placeholder="🍎" />
+                </div>
+              </div>
+              {ftForm.tab_type === 'category' && (
+                <p style={{ fontSize:12, color:'#64748B', margin:0, background:'#F8FAFC', padding:'8px 10px', borderRadius:6 }}>
+                  💡 카테고리 키는 상품의 <strong>category</strong> 값과 일치해야 합니다. 상품 등록 시 이 카테고리가 드롭다운에 자동으로 나타납니다.
+                </p>
+              )}
+              <div>
+                <label className="adm-label">하단바 아이콘 배경색</label>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <input type="color" value={ftForm.bg} onChange={e => setFtForm(f => ({ ...f, bg: e.target.value }))}
+                    style={{ width:44, height:34, border:'1px solid #E2E8F0', borderRadius:6, cursor:'pointer', padding:2 }} />
+                  <input className="adm-input-text" style={{ flex:1 }} value={ftForm.bg}
+                    onChange={e => setFtForm(f => ({ ...f, bg: e.target.value }))} placeholder="#F5F5F5" />
+                </div>
+              </div>
+              <div>
+                <label className="adm-label">노출 위치 (각각 켜고 끌 수 있음)</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:4 }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                    <input type="checkbox" checked={ftForm.show_in_home}
+                      onChange={e => setFtForm(f => ({ ...f, show_in_home: e.target.checked }))} />
+                    메인 퀵 가이드
+                  </label>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                    <input type="checkbox" checked={ftForm.show_in_category}
+                      onChange={e => setFtForm(f => ({ ...f, show_in_category: e.target.checked }))} />
+                    상품목록 상단
+                  </label>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                    <input type="checkbox" checked={ftForm.show_in_shortcut}
+                      onChange={e => setFtForm(f => ({ ...f, show_in_shortcut: e.target.checked }))} />
+                    모바일 카테고리 탭
+                  </label>
+                </div>
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
+                <input type="checkbox" checked={ftForm.is_active}
+                  onChange={e => setFtForm(f => ({ ...f, is_active: e.target.checked }))} />
+                <strong>전체 사용</strong> (끄면 모든 위치에서 숨김)
+              </label>
+              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
+                <button className="adm-btn adm-btn-outline" onClick={() => setFtModal(false)}>취소</button>
+                <button className="adm-btn adm-btn-primary" onClick={saveFilterTab}>
+                  {editingFt ? '수정 완료' : '필탭 추가'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== 1:1 문의 상세 모달 ===== */}
       {selectedCs && (
         <div className="adm-modal-bg open" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>
@@ -3789,6 +4084,7 @@ export default function AdminClient() {
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
+              <NavItem panel="filtertabs" icon={<Icon.Products />} label="필탭 / 카테고리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="농가 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </div>
@@ -3820,6 +4116,7 @@ export default function AdminClient() {
             <div className="adm-nav-group">
               <div className="adm-nav-label">정산·설정</div>
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="정산 관리" />
+              <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="농가 정산" />
               <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
               <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
@@ -3843,7 +4140,6 @@ export default function AdminClient() {
             </div>
             <div className="adm-topbar-right">
               <span className="adm-topbar-date">{dateStr}</span>
-              <button className="adm-icon-btn"><Icon.Bell /><span className="adm-notif-dot" /></button>
             </div>
           </header>
 
@@ -4120,7 +4416,7 @@ export default function AdminClient() {
                 <div className="adm-toolbar-left">
                   <select className="adm-select" value={productCatFilter} onChange={e => setProductCatFilter(e.target.value)}>
                     <option value="">전체 카테고리</option>
-                    {Object.entries(CAT_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    {Object.entries(catOptions).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                   <input type="text" className="adm-input-text" placeholder="상품명 검색"
                     value={productSearch} onChange={e => setProductSearch(e.target.value)} />
@@ -4146,7 +4442,7 @@ export default function AdminClient() {
                         ) : filteredProducts.map(p => (
                           <tr key={p.id}>
                             <td>{p.name}</td>
-                            <td>{CAT_LABEL[p.category] || p.category}</td>
+                            <td>{catOptions[p.category] || CAT_LABEL[p.category] || p.category}</td>
                             <td className="adm-mono adm-muted"><s>{fmtPrice(p.price)}원</s></td>
                             <td className="adm-mono"><strong>{fmtPrice(p.discounted_price)}원</strong></td>
                             <td>{p.discount_rate > 0 ? <span className="adm-badge badge-paid">{p.discount_rate}%</span> : '-'}</td>
@@ -4162,6 +4458,73 @@ export default function AdminClient() {
                               <button className="adm-row-btn" style={{ color: p.is_active ? '#DC2626' : '#16A34A' }} onClick={() => toggleProductActive(p)}>
                                 {p.is_active ? '판매중지' : '판매활성'}
                               </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== 필탭 / 카테고리 ===== */}
+          {panel === 'filtertabs' && (
+            <div className="adm-content">
+              <div className="adm-info-box" style={{ marginBottom:12 }}>
+                💡 메인 <strong>퀵 가이드</strong>·<strong>상품목록 상단</strong>·<strong>모바일 카테고리 탭</strong>에 노출되는 탭을 한 곳에서 관리합니다.
+                각 위치별로 노출을 따로 켜고 끌 수 있고, <strong>카테고리형</strong>은 상품 등록 시 선택하는 분류와 연결됩니다.
+                카테고리를 삭제하면 그 카테고리를 쓰던 상품은 자동으로 <strong>기타</strong>로 이동합니다.
+              </div>
+              <div className="adm-toolbar">
+                <div className="adm-toolbar-left">
+                  <span className="adm-muted" style={{ fontSize:13 }}>
+                    유형: <strong>카테고리</strong>(상품분류) · <strong>태그</strong>(베스트/새벽배송/신상품) · <strong>정렬</strong> · <strong>링크</strong>
+                  </span>
+                </div>
+                <div className="adm-toolbar-right">
+                  <button className="adm-btn adm-btn-outline" onClick={loadFilterTabs}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-primary" onClick={() => openFtModal()}>+ 필탭 추가</button>
+                </div>
+              </div>
+              <div className="adm-card">
+                {ftLoading ? <PanelLoading /> : (
+                  <div className="adm-table-wrap">
+                    <table className="adm-table">
+                      <thead>
+                        <tr>
+                          <th>순서</th><th>필탭</th><th>유형</th><th>값</th>
+                          <th>퀵가이드</th><th>상품목록상단</th><th>모바일카테고리탭</th><th>사용</th><th>관리</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filterTabs.length === 0 ? (
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                            필탭 없음 — add_filter_tabs.sql 을 먼저 실행하세요.
+                          </td></tr>
+                        ) : [...filterTabs].sort((a,b)=>a.sort_order-b.sort_order).map(t => (
+                          <tr key={t.id}>
+                            <td>
+                              <div style={{ display:'inline-flex', gap:4 }}>
+                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
+                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
+                              </div>
+                            </td>
+                            <td><span style={{ fontWeight:600 }}>{t.emoji} {t.label}</span></td>
+                            <td>
+                              <span className={`adm-badge ${t.tab_type==='category'?'badge-paid':t.tab_type==='flag'?'badge-on':'badge-off'}`}>
+                                {t.tab_type==='category'?'카테고리':t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}
+                              </span>
+                            </td>
+                            <td className="adm-mono adm-muted" style={{ fontSize:12 }}>{t.tab_value}</td>
+                            <td><Toggle defaultOn={t.show_in_home} onChange={v => toggleFtField(t, 'show_in_home', v)} /></td>
+                            <td><Toggle defaultOn={t.show_in_category} onChange={v => toggleFtField(t, 'show_in_category', v)} /></td>
+                            <td><Toggle defaultOn={t.show_in_shortcut} onChange={v => toggleFtField(t, 'show_in_shortcut', v)} /></td>
+                            <td><Toggle defaultOn={t.is_active} onChange={v => toggleFtField(t, 'is_active', v)} /></td>
+                            <td style={{ display:'flex', gap:6 }}>
+                              <button className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
+                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFilterTab(t)}>삭제</button>
                             </td>
                           </tr>
                         ))}
@@ -4909,7 +5272,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {(() => {
                           const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
                             main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
-                            mid:  { pc: '1060×350px (@2x)', mobile: '686×280px (@2x)' },
+                            mid:  { pc: '1060×350px (@2x)', mobile: '1080×360px · 가로 전체(풀폭) 권장' },
                           };
                           const hint = SIZE_HINT[bnForm.type];
                           return (
@@ -5233,7 +5596,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 {membersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>등급</th><th>적립금</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>등급</th><th>포인트</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredMembers.length === 0 ? (
                           <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
@@ -6038,6 +6401,72 @@ GRANT ALL ON popups TO authenticated, anon;`}
             </div>
           )}
 
+          {/* ===== 농가 정산 ===== */}
+          {panel === 'farmsettle' && (
+            <div className="adm-content">
+              <div className="adm-info-box" style={{ marginBottom:12 }}>
+                💡 농가가 제공한 <strong>공급가</strong> 기준으로 선택 월의 <strong>배송완료·구매확정</strong> 주문을 농가별 집계합니다. <strong>정산액 = 공급가 × 판매수량</strong>, 마진 = 매출 − 정산액.
+              </div>
+              <div className="adm-toolbar">
+                <div className="adm-toolbar-left">
+                  <input type="month" className="adm-input-text" value={farmSettleMonth}
+                    onChange={e => { setFarmSettleMonth(e.target.value); loadFarmSettlement(e.target.value); }} />
+                </div>
+                <div className="adm-toolbar-right">
+                  <button className="adm-btn adm-btn-outline" onClick={() => loadFarmSettlement(farmSettleMonth)}>
+                    <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                  </button>
+                </div>
+              </div>
+              {(() => {
+                const t = farmSettleRows.reduce((a, r) => ({ sales:a.sales+r.sales, payout:a.payout+r.payout, margin:a.margin+r.margin }), { sales:0, payout:0, margin:0 });
+                return (
+                  <div className="adm-kpi-grid adm-kpi-mb16" style={{ gridTemplateColumns:'repeat(3, 1fr)' }}>
+                    <div className="adm-kpi-card"><div className="adm-kpi-label">매출 합계</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.sales)}원</div></div>
+                    <div className="adm-kpi-card"><div className="adm-kpi-label">농가 정산액(공급가)</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.payout)}원</div></div>
+                    <div className="adm-kpi-card"><div className="adm-kpi-label">마진</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{fmtPrice(t.margin)}원</div></div>
+                  </div>
+                );
+              })()}
+              <div className="adm-card">
+                {farmSettleLoading ? <PanelLoading /> : (
+                  <div className="adm-table-wrap">
+                    <table className="adm-table">
+                      <thead><tr><th>농가</th><th>판매수량</th><th>매출</th><th>정산액(공급가)</th><th>마진</th><th>상태</th><th>처리</th></tr></thead>
+                      <tbody>
+                        {farmSettleRows.length === 0 ? (
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 월 정산 내역이 없습니다.</td></tr>
+                        ) : farmSettleRows.map(r => {
+                          const paidAt = r.farmId ? farmSettlePaid[r.farmId] : undefined;
+                          return (
+                          <tr key={r.farmId ?? 'none'}>
+                            <td><strong>{r.farmName}</strong></td>
+                            <td className="adm-mono">{r.qty.toLocaleString()}개</td>
+                            <td className="adm-mono adm-muted">{fmtPrice(r.sales)}원</td>
+                            <td className="adm-mono"><strong>{fmtPrice(r.payout)}원</strong></td>
+                            <td className="adm-mono" style={{ color: r.margin >= 0 ? '#16A34A' : '#DC2626' }}>{fmtPrice(r.margin)}원</td>
+                            <td>
+                              {paidAt
+                                ? <span className="adm-badge badge-on" title={new Date(paidAt).toLocaleString('ko-KR')}>정산완료</span>
+                                : <span className="adm-badge badge-off">미정산</span>}
+                            </td>
+                            <td>
+                              {!r.farmId ? <span className="adm-muted" style={{ fontSize:12 }}>—</span>
+                                : paidAt
+                                  ? <button className="adm-row-btn adm-row-btn-danger" onClick={() => unmarkFarmSettled(r.farmId!)}>정산취소</button>
+                                  : <button className="adm-row-btn" onClick={() => markFarmSettled(r)}>정산완료</button>}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* ===== 취향 프로파일 ===== */}
           {panel === 'tasteprofile' && (() => {
             const thisMonth = new Date().toISOString().slice(0, 7);
@@ -6458,7 +6887,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     </div>
                   </div>
                   <div className="adm-form-row">
-                    <label className="adm-label">적립금 비율</label>
+                    <label className="adm-label">포인트 비율</label>
                     <div className="adm-flex-center-gap">
                       <input
                         type="number"

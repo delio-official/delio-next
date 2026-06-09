@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
+import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
@@ -27,8 +28,14 @@ interface LoungePost {
   title: string;
   badge: string;
   date: string;
+  filter: string;
   thumbnail_url: string | null;
 }
+
+/* 라운지 카테고리 라벨 */
+const LOUNGE_CAT: Record<string, string> = {
+  recipe: '레시피', story: '과일이야기', farm: '산지소식', health: '건강팁',
+};
 
 /* ===== 상품 인터페이스 ===== */
 interface PickProduct {
@@ -262,13 +269,32 @@ function MainBanner() {
 /* ===== 퀵 가이드 (Supabase 연결) ===== */
 function QuickGuide() {
   const router = useRouter();
-  const [activeCat, setActiveCat] = useState('apple');
+  const [activeCat, setActiveCat] = useState('');
   const [items, setItems] = useState<QGProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
+  const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
 
+  /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
+    loadTabsFor('home').then((rows: FilterTab[]) => {
+      const mapped = rows
+        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
+        .map(t => {
+          const cat = t.tab_type === 'category' ? t.tab_value
+            : t.tab_value === 'is_best' ? 'best'
+            : t.tab_value === 'is_dawn' ? 'dawn'
+            : 'new';
+          return { cat, icon: t.emoji, label: t.label };
+        });
+      setTags(mapped);
+      if (mapped.length) setActiveCat(prev => prev || mapped[0].cat);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!activeCat) return;
     let cancelled = false;
     async function fetchQG() {
       setLoading(true);
@@ -279,6 +305,7 @@ function QuickGuide() {
         .eq('is_active', true);
       if      (activeCat === 'best') q = (q as any).eq('is_best', true);
       else if (activeCat === 'dawn') q = (q as any).eq('is_dawn', true);
+      else if (activeCat === 'new')  q = (q as any).eq('is_new', true);
       else                           q = (q as any).eq('category', activeCat);
       const { data } = await (q as any).limit(8);
       if (!cancelled) {
@@ -304,19 +331,6 @@ function QuickGuide() {
     });
   }
 
-  const tags = [
-    { cat: 'apple',  icon: '🍎', label: '사과/배' },
-    { cat: 'citrus', icon: '🍊', label: '감귤류' },
-    { cat: 'berry',  icon: '🫐', label: '베리류' },
-    { cat: 'melon',  icon: '🍈', label: '멜론/참외' },
-    { cat: 'kiwi',   icon: '🥝', label: '키위' },
-    { cat: 'mango',  icon: '🥭', label: '망고' },
-    { cat: 'grape',  icon: '🍇', label: '포도' },
-    { cat: 'gift',   icon: '🎁', label: '선물세트' },
-    { cat: 'best',   icon: '🌟', label: '베스트' },
-    { cat: 'dawn',   icon: '🚚', label: '새벽배송' },
-  ];
-
   return (
     <section className="quick-guide-section" id="section-guide">
       <div className="container">
@@ -334,9 +348,8 @@ function QuickGuide() {
             <a key={t.cat} href={`/category?cat=${t.cat}`}
               className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
               onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
-              <span className="qg-icon">{t.icon}</span>
               <span className="qg-label">{t.label}</span>
-              <span className="qg-inline">{t.icon} {t.label}</span>
+              {t.icon ? <span className="qg-emoji">{t.icon}</span> : null}
             </a>
           ))}
         </div>
@@ -362,7 +375,7 @@ function QuickGuide() {
             : items.length === 0
               ? <p style={{ textAlign:'center', color:'#bbb', padding:'40px 0' }}>해당 카테고리 상품이 없습니다.</p>
               : items.map(p => {
-                  const catKey = (activeCat === 'best' || activeCat === 'dawn') ? p.category : activeCat;
+                  const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
                   const icon = CAT_ICONS[catKey] || '🍑';
                   const bg   = CAT_BG[catKey]   || '#F4EFE6';
                   const displayPrice = p.discounted_price ?? p.price;
@@ -447,6 +460,7 @@ function MidBanner() {
   const curRef   = useRef(CLONES);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioning = useRef(false);
+  const touchStartX = useRef(0);
   const [activeDot, setActiveDot] = useState(0);
 
   const getStep = useCallback(() => {
@@ -517,7 +531,13 @@ function MidBanner() {
             <button className="mid-banner-arrow prev" onClick={() => { stopTimer(); go(curRef.current - 1); startTimer(); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div className="mid-banner-pages" ref={pagesRef}>
+            <div className="mid-banner-pages" ref={pagesRef}
+              onTouchStart={e => { touchStartX.current = e.touches[0].clientX; stopTimer(); }}
+              onTouchEnd={e => {
+                const dx = e.changedTouches[0].clientX - touchStartX.current;
+                if (Math.abs(dx) > 40) go(curRef.current + (dx < 0 ? 1 : -1));
+                startTimer();
+              }}>
               <div className="mid-banner-track" ref={trackRef}>
                 {allSlides.map((s, i) => (
                   <Link key={i} href={s.link_url || '/'} onClick={() => bumpBanner(s.id, 'click')} className="mid-banner-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -592,7 +612,7 @@ export default function HomeClient() {
       const supabase = createClient();
       const { data } = await supabase
         .from('lounge_posts')
-        .select('id,bg,emoji,title,badge,date,thumbnail_url')
+        .select('id,bg,emoji,title,badge,date,filter,thumbnail_url')
         .eq('is_active', true)
         .order('sort_order')
         .order('created_at', { ascending: false })
@@ -932,8 +952,11 @@ export default function HomeClient() {
                         ? <img src={post.thumbnail_url} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                         : post.emoji}
                     </div>
+                    <div className="lounge-card-meta">
+                      <span className="lounge-card-cat">{LOUNGE_CAT[post.filter] || post.filter}</span>
+                      {post.badge && <span className="lounge-card-sub">{post.badge}</span>}
+                    </div>
                     <div className="lounge-card-title">{post.title}</div>
-                    <div className="lounge-card-desc">{post.badge}</div>
                   </Link>
                 ))
             }
