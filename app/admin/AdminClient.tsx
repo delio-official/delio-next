@@ -3359,6 +3359,11 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.name}
                     onChange={e => setPForm(f => ({ ...f, name: e.target.value }))} placeholder="상품명 입력" />
                 </div>
+                <div style={{ gridColumn:'1 / -1' }}>
+                  <label className="adm-label">한 줄 설명 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상품명 아래 · 상품카드 표시)</span></label>
+                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.short_desc || ''}
+                    onChange={e => setPForm(f => ({ ...f, short_desc: e.target.value }))} placeholder="상품 카드에 표시되는 짧은 설명" />
+                </div>
                 <div>
                   <label className="adm-label">SKU <span style={{ fontWeight:400, color:'#94A3B8' }}>(자동생성·수정가능)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.sku}
@@ -3557,15 +3562,10 @@ export default function AdminClient() {
                 })()}
               </div>
 
-              {/* 이미지 · 설명 */}
+              {/* 상품 이미지 */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🖼 이미지 · 설명</div>
+              <div className="adm-formsec-title">🖼 상품 이미지</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div style={{ gridColumn:'1 / -1' }}>
-                  <label className="adm-label">한 줄 설명</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.short_desc || ''}
-                    onChange={e => setPForm(f => ({ ...f, short_desc: e.target.value }))} placeholder="상품 카드에 표시되는 짧은 설명" />
-                </div>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품 이미지 (최대 6장 · 첫 번째 = 대표)</label>
                   {/* 숨김 파일 인풋 — 슬롯별 공유 */}
