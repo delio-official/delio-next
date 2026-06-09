@@ -20,7 +20,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'filtertabs'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'filtertabs'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -274,7 +274,7 @@ interface CsInquiryAdmin {
 
 /* ===== 상수 ===== */
 const TITLES: Record<PanelKey, string> = {
-  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', filtertabs:'필탭 / 카테고리', farms:'농가 관리',
+  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', filtertabs:'필탭 / 카테고리', menu:'상단 메뉴 관리', farms:'농가 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
@@ -1297,6 +1297,10 @@ export default function AdminClient() {
   const [ftModal, setFtModal] = useState(false);
   const [editingFt, setEditingFt] = useState<FilterTab | null>(null);
   const [ftForm, setFtForm] = useState(FT_EMPTY);
+  /* ── 상단 메뉴 (menu_items) ── */
+  type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
+  const [menus, setMenus] = useState<MenuRow[]>([]);
+  const [menusLoading, setMenusLoading] = useState(false);
 
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
@@ -1901,6 +1905,35 @@ export default function AdminClient() {
       supabase.from('filter_tabs').update({ sort_order: a.sort_order }).eq('id', b.id),
     ]);
     loadFilterTabs();
+  }
+
+  /* ========== 상단 메뉴 관리 (menu_items) ========== */
+  async function loadMenus() {
+    setMenusLoading(true);
+    const { data } = await createClient().from('menu_items')
+      .select('id,label,href,emoji,parent,sort_order,is_active,show_in_mega,show_in_header,show_in_shortcut')
+      .order('sort_order');
+    setMenus((data as MenuRow[]) || []);
+    setMenusLoading(false);
+  }
+  async function addMenu(row: Partial<MenuRow>) {
+    const maxOrder = menus.reduce((m, x) => Math.max(m, x.sort_order), 0);
+    const { error } = await createClient().from('menu_items').insert({
+      label: '새 메뉴', href: '/', emoji: '', sort_order: maxOrder + 10,
+      is_active: true, show_in_mega: false, show_in_header: false, show_in_shortcut: false, parent: null, ...row,
+    });
+    if (error) { alert('추가 실패: ' + error.message); return; }
+    loadMenus();
+  }
+  async function updateMenu(id: string, patch: Partial<MenuRow>, reload = true) {
+    await createClient().from('menu_items').update(patch).eq('id', id);
+    if (reload) loadMenus();
+    else setMenus(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
+  }
+  async function deleteMenu(id: string) {
+    if (!confirm('이 메뉴를 삭제할까요? (하위 링크도 함께 삭제됩니다)')) return;
+    await createClient().from('menu_items').delete().eq('id', id);
+    loadMenus();
   }
 
   async function loadFarms() {
@@ -3306,6 +3339,7 @@ export default function AdminClient() {
       case 'orders':    loadOrders(); loadFarms(); break;
       case 'products':  loadProducts(); loadFilterTabs(); break;
       case 'filtertabs': loadFilterTabs(); break;
+      case 'menu': loadMenus(); break;
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
@@ -4500,6 +4534,7 @@ export default function AdminClient() {
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="filtertabs" icon={<Icon.Products />} label="필탭 / 카테고리" />
+              <NavItem panel="menu" icon={<Icon.Products />} label="상단 메뉴 관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="농가 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </div>
@@ -5100,6 +5135,82 @@ export default function AdminClient() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ===== 상단 메뉴 관리 ===== */}
+          {panel === 'menu' && (
+            <div className="adm-content">
+              <div className="adm-info-box" style={{ marginBottom:12 }}>
+                💡 헤더 <strong>메가메뉴 컬럼</strong>·<strong>상단 nav</strong>·<strong>모바일 서랍</strong>에 뜨는 메뉴를 관리합니다. (브랜드소개관·서비스·이벤트·라운지 등) — <strong>setup_menu_items.sql</strong> 실행 후 사용
+              </div>
+              <div className="adm-toolbar">
+                <div className="adm-toolbar-left">
+                  <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_mega:true, show_in_header:true, parent:null, label:'새 그룹', href:'/' })}>+ 메가 그룹</button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_header:true, parent:null, label:'새 메뉴', href:'/' })}>+ 상단 nav 링크</button>
+                </div>
+                <div className="adm-toolbar-right">
+                  <button className="adm-btn adm-btn-outline" onClick={loadMenus}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                </div>
+              </div>
+              {menusLoading ? <PanelLoading /> : (() => {
+                const flagChk = (m: MenuRow, key: 'is_active'|'show_in_mega'|'show_in_header'|'show_in_shortcut', label: string) => (
+                  <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', cursor:'pointer' }}>
+                    <input type="checkbox" checked={m[key]} onChange={e => updateMenu(m.id, { [key]: e.target.checked })} />{label}
+                  </label>
+                );
+                const textInputs = (m: MenuRow) => (
+                  <>
+                    <input className="adm-input-text" style={{ flex:'1 1 120px', minWidth:0, fontWeight:600 }} value={m.label} placeholder="메뉴명"
+                      onChange={e => setMenus(prev => prev.map(x => x.id===m.id ? { ...x, label:e.target.value } : x))}
+                      onBlur={() => updateMenu(m.id, { label: m.label }, false)} />
+                    <input className="adm-input-text" style={{ flex:'1 1 140px', minWidth:0, fontSize:12 }} value={m.href} placeholder="/경로"
+                      onChange={e => setMenus(prev => prev.map(x => x.id===m.id ? { ...x, href:e.target.value } : x))}
+                      onBlur={() => updateMenu(m.id, { href: m.href }, false)} />
+                  </>
+                );
+                const groups = menus.filter(m => !m.parent && m.show_in_mega).sort((a,b)=>a.sort_order-b.sort_order);
+                const navOnly = menus.filter(m => !m.parent && !m.show_in_mega).sort((a,b)=>a.sort_order-b.sort_order);
+                return (
+                  <>
+                    {/* 메가 그룹 + 하위 */}
+                    {groups.map(g => (
+                      <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, border:'1px solid #E5EAF0' }}>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
+                          <span style={{ fontSize:11, fontWeight:800, color:'#2563EB', flexShrink:0 }}>메가 그룹</span>
+                          {textInputs(g)}
+                          <button type="button" onClick={() => deleteMenu(g.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                        </div>
+                        <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:10, paddingLeft:2 }}>
+                          {flagChk(g, 'is_active', '활성')}{flagChk(g, 'show_in_mega', '메가컬럼')}{flagChk(g, 'show_in_header', '상단nav')}{flagChk(g, 'show_in_shortcut', '모바일')}
+                        </div>
+                        {menus.filter(m => m.parent === g.id).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
+                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
+                            <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+                            {textInputs(s)}
+                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.is_active} onChange={e => updateMenu(s.id, { is_active: e.target.checked })} />활성</label>
+                            <button type="button" onClick={() => deleteMenu(s.id)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 하위 링크</button>
+                      </div>
+                    ))}
+                    {/* 단독 nav 링크 */}
+                    <div className="adm-card" style={{ padding:'14px 16px', border:'1px solid #E5EAF0' }}>
+                      <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>상단 nav 단독 링크 <span className="adm-muted" style={{ fontWeight:600, fontSize:12 }}>(메가 컬럼 아님)</span></div>
+                      {navOnly.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>없음</div> : navOnly.map(m => (
+                        <div key={m.id} style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:8 }}>
+                          {textInputs(m)}
+                          <div style={{ display:'flex', gap:10, flexShrink:0 }}>
+                            {flagChk(m, 'is_active', '활성')}{flagChk(m, 'show_in_header', '상단nav')}{flagChk(m, 'show_in_shortcut', '모바일')}
+                          </div>
+                          <button type="button" onClick={() => deleteMenu(m.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
