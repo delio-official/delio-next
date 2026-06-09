@@ -67,12 +67,14 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: prof } = await supabase
-        .from('profiles').select('referral_code, avatar_url').eq('id', user.id).maybeSingle();
+        .from('profiles').select('referral_code, avatar_url, provider').eq('id', user.id).maybeSingle();
       const patch: Record<string, unknown> = {};
       if (prof && !prof.referral_code) {
         patch.referral_code = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
       }
       if (prof && !prof.avatar_url && avatar) patch.avatar_url = avatar;
+      // GoTrue admin.createUser가 provider를 email로 덮어쓰므로 naver로 직접 기록
+      if (prof && prof.provider !== 'naver') patch.provider = 'naver';
       if (Object.keys(patch).length) await supabase.from('profiles').update(patch).eq('id', user.id);
       await supabase.rpc('grant_signup_coupons');
     }
