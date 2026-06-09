@@ -17,10 +17,11 @@ export interface FilterTab {
   show_in_home: boolean;
   show_in_category: boolean;
   show_in_shortcut: boolean;
+  parent: string | null;   // category형: 상위 대분류의 tab_value (null=대분류)
 }
 
 const SELECT_COLS =
-  'id, tab_type, tab_value, label, emoji, bg, sort_order, is_active, show_in_home, show_in_category, show_in_shortcut';
+  'id, tab_type, tab_value, label, emoji, bg, sort_order, is_active, show_in_home, show_in_category, show_in_shortcut, parent';
 
 /** 전체 필탭 (어드민용 — 비활성 포함) */
 export async function loadAllTabs(): Promise<FilterTab[]> {

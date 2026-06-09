@@ -1291,7 +1291,7 @@ export default function AdminClient() {
 
   /* ── 필탭 / 카테고리 ── */
   const FT_EMPTY = { tab_type: 'category' as TabType, tab_value: '', label: '', emoji: '', bg: '#F5F5F5',
-    is_active: true, show_in_home: false, show_in_category: false, show_in_shortcut: false };
+    is_active: true, show_in_home: false, show_in_category: false, show_in_shortcut: false, parent: '' as string };
   const [filterTabs, setFilterTabs] = useState<FilterTab[]>([]);
   const [ftLoading, setFtLoading] = useState(false);
   const [ftModal, setFtModal] = useState(false);
@@ -1832,7 +1832,7 @@ export default function AdminClient() {
       setEditingFt(t);
       setFtForm({ tab_type: t.tab_type, tab_value: t.tab_value, label: t.label, emoji: t.emoji || '',
         bg: t.bg || '#F5F5F5', is_active: t.is_active,
-        show_in_home: t.show_in_home, show_in_category: t.show_in_category, show_in_shortcut: t.show_in_shortcut });
+        show_in_home: t.show_in_home, show_in_category: t.show_in_category, show_in_shortcut: t.show_in_shortcut, parent: t.parent || '' });
     } else {
       setEditingFt(null);
       setFtForm(FT_EMPTY);
@@ -1852,6 +1852,7 @@ export default function AdminClient() {
       tab_type: f.tab_type, tab_value: f.tab_value.trim(), label: f.label.trim(),
       emoji: f.emoji.trim(), bg: f.bg || '#F5F5F5', is_active: f.is_active,
       show_in_home: f.show_in_home, show_in_category: f.show_in_category, show_in_shortcut: f.show_in_shortcut,
+      parent: f.tab_type === 'category' && f.parent ? f.parent.trim() : null,
     };
     if (editingFt) {
       const { error } = await supabase.from('filter_tabs').update(payload).eq('id', editingFt.id);
@@ -4138,8 +4139,20 @@ export default function AdminClient() {
                 </div>
               </div>
               {ftForm.tab_type === 'category' && (
+                <div>
+                  <label className="adm-label">상위 대분류 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 이게 대분류)</span></label>
+                  <AdmSelect className="adm-cs-full" value={ftForm.parent}
+                    onChange={v => setFtForm(f => ({ ...f, parent: v }))}
+                    options={[
+                      { value:'', label:'— 대분류로 만들기 —' },
+                      ...filterTabs.filter(t => t.tab_type === 'category' && !t.parent && t.tab_value !== ftForm.tab_value)
+                        .map(t => ({ value: t.tab_value, label: `${t.label} 밑 소분류로` })),
+                    ]} />
+                </div>
+              )}
+              {ftForm.tab_type === 'category' && (
                 <p style={{ fontSize:12, color:'#64748B', margin:0, background:'#F8FAFC', padding:'8px 10px', borderRadius:6 }}>
-                  💡 카테고리 키는 상품의 <strong>category</strong> 값과 일치해야 합니다. 상품 등록 시 이 카테고리가 드롭다운에 자동으로 나타납니다.
+                  💡 카테고리 키는 상품의 <strong>category</strong> 값과 일치해야 합니다. <strong>대분류</strong>(예: 국산과일)는 키를 <code>domestic</code> 식으로, 그 밑 <strong>소분류</strong>(사과/배)는 상위 대분류를 지정하세요.
                 </p>
               )}
               <div>
@@ -4921,6 +4934,43 @@ export default function AdminClient() {
                 각 위치별로 노출을 따로 켜고 끌 수 있고, <strong>카테고리형</strong>은 상품 등록 시 선택하는 분류와 연결됩니다.
                 카테고리를 삭제하면 그 카테고리를 쓰던 상품은 자동으로 <strong>기타</strong>로 이동합니다.
               </div>
+
+              {/* 카테고리 대분류 → 소분류 트리 미리보기 */}
+              {!ftLoading && (() => {
+                const cats = filterTabs.filter(t => t.tab_type === 'category');
+                if (cats.length === 0) return null;
+                const majors = cats.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
+                return (
+                  <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                    <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>🗂 카테고리 대분류 → 소분류 미리보기</div>
+                    {majors.length === 0 ? (
+                      <div className="adm-muted" style={{ fontSize:12 }}>대분류가 없습니다. 카테고리 추가 시 “대분류로 만들기”로 만드세요.</div>
+                    ) : (
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:14 }}>
+                        {majors.map(m => {
+                          const subs = cats.filter(t => t.parent === m.tab_value).sort((a, b) => a.sort_order - b.sort_order);
+                          return (
+                            <div key={m.id} style={{ background:'#fff', border:'1px solid #FEF3C7', borderRadius:10, padding:'12px 14px', opacity: m.is_active ? 1 : 0.5 }}>
+                              <div style={{ fontWeight:800, fontSize:13, marginBottom:8, color:'#B45309' }}>
+                                {m.label}{m.emoji ? ` ${m.emoji}` : ''}{!m.is_active && <span style={{ fontSize:10, color:'#94A3B8', marginLeft:4 }}>(꺼짐)</span>}
+                              </div>
+                              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                                <span style={{ fontSize:12, color:'#94A3B8' }}>└ 전체보기</span>
+                                {subs.map(s => (
+                                  <span key={s.id} style={{ fontSize:12.5, color: s.is_active ? '#374151' : '#CBD5E1' }}>
+                                    └ {s.label}{s.emoji ? ` ${s.emoji}` : ''}{!s.is_active && ' (꺼짐)'}
+                                  </span>
+                                ))}
+                                {subs.length === 0 && <span style={{ fontSize:11, color:'#CBD5E1' }}>(소분류 없음)</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 노출 미리보기 (실제 사이트 칩 스타일) */}
               {!ftLoading && (
