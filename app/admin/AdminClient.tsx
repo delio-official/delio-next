@@ -866,28 +866,51 @@ function Spark({ data, color }: { data:number[]; color:string }) {
   );
 }
 
-/* ===== 뱃지 컬러피커 (드래그 중 부모 리렌더 방지: 로컬상태 + 디바운스 커밋) ===== */
-function BadgeColorPicker({ value, presets, onPick }: {
+/* ===== 뱃지 색상 선택 (프리셋 클릭 → 선택칸을 피커로 덮어쓰기) =====
+ *  - 프리셋 원 클릭: 그 색 선택
+ *  - 무지개 피커: 현재 선택된 칸의 색을 직접 변경(그 칸이 새 색으로 교체)
+ *  - 드래그 중엔 로컬상태만 갱신 + 멈추면 디바운스로 부모에 1회 커밋 (렉 방지) */
+function BadgeColorRow({ value, presets, onPick }: {
   value: string; presets: string[]; onPick: (v: string) => void;
 }) {
   const [local, setLocal] = useState(value);
-  useEffect(() => { setLocal(value); }, [value]);
+  const [selIdx, setSelIdx] = useState(() => { const i = presets.indexOf(value); return i >= 0 ? i : 0; });
+  useEffect(() => {
+    setLocal(value);
+    const i = presets.indexOf(value);
+    if (i >= 0) setSelIdx(i);
+  }, [value, presets]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isCustom = !presets.includes(local);
-  function handle(v: string) {
-    setLocal(v); // 작은 컴포넌트만 갱신 (드래그 부드럽게)
+  function selectPreset(i: number) {
+    setSelIdx(i); setLocal(presets[i]);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => onPick(v), 140); // 멈추면 부모에 한 번 커밋
+    onPick(presets[i]);
+  }
+  function recolor(v: string) {
+    setLocal(v); // 선택된 칸만 즉시 갱신 (드래그 부드럽게)
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => onPick(v), 140); // 멈추면 부모에 1회 커밋
   }
   return (
-    <label title="직접 색상 선택" style={{ position:'relative', width:24, height:24, borderRadius:'50%', cursor:'pointer', overflow:'hidden',
-      background: isCustom ? local : 'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)',
-      border: isCustom ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
-      <input type="color" value={local}
-        onChange={e => handle(e.target.value)}
-        onBlur={() => onPick(local)}
-        style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
-    </label>
+    <>
+      {presets.map((preset, i) => {
+        const color = i === selIdx ? local : preset;
+        const active = i === selIdx;
+        return (
+          <button key={i} type="button" title="이 색 선택"
+            onClick={() => selectPreset(i)}
+            style={{ width:24, height:24, borderRadius:'50%', background: color, cursor:'pointer',
+              border: active ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }} />
+        );
+      })}
+      {/* 무지개 피커: 선택된 칸의 색을 직접 변경 */}
+      <label title="선택한 칸 색 직접 변경" style={{ position:'relative', width:24, height:24, borderRadius:'50%', cursor:'pointer', overflow:'hidden',
+        background:'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)', border:'2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
+        <input type="color" value={local}
+          onChange={e => recolor(e.target.value)}
+          style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
+      </label>
+    </>
   );
 }
 
@@ -3696,21 +3719,11 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.badge || ''}
                     onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 한정수량" />
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                    {BADGE_COLORS.map(c => {
-                      const active = (pForm.badge_color || BADGE_DEFAULT_COLOR) === c.value;
-                      return (
-                        <button key={c.value} type="button" title={c.label}
-                          onClick={() => setPForm(f => ({ ...f, badge_color: c.value }))}
-                          style={{ width:24, height:24, borderRadius:'50%', background:c.value, cursor:'pointer',
-                            border: active ? '2px solid #1A1A1A' : '2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }} />
-                      );
-                    })}
-                    {/* 직접 색상 선택 (컬러피커 — 드래그 렉 방지 분리 컴포넌트) */}
-                    <BadgeColorPicker
+                    <BadgeColorRow
                       value={pForm.badge_color || BADGE_DEFAULT_COLOR}
                       presets={BADGE_COLORS.map(c => c.value)}
                       onPick={v => setPForm(f => ({ ...f, badge_color: v }))} />
-                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 직접 선택</span>
+                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
                     {pForm.badge && (
                       <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
                         background: pForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
