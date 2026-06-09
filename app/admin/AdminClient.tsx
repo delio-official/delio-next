@@ -3425,6 +3425,10 @@ export default function AdminClient() {
     .sort((a, b) => a.sort_order - b.sort_order)
     .reduce((m, t) => { m[t.tab_value] = `${t.emoji ? t.emoji + ' ' : ''}${t.label}`; return m; }, {} as Record<string, string>);
   const catOptions = Object.keys(dynCatLabel).length ? dynCatLabel : CAT_LABEL;
+  /* 카테고리 트리 (대분류/소분류) — filter_tabs(category형) */
+  const catTabsAll = filterTabs.filter(t => t.tab_type === 'category');
+  const majorCats = catTabsAll.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
+  const subCatsOf = (majorVal: string) => catTabsAll.filter(t => t.parent === majorVal).sort((a, b) => a.sort_order - b.sort_order);
   const filteredProducts = products.filter(p => {
     const matchCat = !productCatFilter || p.category === productCatFilter;
     const q = productSearch.toLowerCase();
@@ -3584,15 +3588,30 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.sku}
                     onChange={e => setPForm(f => ({ ...f, sku: e.target.value }))} placeholder="자동 생성됩니다" />
                 </div>
-                <div>
-                  <label className="adm-label">카테고리 *</label>
-                  <AdmSelect className="adm-cs-full" value={pForm.category}
-                    onChange={category => {
-                      setPForm(f => ({ ...f, category }));
-                      // 신규 등록 시 카테고리 바뀌면 SKU 재생성
-                      if (!editingProduct) generateSku(category).then(sku => setPForm(f => ({ ...f, sku })));
-                    }}
-                    options={Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))} />
+                <div style={{ gridColumn:'1 / -1' }}>
+                  <label className="adm-label">카테고리 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(대분류 → 소분류)</span></label>
+                  {(() => {
+                    const curTab = catTabsAll.find(t => t.tab_value === pForm.category);
+                    const majorVal = curTab ? (curTab.parent || curTab.tab_value) : (majorCats.some(m => m.tab_value === pForm.category) ? pForm.category : '');
+                    const subVal = curTab && curTab.parent ? curTab.tab_value : '';
+                    const subs = subCatsOf(majorVal);
+                    const setCat = (v: string) => {
+                      setPForm(f => ({ ...f, category: v }));
+                      if (!editingProduct) generateSku(v).then(sku => setPForm(f => ({ ...f, sku })));
+                    };
+                    return (
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <AdmSelect style={{ flex:'1 1 160px' }} value={majorVal}
+                          onChange={v => setCat(v)}
+                          options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:`${m.emoji?m.emoji+' ':''}${m.label}` }))]} />
+                        {majorVal && subs.length > 0 && (
+                          <AdmSelect style={{ flex:'1 1 160px' }} value={subVal}
+                            onChange={v => setCat(v || majorVal)}
+                            options={[{ value:'', label:'전체 (대분류 직속)' }, ...subs.map(s => ({ value:s.tab_value, label:`${s.emoji?s.emoji+' ':''}${s.label}` }))]} />
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">원산지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(국내산: 시·도 → 시·군·구 / 수입산: 국가)</span></label>
