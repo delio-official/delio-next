@@ -908,6 +908,7 @@ function BadgeColorRow({ value, presets, onPick }: {
         background:'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)', border:'2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
         <input type="color" value={local}
           onChange={e => recolor(e.target.value)}
+          onBlur={() => { if (timer.current) clearTimeout(timer.current); onPick(local); }}
           style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
       </label>
     </>
