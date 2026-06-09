@@ -219,6 +219,18 @@ body { background: #fff; }
   width: 1px; height: 18px;
   background: rgba(0,0,0,0.15); flex-shrink: 0;
 }
+/* 모바일 전용 우하단 담기 버튼 (PC 숨김) */
+.product-card-cart-mob { display: none; }
+@media (max-width: 768px) {
+  .product-card-actions { display: none !important; }   /* hover 액션바 숨김 */
+  .product-card-cart-mob {
+    display: flex; position: absolute; right: 8px; bottom: 8px; z-index: 3;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #fff; border: 1px solid #EEE; box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    align-items: center; justify-content: center; cursor: pointer; padding: 0;
+  }
+  .product-card-cart-mob svg { width: 18px; height: 18px; color: #1A1A1A; }
+}
 
 /* 카드 본문 */
 .product-card-body { padding: 10px 6px 12px; }

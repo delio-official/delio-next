@@ -116,6 +116,13 @@ function ProductCard({ p }: { p: Product }) {
             담기
           </button>
         </div>
+        {/* 모바일 전용: 우하단 담기 버튼 */}
+        <button className="product-card-cart-mob" onClick={handleCart} aria-label="담기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
+          </svg>
+        </button>
       </div>
 
       {/* 카드 본문 */}
