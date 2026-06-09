@@ -3576,8 +3576,12 @@ export default function AdminClient() {
                   <label className="adm-label" style={{ margin:0 }}>🧩 판매 옵션 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 단품 — 옵션 선택 없이 바로구매)</span></label>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
                     onClick={() => setPOptions(prev => [...prev, { group: `옵션${new Set(prev.map(o => o.group)).size + 1}`, required: true, label:'', add_price:0, stock:0 }])}>
-                    + 옵션 그룹 추가
+                    {pOptions.length === 0 ? '+ 옵션 추가' : '+ 하위 단계 추가'}
                   </button>
+                </div>
+                {/* 2단계 옵션 안내 */}
+                <div style={{ fontSize:12, color:'#475569', background:'#F8FAFC', border:'1px dashed #CBD5E1', borderRadius:8, padding:'9px 12px', marginBottom:10, lineHeight:1.65 }}>
+                  💡 <strong>2단계 옵션</strong>(예: 재배방식 → 중량) 만들기: ① 먼저 <strong>상위 옵션</strong> 입력 → ② <strong>“+ 하위 단계 추가”</strong> → ③ 하위 각 줄의 <strong>“상위 연결”</strong>에서 어떤 상위에 붙을지 선택. <span style={{ color:'#94A3B8' }}>(1단계만 필요하면 그룹 1개만)</span>
                 </div>
                 {pOptions.length === 0 ? (
                   <div style={{ fontSize:12, color:'#64748B', padding:'10px 0' }}>
@@ -3596,10 +3600,10 @@ export default function AdminClient() {
                         return (
                           <div key={gName} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:'12px', background:'#FAFBFC' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                              <span style={{ fontSize:11, color:'#64748B', fontWeight:700, whiteSpace:'nowrap' }}>
-                                {isDependent ? '하위그룹' : '그룹명'}
+                              <span style={{ fontSize:11, color: isDependent ? '#7C3AED' : (groupNames.length > 1 ? '#1A8A4C' : '#64748B'), fontWeight:800, whiteSpace:'nowrap' }}>
+                                {groupNames.length > 1 ? (isDependent ? '2단계·하위' : '1단계·상위') : '옵션 이름'}
                               </span>
-                              <input className="adm-input-text" style={{ flex:1, maxWidth:180, fontWeight:600 }} value={gName} placeholder="예: 중량"
+                              <input className="adm-input-text" style={{ flex:1, maxWidth:180, fontWeight:600 }} value={gName} placeholder={isDependent ? '예: 중량/사이즈' : '예: 재배방식/색상'}
                                 onChange={e => { const nv = e.target.value; setPOptions(prev => prev.map(o => o.group === gName ? { ...o, group: nv } : o)); }} />
                               <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
                                 <button type="button" onClick={() => setPOptions(prev => prev.map(o => o.group === gName ? { ...o, required: true } : o))}
