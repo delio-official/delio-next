@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { SingleStar } from '@/components/StarRating';
@@ -145,7 +146,7 @@ export default function FarmClient() {
       const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
         supabase.from('farm_gallery').select('*').eq('farm_id', farmData.id).order('sort_order'),
-        supabase.from('products').select('*').eq('farm_id', farmData.id).eq('is_active', true).limit(60),
+        supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('farm_id', farmData.id).eq('is_active', true).limit(60),
       ]);
 
       setCerts((certData as Certification[]) || []);

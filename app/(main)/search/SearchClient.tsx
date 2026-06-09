@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import '@/styles/category.css';
@@ -189,7 +190,7 @@ export default function SearchClient() {
     setLoading(true);
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let req: any = supabase.from('products').select('*')
+    let req: any = supabase.from('products').select(PRODUCT_PUBLIC_COLS)
       .eq('is_active', true)
       .ilike('name', `%${q.trim()}%`);
 

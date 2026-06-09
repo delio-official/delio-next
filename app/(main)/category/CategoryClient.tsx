@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
+import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
 
@@ -207,7 +208,7 @@ export default function CategoryClient() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
-    let q = supabase.from('products').select('*').eq('is_active', true);
+    let q = supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('is_active', true);
 
     if (catParam)    q = q.eq('category', catParam);
     if (originParam) q = q.eq('origin', originParam);

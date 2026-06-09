@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { addToCart, showCartToast } from '@/lib/cart';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
@@ -229,7 +230,7 @@ export default function ProductClient() {
 
       const [{ data: prod }, { data: opts }, { data: revs }, { data: secs }, { data: infoSec }, { data: inqs }] =
         await Promise.all([
-          supabase.from('products').select('*').eq('id', id).single(),
+          supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('id', id).single(),
           supabase.from('product_options').select('*').eq('product_id', id).order('sort_order'),
           supabase.from('reviews')
             .select('*, profiles(name)')
