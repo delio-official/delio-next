@@ -18,12 +18,28 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return NextResponse.redirect(`${base}/login?error=oauth`);
 
-  // 신규 OAuth 회원 프로비저닝 (추천코드 부여 + 웰컴 쿠폰 지급) — 모두 멱등
+  // OAuth 회원 프로비저닝 (추천코드·프로필사진·웰컴쿠폰) — 모두 멱등, 빈 값만 채움
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const refCode = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
-      await supabase.from('profiles').update({ referral_code: refCode }).eq('id', user.id).is('referral_code', null);
+      const meta = (user.user_metadata || {}) as Record<string, unknown>;
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('referral_code, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      const patch: Record<string, unknown> = {};
+      if (prof && !prof.referral_code) {
+        patch.referral_code = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
+      }
+      // 카카오 등 소셜 프로필 사진 → avatar_url (사용자가 직접 올린 게 없을 때만)
+      if (prof && !prof.avatar_url) {
+        const social = (meta.avatar_url || meta.picture || meta.profile_image_url) as string | undefined;
+        if (social) patch.avatar_url = social;
+      }
+      if (Object.keys(patch).length) {
+        await supabase.from('profiles').update(patch).eq('id', user.id);
+      }
       await supabase.rpc('grant_signup_coupons');
     }
   } catch { /* 프로비저닝 실패는 로그인 자체를 막지 않음 */ }
