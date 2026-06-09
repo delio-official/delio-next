@@ -885,6 +885,62 @@ export default function AdminClient() {
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
+  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0 });
+  /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
+  type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
+  const [perfRange, setPerfRange] = useState<'day'|'week'|'month'>('month');
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [salesPerf, setSalesPerf] = useState<{ cur:PerfMetrics; prev:PerfMetrics; gaConfigured:boolean; label:string } | null>(null);
+
+  async function loadSalesPerf(range: 'day'|'week'|'month') {
+    setPerfLoading(true);
+    const pad = (n:number) => String(n).padStart(2,'0');
+    const fmt = (d:Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const today = new Date();
+    let curStart:Date, prevStart:Date, prevEnd:Date;
+    const curEnd = new Date(today);
+    if (range === 'day') {
+      curStart = new Date(today);
+      prevEnd = new Date(today); prevEnd.setDate(prevEnd.getDate()-1); prevStart = new Date(prevEnd);
+    } else if (range === 'week') {
+      curStart = new Date(today); curStart.setDate(curStart.getDate()-6);
+      prevEnd = new Date(curStart); prevEnd.setDate(prevEnd.getDate()-1);
+      prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate()-6);
+    } else {
+      curStart = new Date(today.getFullYear(), today.getMonth(), 1);
+      prevStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
+      prevEnd = new Date(today.getFullYear(), today.getMonth()-1, today.getDate());
+    }
+    const supabase = createClient();
+    const valid = ['paid','preparing','shipped','delivered','confirmed'];
+    const fetchOrders = async (s:Date, e:Date) => {
+      const { data } = await supabase.from('orders').select('final_amount')
+        .gte('created_at', new Date(s.getFullYear(),s.getMonth(),s.getDate(),0,0,0).toISOString())
+        .lte('created_at', new Date(e.getFullYear(),e.getMonth(),e.getDate(),23,59,59).toISOString())
+        .in('status', valid).limit(10000);
+      const orders = (data||[]).length;
+      const payment = (data||[]).reduce((sum, o:{final_amount:number}) => sum + (o.final_amount||0), 0);
+      return { orders, payment };
+    };
+    const [curO, prevO] = await Promise.all([fetchOrders(curStart, curEnd), fetchOrders(prevStart, prevEnd)]);
+    let gaConfigured = false, curVisits = 0, prevVisits = 0;
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`/api/ga-stats?start=${fmt(curStart)}&end=${fmt(curEnd)}`).then(r=>r.json()),
+        fetch(`/api/ga-stats?start=${fmt(prevStart)}&end=${fmt(prevEnd)}`).then(r=>r.json()),
+      ]);
+      if (r1?.configured) { gaConfigured = true; curVisits = r1.sessions||0; prevVisits = r2?.sessions||0; }
+    } catch { /* GA 미연동 */ }
+    const mk = (o:number, p:number, v:number): PerfMetrics =>
+      ({ visits:v, orders:o, payment:p, aov: o>0?Math.round(p/o):0, conv: v>0?(o/v*100):0 });
+    setSalesPerf({
+      cur: mk(curO.orders, curO.payment, curVisits),
+      prev: mk(prevO.orders, prevO.payment, prevVisits),
+      gaConfigured,
+      label: `${fmt(curStart).slice(5).replace('-','.')} ~ ${fmt(curEnd).slice(5).replace('-','.')}`,
+    });
+    setPerfLoading(false);
+  }
 
   /* ── 주문 ── */
   const [orders, setOrders] = useState<Order[]>([]);
@@ -1230,6 +1286,22 @@ export default function AdminClient() {
     if (isAdmin) loadDashboard();
   }, [isAdmin]); // eslint-disable-line
 
+  /* ── 판매 성과: 로그인 후 + 기간(일/주/월) 변경 시 ── */
+  useEffect(() => {
+    if (isAdmin) loadSalesPerf(perfRange);
+  }, [isAdmin, perfRange]); // eslint-disable-line
+
+  /* ── 브라우저 뒤로/앞으로 가기 → 이전 패널로 이동 ── */
+  useEffect(() => {
+    function onPop() {
+      const p = (window.history.state?.admPanel as PanelKey) || 'dashboard';
+      go(p, true);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── Early return: 모든 Hook 선언 이후에만 위치 가능 ── */
   if (!adminChecked) {
     return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:14, color:'#94A3B8' }}>확인 중...</div>;
@@ -1296,6 +1368,23 @@ export default function AdminClient() {
     ORDER_STAGES.forEach((st, i) => { counts[st.key] = stageRes[i]?.count || 0; });
     setStageCounts(counts);
     setDashRefreshedAt(new Date());
+
+    /* 취소·반품·교환 / 판매지연 (대시보드 카드) */
+    const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
+    const [cancelReqRes, refundingRes, exchangeRes, shipDelayRes, refundDelayRes] = await Promise.all([
+      supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending'),
+      supabase.from('orders').select('id', { count:'exact', head:true }).eq('status', 'refunding'),
+      supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['exchanging','exchanged']),
+      supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['paid','preparing']).lt('created_at', twoDaysAgo),
+      supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').lt('created_at', twoDaysAgo),
+    ]);
+    setDashExtra({
+      cancelReq:  cancelReqRes.count   || 0,
+      refunding:  refundingRes.count   || 0,
+      exchanging: exchangeRes.count    || 0,
+      shipDelay:  shipDelayRes.count   || 0,
+      refundDelay: refundDelayRes.count || 0,
+    });
 
     const allOrders = ordersRes.data || [];
     const monthRevenue = allOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
@@ -2866,8 +2955,14 @@ export default function AdminClient() {
   }
 
   /* ========== 패널 전환 ========== */
-  function go(p: PanelKey) {
-    setPanel(p);
+  function go(p: PanelKey, fromHistory = false) {
+    setPanel(prev => {
+      // 사용자가 직접 이동한 경우만 히스토리에 기록 (뒤로가기로 복원 가능)
+      if (!fromHistory && typeof window !== 'undefined' && p !== prev) {
+        window.history.pushState({ ...window.history.state, admPanel: p }, '');
+      }
+      return p;
+    });
     if (window.innerWidth <= 900) setSidebarOpen(false);
     if (loadedPanels.current.has(p)) return;
     loadedPanels.current.add(p);
@@ -4182,6 +4277,71 @@ export default function AdminClient() {
                 </div>
               </div>
 
+              {/* 취소·반품·교환 / 판매지연 / 정산요약 */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:16, marginBottom:24 }}>
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">취소 · 반품 · 교환</span></div>
+                  <div className="adm-pending-list">
+                    <div className="adm-pending-row" onClick={() => go('refund')}><span>취소/환불 요청</span><span className="adm-pending-num red">{dashExtra.cancelReq}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 진행중</span><span className="adm-pending-num orange">{dashExtra.refunding}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('orders')}><span>교환 요청</span><span className="adm-pending-num">{dashExtra.exchanging}</span></div>
+                  </div>
+                </div>
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">판매 지연</span></div>
+                  <div className="adm-pending-list">
+                    <div className="adm-pending-row" onClick={() => { setOrderStatusFilter('preparing'); go('orders'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 처리 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
+                  </div>
+                </div>
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">정산 요약</span></div>
+                  <div className="adm-pending-list">
+                    <div className="adm-pending-row" onClick={() => go('settlement')}><span>금일 매출</span><span className="adm-pending-num">{fmtPrice(stats?.todayRevenue || 0)}원</span></div>
+                    <div className="adm-pending-row" onClick={() => go('settlement')}><span>이번달 매출 <span className="adm-muted" style={{ fontSize:11 }}>(정산예정)</span></span><span className="adm-pending-num">{fmtPrice(stats?.monthRevenue || 0)}원</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 판매 성과 (GA 방문 + 주문 지표) */}
+              <div className="adm-card" style={{ marginBottom:24 }}>
+                <div className="adm-card-head" style={{ alignItems:'center' }}>
+                  <span className="adm-card-title">판매 성과</span>
+                  <div style={{ display:'flex', alignItems:'center', gap:12, marginLeft:'auto' }}>
+                    <div className="adm-perf-toggle">
+                      {([['day','일별'],['week','주별'],['month','월간']] as const).map(([k,lb]) => (
+                        <button key={k} className={`adm-perf-tab ${perfRange===k?'active':''}`} onClick={() => setPerfRange(k)}>{lb}</button>
+                      ))}
+                    </div>
+                    {salesPerf && <span className="adm-muted" style={{ fontSize:12 }}>{salesPerf.label} 기준</span>}
+                  </div>
+                </div>
+                <div className="adm-perf-grid">
+                  {(() => {
+                    const c = salesPerf?.cur, p = salesPerf?.prev;
+                    const ga = salesPerf?.gaConfigured;
+                    const diff = (a:number, b:number) => b>0 ? ((a-b)/b*100) : (a>0?100:0);
+                    const items = [
+                      { label:'방문 수',      val: ga ? (c?.visits||0).toLocaleString() : '—', unit: ga?'':'', d: ga?diff(c!.visits,p!.visits):0, na:!ga },
+                      { label:'상품 주문건수', val: (c?.orders||0).toLocaleString(),         unit:'건', d: diff(c?.orders||0,p?.orders||0), na:false },
+                      { label:'구매전환율',    val: ga ? (c?.conv||0).toFixed(1) : '—',     unit: ga?'%':'', d: ga?diff(c!.conv,p!.conv):0, na:!ga },
+                      { label:'상품주문단가',  val: fmtPrice(c?.aov||0),                     unit:'원', d: diff(c?.aov||0,p?.aov||0), na:false },
+                      { label:'결제금액',      val: fmtPrice(c?.payment||0),                 unit:'원', d: diff(c?.payment||0,p?.payment||0), na:false },
+                    ];
+                    return items.map(it => (
+                      <div key={it.label} className="adm-perf-item">
+                        <div className="adm-perf-label">{it.label}</div>
+                        <div className="adm-perf-value">{perfLoading ? '...' : it.val}{it.unit && <span className="adm-perf-unit">{it.unit}</span>}</div>
+                        <div className="adm-perf-diff">
+                          {it.na ? <span className="adm-muted">GA 연동 필요</span>
+                            : <>전기 동기 대비 <span className={it.d>0?'up':it.d<0?'down':''}>{it.d>0?'+':''}{it.d.toFixed(1)}%</span></>}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
               <div className="adm-kpi-section-label">매출 · 주문</div>
               <div className="adm-kpi-grid adm-kpi-5">
                 {statsLoading ? (
@@ -4477,6 +4637,38 @@ export default function AdminClient() {
                 각 위치별로 노출을 따로 켜고 끌 수 있고, <strong>카테고리형</strong>은 상품 등록 시 선택하는 분류와 연결됩니다.
                 카테고리를 삭제하면 그 카테고리를 쓰던 상품은 자동으로 <strong>기타</strong>로 이동합니다.
               </div>
+
+              {/* 노출 미리보기 (실제 사이트 칩 스타일) */}
+              {!ftLoading && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:14, marginBottom:16 }}>
+                  {([
+                    ['🏠 퀵 가이드 (메인)',   'show_in_home'],
+                    ['📋 상품목록 상단',       'show_in_category'],
+                    ['📱 모바일 카테고리탭',   'show_in_shortcut'],
+                  ] as const).map(([title, key]) => {
+                    const tabs = filterTabs.filter(t => t.is_active && (t as unknown as Record<string, boolean>)[key]).sort((a, b) => a.sort_order - b.sort_order);
+                    return (
+                      <div key={key} className="adm-card" style={{ padding:'14px 16px' }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:10 }}>
+                          {title} <span className="adm-muted" style={{ fontWeight:600 }}>({tabs.length})</span>
+                        </div>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                          {tabs.length === 0
+                            ? <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>
+                            : tabs.map(t => (
+                                <span key={t.id} style={{ display:'inline-flex', alignItems:'center', gap:4,
+                                  padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff',
+                                  fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>
+                                  {t.label}{t.emoji ? ` ${t.emoji}` : ''}
+                                </span>
+                              ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <span className="adm-muted" style={{ fontSize:13 }}>
@@ -4511,7 +4703,7 @@ export default function AdminClient() {
                                 <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
                               </div>
                             </td>
-                            <td><span style={{ fontWeight:600 }}>{t.emoji} {t.label}</span></td>
+                            <td><span style={{ fontWeight:600 }}>{t.label}{t.emoji ? ` ${t.emoji}` : ''}</span></td>
                             <td>
                               <span className={`adm-badge ${t.tab_type==='category'?'badge-paid':t.tab_type==='flag'?'badge-on':'badge-off'}`}>
                                 {t.tab_type==='category'?'카테고리':t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}
