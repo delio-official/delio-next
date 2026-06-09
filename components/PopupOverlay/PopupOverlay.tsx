@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import './PopupOverlay.css';
 
 interface Popup {
   id: string;
@@ -79,6 +80,7 @@ export default function PopupOverlay() {
 
   return (
     <div
+      className="popup-card"
       style={{
         position: 'fixed',
         /* 헤더(유틸리티+메인+네비) 높이 아래서 시작 */

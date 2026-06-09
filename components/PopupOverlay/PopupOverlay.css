@@ -1,0 +1,11 @@
+/* 모바일: 팝업을 화면 가로 중앙에 배치 */
+@media (max-width: 768px) {
+  .popup-card {
+    top: 96px !important;
+    left: 50% !important;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px) !important;
+    max-width: 380px !important;
+    border-radius: 10px !important;
+  }
+}
