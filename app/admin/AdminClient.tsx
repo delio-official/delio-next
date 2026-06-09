@@ -3424,34 +3424,29 @@ export default function AdminClient() {
               {/* 판매금액 영역 (정상가 · 할인 · 판매가 한 묶음) */}
               <div className="adm-formsec">
                 <div className="adm-formsec-title">💰 판매금액 · 정산</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {/* 정상가 */}
                   <div>
                     <label className="adm-label">정상가 (원) *</label>
                     <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
                       onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
                   </div>
+                  {/* 할인 — 값 입력 + 단위(%/원) 드롭다운 */}
                   <div>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-                      <label className="adm-label" style={{ margin:0 }}>할인</label>
-                      <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden' }}>
-                        {(['rate','amount'] as const).map(m => (
-                          <button key={m} type="button" onClick={() => setPDiscMode(m)}
-                            style={{ fontSize:11, padding:'3px 9px', border:'none', cursor:'pointer', fontWeight:600,
-                              background: pDiscMode===m ? '#1A1A1A' : '#fff', color: pDiscMode===m ? '#fff' : '#64748B' }}>
-                            {m==='rate' ? '%' : '원'}
-                          </button>
-                        ))}
-                      </div>
+                    <label className="adm-label">할인 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 비워두세요)</span></label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      {pDiscMode === 'rate' ? (
+                        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
+                          onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율" />
+                      ) : (
+                        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} type="number" min="0"
+                          value={pForm.price > 0 ? Math.round(pForm.price * pForm.discount_rate / 100) || '' : ''}
+                          onChange={e => setPForm(f => ({ ...f, discount_rate: f.price > 0 ? Math.min(99, Math.round(Number(e.target.value) / f.price * 100)) : 0 }))}
+                          placeholder="할인액" />
+                      )}
+                      <AdmSelect style={{ flex:'0 0 90px' }} value={pDiscMode} onChange={v => setPDiscMode(v as 'rate'|'amount')}
+                        options={[{ value:'rate', label:'% 할인' }, { value:'amount', label:'원 할인' }]} />
                     </div>
-                    {pDiscMode === 'rate' ? (
-                      <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
-                        onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율 %" />
-                    ) : (
-                      <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0"
-                        value={pForm.price > 0 ? Math.round(pForm.price * pForm.discount_rate / 100) || '' : ''}
-                        onChange={e => setPForm(f => ({ ...f, discount_rate: f.price > 0 ? Math.min(99, Math.round(Number(e.target.value) / f.price * 100)) : 0 }))}
-                        placeholder="할인액 원" />
-                    )}
                   </div>
                 </div>
                 {/* 농가 공급가 (농가 정산 기준) */}
