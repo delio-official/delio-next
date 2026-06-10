@@ -107,6 +107,8 @@ interface AdminFarm {
   farm_type: string | null;
   intro: string | null;
   carrier: string | null;
+  thumbnail_url: string | null;
+  landing_images: string[] | null;
   created_at: string;
   wish_count?: number;
   product_count?: number;
@@ -1202,7 +1204,8 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '' });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', landing_images: [] as string[] });
+  const [farmImgUploading, setFarmImgUploading] = useState(false);
   const [farmTypeFilter, setFarmTypeFilter] = useState('');
 
 
@@ -2109,7 +2112,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, thumbnail_url, landing_images, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -2174,10 +2177,10 @@ export default function AdminClient() {
   function openFarmModal(farm?: AdminFarm) {
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '' });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', landing_images: farm.landing_images || [] });
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '' });
+      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', landing_images: [] });
     }
     setFarmModal(true);
   }
@@ -2188,7 +2191,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
     if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
-    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null };
+    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
     if (editingFarm) {
       // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
       const editPayload = editingFarm.slug ? payload : { ...payload, slug };
@@ -5090,8 +5093,48 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">농가 소개</label>
-                  <textarea className="adm-textarea" rows={2} placeholder="농가 소개 (선택)"
+                  <textarea className="adm-textarea" rows={2} placeholder="농가 소개 (상세 상단 좌측에 표시)"
                     value={farmForm.intro} onChange={e => setFarmForm(p => ({ ...p, intro: e.target.value }))} />
+                </div>
+
+                {/* 대표 썸네일 */}
+                <div className="adm-form-row adm-form-row-full">
+                  <label className="adm-label">대표 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진)</span></label>
+                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                    {farmForm.thumbnail_url ? (
+                      <div style={{ position:'relative', width:130, height:96 }}>
+                        <img src={farmForm.thumbnail_url} alt="" style={{ width:130, height:96, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
+                        <button type="button" onClick={() => setFarmForm(p => ({ ...p, thumbnail_url:'' }))} style={{ position:'absolute', top:-7, right:-7, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,.6)', color:'#fff', border:'none', cursor:'pointer', fontSize:12, lineHeight:1 }}>✕</button>
+                      </div>
+                    ) : (
+                      <label style={{ width:130, height:96, border:'1px dashed #CBD5E1', borderRadius:8, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:12, gap:4 }}>
+                        {farmImgUploading ? '업로드 중...' : '+ 썸네일'}
+                        <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); e.target.value=''; }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* 랜딩 이미지 (여러 장) */}
+                <div className="adm-form-row adm-form-row-full">
+                  <label className="adm-label">랜딩 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서로 표시)</span></label>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1 }}>
+                    {farmForm.landing_images.map((url, i) => (
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontSize:11, color:'#94A3B8', width:18, textAlign:'right' }}>{i+1}</span>
+                        <img src={url} alt="" style={{ width:90, height:54, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
+                        <div style={{ display:'flex', gap:4 }}>
+                          <button type="button" disabled={i===0} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i-1],a[i]]=[a[i],a[i-1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor: i===0?'default':'pointer', color: i===0?'#CBD5E1':'#64748B' }}>▲</button>
+                          <button type="button" disabled={i===farmForm.landing_images.length-1} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i+1],a[i]]=[a[i],a[i+1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor:'pointer', color:'#64748B' }}>▼</button>
+                        </div>
+                        <button type="button" onClick={() => setFarmForm(p => ({ ...p, landing_images: p.landing_images.filter((_, j) => j !== i) }))} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                      </div>
+                    ))}
+                    <label style={{ alignSelf:'flex-start', fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer' }}>
+                      {farmImgUploading ? '업로드 중...' : '+ 랜딩 이미지 추가'}
+                      <input type="file" accept="image/*" multiple hidden onChange={async e => { const files = Array.from(e.target.files || []); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); e.target.value=''; }} />
+                    </label>
+                  </div>
                 </div>
               </div>
               <div className="adm-flex-gap adm-flex-end adm-mt-20">

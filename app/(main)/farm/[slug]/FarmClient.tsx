@@ -14,6 +14,7 @@ interface Farm {
   id: string; slug: string; name: string; region: string; farm_type: string;
   intro: string | null; story: string | null;
   thumbnail_url: string | null; hero_image_url: string | null;
+  landing_images: string[] | null;
   farmer_name: string | null; farmer_image_url: string | null;
   founded_year: number | null; altitude: string | null;
   annual_output: string | null;
@@ -169,38 +170,40 @@ export default function FarmClient() {
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
-      {/* ── 히어로 ── */}
-      <div style={{
-        background: farm.hero_image_url
-          ? `url(${farm.hero_image_url}) center/cover`
-          : 'linear-gradient(135deg, #2d5a27, #3d7a35)',
-        minHeight: 320, display:'flex', alignItems:'flex-end', position:'relative',
-      }}>
-        <div style={{
-          position:'absolute', inset:0,
-          background:'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.1) 60%)',
-        }} />
-        <div className="container" style={{ position:'relative', paddingBottom:36, paddingTop:36 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-            <div style={{
-              width:72, height:72, borderRadius:16, background:'rgba(255,255,255,0.15)',
-              border:'2px solid rgba(255,255,255,0.3)',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:36,
-            }}>{emoji}</div>
-            <div>
-              <p style={{ color:'rgba(255,255,255,0.75)', fontSize:13, marginBottom:4 }}>
-                {farm.region} · 파트너 농가
-              </p>
-              <h1 style={{ color:'#fff', fontSize:'clamp(22px,4vw,34px)', fontWeight:800, marginBottom:4 }}>
-                {farm.name}
-              </h1>
-              {farm.intro && (
-                <p style={{ color:'rgba(255,255,255,0.85)', fontSize:14, lineHeight:1.6 }}>{farm.intro}</p>
-              )}
-            </div>
+      {/* ── 상단: 좌 농가명·설명 / 우 썸네일 ── */}
+      <div className="container" style={{ paddingTop:40, paddingBottom:28 }}>
+        <div style={{ display:'flex', gap:32, flexWrap:'wrap', alignItems:'center' }}>
+          <div style={{ flex:'1 1 320px', minWidth:0 }}>
+            <p style={{ fontSize:13, color:'#888', marginBottom:8 }}>{farm.region ? `${farm.region} · ` : ''}파트너 농가</p>
+            <h1 style={{ fontSize:'clamp(24px,4vw,34px)', fontWeight:800, marginBottom:16, lineHeight:1.25 }}>{farm.name}</h1>
+            {farm.intro && (
+              <p style={{ fontSize:15, lineHeight:1.9, color:'#444', whiteSpace:'pre-line' }}>{farm.intro}</p>
+            )}
+            {farm.farmer_name && (
+              <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
+            )}
+          </div>
+          <div style={{ flex:'1 1 380px', minWidth:0 }}>
+            {farm.thumbnail_url ? (
+              <img src={farm.thumbnail_url} alt={farm.name}
+                style={{ width:'100%', maxHeight:340, objectFit:'cover', borderRadius:16, display:'block' }} />
+            ) : (
+              <div style={{ width:'100%', height:240, borderRadius:16, background:'linear-gradient(135deg,#2d5a27,#3d7a35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{emoji}</div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* ── 랜딩 이미지 (상세설명 · 긴 이미지) ── */}
+      {farm.landing_images && farm.landing_images.length > 0 && (
+        <div className="container" style={{ paddingBottom:32 }}>
+          <div style={{ maxWidth:860, margin:'0 auto', display:'flex', flexDirection:'column' }}>
+            {farm.landing_images.map((url, i) => (
+              <img key={i} src={url} alt="" style={{ width:'100%', display:'block' }} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 농가 정보 요약 ── */}
       <div style={{ background:'#F7F7F5', borderBottom:'1px solid #EBEBEB' }}>
