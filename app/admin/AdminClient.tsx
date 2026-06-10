@@ -1452,6 +1452,7 @@ export default function AdminClient() {
   const [faqSaving, setFaqSaving] = useState(false);
   const [faqSearch, setFaqSearch] = useState('');
   const [faqCatFilter, setFaqCatFilter] = useState('');
+  const [dragFaqId, setDragFaqId] = useState<string | null>(null);
   const [faqPage, setFaqPage] = useState(1);
   const [faqPageSize, setFaqPageSize] = useState(30);
 
@@ -3737,6 +3738,22 @@ export default function AdminClient() {
   const faqTotalPages = Math.max(1, Math.ceil(filteredFaq.length / faqPageSize));
   const faqCurPage = Math.min(faqPage, faqTotalPages);
   const pagedFaq = filteredFaq.slice((faqCurPage - 1) * faqPageSize, faqCurPage * faqPageSize);
+  /* 드래그 정렬: 특정 카테고리 선택 + 검색 없을 때만 (전체에선 순서 의미 없음) */
+  const canDragFaq = !!faqCatFilter && !faqSearch.trim();
+  async function reorderFaq(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    const list = filteredFaq;
+    const fromIdx = list.findIndex(f => f.id === fromId);
+    const toIdx = list.findIndex(f => f.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const reordered = [...list];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const ids = new Set(list.map(f => f.id));
+    setFaqItems(prev => { let ri = 0; return prev.map(f => { if (!ids.has(f.id)) return f; const nf = reordered[ri]; ri++; return { ...nf, sort_order: ri }; }); });
+    const supabase = createClient();
+    await Promise.all(reordered.map((f, i) => supabase.from('faq_items').update({ sort_order: i + 1 }).eq('id', f.id)));
+  }
 
   /* 1:1 문의 탭별 필터 */
   const csPending  = csItems.filter(c => c.status === 'pending');
@@ -6962,7 +6979,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {panel === 'faq' && (
             <div className="adm-content">
               <div className="adm-info-box" style={{ marginBottom:12 }}>
-                💡 <strong>FAQ</strong>는 고객센터 페이지에 카테고리별로 그룹 표시됩니다. <strong>▲▼</strong> 버튼으로 순서를 조절하세요(같은 카테고리 내).
+                💡 <strong>FAQ</strong>는 고객센터 페이지에 카테고리별로 그룹 표시됩니다. {canDragFaq
+                  ? <>⠿ 행을 <strong>드래그</strong>해서 순서를 바꾸세요 (저장 자동).</>
+                  : <>순서를 바꾸려면 위에서 <strong>카테고리를 선택</strong>하세요. (전체·검색 상태에선 순서 숨김)</>}
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
@@ -6983,23 +7002,23 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
-                        <tr><th>카테고리</th><th>질문</th><th>정렬</th><th>노출</th><th>관리</th></tr>
+                        <tr>{canDragFaq && <th style={{ width:34 }}></th>}<th>카테고리</th><th>질문</th><th>노출</th><th>관리</th></tr>
                       </thead>
                       <tbody>
                         {filteredFaq.length === 0 ? (
-                          <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={canDragFaq ? 5 : 4} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             FAQ 없음
                           </td></tr>
                         ) : pagedFaq.map(f => (
-                          <tr key={f.id}>
+                          <tr key={f.id}
+                            draggable={canDragFaq}
+                            onDragStart={canDragFaq ? () => setDragFaqId(f.id) : undefined}
+                            onDragOver={canDragFaq ? (e) => e.preventDefault() : undefined}
+                            onDrop={canDragFaq ? () => { if (dragFaqId) reorderFaq(dragFaqId, f.id); setDragFaqId(null); } : undefined}
+                            style={canDragFaq ? { cursor:'move', background: dragFaqId===f.id ? '#EFF6FF' : undefined } : undefined}>
+                            {canDragFaq && <td style={{ color:'#CBD5E1', textAlign:'center', cursor:'grab', fontSize:15 }}>⠿</td>}
                             <td><span className="adm-badge badge-paid">{FAQ_CATS[f.category] || f.category}</span></td>
                             <td style={{ maxWidth:340, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
-                            <td>
-                              <div style={{ display:'inline-flex', gap:4 }}>
-                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFaq(f, -1)}>▲</button>
-                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFaq(f, 1)}>▼</button>
-                              </div>
-                            </td>
                             <td>
                               <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
                             </td>
