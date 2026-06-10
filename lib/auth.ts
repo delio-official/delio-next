@@ -27,7 +27,7 @@ export async function signUp(
       id: data.user.id,
       email,
       name,
-      grade: 'normal',
+      grade: 'beginner',
       point_balance: 0,
       referral_code: myCode,
     }, { onConflict: 'id', ignoreDuplicates: true });

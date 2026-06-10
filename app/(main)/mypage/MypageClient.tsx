@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode } from '@/lib/coupons';
+import { DEFAULT_TIERS, GRADE_LABEL, GRADE_LABEL_EN, GRADE_COLOR, MEMBERSHIP_COUPON, normalizeGrade, effectiveRate, type MembershipTier } from '@/lib/membership';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
@@ -129,6 +130,7 @@ export default function MypageClient() {
 
   const [profile,        setProfile]        = useState<Profile | null>(null);
   const [orders,         setOrders]         = useState<Order[]>([]);
+  const [tiers,          setTiers]          = useState<MembershipTier[]>(DEFAULT_TIERS);
   const [orderCount,     setOrderCount]     = useState(0);     // 전체 주문 건수(정확)
   const [orderSearch,    setOrderSearch]    = useState('');    // 주문내역 검색어
   const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
@@ -309,6 +311,11 @@ export default function MypageClient() {
       }
       setOrders((ords as Order[]) || []);
       setMyReviews((revs as unknown as MyReview[]) || []);
+
+      // 멤버십 등급 설정 로드 (없으면 기본값 유지)
+      supabase.from('membership_tiers').select('*').order('sort').then(({ data }) => {
+        if (data && data.length) setTiers(data as MembershipTier[]);
+      });
 
       // 전체 주문 건수 (정확한 카운트)
       const { count: ordCnt } = await supabase
@@ -857,7 +864,7 @@ export default function MypageClient() {
       );
     });
   })();
-  const gradeLabel = ({ normal:'일반', vip:'VIP', vvip:'VVIP' } as Record<string,string>)[profile?.grade || 'normal'] || '일반';
+  const gradeLabel = GRADE_LABEL[normalizeGrade(profile?.grade)];
 
   /* ─── Loading ─── */
   if (authLoading) return (
@@ -2153,45 +2160,28 @@ export default function MypageClient() {
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
                 {(() => {
-                  const GRADES = [
-                    {
-                      key:'normal', letter:'N', label:'NORMAL', criteria:'5만원 미만',
-                      badgeBg:'#888', textColor:'#888',
-                      benefits:[
-                        { text:'첫 구매 무료배송\nCOUPON', count:1 },
-                        { text:'포인트 1% 적립', count:null },
-                        { text:'생일 쿠폰 제공', count:null },
-                      ],
-                    },
-                    {
-                      key:'vip', letter:'V', label:'VIP', criteria:'5만원 이상',
-                      badgeBg:'#C8841C', textColor:'#C8841C',
-                      benefits:[
-                        { text:'5만원 이상 구매시\n무료배송 COUPON', count:1 },
-                        { text:'포인트 2% 적립', count:null },
-                        { text:'생일 쿠폰 제공', count:null },
-                        { text:'VIP 전용 특가 접근', count:null },
-                        { text:'우선 CS 지원', count:null },
-                      ],
-                    },
-                    {
-                      key:'vvip', letter:'VV', label:'VVIP', criteria:'20만원 이상',
-                      badgeBg:'#1A1A1A', textColor:'#1A1A1A',
-                      benefits:[
-                        { text:'5만원 이상 구매시\n무료배송 COUPON', count:1 },
-                        { text:'10만원 이상 구매시\n무료배송 COUPON', count:1 },
-                        { text:'포인트 3% 적립', count:null },
-                        { text:'신제품 한정수량\n선구매 기회 제공', count:null, icon:'🎁' },
-                        { text:'전담 CS 매니저', count:null },
-                        { text:'생일 프리미엄 선물', count:null, icon:'🎀' },
-                      ],
-                    },
+                  const cur = normalizeGrade(profile?.grade);
+                  const sorted = [...tiers].sort((a, b) => a.sort - b.sort);
+                  const curIdx = Math.max(0, sorted.findIndex(t => t.grade === cur));
+                  const curTier = sorted[curIdx] ?? sorted[0];
+                  const nextTier = curIdx < sorted.length - 1 ? sorted[curIdx + 1] : null;
+                  // 분기(최근 90일) 누적 실적
+                  const since = Date.now() - 90 * 86400000;
+                  const qOrders = orders.filter(o => ['delivered', 'confirmed'].includes(o.status) && new Date(o.created_at).getTime() >= since);
+                  const qAmount = qOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
+                  const qCount = qOrders.length;
+                  const amtPct = nextTier && nextTier.min_amount > 0 ? Math.min(qAmount / nextTier.min_amount * 100, 100) : (nextTier ? 0 : 100);
+                  const couponLabel = (code: string) => (({
+                    [MEMBERSHIP_COUPON.THOUSAND]: '1,000원 쿠폰 (1만원 이상)',
+                    [MEMBERSHIP_COUPON.PERCENT10]: '10% 쿠폰 (최대 3,000원)',
+                    [MEMBERSHIP_COUPON.FIVE]: '5,000원 쿠폰 (3만원 이상)',
+                  }) as Record<string, string>)[code] || code;
+                  const curBenefits = [
+                    `구매액 ${effectiveRate(curTier)}% 포인트 적립`,
+                    ...curTier.coupon_codes.map(c => `매월 ${couponLabel(c)}`),
+                    '생일월 5,000원 쿠폰 증정',
+                    ...(cur === 'master' ? ['델리오 선별 선물세트 (연 2회 · 등급 유지 시)'] : []),
                   ];
-                  const cur = profile?.grade ?? 'normal';
-                  const curIdx = Math.max(0, GRADES.findIndex(g => g.key === cur));
-                  const nextGrade = curIdx < GRADES.length - 1 ? GRADES[curIdx + 1] : null;
-                  const targets = [0, 50000, 200000];
-                  const pct = nextGrade ? Math.min(totalOrderAmount / targets[curIdx + 1] * 100, 100) : 100;
 
                   return (
                     <>
@@ -2201,36 +2191,30 @@ export default function MypageClient() {
                           Delio Membership
                         </div>
                         <div style={{ fontSize:12, color:'#888' }}>
-                          멤버십 등급은 누적 구매 금액을 기준으로 산정됩니다.
+                          최근 3개월(분기) 누적 구매를 기준으로 산정됩니다.
                         </div>
                       </div>
-                      <div style={{ height:1, background:'#CFCFCF', marginBottom:28 }} />
+                      <div style={{ height:1, background:'#CFCFCF', marginBottom:24 }} />
 
-                      {/* 등급 헤더 3열 */}
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', marginBottom:24 }}>
-                        {GRADES.map((g) => {
-                          const isActive = g.key === cur;
+                      {/* 등급 헤더 4열 */}
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', marginBottom:24, gap:4 }}>
+                        {sorted.map((t) => {
+                          const isActive = t.grade === cur;
+                          const color = GRADE_COLOR[t.grade];
                           return (
-                            <div key={g.key} style={{ textAlign:'center', padding:'0 4px 0' }}>
-                              {/* 원형 뱃지 */}
+                            <div key={t.grade} style={{ textAlign:'center' }}>
                               <div style={{
-                                width:60, height:60, borderRadius:'50%',
-                                background: isActive ? g.badgeBg : '#D8D8D8',
-                                color:'#fff', fontSize:isActive ? 16 : 13, fontWeight:800,
+                                width:54, height:54, borderRadius:'50%',
+                                background: isActive ? color : '#D8D8D8',
+                                color:'#fff', fontSize:isActive ? 13 : 11, fontWeight:800,
                                 display:'flex', alignItems:'center', justifyContent:'center',
-                                margin:'0 auto 12px',
-                              }}>{g.letter}</div>
-                              {/* 등급명 */}
-                              <div style={{ fontSize:13, fontWeight:800, color: isActive ? '#111' : '#bbb', marginBottom:10, letterSpacing:0.5 }}>
-                                {g.label}
+                                margin:'0 auto 10px', letterSpacing:0.5,
+                              }}>{GRADE_LABEL_EN[t.grade].slice(0, 2)}</div>
+                              <div style={{ fontSize:12.5, fontWeight:800, color: isActive ? '#111' : '#bbb', marginBottom:6 }}>
+                                {t.label}
                               </div>
-                              {/* 기준 라벨 */}
-                              <div style={{ fontSize:10, color:'#bbb', marginBottom:5, lineHeight:1.5 }}>
-                                최근 3개월간<br />누적 구매 금액
-                              </div>
-                              {/* 기준 금액 */}
-                              <div style={{ fontSize:15, fontWeight:800, color: isActive ? '#111' : '#bbb' }}>
-                                {g.criteria}
+                              <div style={{ fontSize:10, color: isActive ? color : '#bbb', fontWeight:700, lineHeight:1.4 }}>
+                                {t.min_amount === 0 ? '기본' : `${(t.min_amount / 10000).toLocaleString()}만원${t.min_count > 0 ? `·${t.min_count}회` : ''}↑`}
                               </div>
                             </div>
                           );
@@ -2238,83 +2222,60 @@ export default function MypageClient() {
                       </div>
 
                       {/* 진행 바 */}
-                      <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px', marginBottom:24 }}>
+                      <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px', marginBottom:22 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:8 }}>
-                          <span style={{ color:'#888' }}>누적 구매금액</span>
-                          <span style={{ fontWeight:800, color:'#111' }}>{fmtPrice(totalOrderAmount)}원</span>
+                          <span style={{ color:'#888' }}>최근 3개월 누적 ({qCount}회)</span>
+                          <span style={{ fontWeight:800, color:'#111' }}>{fmtPrice(qAmount)}원</span>
                         </div>
                         <div style={{ height:5, background:'#E4E4E4', borderRadius:3, overflow:'hidden', marginBottom:7 }}>
-                          <div style={{ height:'100%', width:`${pct}%`, borderRadius:3, transition:'width .5s',
-                            background: nextGrade
-                              ? `linear-gradient(90deg,${GRADES[curIdx].badgeBg},${nextGrade.badgeBg})`
-                              : GRADES[curIdx].badgeBg }} />
+                          <div style={{ height:'100%', width:`${amtPct}%`, borderRadius:3, transition:'width .5s',
+                            background: nextTier
+                              ? `linear-gradient(90deg,${GRADE_COLOR[curTier.grade]},${GRADE_COLOR[nextTier.grade]})`
+                              : GRADE_COLOR[curTier.grade] }} />
                         </div>
                         <div style={{ fontSize:11, textAlign:'right' }}>
-                          {nextGrade
-                            ? <span style={{ color: nextGrade.badgeBg, fontWeight:700 }}>
-                                {nextGrade.label}까지 {fmtPrice(Math.max(targets[curIdx+1] - totalOrderAmount, 0))}원 남음
+                          {nextTier
+                            ? <span style={{ color: GRADE_COLOR[nextTier.grade], fontWeight:700 }}>
+                                {nextTier.label}까지 {fmtPrice(Math.max(nextTier.min_amount - qAmount, 0))}원{nextTier.min_count > qCount ? ` · ${nextTier.min_count - qCount}회` : ''} 남음
                               </span>
-                            : <span style={{ color:'#555', fontWeight:700 }}>🎉 최고 등급 달성!</span>
+                            : <span style={{ color:'#555', fontWeight:700 }}>최고 등급 달성!</span>
                           }
                         </div>
                       </div>
 
-                      {/* 혜택 카드 그리드 */}
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, alignItems:'start' }}>
-                        {GRADES.map((g) => {
-                          const isActive = g.key === cur;
-                          const accentColor = isActive ? g.badgeBg : '#D0D0D0';
+                      {/* 현재 등급 혜택 */}
+                      <div style={{ border:`1.5px solid ${GRADE_COLOR[cur]}33`, borderRadius:12, overflow:'hidden', marginBottom:16 }}>
+                        <div style={{ background:GRADE_COLOR[cur], color:'#fff', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                          <span style={{ fontWeight:800, fontSize:15 }}>{curTier.label} 혜택</span>
+                          <span style={{ fontSize:12, fontWeight:700, opacity:0.95 }}>포인트 {effectiveRate(curTier)}% 적립</span>
+                        </div>
+                        <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', gap:9 }}>
+                          {curBenefits.map((txt, i) => (
+                            <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#333' }}>
+                              <span style={{ color:GRADE_COLOR[cur], fontWeight:800, flexShrink:0 }}>✓</span>{txt}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 전체 등급 혜택 비교 */}
+                      <div style={{ fontSize:12, color:'#aaa', textAlign:'center', marginBottom:10 }}>전체 등급 혜택</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        {sorted.map((t) => {
+                          const isActive = t.grade === cur;
+                          const color = GRADE_COLOR[t.grade];
                           return (
-                            <div key={g.key} style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                              {g.benefits.map((b, bi) => (
-                                /* 쿠폰 카드 */
-                                <div key={bi} style={{
-                                  display:'flex',
-                                  borderRadius:8,
-                                  border:`1px solid ${isActive ? accentColor+'55' : '#E8E8E8'}`,
-                                  overflow:'hidden',
-                                  background:'#fff',
-                                  minHeight:58,
-                                }}>
-                                  {/* 왼쪽 컬러 바 */}
-                                  <div style={{ width:4, flexShrink:0, background: accentColor }} />
-
-                                  {/* 텍스트 영역 */}
-                                  <div style={{
-                                    flex:1, padding:'11px 10px',
-                                    display:'flex', alignItems:'center',
-                                    fontSize:11, lineHeight:1.6,
-                                    color: isActive ? '#222' : '#bbb',
-                                    whiteSpace:'pre-line',
-                                    fontWeight: isActive ? 500 : 400,
-                                  }}>
-                                    {b.text}
-                                  </div>
-
-                                  {/* 오른쪽 스텁 — 점선 구분 + 뱃지/아이콘 */}
-                                  {(b.count || b.icon) && (
-                                    <div style={{
-                                      flexShrink:0, width:52,
-                                      borderLeft:`1.5px dashed ${isActive ? accentColor+'88' : '#E0E0E0'}`,
-                                      display:'flex', flexDirection:'column',
-                                      alignItems:'center', justifyContent:'center',
-                                      gap:2,
-                                      background: isActive ? accentColor+'0D' : '#FAFAFA',
-                                    }}>
-                                      {b.count && (
-                                        <div style={{
-                                          fontSize:9, fontWeight:800,
-                                          color: isActive ? accentColor : '#bbb',
-                                          textAlign:'center', lineHeight:1.3,
-                                        }}>×{b.count}</div>
-                                      )}
-                                      {b.icon && (
-                                        <div style={{ fontSize:15 }}>{b.icon}</div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
+                            <div key={t.grade} style={{ display:'flex', gap:10, padding:'12px 14px', borderRadius:10, border:`1px solid ${isActive ? color + '55' : '#EEE'}`, background: isActive ? color + '08' : '#fff' }}>
+                              <div style={{ flexShrink:0, width:52, textAlign:'center' }}>
+                                <div style={{ fontSize:12.5, fontWeight:800, color: isActive ? color : '#999' }}>{t.label}</div>
+                                <div style={{ fontSize:9.5, color:'#bbb', marginTop:2 }}>{t.min_amount === 0 ? '기본' : `${(t.min_amount / 10000).toLocaleString()}만↑`}</div>
+                              </div>
+                              <div style={{ flex:1, fontSize:11.5, color: isActive ? '#333' : '#999', lineHeight:1.7 }}>
+                                포인트 {t.point_rate}% 적립
+                                {t.coupon_codes.length > 0 && <> · 매월 {t.coupon_codes.map(couponLabel).join(' · ')}</>}
+                                {' · 생일쿠폰 5천원'}
+                                {t.grade === 'master' && ' · 선물세트(연 2회)'}
+                              </div>
                             </div>
                           );
                         })}

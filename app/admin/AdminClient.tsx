@@ -9,6 +9,7 @@ import { StarRating } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
+import { DEFAULT_TIERS, MEMBERSHIP_COUPON, type MembershipTier } from '@/lib/membership';
 import dynamic from 'next/dynamic';
 
 const ImageDetailEditor = dynamic(
@@ -381,12 +382,16 @@ const ORDER_STAGES: { key: string; label: string }[] = [
 ];
 
 const GRADE_LABEL: Record<string, string> = {
-  normal:'일반', silver:'실버', gold:'골드', vip:'VIP', vvip:'VVIP',
+  beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터',
 };
 
 const GRADE_BADGE_CLS: Record<string, string> = {
-  normal:'badge-normal', silver:'badge-silver', gold:'badge-gold',
-  vip:'badge-gold', vvip:'badge-gold',
+  beginner:'badge-normal', taster:'badge-silver', buyer:'badge-gold', master:'badge-gold',
+};
+
+/* 등급 산정 기준(분기 누적) — 회원 등급변경 안내용 */
+const GRADE_CRITERIA: Record<string, string> = {
+  beginner:'10만원 미만', taster:'10만원 이상', buyer:'30만원·3회 이상', master:'150만원·5회 이상',
 };
 
 const CAT_LABEL: Record<string, string> = {
@@ -510,7 +515,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 }) {
   const [smsText,      setSmsText]      = useState('');
   const [targetMode,   setTargetMode]   = useState<'all'|'grade'|'select'|'custom'>('all');
-  const [gradeFilter,  setGradeFilter]  = useState('gold');
+  const [gradeFilter,  setGradeFilter]  = useState('high');
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
   const [memberSearch, setMemberSearch] = useState('');
   const [customNums,   setCustomNums]   = useState('');
@@ -572,7 +577,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     }
     let filtered: AdminProfile[] = [];
     if (targetMode === 'all')    filtered = members;
-    if (targetMode === 'grade')  filtered = members.filter(m => gradeFilter === 'gold' ? ['gold','vip','vvip'].includes(m.grade) : m.grade === gradeFilter);
+    if (targetMode === 'grade')  filtered = members.filter(m => gradeFilter === 'high' ? ['buyer','master'].includes(m.grade) : m.grade === gradeFilter);
     if (targetMode === 'select') filtered = members.filter(m => selectedIds.has(m.id));
     return filtered.map(m => m.phone || '').filter(Boolean).map(p => p.replace(/-/g, ''));
   }
@@ -593,7 +598,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const charCount    = smsText.length;
   const msgType      = charCount > 90 ? 'LMS' : 'SMS';
   const targetCount  = buildTargets().length;
-  const GRADE_LABEL_MAP: Record<string,string> = { normal:'일반', silver:'실버', gold:'골드', vip:'VIP', vvip:'VVIP' };
+  const GRADE_LABEL_MAP: Record<string,string> = { beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터' };
 
   const smsPeriodRecipients = smsLogs.reduce((s, l) => s + (l.target_count || 0), 0);
   return (
@@ -632,7 +637,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               {/* 등급별 선택 */}
               {targetMode === 'grade' && (
                 <AdmSelect value={gradeFilter} onChange={setGradeFilter}
-                  options={[{ value:'gold', label:'골드·VIP·VVIP' }, ...Object.entries(GRADE_LABEL_MAP).map(([v,l]) => ({ value:v, label:`${l}만` }))]} />
+                  options={[{ value:'high', label:'바이어·마스터' }, ...Object.entries(GRADE_LABEL_MAP).map(([v,l]) => ({ value:v, label:`${l}만` }))]} />
               )}
 
               {/* 번호 직접입력 */}
@@ -673,7 +678,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                         <div style={{ fontSize:11, color:'#64748B', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.email || '-'}</div>
                         <div style={{ fontSize:11, color:'#94A3B8' }}>{m.phone}</div>
                       </div>
-                      <span className={`adm-badge ${m.grade === 'gold' || m.grade === 'vip' || m.grade === 'vvip' ? 'badge-gold' : 'badge-normal'}`} style={{ fontSize:10 }}>
+                      <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade] || 'badge-normal'}`} style={{ fontSize:10 }}>
                         {GRADE_LABEL_MAP[m.grade] || m.grade}
                       </span>
                     </label>
@@ -1415,6 +1420,11 @@ export default function AdminClient() {
   const [ptRate, setPtRate] = useState('1');
   const [ptApply, setPtApply] = useState('');
   const [ptSaving, setPtSaving] = useState(false);
+  /* 멤버십 등급 설정 */
+  const [mTiers, setMTiers] = useState<MembershipTier[]>([]);
+  const [mLoaded, setMLoaded] = useState(false);
+  const [mSaving, setMSaving] = useState(false);
+  const [recalcRunning, setRecalcRunning] = useState(false);
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
   const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null } | null }[]>([]);
@@ -2387,7 +2397,9 @@ export default function AdminClient() {
 
   async function changeMemberGrade(memberId: string, grade: string) {
     const supabase = createClient();
-    const { error } = await supabase.from('profiles').update({ grade }).eq('id', memberId);
+    /* 수동 변경 = 잠금 → 분기 자동 재산정에서 제외 */
+    const { error } = await supabase.from('profiles')
+      .update({ grade, grade_locked: true, grade_updated_at: new Date().toISOString() }).eq('id', memberId);
     if (!error) {
       setMembers(prev => prev.map(m => m.id === memberId ? { ...m, grade } : m));
       setSelectedMember(prev => prev?.id === memberId ? { ...prev, grade } : prev);
@@ -2989,6 +3001,66 @@ export default function AdminClient() {
     if (error) { alert('저장 실패: ' + error.message); return; }
     setSiteSettings(prev => ({ ...prev, ...patch }));
     setPtEdit(false);
+  }
+
+  /* ========== 멤버십 등급 설정 ========== */
+  async function loadMTiers() {
+    const { data } = await createClient().from('membership_tiers').select('*').order('sort');
+    setMTiers(data && data.length ? (data as MembershipTier[]) : DEFAULT_TIERS);
+    setMLoaded(true);
+  }
+  function updateTier(grade: string, patch: Partial<MembershipTier>) {
+    setMTiers(prev => prev.map(t => t.grade === grade ? { ...t, ...patch } : t));
+  }
+  function toggleTierCoupon(grade: string, code: string) {
+    setMTiers(prev => prev.map(t => {
+      if (t.grade !== grade) return t;
+      const has = t.coupon_codes.includes(code);
+      return { ...t, coupon_codes: has ? t.coupon_codes.filter(c => c !== code) : [...t.coupon_codes, code] };
+    }));
+  }
+  async function saveMTiers() {
+    setMSaving(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = mTiers.map(t => {
+      const next = t.point_rate_next === null || String(t.point_rate_next) === '' ? null : Number(t.point_rate_next);
+      const scheduled = next != null && !!t.apply_date && t.apply_date > today;
+      return {
+        grade: t.grade, sort: t.sort, label: t.label,
+        point_rate: Number(t.point_rate) || 0,
+        point_rate_next: scheduled ? next : null,
+        apply_date: scheduled ? t.apply_date : null,
+        min_amount: Number(t.min_amount) || 0,
+        min_count: Number(t.min_count) || 0,
+        coupon_codes: t.coupon_codes,
+        monthly_active: t.monthly_active,
+        updated_at: new Date().toISOString(),
+      };
+    });
+    const { error } = await createClient().from('membership_tiers').upsert(rows, { onConflict: 'grade' });
+    setMSaving(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    alert('멤버십 등급 설정이 저장되었습니다.');
+  }
+  async function saveMembershipToggle(key: string, v: boolean) {
+    setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }));
+    await createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' });
+  }
+  async function recalcGradesNow() {
+    if (!confirm('전체 회원 등급을 분기 누적 구매(금액·횟수) 기준으로 재산정합니다.\n수동 변경(잠금)된 회원은 제외됩니다. 진행할까요?')) return;
+    setRecalcRunning(true);
+    let data: { ok?: boolean; updated?: number; error?: string } = {};
+    try {
+      const res = await fetch('/api/membership/recalc', { method: 'POST' });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { alert('재산정 실패: ' + (data.error || res.status)); }
+      else {
+        alert(`재산정 완료 — ${data.updated || 0}명 등급 변경`);
+        setSiteSettings(prev => ({ ...prev, membership_last_recalc: new Date().toISOString().slice(0, 16).replace('T', ' ') }));
+        loadMembers();
+      }
+    } catch (e) { alert('재산정 오류: ' + (e as Error).message); }
+    setRecalcRunning(false);
   }
 
   /* ========== 마케팅 분석 (자체 DB 집계) ========== */
@@ -3766,7 +3838,7 @@ export default function AdminClient() {
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
       case 'reviews':   loadReviews(); break;
-      case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); break;
+      case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
       case 'referral':     loadReferrals(); loadReferralCoupons(); break;
@@ -6078,59 +6150,111 @@ export default function AdminClient() {
                       </div>
                       <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
                     </div>
-                    {/* 현재값 카드 3개 */}
-                    {(() => {
-                      const ptEff = effectivePointRatePct(siteSettings);
-                      const ptPending = pendingPointChange(siteSettings);
-                      return (
-                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:0 }}>
-                      <div className="adm-kpi-card" style={{ background:'#EFF6FF', border:'1px solid #DBEAFE' }}>
-                        <div className="adm-kpi-label">현재 적립률</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#2563EB' }}>{ptEff}%</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>구매액의 {ptEff}% 적립</div>
-                      </div>
-                      <div className="adm-kpi-card" style={{ background:'#F0FDF4', border:'1px solid #DCFCE7' }}>
-                        <div className="adm-kpi-label">{ptPending ? '예약된 변경' : '적용일'}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{ptPending ? ptPending.applyDate : '즉시 적용 중'}</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>{ptPending ? `이 날부터 ${ptPending.rate}% 로 변경` : '예약된 변경 없음'}</div>
-                      </div>
-                      <div className="adm-kpi-card">
-                        <div className="adm-kpi-label">최종 수정일</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt">{siteSettings.point_updated_at || '-'}</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>마지막 설정 변경일</div>
+                    {/* 적립률은 등급별 설정으로 이전 */}
+                    <div style={{ padding:'12px 14px', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E', lineHeight:1.6 }}>
+                      포인트 <b>적립률은 회원 등급별</b>로 적용됩니다. 아래 <b>멤버십 등급 설정</b>에서 등급마다 적립률·적용일을 관리하세요.
+                    </div>
+                  </div>
+
+                  {/* ===== 멤버십 등급 설정 ===== */}
+                  <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
+                    <div className="adm-card-head" style={{ paddingBottom:16, marginBottom:18, borderBottom:'1px solid #EEF2F6', alignItems:'flex-start' }}>
+                      <div>
+                        <div className="adm-card-title">멤버십 등급 설정</div>
+                        <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>등급별 적립률·산정 임계값·월 발급 쿠폰을 설정합니다. 분기 누적 구매로 자동 산정됩니다.</div>
                       </div>
                     </div>
-                      );
-                    })()}
-                    {/* 설정 수정 버튼 / 설정 변경 폼 */}
-                    {!ptEdit ? (
-                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:18 }}>
-                        <button className="adm-btn adm-btn-primary" onClick={openPtEdit}>설정 수정</button>
-                      </div>
-                    ) : (
-                      <div className="adm-card" style={{ background:'#fff', border:'1px solid #E2E8F0', marginTop:14 }}>
-                        <div className="adm-card-title" style={{ marginBottom:10 }}>설정 변경</div>
-                        <div className="adm-info-box" style={{ marginBottom:14 }}>⚠️ 포인트 적립률 변경은 설정한 적용일로부터 적용되며, 소급 적용되지 않습니다.</div>
-                        <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
-                          <div style={{ flex:'1 1 220px' }}>
-                            <label className="adm-label">포인트 적립률</label>
-                            <input type="number" className="adm-input-text" style={{ width:'100%' }} min={0} max={10} step={0.5}
-                              value={ptRate} onChange={e => setPtRate(e.target.value)} />
-                            <div className="adm-muted" style={{ fontSize:11, marginTop:3 }}>0% ~ 10% 사이로 설정 가능</div>
-                          </div>
-                          <div style={{ flex:'1 1 220px' }}>
-                            <label className="adm-label">적용일</label>
-                            <input type="date" className="adm-input-text" style={{ width:'100%' }} min={new Date().toISOString().slice(0,10)}
-                              value={ptApply} onChange={e => setPtApply(e.target.value)} />
-                            <div className="adm-muted" style={{ fontSize:11, marginTop:3 }}>오늘 이후 날짜만 선택 가능</div>
-                          </div>
+
+                    {/* 운영 토글 + 재산정 */}
+                    <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:18 }}>
+                      {([
+                        ['membership_monthly_on', '월 쿠폰팩 발급'],
+                        ['membership_birthday_on', '생일쿠폰(5천원)'],
+                        ['membership_auto_recalc', '분기 자동 재산정'],
+                      ] as const).map(([key, label]) => (
+                        <div key={key} style={{ flex:'1 1 200px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'12px 14px', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8 }}>
+                          <span style={{ fontSize:13, fontWeight:600, color:'#334155' }}>{label}</span>
+                          <Toggle defaultOn={siteSettings[key] !== 'false'} onChange={v => saveMembershipToggle(key, v)} />
                         </div>
-                        <div style={{ display:'flex', gap:8, marginTop:16 }}>
-                          <button className="adm-btn adm-btn-primary" disabled={ptSaving} onClick={savePointSettings}>{ptSaving ? '저장 중...' : '저장'}</button>
-                          <button className="adm-btn adm-btn-outline" onClick={() => setPtEdit(false)}>취소</button>
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18, flexWrap:'wrap' }}>
+                      <button className="adm-btn adm-btn-outline" disabled={recalcRunning} onClick={recalcGradesNow}>
+                        {recalcRunning ? '재산정 중...' : '지금 재산정'}
+                      </button>
+                      <span className="adm-muted" style={{ fontSize:12 }}>
+                        마지막 재산정: {siteSettings.membership_last_recalc || '없음'} · 수동 변경(잠금) 회원은 제외
+                      </span>
+                    </div>
+
+                    {/* 등급별 표 */}
+                    <div className="adm-table-wrap" style={{ overflowX:'auto' }}>
+                      <table className="adm-table" style={{ minWidth:760 }}>
+                        <thead>
+                          <tr>
+                            <th style={{ minWidth:84 }}>등급</th>
+                            <th style={{ minWidth:96 }}>적립률(%)</th>
+                            <th style={{ minWidth:170 }}>예약 적립률 / 적용일</th>
+                            <th style={{ minWidth:120 }}>분기 누적금액(원)</th>
+                            <th style={{ minWidth:84 }}>구매횟수</th>
+                            <th style={{ minWidth:210 }}>월 발급 쿠폰</th>
+                            <th style={{ minWidth:70 }}>월 발급</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {mTiers.map(t => (
+                            <tr key={t.grade}>
+                              <td><span className={`adm-badge ${GRADE_BADGE_CLS[t.grade] || 'badge-normal'}`}>{t.label}</span></td>
+                              <td>
+                                <input type="number" className="adm-input-text" style={{ width:70 }} min={0} max={10} step={0.5}
+                                  value={String(t.point_rate)} onChange={e => updateTier(t.grade, { point_rate: Number(e.target.value) })} />
+                              </td>
+                              <td>
+                                <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+                                  <input type="number" className="adm-input-text" style={{ width:58 }} min={0} max={10} step={0.5} placeholder="-"
+                                    value={t.point_rate_next == null ? '' : String(t.point_rate_next)}
+                                    onChange={e => updateTier(t.grade, { point_rate_next: e.target.value === '' ? null : Number(e.target.value) })} />
+                                  <input type="date" className="adm-input-text" style={{ width:138 }} min={new Date().toISOString().slice(0,10)}
+                                    value={t.apply_date || ''} onChange={e => updateTier(t.grade, { apply_date: e.target.value || null })} />
+                                </div>
+                              </td>
+                              <td>
+                                <input type="number" className="adm-input-text" style={{ width:110 }} min={0} step={10000}
+                                  value={String(t.min_amount)} onChange={e => updateTier(t.grade, { min_amount: Number(e.target.value) })} />
+                              </td>
+                              <td>
+                                <input type="number" className="adm-input-text" style={{ width:64 }} min={0} step={1}
+                                  value={String(t.min_count)} onChange={e => updateTier(t.grade, { min_count: Number(e.target.value) })} />
+                              </td>
+                              <td>
+                                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                                  {([
+                                    [MEMBERSHIP_COUPON.THOUSAND, '1,000원 (1만↑)'],
+                                    [MEMBERSHIP_COUPON.PERCENT10, '10% (최대 3천)'],
+                                    [MEMBERSHIP_COUPON.FIVE, '5,000원 (3만↑)'],
+                                  ] as const).map(([code, lbl]) => (
+                                    <label key={code} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, cursor:'pointer' }}>
+                                      <input type="checkbox" checked={t.coupon_codes.includes(code)} onChange={() => toggleTierCoupon(t.grade, code)} />
+                                      {lbl}
+                                    </label>
+                                  ))}
+                                </div>
+                              </td>
+                              <td>
+                                <Toggle defaultOn={t.monthly_active} onChange={v => updateTier(t.grade, { monthly_active: v })} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.6 }}>
+                      예약 적립률은 적용일이 지나면 자동 반영됩니다(소급 X). 분기 누적금액·구매횟수는 둘 다 충족해야 해당 등급으로 승급됩니다.
+                      생일쿠폰은 전 등급 공통으로 생일월에 자동 발급됩니다.
+                    </div>
+                    <div style={{ display:'flex', gap:8, marginTop:16, justifyContent:'flex-end' }}>
+                      <button className="adm-btn adm-btn-primary" disabled={mSaving} onClick={saveMTiers}>{mSaving ? '저장 중...' : '등급 설정 저장'}</button>
+                    </div>
                   </div>
 
                   {/* KPI */}
@@ -7015,7 +7139,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 {[
                   ['전체 회원수',  stats ? `${stats.totalMembers.toLocaleString()}명` : '...'],
                   ['블랙리스트',   members.filter(m => m.is_blocked).length + '명'],
-                  ['골드 이상',    members.filter(m => ['gold','vip','vvip'].includes(m.grade)).length + '명'],
+                  ['바이어 이상',  members.filter(m => ['buyer','master'].includes(m.grade)).length + '명'],
                   ['포인트 보유',  members.reduce((s,m) => s+(m.point_balance||0), 0).toLocaleString() + 'P'],
                 ].map(([l,v]) => (
                   <div key={l} className="adm-kpi-card">
@@ -8814,6 +8938,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {Object.entries(GRADE_LABEL).map(([grade, label]) => (
                     <button key={grade} onClick={() => changeMemberGrade(selectedMember.id, grade)}
+                      title={`기준: ${GRADE_CRITERIA[grade] || ''}`}
                       style={{ padding:'6px 14px', borderRadius:99, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer',
                         borderColor: selectedMember.grade === grade ? '#1A1A1A' : '#E2E8F0',
                         background: selectedMember.grade === grade ? '#1A1A1A' : '#fff',
@@ -8821,6 +8946,10 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       {label}
                     </button>
                   ))}
+                </div>
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.5 }}>
+                  분기 누적 구매로 자동 산정됩니다. 수동 변경 시 <b>잠금</b> 처리되어 자동 재산정에서 제외됩니다.<br />
+                  비기너 {GRADE_CRITERIA.beginner} · 테이스터 {GRADE_CRITERIA.taster} · 바이어 {GRADE_CRITERIA.buyer} · 마스터 {GRADE_CRITERIA.master}
                 </div>
               </div>
 

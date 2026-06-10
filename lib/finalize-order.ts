@@ -1,5 +1,5 @@
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
-import { effectivePointRatePct, isPointEnabled } from '@/lib/points';
+import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 
 export interface OrderData {
   userId: string;
@@ -127,23 +127,24 @@ export async function finalizeOrder(
       .eq('id', orderData.userCouponId);
   }
 
-  /* 포인트 적립: site_settings 반영(적용일 스케줄링 포함). 미설정 시 1% 기본 */
-  let pointRate = 0.01;
+  /* 포인트 적립: 회원 등급별 적립률(membership_tiers, 적용일 스케줄링 포함). 글로벌 on/off 존중 */
   let pointEnabled = true;
   {
-    const { data: ps } = await supabase
-      .from('site_settings').select('key, value')
-      .in('key', ['point_enabled', 'point_rate', 'point_rate_next', 'point_apply_date']);
-    const map: Record<string, string> = {};
-    (ps || []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
-    pointEnabled = isPointEnabled(map);
-    pointRate = effectivePointRatePct(map) / 100;
+    const { data: pe } = await supabase
+      .from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle();
+    pointEnabled = !pe || pe.value !== 'false';
   }
-  const earned = pointEnabled ? Math.floor(orderData.totalAmount * pointRate) : 0;
+  let earned = 0;
   if (orderData.userId) {
     const { data: prof } = await supabase
-      .from('profiles').select('point_balance').eq('id', orderData.userId).single();
+      .from('profiles').select('point_balance, grade').eq('id', orderData.userId).single();
     if (prof) {
+      const grade = normalizeGrade(prof.grade);
+      const { data: tierRow } = await supabase
+        .from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
+      const tier = (tierRow as MembershipTier | null) ?? DEFAULT_TIERS.find(t => t.grade === grade)!;
+      const ratePct = effectiveRate(tier);
+      earned = pointEnabled ? Math.floor(orderData.totalAmount * ratePct / 100) : 0;
       const newBalance = (prof.point_balance || 0) - pointUsed + earned;
       await supabase.from('profiles')
         .update({ point_balance: Math.max(0, newBalance) }).eq('id', orderData.userId);
