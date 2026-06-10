@@ -8641,38 +8641,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </div>
               </div>
 
-              {/* 적립 · 혜택 · 고객센터 */}
-              <div className="adm-card adm-card-settings">
-                <div className="adm-card-head"><span className="adm-card-title">적립 · 혜택 · 고객센터</span></div>
-                <div className="adm-form">
-                  <div className="adm-form-row">
-                    <label className="adm-label">포인트 적립 사용</label>
-                    <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }))} />
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>끄면 구매 시 포인트가 적립되지 않습니다. (적립률 상세는 쿠폰/포인트 탭)</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">포인트 적립률</label>
-                    <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.point_rate ?? '1'} min={0} max={10} step={0.5} onChange={e => setSiteSettings(prev => ({ ...prev, point_rate: e.target.value }))} />
-                      <span className="adm-muted">% (구매금액 기준)</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">회원가입 쿠폰 금액</label>
-                    <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.signup_coupon ?? '5000'} min={0} step={1000} onChange={e => setSiteSettings(prev => ({ ...prev, signup_coupon: e.target.value }))} />
-                      <span className="adm-muted">원</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">고객센터 전화번호</label>
-                    <input type="text" className="adm-input-text" style={{ maxWidth:200 }} value={siteSettings.cs_phone ?? ''} placeholder="예: 02-0000-0000" onChange={e => setSiteSettings(prev => ({ ...prev, cs_phone: e.target.value }))} />
-                  </div>
-                </div>
-              </div>
-
               {/* 인기 검색어 */}
               <div className="adm-card adm-card-settings">
                 <div className="adm-card-head"><span className="adm-card-title">인기 검색어 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>· 검색창·검색페이지 추천</span></span></div>
