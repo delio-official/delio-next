@@ -380,7 +380,7 @@ function QuickGuide() {
                 </div>
               ))
             : items.length === 0
-              ? <ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} />
+              ? <div style={{ gridColumn:'1 / -1', width:'100%' }}><ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} /></div>
               : items.map(p => {
                   const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
                   const icon = CAT_ICONS[catKey] || '🍑';
