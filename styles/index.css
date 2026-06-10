@@ -1343,9 +1343,10 @@
       background: rgba(0,0,0,.28); transition: opacity .22s; pointer-events: none; z-index: 0;
     }
     .main-banner-slide .bs-content, .main-banner-slide .bs-deco { z-index: 1; position: relative; }
-    /* 가운데 활성 슬라이드(PC 2장·모바일 1장): 오버레이 제거 + 밝기 보정으로 또렷하게 */
-    .main-banner-slide.slide-active::after { opacity: 0; }
-    .main-banner-slide.slide-active { filter: brightness(1.1) saturate(1.03); }
+    /* 가운데 활성 슬라이드(PC 2장·모바일 1장): 오버레이 제거 + 밝기 보정으로 또렷하게.
+       slide-active 클래스는 .banner-slide-wrap 에 붙으므로 자손 선택자로 매칭 */
+    .banner-slide-wrap.slide-active .main-banner-slide::after { opacity: 0; }
+    .banner-slide-wrap.slide-active .main-banner-slide { filter: brightness(1.04); }
     .main-banner-inner.snap-mode .main-banner-slide::after { transition: none !important; }
     @media(max-width:640px) {
       .main-banner-slide { border-radius: 0; }
