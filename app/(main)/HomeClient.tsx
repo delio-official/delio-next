@@ -8,6 +8,7 @@ import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
+import { fetchSectionConfig, orderColumn, orderByIds } from '@/lib/homeSections';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
@@ -302,6 +303,8 @@ function QuickGuide() {
     async function fetchQG() {
       setLoading(true);
       const supabase = createClient();
+      const cfg = await fetchSectionConfig(supabase, 'qg');
+      const ord = orderColumn('qg', cfg.mode === 'manual' ? 'latest' : cfg.mode);
       let q = supabase
         .from('products')
         .select('id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category')
@@ -310,7 +313,7 @@ function QuickGuide() {
       else if (activeCat === 'dawn') q = (q as any).eq('is_dawn', true);
       else if (activeCat === 'new')  q = (q as any).eq('is_new', true);
       else                           q = (q as any).eq('category', activeCat);
-      const { data } = await (q as any).limit(8);
+      const { data } = await (q as any).order(ord.col, { ascending: ord.asc }).limit(cfg.count);
       if (!cancelled) {
         setItems((data as QGProduct[]) || []);
         setLoading(false);
@@ -630,14 +633,27 @@ export default function HomeClient() {
   useEffect(() => {
     async function loadLounge() {
       const supabase = createClient();
-      const { data } = await supabase
-        .from('lounge_posts')
-        .select('id,bg,emoji,title,badge,date,filter,thumbnail_url')
-        .eq('is_active', true)
-        .order('sort_order')
-        .order('created_at', { ascending: false })
-        .limit(3);
-      setLoungePosts((data as LoungePost[]) || []);
+      const cfg = await fetchSectionConfig(supabase, 'lounge');
+      const cols = 'id,bg,emoji,title,badge,date,filter,thumbnail_url';
+
+      let rows: LoungePost[] = [];
+      if (cfg.mode === 'manual') {
+        if (cfg.ids.length > 0) {
+          const { data } = await supabase.from('lounge_posts').select(cols).eq('is_active', true).in('id', cfg.ids);
+          rows = orderByIds((data as LoungePost[]) || [], cfg.ids).slice(0, cfg.count);
+        } else {
+          /* 직접 선택인데 미지정 → 기존 수동 정렬(sort_order) 따름 */
+          const { data } = await supabase.from('lounge_posts').select(cols).eq('is_active', true)
+            .order('sort_order').order('created_at', { ascending: false }).limit(cfg.count);
+          rows = (data as LoungePost[]) || [];
+        }
+      } else {
+        const ord = orderColumn('lounge', cfg.mode);
+        const { data } = await supabase.from('lounge_posts').select(cols).eq('is_active', true)
+          .order(ord.col, { ascending: ord.asc }).limit(cfg.count);
+        rows = (data as LoungePost[]) || [];
+      }
+      setLoungePosts(rows);
       setLoungeLoaded(true);
     }
     loadLounge();
@@ -646,21 +662,20 @@ export default function HomeClient() {
   useEffect(() => {
     async function loadPicks() {
       const supabase = createClient();
-      /* 어드민 설정값 읽기 (없으면 기본 6) */
-      const { data: settingRow } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('key', 'pick_count')
-        .single();
-      const pickCount = Math.max(3, parseInt(settingRow?.value || '6'));
+      const cfg = await fetchSectionConfig(supabase, 'pick');
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category';
 
-      const { data } = await supabase
-        .from('products')
-        .select('id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category')
-        .eq('is_active', true)
-        .order('review_count', { ascending: false })
-        .limit(pickCount);
-      setPickProds((data as PickProduct[]) || []);
+      let rows: PickProduct[] = [];
+      if (cfg.mode === 'manual' && cfg.ids.length > 0) {
+        const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', cfg.ids);
+        rows = orderByIds((data as PickProduct[]) || [], cfg.ids).slice(0, cfg.count);
+      } else {
+        const ord = orderColumn('pick', cfg.mode === 'manual' ? 'popular' : cfg.mode);
+        const { data } = await supabase.from('products').select(cols).eq('is_active', true)
+          .order(ord.col, { ascending: ord.asc }).limit(cfg.count);
+        rows = (data as PickProduct[]) || [];
+      }
+      setPickProds(rows);
       setPickLoaded(true);
     }
     loadPicks();
@@ -718,16 +733,25 @@ export default function HomeClient() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('reviews')
-        .select('id, rating, content, image_urls, products(id, name, category, avg_rating, review_count)')
-        .order('rating', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(12);
+      const cfg = await fetchSectionConfig(supabase, 'reviewhl');
+      const sel = 'id, rating, content, image_urls, likes_count, products(id, name, category, avg_rating, review_count)';
+      let data;
+      if (cfg.mode === 'manual' && cfg.ids.length > 0) {
+        ({ data } = await supabase.from('reviews').select(sel).in('id', cfg.ids));
+      } else {
+        const ord = orderColumn('reviewhl', cfg.mode === 'manual' ? 'latest' : cfg.mode);
+        /* 사진 리뷰만 노출하므로 넉넉히 가져와 필터 후 잘라냄 */
+        ({ data } = await supabase.from('reviews').select(sel)
+          .order(ord.col, { ascending: ord.asc }).order('created_at', { ascending: false })
+          .limit(Math.max(24, cfg.count * 4)));
+      }
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
-      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null } | null };
-      const cards = ((data || []) as unknown as Row[])
-        .filter(r => r.image_urls && r.image_urls.length > 0 && r.products)
-        .slice(0, 8)
+      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null } | null };
+      let rows = ((data || []) as unknown as Row[])
+        .filter(r => r.image_urls && r.image_urls.length > 0 && r.products);
+      if (cfg.mode === 'manual' && cfg.ids.length > 0) rows = orderByIds(rows, cfg.ids);
+      const cards = rows
+        .slice(0, cfg.count)
         .map(r => ({
           id: r.id,
           image: r.image_urls![0],
@@ -747,7 +771,24 @@ export default function HomeClient() {
   useEffect(() => {
     (async () => {
       const supabase = createClient();
-      const { data: farmsData } = await supabase.from('farms').select('id, name, slug').limit(12);
+      const cfg = await fetchSectionConfig(supabase, 'brand');
+      const fcols = 'id, name, slug, created_at, view_count';
+      type FRow = { id: string; name: string; slug: string };
+      let farmsData: FRow[] = [];
+      if (cfg.mode === 'manual' && cfg.ids.length > 0) {
+        const { data } = await supabase.from('farms').select(fcols).in('id', cfg.ids);
+        farmsData = orderByIds((data as FRow[]) || [], cfg.ids);
+      } else if (cfg.mode === 'popular') {
+        const { data } = await supabase.from('farms').select(fcols);
+        const { data: wl } = await supabase.from('farm_wishlist').select('farm_id');
+        const cnt: Record<string, number> = {};
+        ((wl as { farm_id: string }[]) || []).forEach(w => { cnt[w.farm_id] = (cnt[w.farm_id] || 0) + 1; });
+        farmsData = ((data as FRow[]) || []).sort((a, b) => (cnt[b.id] || 0) - (cnt[a.id] || 0));
+      } else {
+        const ord = orderColumn('brand', cfg.mode === 'manual' ? 'latest' : cfg.mode);
+        const { data } = await supabase.from('farms').select(fcols).order(ord.col, { ascending: ord.asc });
+        farmsData = (data as FRow[]) || [];
+      }
       if (!farmsData || farmsData.length === 0) { setBrandCards([]); return; }
       const { data: prods } = await supabase.from('products')
         .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order')
@@ -761,7 +802,7 @@ export default function HomeClient() {
       ((prods || []) as PRow[]).forEach(p => { if (p.farm_id && !byFarm[p.farm_id]) byFarm[p.farm_id] = p; });
       const cards = farmsData
         .filter(f => byFarm[f.id])
-        .slice(0, 4)
+        .slice(0, cfg.count)
         .map(f => {
           const p = byFarm[f.id];
           const suf = SUF[p.category] || 'citrus';

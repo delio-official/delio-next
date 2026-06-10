@@ -479,7 +479,10 @@ export default function ProductClient() {
   }
   /* GA4: 상품 조회 */
   useEffect(() => {
-    if (product) gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
+    if (product) {
+      gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
+      try { createClient().rpc('bump_product_view', { p_id: product.id }); } catch { /* noop */ }
+    }
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* 모바일 하단 구매 CTA바가 있는 페이지 → 플로팅 버튼(카카오·맨위로)을 그 위로 올림 */

@@ -45,6 +45,7 @@ export default function LoungeDetailClient() {
         return;
       }
       setPost(data as LoungePost);
+      try { supabase.rpc('bump_lounge_view', { p_id: Number(id) }); } catch { /* noop */ }
       setLoading(false);
     }
     load();

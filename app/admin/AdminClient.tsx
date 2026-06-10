@@ -11,6 +11,7 @@ import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, MEMBERSHIP_COUPON, type MembershipTier } from '@/lib/membership';
 import { SELLER_AXES } from '@/lib/taste';
+import SectionCuration from '@/components/admin/SectionCuration';
 import dynamic from 'next/dynamic';
 
 const ImageDetailEditor = dynamic(
@@ -5675,6 +5676,8 @@ export default function AdminClient() {
           {/* ===== 상품 관리 ===== */}
           {panel === 'products' && (
             <div className="adm-content">
+              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: p.category }))} />
+              <SectionCuration sec="qg" items={[]} />
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
                   { l:'전체 상품', v:products.length, st:'' as const, red:false },
@@ -6015,6 +6018,7 @@ export default function AdminClient() {
             const filteredFarms = farms.filter(f => !farmTypeFilter || f.farm_type === farmTypeFilter);
             return (
             <div className="adm-content">
+              <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
                   <div className="adm-btn-group">
@@ -6066,6 +6070,7 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
+              <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                 {[
                   { l:'전체 리뷰', v:`${reviews.length}건`, red:false },
@@ -7206,6 +7211,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 라운지 ===== */}
           {panel === 'lounge' && (
             <div className="adm-content">
+              <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <AdmSelect value={loungeFilter} onChange={setLoungeFilter}

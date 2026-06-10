@@ -150,6 +150,7 @@ export default function FarmClient() {
       }
       if (!farmData) { router.push('/category?origin=domestic'); return; }
       setFarm(farmData as Farm);
+      try { supabase.rpc('bump_farm_view', { p_id: farmData.id }); } catch { /* noop */ }
 
       const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
