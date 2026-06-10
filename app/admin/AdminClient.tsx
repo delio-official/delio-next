@@ -6973,7 +6973,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         {(() => {
                           const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
                             main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
-                            mid:  { pc: '1060×350px (@2x)', mobile: '1080×360px · 가로 전체(풀폭) 권장' },
+                            mid:  { pc: '1060×350px (@2x)', mobile: '1200×480px · 5:2 비율 · 가로 전체(풀폭) 권장' },
                           };
                           const hint = SIZE_HINT[bnForm.type];
                           return (
