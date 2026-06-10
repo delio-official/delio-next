@@ -8129,20 +8129,23 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </div>
               </div>
 
-              {/* 블랙리스트 */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', background: selectedMember.is_blocked ? '#FEF2F2' : '#F8FAFC', borderRadius:10, border:`1px solid ${selectedMember.is_blocked ? '#FECACA' : '#E2E8F0'}` }}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:700, color: selectedMember.is_blocked ? '#DC2626' : '#1A1A1A' }}>
-                    {selectedMember.is_blocked ? '🚫 블랙리스트 등록됨' : '✅ 정상 회원'}
-                  </div>
-                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>
-                    {selectedMember.is_blocked ? '로그인 및 주문이 제한됩니다.' : '블랙리스트 등록 시 서비스 이용이 제한됩니다.'}
-                  </div>
+              {/* 회원 상태 / 블랙리스트 */}
+              <div style={{ padding:'14px 16px', borderRadius:12, background: selectedMember.is_blocked ? '#FEF2F2' : '#F8FAFC', border:`1px solid ${selectedMember.is_blocked ? '#FECACA' : '#E2E8F0'}` }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                  <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>회원 상태</span>
+                  <span className={`adm-badge ${selectedMember.is_blocked ? 'badge-off' : 'badge-on'}`}>
+                    {selectedMember.is_blocked ? '블랙리스트' : '정상'}
+                  </span>
+                </div>
+                <div style={{ fontSize:12, color:'#64748B', marginBottom:12, lineHeight:1.5 }}>
+                  {selectedMember.is_blocked
+                    ? '현재 이 회원은 로그인·주문 등 서비스 이용이 제한된 상태입니다.'
+                    : '블랙리스트로 등록하면 이 회원의 로그인·주문 등 서비스 이용이 제한됩니다.'}
                 </div>
                 <button onClick={() => toggleMemberBlock(selectedMember.id, selectedMember.is_blocked)}
-                  style={{ padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:12, fontWeight:700,
+                  style={{ width:'100%', padding:'11px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:700,
                     background: selectedMember.is_blocked ? '#16A34A' : '#DC2626', color:'#fff' }}>
-                  {selectedMember.is_blocked ? '해제' : '등록'}
+                  {selectedMember.is_blocked ? '✓ 블랙리스트 해제' : '🚫 블랙리스트 등록'}
                 </button>
               </div>
 
