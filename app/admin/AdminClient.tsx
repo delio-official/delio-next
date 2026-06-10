@@ -1087,7 +1087,16 @@ function OptionTreeEditor({ options, setOptions }: {
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
   const startTwo = () => { userTouchedMode.current = true; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
-  const toIndep = () => { userTouchedMode.current = true; setOptions(prev => prev.map(o => ({ ...o, parent_label:'' }))); setMode('indep'); };
+  const toIndep = () => {
+    userTouchedMode.current = true;
+    setOptions(prev => {
+      const names = [...new Set(prev.map(o => o.group))];
+      // 종속이면 하위(값) 그룹을, 아니면 첫 그룹을 단일 옵션으로 유지
+      const keep = (prev.some(o => (o.parent_label || '').trim()) && names[1]) ? names[1] : names[0];
+      return prev.filter(o => o.group === keep).map(o => ({ ...o, parent_label:'' }));
+    });
+    setMode('indep');
+  };
   const toCascade = () => {
     userTouchedMode.current = true;
     setOptions(prev => {
@@ -1103,7 +1112,7 @@ function OptionTreeEditor({ options, setOptions }: {
       <div>
         <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션이 필요하면 방식을 고르세요.</div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 독립 옵션 <span style={{ color:'#94A3B8' }}>(예: 중량 / 재배방식 각각 선택)</span></button>
+          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 단일 옵션 <span style={{ color:'#94A3B8' }}>(예: 중량만)</span></button>
           <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startTwo}>+ 2단계 옵션 <span style={{ color:'#94A3B8' }}>(예: 품종 → 중량)</span></button>
         </div>
       </div>
@@ -1113,7 +1122,7 @@ function OptionTreeEditor({ options, setOptions }: {
   const modeBar = (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
       <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden' }}>
-        <button type="button" onClick={() => mode !== 'indep' && toIndep()} style={{ fontSize:11, padding:'5px 11px', border:'none', cursor:'pointer', fontWeight:700, background: mode==='indep'?'#1A1A1A':'#fff', color: mode==='indep'?'#fff':'#64748B' }}>독립 그룹</button>
+        <button type="button" onClick={() => mode !== 'indep' && toIndep()} style={{ fontSize:11, padding:'5px 11px', border:'none', cursor:'pointer', fontWeight:700, background: mode==='indep'?'#1A1A1A':'#fff', color: mode==='indep'?'#fff':'#64748B' }}>단일 옵션</button>
         <button type="button" onClick={() => mode !== 'cascade' && toCascade()} style={{ fontSize:11, padding:'5px 11px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:700, background: mode==='cascade'?'#1A1A1A':'#fff', color: mode==='cascade'?'#fff':'#64748B' }}>2단계(분류→옵션)</button>
       </div>
       <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>옵션 없애기</button>
@@ -1154,25 +1163,24 @@ function OptionTreeEditor({ options, setOptions }: {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {modeBar}
-      <span style={{ fontSize:11, color:'#94A3B8' }}>그룹마다 고객이 1개씩 선택합니다 (예: <b>중량</b> + <b>재배방식</b> → 각각 선택)</span>
-      {groups.map((g, gi) => {
+      <span style={{ fontSize:11, color:'#94A3B8' }}>옵션 하나만 고르는 상품입니다 (예: <b>중량</b> 1kg/2kg/3kg). 품종별로 가격이 다르면 <b>2단계</b>를 쓰세요.</span>
+      {(() => {
+        const g = groups[0] || '옵션';
         const gReq = options.find(o => o.group === g)?.required !== false;
         const gOpts = idx.filter(o => o.group === g);
         return (
-          <div key={gi} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
+          <div style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
               <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
-              <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>그룹명</span>
+              <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>옵션명</span>
               <input className="adm-input-text" style={{ flex:1, maxWidth:180, minWidth:0, fontWeight:600 }} value={g} placeholder="예: 중량" onChange={e => renameGroup(g, e.target.value)} />
               {reqToggle(g, gReq)}
-              <button type="button" onClick={() => removeGroup(g)} style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>그룹 삭제</button>
             </div>
             {gOpts.map(o => valueRow(o))}
-            {addBtn(`+ ${g || '이 그룹'} 값 추가`, () => addValue(g))}
+            {addBtn('+ 옵션값 추가', () => addValue(g))}
           </div>
         );
-      })}
-      {addBtn('+ 옵션 그룹 추가', addGroup)}
+      })()}
     </div>
   );
 }
