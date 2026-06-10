@@ -762,10 +762,23 @@ export default function MypageClient() {
     setProfile(prev => prev ? { ...prev, ...payload } : prev);
     showToastMsg('수신 설정이 변경되었습니다');
   }
-  /* 회원 탈퇴 (안내) */
-  function handleWithdraw() {
-    if (!confirm('정말 탈퇴하시겠어요?\n탈퇴 처리는 고객센터(1:1 문의)를 통해 진행됩니다.')) return;
-    goPanel('cs');
+  /* 회원 탈퇴 → 소프트 탈퇴 처리 후 로그아웃 */
+  const [withdrawing, setWithdrawing] = useState(false);
+  async function handleWithdraw() {
+    if (withdrawing) return;
+    if (!confirm('정말 탈퇴하시겠어요?\n\n· 보유 적립금·쿠폰이 모두 소멸됩니다.\n· 동일 계정(이메일)으로는 다시 가입할 수 없습니다.')) return;
+    setWithdrawing(true);
+    try {
+      const res = await fetch('/api/account/withdraw', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { alert('탈퇴 처리 중 오류가 발생했습니다.\n' + (data.error || '')); setWithdrawing(false); return; }
+      await signOut();
+      alert('탈퇴가 완료되었습니다.\n그동안 델리오를 이용해 주셔서 감사합니다.');
+      router.replace('/');
+    } catch (e) {
+      alert('탈퇴 처리 중 오류가 발생했습니다.\n' + (e as Error).message);
+      setWithdrawing(false);
+    }
   }
 
   /* ── 배송지 관리 ── */
@@ -1982,7 +1995,7 @@ export default function MypageClient() {
 
                         {/* 탈퇴 / 저장 */}
                         <div className="mp-info-actions">
-                          <button className="mp-info-withdraw" onClick={handleWithdraw}>탈퇴하기</button>
+                          <button className="mp-info-withdraw" onClick={handleWithdraw} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                           <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
                             {infoSaving ? '저장 중...' : '저장'}
                           </button>
