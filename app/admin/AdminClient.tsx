@@ -1520,6 +1520,11 @@ export default function AdminClient() {
   const [referralsLoading, setReferralsLoading] = useState(false);
   const [referralSearch, setReferralSearch] = useState('');
   const [referralStatusFilter, setReferralStatusFilter] = useState<'all'|'pending'|'rewarded'>('all');
+  /* 친구추천 발급 쿠폰 내역 */
+  interface RefCoupon { key: string; reward_type: string; created_at: string; recipient_name: string; recipient_email: string; discount_value: number; is_used: boolean; used_at: string | null; expires_at: string | null; }
+  const [refCoupons, setRefCoupons] = useState<RefCoupon[]>([]);
+  const [refCouponsLoading, setRefCouponsLoading] = useState(false);
+  const [refcPage, setRefcPage] = useState(1); const [refcSize, setRefcSize] = useState(10);
 
   /* ── 환불 관리 ── */
   const [refundReqs, setRefundReqs] = useState<AdminRefundReq[]>([]);
@@ -2351,6 +2356,45 @@ export default function AdminClient() {
       .limit(200);
     setReferrals((data as unknown as AdminReferral[]) || []);
     setReferralsLoading(false);
+  }
+
+  /* 친구추천으로 발급된 쿠폰 내역 (referral_rewards → user_coupons → profiles/coupons, JS 조인) */
+  async function loadReferralCoupons() {
+    setRefCouponsLoading(true);
+    const supabase = createClient();
+    const { data: rewards } = await supabase.from('referral_rewards')
+      .select('reward_type, user_coupon_id, created_at').order('created_at', { ascending: false }).limit(500);
+    const ucIds = [...new Set((rewards || []).map((r: { user_coupon_id: string }) => r.user_coupon_id).filter(Boolean))];
+    if (ucIds.length === 0) { setRefCoupons([]); setRefCouponsLoading(false); return; }
+    const { data: ucs } = await supabase.from('user_coupons')
+      .select('id, user_id, coupon_id, is_used, used_at, expires_at').in('id', ucIds);
+    const ucMap = new Map((ucs || []).map((u: { id: string }) => [u.id, u]));
+    const userIds = [...new Set((ucs || []).map((u: { user_id: string }) => u.user_id))];
+    const couponIds = [...new Set((ucs || []).map((u: { coupon_id: string }) => u.coupon_id))];
+    const [{ data: profs }, { data: cps }] = await Promise.all([
+      supabase.from('profiles').select('id, name, email').in('id', userIds),
+      supabase.from('coupons').select('id, discount_value').in('id', couponIds),
+    ]);
+    const profMap = new Map((profs || []).map((p: { id: string }) => [p.id, p]));
+    const cpMap = new Map((cps || []).map((c: { id: string }) => [c.id, c]));
+    const rows: RefCoupon[] = (rewards || []).map((r: { reward_type: string; user_coupon_id: string; created_at: string }) => {
+      const uc = ucMap.get(r.user_coupon_id) as { user_id: string; coupon_id: string; is_used: boolean; used_at: string | null; expires_at: string | null } | undefined;
+      const prof = uc ? profMap.get(uc.user_id) as { name: string | null; email: string } | undefined : undefined;
+      const cp = uc ? cpMap.get(uc.coupon_id) as { discount_value: number } | undefined : undefined;
+      return {
+        key: r.user_coupon_id || r.created_at,
+        reward_type: r.reward_type,
+        created_at: r.created_at,
+        recipient_name: prof?.name || '(탈퇴)',
+        recipient_email: prof?.email || '',
+        discount_value: cp?.discount_value || 0,
+        is_used: uc?.is_used || false,
+        used_at: uc?.used_at || null,
+        expires_at: uc?.expires_at || null,
+      };
+    });
+    setRefCoupons(rows);
+    setRefCouponsLoading(false);
   }
 
   async function revokeReferralReward(r: AdminReferral) {
@@ -3497,7 +3541,7 @@ export default function AdminClient() {
       case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
-      case 'referral':     loadReferrals(); break;
+      case 'referral':     loadReferrals(); loadReferralCoupons(); break;
       case 'tasteprofile': loadSurveyResults(); loadSurveySettings(); break;
       case 'inquiry':   loadInquiries(); break;
       case 'productinquiry': loadProductInquiries(); break;
@@ -6790,6 +6834,42 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       </table>
                     </div>
                   )}
+                </div>
+
+                {/* 친구추천으로 발급된 쿠폰 내역 */}
+                <div className="adm-card" style={{ marginTop:16 }}>
+                  <div className="adm-card-head">
+                    <span className="adm-card-title">친구추천으로 발급된 쿠폰 내역 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(피추천인 가입쿠폰 + 추천인 보상쿠폰)</span></span>
+                    <button className="adm-btn adm-btn-outline" style={{ marginLeft:'auto' }} onClick={loadReferralCoupons}>새로고침</button>
+                  </div>
+                  {refCouponsLoading ? <PanelLoading /> : refCoupons.length === 0 ? (
+                    <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0', fontSize:13 }}>발급된 추천 쿠폰이 없습니다.</div>
+                  ) : (() => {
+                    const cur = Math.min(Math.max(1, refcPage), Math.max(1, Math.ceil(refCoupons.length / refcSize)));
+                    const paged = refCoupons.slice((cur - 1) * refcSize, cur * refcSize);
+                    return (
+                      <>
+                        <div className="adm-table-wrap">
+                          <table className="adm-table">
+                            <thead><tr><th>수령자</th><th>유형</th><th>금액</th><th>발급일</th><th>사용 여부</th><th>사용 / 만료</th></tr></thead>
+                            <tbody>
+                              {paged.map(rc => (
+                                <tr key={rc.key}>
+                                  <td><div style={{ fontWeight:500 }}>{rc.recipient_name}</div><div className="adm-muted" style={{ fontSize:11 }}>{rc.recipient_email}</div></td>
+                                  <td><span className={`adm-badge ${rc.reward_type==='referrer'?'badge-paid':'badge-normal'}`}>{rc.reward_type==='referrer'?'추천인 보상':'피추천인 가입'}</span></td>
+                                  <td style={{ fontWeight:700 }}>{rc.discount_value.toLocaleString()}원</td>
+                                  <td className="adm-muted">{fmtDateShort(rc.created_at)}</td>
+                                  <td>{rc.is_used ? <span className="adm-badge badge-off">사용됨</span> : <span className="adm-badge badge-on">미사용</span>}</td>
+                                  <td className="adm-muted" style={{ fontSize:12 }}>{rc.is_used ? (rc.used_at ? `사용 ${fmtDateShort(rc.used_at)}` : '사용됨') : (rc.expires_at ? `만료 ${fmtDateShort(rc.expires_at)}` : '무제한')}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <Pager page={cur} pageSize={refcSize} total={refCoupons.length} onPage={setRefcPage} onPageSize={setRefcSize} />
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             );
