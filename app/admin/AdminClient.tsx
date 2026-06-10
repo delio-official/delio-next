@@ -1032,6 +1032,9 @@ function OptionTreeEditor({ options, setOptions }: {
   const idx = options.map((o, i) => ({ ...o, _i: i }));
   const dataCascade = options.some(o => (o.parent_label || '').trim() !== '');
   const [mode, setMode] = useState<'indep' | 'cascade'>(dataCascade ? 'cascade' : 'indep');
+  // 옵션이 늦게 로드돼도, parent_label이 있으면 자동으로 2단계 모드로 (사용자가 직접 토글하면 그 뒤론 유지)
+  const userTouchedMode = useRef(false);
+  useEffect(() => { if (!userTouchedMode.current) setMode(dataCascade ? 'cascade' : 'indep'); }, [dataCascade]);
 
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
@@ -1082,13 +1085,14 @@ function OptionTreeEditor({ options, setOptions }: {
   const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName, required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
 
   /* ── 시작 / 모드 전환 ── */
-  const startOne = () => { setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
-  const startTwo = () => { setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
-  const toIndep = () => { setOptions(prev => prev.map(o => ({ ...o, parent_label:'' }))); setMode('indep'); };
+  const startOne = () => { userTouchedMode.current = true; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
+  const startTwo = () => { userTouchedMode.current = true; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
+  const toIndep = () => { userTouchedMode.current = true; setOptions(prev => prev.map(o => ({ ...o, parent_label:'' }))); setMode('indep'); };
   const toCascade = () => {
+    userTouchedMode.current = true;
     setOptions(prev => {
       const gs = [...new Set(prev.map(o => o.group))];
-      if (gs.length >= 2) return prev.map(o => o.group === gs[0] ? { ...o, parent_label:'' } : { ...o, parent_label:'' });
+      if (gs.length >= 2) return prev.map(o => ({ ...o, parent_label:'' }));
       return [{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }, ...prev.map(o => ({ ...o, parent_label:'' }))];
     });
     setMode('cascade');
