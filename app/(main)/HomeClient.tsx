@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
-import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
+import { loadTabsFor, loadCategoryTabs, type FilterTab } from '@/lib/filterTabs';
 import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -282,8 +282,9 @@ function QuickGuide() {
 
   /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
-    loadTabsFor('home').then((rows: FilterTab[]) => {
-      const mapped = rows
+    (async () => {
+      const rows = await loadTabsFor('home');
+      let mapped = rows
         .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
         .map(t => {
           const cat = t.tab_type === 'category' ? t.tab_value
@@ -292,9 +293,23 @@ function QuickGuide() {
             : 'new';
           return { cat, icon: t.emoji, label: t.label };
         });
+      /* 홈 탭이 없고 직접선택(manual)이면 → 지정한 카테고리들로 칩 자동 생성 */
+      if (mapped.length === 0) {
+        const supabase = createClient();
+        const cfg = await fetchSectionConfig(supabase, 'qg');
+        if (cfg.mode === 'manual') {
+          const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
+          const bmap = parseBucketMap(row?.value || '');
+          const catTabs = await loadCategoryTabs();
+          mapped = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
+            const t = catTabs.find(c => c.tab_value === cat);
+            return { cat, icon: t?.emoji || CAT_ICONS[cat] || '🛒', label: t?.label || cat };
+          });
+        }
+      }
       setTags(mapped);
       if (mapped.length) setActiveCat(prev => prev || mapped[0].cat);
-    });
+    })();
   }, []);
 
   useEffect(() => {
