@@ -860,6 +860,13 @@ select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 /* 설정 카드 */
 .adm-card-settings { max-width: 580px; }
 
+/* 설정 카드 다단(2열) 레이아웃 — 빈 공간 채우기 */
+.adm-settings-cols { columns: 2; column-gap: 16px; }
+.adm-settings-cols > .adm-card { break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 16px; width: 100%; display: inline-block; }
+.adm-settings-cols .adm-card-settings { max-width: none; }
+.adm-settings-save { max-width: none; margin-top: 4px; }
+@media (max-width: 1024px) { .adm-settings-cols { columns: 1; } }
+
 /* info-box 마진 */
 .adm-info-mt10 { margin-top: 10px; }
 

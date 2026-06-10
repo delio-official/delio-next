@@ -8592,6 +8592,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 )}
               </div>
 
+              <div className="adm-settings-cols">
               <div className="adm-card adm-card-settings">
                 <div className="adm-card-head"><span className="adm-card-title">메인 섹션 노출</span></div>
                 <div style={{ padding:'4px 0 8px', fontSize:12, color:'#94A3B8' }}>끄면 해당 섹션이 메인 페이지에서 숨겨집니다.</div>
@@ -8769,12 +8770,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       </span>
                     </div>
                   </div>
-                  <div className="adm-form-actions">
-                    <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
-                      {settingsSaving ? '저장 중...' : '저장'}
-                    </button>
-                  </div>
                 </div>
+              </div>
+              </div>{/* /.adm-settings-cols */}
+
+              <div className="adm-form-actions adm-settings-save">
+                <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
+                  {settingsSaving ? '저장 중...' : '저장'}
+                </button>
               </div>
             </div>
           )}
