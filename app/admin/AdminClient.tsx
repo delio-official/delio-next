@@ -7178,11 +7178,20 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                     <AdmSelect value={piqStatusFilter} onChange={v => setPiqStatusFilter(v as 'all'|'pending'|'answered')}
                       options={[{ value:'all', label:'전체' }, { value:'answered', label:'답변 완료' }, { value:'pending', label:'답변 대기' }]} />
+                    <div style={{ display:'inline-flex', gap:4 }}>
+                      {([['오늘',0],['3일',3],['1주일',7],['1개월',30],['3개월',90]] as const).map(([lb, d]) => (
+                        <button key={lb} className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'5px 10px' }}
+                          onClick={() => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - d); setPiqFrom(from.toISOString().slice(0,10)); setPiqTo(to.toISOString().slice(0,10)); }}>{lb}</button>
+                      ))}
+                    </div>
                     <input type="date" className="adm-select" value={piqFrom} onChange={e => setPiqFrom(e.target.value)} />
                     <span style={{ color:'#94A3B8' }}>~</span>
                     <input type="date" className="adm-select" value={piqTo} onChange={e => setPiqTo(e.target.value)} />
                     <input type="text" className="adm-input-text" placeholder="상품명·내용·카테고리 검색"
                       value={piqSearch} onChange={e => setPiqSearch(e.target.value)} />
+                    {(piqFrom || piqTo || piqSearch || piqStatusFilter !== 'all') && (
+                      <button className="adm-btn adm-btn-outline" onClick={() => { setPiqFrom(''); setPiqTo(''); setPiqSearch(''); setPiqStatusFilter('all'); }}>초기화</button>
+                    )}
                   </div>
                   <div className="adm-toolbar-right">
                     <button className="adm-btn adm-btn-outline" onClick={loadProductInquiries}>
