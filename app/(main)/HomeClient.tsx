@@ -911,11 +911,11 @@ export default function HomeClient() {
           <div className="brand-direct-grid">
             {brandCards.map((b, i) => (
               <div key={i} className="brand-direct-card">
-                <div className="bdc-banner-wrap">
+                <Link href={b.brandHref} className="bdc-banner-wrap" style={{ display:'block' }}>
                   <div className={`bdc-banner ${b.banner}`}>
                     <span className="bdc-emoji">{b.emoji}</span>
                   </div>
-                </div>
+                </Link>
                 <div className="bdc-body">
                   <Link href={b.brandHref} className="bdc-brand-row">
                     <div className={`bdc-brand-logo ${b.logo}`}><span>{b.emoji}</span></div>
