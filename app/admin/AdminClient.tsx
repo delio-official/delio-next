@@ -8592,37 +8592,55 @@ GRANT ALL ON popups TO authenticated, anon;`}
               <div style={{ fontSize:13, background:'#F8FAFC', borderRadius:8, padding:'12px 14px', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{selectedInquiry.message}</div>
             </div>
 
-            {/* 연락 (수동 발송) */}
-            <div style={{ border:'1px solid #E2E8F0', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>📨 연락하기 <span style={{ fontWeight:400, color:'#94A3B8' }}>(템플릿 선택 후 메일/문자/전화)</span></div>
-              <div className="adm-btn-group" style={{ marginBottom:10 }}>
-                {([['general','일반'],['accept','수락'],['reject','거절']] as const).map(([k, l]) => (
+            {/* ① 회신 보내기 */}
+            <div style={{ border:'1px solid #E2E8F0', borderRadius:12, padding:'14px 16px', marginBottom:12 }}>
+              <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>① 회신 보내기</div>
+              <div style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 12px' }}>메시지 <strong>톤</strong>을 고르면 메일·문자 내용이 자동으로 채워집니다. (실제 발송은 메일/문자 앱에서)</div>
+
+              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>1. 메시지 톤 선택</div>
+              <div className="adm-btn-group" style={{ marginBottom:12 }}>
+                {([['general','일반 안내'],['accept','수락 안내'],['reject','거절 안내']] as const).map(([k, l]) => (
                   <button key={k} type="button" className={`adm-seg-btn${inquiryTpl===k?' active':''}`} onClick={() => setInquiryTpl(k)}>{l}</button>
                 ))}
               </div>
+
+              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>2. 내용 미리보기</div>
+              <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'10px 12px', fontSize:12.5, color:'#475569', lineHeight:1.65, whiteSpace:'pre-wrap', marginBottom:12, maxHeight:96, overflowY:'auto' }}>
+                {inquiryTemplate(inquiryTpl, selectedInquiry.company)}
+              </div>
+
+              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>3. 보낼 방법 선택</div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
-                  href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent('[델리오] 입점문의 회신')}&body=${encodeURIComponent(inquiryTemplate(inquiryTpl, selectedInquiry.company))}`}>📧 메일</a>
+                  href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent('[델리오] 입점문의 회신')}&body=${encodeURIComponent(inquiryTemplate(inquiryTpl, selectedInquiry.company))}`}>📧 메일로 보내기</a>
                 <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }}
-                  onClick={() => { navigator.clipboard?.writeText(inquiryTemplate(inquiryTpl, selectedInquiry.company)); alert('문자 템플릿이 복사되었습니다. 문자 발송 도구에 붙여넣어 전송하세요.\n수신번호: ' + selectedInquiry.contact); }}>💬 문자 템플릿 복사</button>
+                  onClick={() => { navigator.clipboard?.writeText(inquiryTemplate(inquiryTpl, selectedInquiry.company)); alert('위 내용이 복사되었습니다. 문자 앱에 붙여넣어 전송하세요.\n수신번호: ' + selectedInquiry.contact); }}>💬 문자 내용 복사</button>
                 <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
                   href={`tel:${(selectedInquiry.contact || '').replace(/[^0-9+]/g, '')}`}>📞 전화 {selectedInquiry.contact}</a>
               </div>
             </div>
 
-            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', alignItems:'center' }}>
-              <span style={{ fontSize:11, color:'#94A3B8', marginRight:'auto' }}>수락/거절 = 입점 결정 기록 (발송은 위에서 수동)</span>
+            {/* ② 처리 결과 */}
+            <div style={{ border:'1px solid #E2E8F0', borderRadius:12, padding:'14px 16px' }}>
+              <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>② 처리 결과 기록</div>
+              <div style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 12px' }}>이 입점 문의의 <strong>최종 결정</strong>을 기록합니다. (①의 회신 발송과는 별개)</div>
               {['answered','done'].includes(selectedInquiry.status) ? (
-                <span className="adm-badge badge-done" style={{ fontSize:13, padding:'6px 14px' }}>수락(처리완료)</span>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span className="adm-badge badge-done" style={{ fontSize:13, padding:'6px 14px' }}>✅ 수락 (처리완료)</span>
+                  <span style={{ fontSize:12, color:'#94A3B8' }}>이미 처리된 문의입니다.</span>
+                </div>
               ) : selectedInquiry.status === 'rejected' ? (
-                <span className="adm-badge badge-off" style={{ fontSize:13, padding:'6px 14px' }}>거절</span>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span className="adm-badge badge-off" style={{ fontSize:13, padding:'6px 14px' }}>거절됨</span>
+                  <span style={{ fontSize:12, color:'#94A3B8' }}>이미 처리된 문의입니다.</span>
+                </div>
               ) : (
-                <>
-                  <button className="adm-btn adm-btn-outline" style={{ color:'#EF4444', borderColor:'#FECACA' }}
-                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'rejected')}>거절</button>
-                  <button className="adm-btn adm-btn-primary"
-                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'answered')}>수락</button>
-                </>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="adm-btn adm-btn-primary" style={{ flex:1 }}
+                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'answered')}>✅ 수락으로 처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#EF4444', borderColor:'#FECACA' }}
+                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'rejected')}>거절로 처리</button>
+                </div>
               )}
             </div>
           </div>
