@@ -2275,7 +2275,7 @@ export default function AdminClient() {
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
-            parent_label: o.parent_label?.trim() || null,
+            parent_label: null, /* 독립 그룹 모델 — 종속(parent_label) 미사용 */
             is_default: i === 0,
             sort_order: i + 1,
           }))

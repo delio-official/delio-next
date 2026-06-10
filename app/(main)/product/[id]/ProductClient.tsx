@@ -653,16 +653,8 @@ export default function ProductClient() {
   const bg         = BG_MAP[product.category]    || BG_MAP.default;
   const basePrice  = product.discounted_price    ?? product.price;
   const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-  /* 종속(2단) 옵션 여부: parent_label이 채워진 옵션이 있으면 종속, 없으면 독립 다중 그룹 */
-  const isCascade = options.some(o => !!(o.parent_label && o.parent_label.trim()));
-  const parentGroup = optGroupNames[0];
-  const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
-  const optsForGroup = (g: string): ProductOption[] => {
-    const inGroup = options.filter(o => (o.group_name || '옵션') === g);
-    // 독립 그룹이거나 상위 그룹이면 전체 노출, 종속 하위는 선택된 상위에 맞는 것만
-    if (!isCascade || g === parentGroup) return inGroup;
-    return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
-  };
+  /* 각 옵션 그룹은 독립 — 그룹마다 1개씩 선택해 조합 (종속/잠금 없음) */
+  const optsForGroup = (g: string): ProductOption[] => options.filter(o => (o.group_name || '옵션') === g);
   const picksTotal    = picks.reduce((s, p) => s + (basePrice + p.opts.reduce((a, o) => a + (o.add_price || 0), 0)) * p.qty, 0);
   const totalQty      = options.length > 0 ? picks.reduce((s, p) => s + p.qty, 0) : qty;
   const totalPrice    = options.length > 0 ? picksTotal : basePrice * qty;
@@ -1240,12 +1232,10 @@ export default function ProductClient() {
                 {options.length > 0 && (
                   <>
                     {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
-                    {optGroupNames.map((g, gIdx) => {
+                    {optGroupNames.map((g) => {
                       const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
-                      const isDependent = gIdx > 0;
                       const groupOpts = optsForGroup(g);
-                      // 종속(2단) 하위 그룹인데 상위 미선택이면 잠금 (독립 그룹은 잠금 없음)
-                      const locked = isCascade && isDependent && !selectedParentLabel;
+                      const locked = false;
                       return (
                       <div key={g}>
                         <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
@@ -1254,7 +1244,6 @@ export default function ProductClient() {
                           const open = openOptGroup === g;
                           const choose = (val: string) => {
                             const next = { ...selByGroup, [g]: val };
-                            if (isCascade && g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
                             if (allGroupsSelected(next)) {
                               // 모든 (필수)그룹 선택 완료 → 조합을 누적 목록에 추가하고 선택 초기화
                               addPick(getSelectedOpts(next));
