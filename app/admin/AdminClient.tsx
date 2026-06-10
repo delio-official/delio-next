@@ -1030,24 +1030,14 @@ function OptionTreeEditor({ options, setOptions }: {
 }) {
   const groups = [...new Set(options.map(o => o.group))];
   const idx = options.map((o, i) => ({ ...o, _i: i }));
+  const dataCascade = options.some(o => (o.parent_label || '').trim() !== '');
+  const [mode, setMode] = useState<'indep' | 'cascade'>(dataCascade ? 'cascade' : 'indep');
 
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
   const setGroupReq = (g: string, req: boolean) => setOptions(prev => prev.map(o => o.group === g ? { ...o, required: req } : o));
-  const startOne = () => setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]);
   const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) setOptions([]); };
-  const addValue = (g: string) => {
-    const req = options.find(o => o.group === g)?.required !== false;
-    setOptions(prev => [...prev, { group: g, required: req, label:'', add_price:0, stock:0, parent_label:'' }]);
-  };
-  const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
-  const addGroup = () => setOptions(prev => {
-    const gs = [...new Set(prev.map(o => o.group))];
-    let n = gs.length + 1; let name = `옵션${n}`;
-    while (gs.includes(name)) { n++; name = `옵션${n}`; }
-    return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }];
-  });
 
   const reqToggle = (g: string, req: boolean) => (
     <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
@@ -1071,21 +1061,96 @@ function OptionTreeEditor({ options, setOptions }: {
     <button type="button" onClick={onClick} style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>{label}</button>
   );
 
+  /* ── 독립 모드 helpers ── */
+  const addValue = (g: string) => { const req = options.find(o => o.group === g)?.required !== false; setOptions(prev => [...prev, { group: g, required: req, label:'', add_price:0, stock:0, parent_label:'' }]); };
+  const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
+  const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
+
+  /* ── 2단계(종속) helpers ── */
+  const supName = groups[0] || '분류';
+  const subName = groups.find(g => g !== supName) || '옵션';
+  const supReq = options.find(o => o.group === supName)?.required !== false;
+  const subReq = options.find(o => o.group === subName)?.required !== false;
+  const supOpts = idx.filter(o => o.group === supName);
+  const subOpts = idx.filter(o => o.group === subName);
+  const renameSup = (_i: number, oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => {
+    if (i === _i) return { ...o, label: nv };
+    if (o.group === subName && (o.parent_label || '') === (oldLabel || '')) return { ...o, parent_label: nv };
+    return o;
+  }));
+  const addSup = () => setOptions(prev => [...prev, { group: supName, required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
+  const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName, required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
+
+  /* ── 시작 / 모드 전환 ── */
+  const startOne = () => { setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
+  const startTwo = () => { setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
+  const toIndep = () => { setOptions(prev => prev.map(o => ({ ...o, parent_label:'' }))); setMode('indep'); };
+  const toCascade = () => {
+    setOptions(prev => {
+      const gs = [...new Set(prev.map(o => o.group))];
+      if (gs.length >= 2) return prev.map(o => o.group === gs[0] ? { ...o, parent_label:'' } : { ...o, parent_label:'' });
+      return [{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }, ...prev.map(o => ({ ...o, parent_label:'' }))];
+    });
+    setMode('cascade');
+  };
+
   if (options.length === 0) {
     return (
       <div>
-        <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션 그룹이 필요하면 아래에서 추가하세요.</div>
-        <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 옵션 그룹 추가</button>
+        <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션이 필요하면 방식을 고르세요.</div>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 독립 옵션 <span style={{ color:'#94A3B8' }}>(예: 중량 / 재배방식 각각 선택)</span></button>
+          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startTwo}>+ 2단계 옵션 <span style={{ color:'#94A3B8' }}>(예: 품종 → 중량)</span></button>
+        </div>
+      </div>
+    );
+  }
+
+  const modeBar = (
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
+      <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden' }}>
+        <button type="button" onClick={() => mode !== 'indep' && toIndep()} style={{ fontSize:11, padding:'5px 11px', border:'none', cursor:'pointer', fontWeight:700, background: mode==='indep'?'#1A1A1A':'#fff', color: mode==='indep'?'#fff':'#64748B' }}>독립 그룹</button>
+        <button type="button" onClick={() => mode !== 'cascade' && toCascade()} style={{ fontSize:11, padding:'5px 11px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:700, background: mode==='cascade'?'#1A1A1A':'#fff', color: mode==='cascade'?'#fff':'#64748B' }}>2단계(분류→옵션)</button>
+      </div>
+      <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>옵션 없애기</button>
+    </div>
+  );
+
+  if (mode === 'cascade') {
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {modeBar}
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <span style={{ fontSize:11, color:'#1A8A4C', fontWeight:800 }}>상위(분류)</span>
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameGroup(supName, e.target.value)} />
+          {reqToggle(supName, supReq)}
+          <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800, marginLeft:6 }}>하위(옵션)</span>
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameGroup(subName, e.target.value)} />
+          {reqToggle(subName, subReq)}
+        </div>
+        <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {supOpts.map(sup => (
+            <div key={sup._i} style={{ border:'1px solid #EEF2F6', borderRadius:8, padding:'10px', background:'#fff' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+                <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
+                <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 무농약 방울토마토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
+                <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
+              </div>
+              {subOpts.filter(s => (s.parent_label || '') === (sup.label || '')).map(s => valueRow(s))}
+              {addBtn(`+ ${sup.label || '이 분류'}의 옵션 추가`, () => addSubUnder(sup.label))}
+            </div>
+          ))}
+        </div>
+        {addBtn('+ 분류 추가', addSup)}
       </div>
     );
   }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-        <span style={{ fontSize:11, color:'#94A3B8' }}>그룹마다 고객이 1개씩 선택합니다 (예: <b>중량</b> + <b>재배방식</b> → 각각 선택)</span>
-        <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>옵션 없애기</button>
-      </div>
+      {modeBar}
+      <span style={{ fontSize:11, color:'#94A3B8' }}>그룹마다 고객이 1개씩 선택합니다 (예: <b>중량</b> + <b>재배방식</b> → 각각 선택)</span>
       {groups.map((g, gi) => {
         const gReq = options.find(o => o.group === g)?.required !== false;
         const gOpts = idx.filter(o => o.group === g);
@@ -2275,7 +2340,7 @@ export default function AdminClient() {
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
-            parent_label: null, /* 독립 그룹 모델 — 종속(parent_label) 미사용 */
+            parent_label: o.parent_label?.trim() || null,
             is_default: i === 0,
             sort_order: i + 1,
           }))

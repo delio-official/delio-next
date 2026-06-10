@@ -429,9 +429,20 @@ export default function ProductClient() {
   function allGroupsSelected(map: Record<string, string> = selByGroup): boolean {
     if (options.length === 0) return true;
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-    // 독립 그룹: 필수인 모든 그룹이 실제로 선택돼야 완성
     const requiredGroups = gNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
-    return requiredGroups.every(g => !!map[g]);
+    // 독립 그룹: 필수인 모든 그룹이 실제 선택돼야 완성
+    if (!isCascade) return requiredGroups.every(g => !!map[g]);
+    // 종속(2단계): 상위 선택 + 그 상위에 하위가 있으면 하위도 선택돼야 완성
+    const parentG = gNames[0];
+    const parentLabel = options.find(o => o.id === map[parentG])?.label || '';
+    return requiredGroups.every(g => {
+      if (map[g]) return true;
+      if (gNames.indexOf(g) > 0) {
+        const avail = options.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
+        if (avail.length === 0) return true;
+      }
+      return false;
+    });
   }
   /* 옵션 조합을 누적 목록에 추가 (같은 조합이면 수량 +1) */
   function addPick(opts: ProductOption[]) {
@@ -644,8 +655,15 @@ export default function ProductClient() {
   const bg         = BG_MAP[product.category]    || BG_MAP.default;
   const basePrice  = product.discounted_price    ?? product.price;
   const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-  /* 각 옵션 그룹은 독립 — 그룹마다 1개씩 선택해 조합 (종속/잠금 없음) */
-  const optsForGroup = (g: string): ProductOption[] => options.filter(o => (o.group_name || '옵션') === g);
+  /* 종속(2단계) 여부: parent_label이 있으면 종속(분류→옵션), 없으면 독립 다중 그룹 */
+  const isCascade = options.some(o => !!(o.parent_label && o.parent_label.trim()));
+  const parentGroup = optGroupNames[0];
+  const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
+  const optsForGroup = (g: string): ProductOption[] => {
+    const inGroup = options.filter(o => (o.group_name || '옵션') === g);
+    if (!isCascade || g === parentGroup) return inGroup;
+    return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
+  };
   /* 선택(비필수) 그룹 존재 여부 — 있으면 필수 완료 후 '담기' 버튼으로 확정 */
   const hasOptionalGroup = optGroupNames.some(g => options.find(o => (o.group_name || '옵션') === g)?.is_required === false);
   const commitPick = () => { addPick(getSelectedOpts()); setSelByGroup({}); setOpenOptGroup(null); };
@@ -1226,10 +1244,11 @@ export default function ProductClient() {
                 {options.length > 0 && (
                   <>
                     {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
-                    {optGroupNames.map((g) => {
+                    {optGroupNames.map((g, gIdx) => {
                       const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
                       const groupOpts = optsForGroup(g);
-                      const locked = false;
+                      // 종속(2단계) 하위인데 상위 미선택이면 잠금 (독립 그룹은 잠금 없음)
+                      const locked = isCascade && gIdx > 0 && !selectedParentLabel;
                       return (
                       <div key={g}>
                         <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
@@ -1238,6 +1257,8 @@ export default function ProductClient() {
                           const open = openOptGroup === g;
                           const choose = (val: string) => {
                             const next = { ...selByGroup, [g]: val };
+                            // 종속: 상위를 바꾸면 하위 선택 초기화
+                            if (isCascade && g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
                             if (!hasOptionalGroup) {
                               // 필수 그룹만 있는 상품: 필수 다 차면 자동 담기
                               if (allGroupsSelected(next)) { addPick(getSelectedOpts(next)); setSelByGroup({}); }
