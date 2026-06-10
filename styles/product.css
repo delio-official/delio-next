@@ -455,6 +455,56 @@
       padding: 12px 0 4px;
     }
 
+    /* ===== 맛 프로파일 개편 (상단 지표 + 5축 동의율) ===== */
+    .tp-summary {
+      display: flex; align-items: stretch; gap: 16px;
+      padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #EEECE7;
+    }
+    .tp-summary-rating {
+      flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; padding-right: 16px; border-right: 1px solid #EEECE7; min-width: 92px;
+    }
+    .tp-summary-star { display: flex; align-items: center; gap: 5px; }
+    .tp-summary-star b { font-size: 26px; font-weight: 800; color: var(--color-ink); line-height: 1; }
+    .tp-summary-rcount { font-size: 12px; color: var(--color-ink-mute); }
+    .tp-summary-metrics { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 9px; }
+    .tp-metric { display: flex; align-items: center; gap: 10px; }
+    .tp-metric-label { flex-shrink: 0; width: 56px; font-size: 12px; color: #666; font-weight: 600; }
+    .tp-metric-track { flex: 1; height: 7px; background: #EFEDE8; border-radius: 4px; overflow: hidden; }
+    .tp-metric-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+    .tp-metric-val { flex-shrink: 0; width: 40px; text-align: right; font-size: 12px; font-weight: 800; color: var(--color-ink); }
+    .tp-metric-badge { justify-content: flex-start; }
+    .tp-buyer-badge {
+      font-size: 12px; font-weight: 700; color: #B45309; background: #FEF3C7;
+      padding: 3px 10px; border-radius: 999px;
+    }
+    .tp-axis-head { font-size: 15px; font-weight: 800; color: var(--color-ink); margin-bottom: 12px; }
+    .tp-axis-head span { font-size: 12px; font-weight: 500; color: var(--color-ink-mute); }
+
+    .taste5-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .taste5-card { border-radius: 12px; padding: 12px 13px; border: 1px solid rgba(0,0,0,0.04); }
+    .taste5-fresh { grid-column: 1 / -1; }
+    .taste5-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .taste5-name { font-size: 13px; font-weight: 700; color: #333; display: flex; align-items: center; gap: 5px; }
+    .taste5-icon { font-size: 15px; }
+    .taste5-only { font-size: 9px; font-weight: 700; color: #1F9D55; background: #fff; border: 1px solid #B9E6CB; padding: 1px 6px; border-radius: 999px; margin-left: 4px; }
+    .taste5-claim { font-size: 13px; font-weight: 800; }
+    .taste5-bar { height: 7px; background: rgba(0,0,0,0.06); border-radius: 4px; overflow: hidden; }
+    .taste5-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+    .taste5-agree { font-size: 11px; color: #777; text-align: right; margin-top: 6px; }
+    .taste5-agree b { font-weight: 800; }
+    .taste-more-btn {
+      display: none; grid-column: 1 / -1; width: 100%; justify-content: center; align-items: center;
+      padding: 11px; margin-top: 2px; border: 1px solid #E5E3DE; border-radius: 10px;
+      background: #FAFAF8; color: #666; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+    @media (max-width: 768px) {
+      .taste5-grid { grid-template-columns: 1fr; }
+      .taste5-grid.collapsed .taste5-extra { display: none; }
+      .taste-more-btn { display: flex; }
+      .tp-summary-rating { min-width: 80px; }
+    }
+
     /* ===== 헤더 수정 (PC에서만 뒤로가기 숨김) ===== */
     @media (min-width: 769px) {
       .header-back-btn { display: none; }

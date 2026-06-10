@@ -10,6 +10,7 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, MEMBERSHIP_COUPON, type MembershipTier } from '@/lib/membership';
+import { SELLER_AXES } from '@/lib/taste';
 import dynamic from 'next/dynamic';
 
 const ImageDetailEditor = dynamic(
@@ -89,6 +90,7 @@ interface AdminProductFull extends AdminProduct {
   is_new: boolean;
   is_best: boolean;
   is_dawn: boolean;
+  seller_score: Record<string, number> | null;
 }
 
 interface AdminFarmSimple {
@@ -1183,6 +1185,7 @@ export default function AdminClient() {
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
     is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
+    seller_score: null,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
@@ -2227,6 +2230,7 @@ export default function AdminClient() {
             brix: data.brix, badge: data.badge || '', badge_color: data.badge_color || BADGE_DEFAULT_COLOR, is_new: data.is_new,
             is_best: data.is_best, is_dawn: data.is_dawn, is_active: data.is_active,
             farm_id: data.farm_id, sort_order: data.sort_order || 0,
+            seller_score: data.seller_score || null,
           });
           setProductModal(true);
         }
@@ -2287,6 +2291,7 @@ export default function AdminClient() {
       is_active:      Boolean(pForm.is_active),
       farm_id:        pForm.farm_id               || null,
       sort_order:     Number(pForm.sort_order)    || 0,
+      seller_score:   pForm.seller_score && Object.keys(pForm.seller_score).length > 0 ? pForm.seller_score : null,
     };
     let productId = editingProduct?.id;
     if (editingProduct) {
@@ -4398,6 +4403,34 @@ export default function AdminClient() {
                   <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>◀ ▶ 로 순서 변경 · 첫 번째(맨 왼쪽)가 대표 이미지</p>
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
+              </div>
+              </div>
+
+              {/* 맛 프로파일 */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">🍯 맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(상세페이지 표시 · 미설정 시 카테고리 기본값)</span></div>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {SELLER_AXES.map(axis => (
+                  <div key={axis.key} style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                    <span style={{ width:66, flexShrink:0, fontSize:13, fontWeight:600 }}>{axis.icon} {axis.label}</span>
+                    <div style={{ display:'flex', gap:5, flex:1, flexWrap:'wrap' }}>
+                      {axis.levels.map((lv, i) => {
+                        const level = i + 1;
+                        const on = pForm.seller_score?.[axis.key] === level;
+                        return (
+                          <button key={level} type="button"
+                            onClick={() => setPForm(f => ({ ...f, seller_score: { ...(f.seller_score || {}), [axis.key]: level } }))}
+                            style={{ padding:'6px 11px', borderRadius:8, cursor:'pointer', fontSize:12, fontFamily:'inherit',
+                              border:`1px solid ${on ? axis.hex : '#E2E8F0'}`, background: on ? axis.hex : '#fff',
+                              color: on ? '#fff' : '#64748B', fontWeight: on ? 700 : 500 }}>
+                            {lv}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <span style={{ fontSize:11, color:'#94A3B8' }}>신선도는 구매자 리뷰로만 집계되어 별도 설정이 없습니다.</span>
               </div>
               </div>
 

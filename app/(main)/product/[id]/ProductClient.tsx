@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
 
 /* ── 타입 ── */
 interface Product {
@@ -23,7 +24,7 @@ interface Product {
   is_new: boolean; is_best: boolean; is_dawn: boolean;
   avg_rating: number; review_count: number;
   farm_id: string | null;
-  seller_score?: { sweet: number; sour: number; texture: number; fresh: number } | null;
+  seller_score?: Record<string, number> | null;
 }
 interface ProductOption {
   id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
@@ -51,6 +52,7 @@ interface Review {
   likes_count: number; is_best: boolean;
   seller_reply?: string | null;
   user_id?: string | null;
+  taste?: ReviewTaste | null;
   profiles: { name: string | null } | null;
 }
 interface DetailSection {
@@ -67,45 +69,6 @@ const BG_MAP: Record<string, string> = {
 };
 
 /* ── 맛 프로파일 설정 ── */
-const TASTE_ATTRS = [
-  { key:'sweet',   label:'단맛',   icon:'🍭', dotColor:'red',    bg:'#FFF0EE' },
-  { key:'sour',    label:'산미',   icon:'🍋', dotColor:'gray',   bg:'#F5F5F5' },
-  { key:'texture', label:'아삭함', icon:'🥢', dotColor:'red',    bg:'#F5F5F5' },
-  { key:'fresh',   label:'과즙',   icon:'💧', dotColor:'orange', bg:'#FFF9E6' },
-] as const;
-
-type TasteKey = 'sweet' | 'sour' | 'texture' | 'fresh';
-
-const DEFAULT_SELLER_SCORE: Record<string, Record<TasteKey, number>> = {
-  apple:   { sweet:4, sour:2, texture:4, fresh:4 },
-  citrus:  { sweet:4, sour:3, texture:3, fresh:4 },
-  berry:   { sweet:3, sour:3, texture:3, fresh:4 },
-  melon:   { sweet:5, sour:1, texture:4, fresh:5 },
-  kiwi:    { sweet:4, sour:3, texture:4, fresh:4 },
-  mango:   { sweet:5, sour:1, texture:2, fresh:5 },
-  grape:   { sweet:4, sour:1, texture:4, fresh:4 },
-  gift:    { sweet:4, sour:2, texture:3, fresh:4 },
-  default: { sweet:4, sour:2, texture:3, fresh:4 },
-};
-
-const DOT_COLOR_HEX: Record<string, string> = {
-  red: '#1A1A1A', gray: '#888', orange: '#1A1A1A',
-};
-
-function scoreLabel(v: number) {
-  if (v >= 4.5) return '매우 강함';
-  if (v >= 3.5) return '강함';
-  if (v >= 2.5) return '보통';
-  if (v >= 1.5) return '약함';
-  return '매우 약함';
-}
-
-/* 원본 calcAgreePct: avgDiff=0 (userScore 없음) */
-function calcAgreePct(sk: number) {
-  const base = 68 + (5 - sk) * 2 + 5 * 5;
-  return Math.min(99, Math.max(60, Math.round(base)));
-}
-
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 
 // Stars → StarRating 공유 컴포넌트 사용
@@ -157,11 +120,13 @@ export default function ProductClient() {
   const [reviewModalOpen,  setReviewModalOpen]  = useState(false);
   const [newRating,        setNewRating]        = useState(5);
   const [newContent,       setNewContent]       = useState('');
+  const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
   const [mediaUploading,   setMediaUploading]   = useState(false);
   const [submitting,       setSubmitting]       = useState(false);
-  const [tastePanelActive,    setTastePanelActive]    = useState<'delio' | 'buyers'>('delio');
+  const [tasteMore,           setTasteMore]           = useState(false);
+  const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0 });
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
   const [photoGalleryOpen,    setPhotoGalleryOpen]    = useState(false);
   const [selectedGalleryIdx,  setSelectedGalleryIdx]  = useState<number | null>(null);
@@ -498,6 +463,35 @@ export default function ProductClient() {
     if (product) gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* 구매 지표: 재구매율(2회+ 구매자 비율) · 최근 30일 구매자 수 */
+  useEffect(() => {
+    if (!product?.id) return;
+    (async () => {
+      const { data: items } = await createClient()
+        .from('order_items')
+        .select('order_id, orders!inner(user_id, created_at, status)')
+        .eq('product_id', product.id)
+        .limit(5000);
+      if (!items) return;
+      const since = Date.now() - 30 * 86400000;
+      const userOrders: Record<string, Set<string>> = {};
+      const recent = new Set<string>();
+      (items as unknown as { order_id: string; orders: { user_id: string | null; created_at: string; status: string } }[]).forEach(it => {
+        const o = it.orders;
+        if (!o?.user_id || !['paid', 'delivered', 'confirmed'].includes(o.status)) return;
+        (userOrders[o.user_id] ||= new Set<string>()).add(it.order_id);
+        if (new Date(o.created_at).getTime() >= since) recent.add(o.user_id);
+      });
+      const buyers = Object.keys(userOrders);
+      const repurchasers = buyers.filter(u => userOrders[u].size >= 2).length;
+      setBuyerStats({
+        buyers: buyers.length,
+        repurchase: buyers.length > 0 ? Math.round(repurchasers / buyers.length * 100) : 0,
+        recent: recent.size,
+      });
+    })();
+  }, [product?.id]);
+
   function handleAddCart() {
     if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
     addCartItem();
@@ -553,6 +547,7 @@ export default function ProductClient() {
       content: newContent.trim(),
       image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
       video_url: uploadedVideoUrl,
+      taste: Object.keys(newTaste).length > 0 ? newTaste : null,
       is_best: false,
     });
     setSubmitting(false);
@@ -581,6 +576,7 @@ export default function ProductClient() {
     setReviewModalOpen(false);
     setNewRating(5);
     setNewContent('');
+    setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
   }
@@ -653,11 +649,17 @@ export default function ProductClient() {
   const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
   const totalPrice    = (basePrice + totalAddPrice) * qty;
 
-  /* 맛 프로파일 점수 (DB seller_score 우선, 없으면 카테고리 기본값) */
-  const sellerScore: Record<TasteKey, number> =
-    (product.seller_score as Record<TasteKey, number> | null | undefined) ||
-    (DEFAULT_SELLER_SCORE[product.category] as Record<TasteKey, number>) ||
-    DEFAULT_SELLER_SCORE.default as Record<TasteKey, number>;
+  /* 맛 프로파일: 판매자 점수(DB 우선, 없으면 카테고리 기본값) */
+  const sellerScore: Record<string, number> =
+    (product.seller_score && Object.keys(product.seller_score).length > 0)
+      ? product.seller_score
+      : defaultSellerScore(product.category);
+
+  /* 구매자 맛 평가 집계 (reviews.taste) → 축별 동의율 */
+  const tasteReviews = reviews.filter(r => r.taste && Object.keys(r.taste).length > 0);
+  const tasteRevealed = tasteReviews.length >= TASTE_REVEAL_MIN;
+  const buyerLevelsOf = (axisKey: string): number[] =>
+    tasteReviews.map(r => r.taste?.[axisKey as keyof ReviewTaste]).filter((v): v is number => typeof v === 'number');
 
   /* 리뷰 필터 + 정렬 + 페이지네이션 */
   const REVIEWS_PER_PAGE = 5;
@@ -1473,104 +1475,93 @@ export default function ProductClient() {
         </div>
       </div>
 
-      {/* ══ 맛 프로파일 VS (원본과 동일: pd-above 아래, 탭 위에 배치) ══ */}
+      {/* ══ 맛 프로파일 (상단 지표 + 구매자 동의율 5축) ══ */}
       <div className="taste-profile-vs">
         <div className="container">
           <div className="taste-profile-card">
-            <div className="taste-vs-header">
-              <span className="taste-vs-title">맛 프로파일</span>
-              <a href="#" className="taste-vs-curation"
-                onClick={e => e.preventDefault()}>델리오 큐레이션</a>
-            </div>
-            <div className="taste-vs-tabs-wrap">
-              <div className="taste-vs-tabs">
-                <div className={`taste-vs-tab-slider${tastePanelActive === 'buyers' ? ' right' : ''}`} />
-                <button
-                  className={`taste-vs-tab${tastePanelActive === 'delio' ? ' active' : ''}`}
-                  onClick={() => setTastePanelActive('delio')}>
-                  델리오가 분석한 맛
-                </button>
-                <button
-                  className={`taste-vs-tab${tastePanelActive === 'buyers' ? ' active' : ''}`}
-                  onClick={() => setTastePanelActive('buyers')}>
-                  구매자도 동의해요
-                </button>
-              </div>
-            </div>
 
-            {/* 패널1: 델리오 분석 */}
-            {tastePanelActive === 'delio' && (
-              <div className="taste-panel">
-                <div className="taste-grid">
-                  {TASTE_ATTRS.map(a => {
-                    const v = sellerScore[a.key] || 3;
-                    const filled = Math.max(1, Math.min(5, Math.round(v)));
-                    return (
-                      <div key={a.key} className="taste-card" style={{ background: a.bg }}>
-                        <span className="taste-card-icon">{a.icon}</span>
-                        <div className="taste-card-body">
-                          <div className="taste-card-label">{a.label}</div>
-                          <div className="taste-card-intensity">{scoreLabel(v)}</div>
-                          <div className="taste-dots">
-                            {[1,2,3,4,5].map(i => (
-                              <span key={i}
-                                className={`taste-dot ${i <= filled ? `filled-${a.dotColor}` : 'empty'}`} />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 패널2: 구매자 동의 */}
-            {tastePanelActive === 'buyers' && (
-              <div className="taste-panel">
-                {product.review_count >= 10 ? (
-                  <>
-                    <div className="buyer-agree-header">
-                      구매자도 동의해요
-                      <span className="buyer-agree-badge">
-                        리뷰 {product.review_count.toLocaleString()}개 기준
-                      </span>
+            {/* ── 상단 요약: 평점 | 만족도·재구매율·구매자수 ── */}
+            {(() => {
+              const satisfiedPct = product.review_count > 0
+                ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
+              return (
+                <div className="tp-summary">
+                  <div className="tp-summary-rating">
+                    <div className="tp-summary-star"><SingleStar size={20} /><b>{product.avg_rating.toFixed(1)}</b></div>
+                    <span className="tp-summary-rcount">리뷰 {product.review_count.toLocaleString()}개</span>
+                  </div>
+                  <div className="tp-summary-metrics">
+                    <div className="tp-metric">
+                      <span className="tp-metric-label">만족도</span>
+                      <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#3E9B5F' }} /></div>
+                      <span className="tp-metric-val">{satisfiedPct}%</span>
                     </div>
-                    {TASTE_ATTRS.map(a => {
-                      const sk = sellerScore[a.key] || 3;
-                      const pct = calcAgreePct(sk);
-                      const hex = DOT_COLOR_HEX[a.dotColor];
-                      return (
-                        <div key={a.key} className="buyer-bar-row">
-                          <span className="buyer-bar-icon">{a.icon}</span>
-                          <span className="buyer-bar-label">{a.label}</span>
-                          <div className="buyer-bar-track">
-                            <div className="buyer-bar-fill"
-                              style={{ width:`${pct}%`, background: hex }} />
-                          </div>
-                          <span className="buyer-bar-pct" style={{ color: hex }}>{pct}%</span>
-                        </div>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <div className="taste-locked">
-                    <div className="taste-locked-header">
-                      🔒 구매자 동의율 — 리뷰 10개 이상 시 공개
+                    <div className="tp-metric">
+                      <span className="tp-metric-label">재구매율</span>
+                      <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#E8632B' }} /></div>
+                      <span className="tp-metric-val">{buyerStats.repurchase}%</span>
                     </div>
-                    {TASTE_ATTRS.map(a => (
-                      <div key={a.key} className="taste-locked-bar">
-                        <span className="buyer-bar-icon" style={{ opacity:0.35 }}>{a.icon}</span>
-                        <span className="buyer-bar-label" style={{ opacity:0.35 }}>{a.label}</span>
-                        <div className="buyer-bar-track" style={{ flex:1, opacity:0.3 }} />
-                        <span className="taste-locked-pct">--%</span>
-                      </div>
-                    ))}
-                    <div className="taste-locked-msg">
-                      첫 구매자가 되어 맛 평가에 참여해보세요 👋
+                    <div className="tp-metric tp-metric-badge">
+                      <span className="tp-metric-label">최근 구매자</span>
+                      <span className="tp-buyer-badge">{buyerStats.recent.toLocaleString()}명</span>
                     </div>
                   </div>
-                )}
+                </div>
+              );
+            })()}
+
+            <div className="tp-axis-head">맛 프로파일 <span>· 구매자 동의율</span></div>
+
+            {tasteRevealed ? (
+              <div className={`taste5-grid${tasteMore ? ' expanded' : ' collapsed'}`}>
+                {SELLER_AXES.map((axis, idx) => {
+                  const sLevel = toLevel(sellerScore[axis.key]);
+                  const pct = agreePct(sLevel, buyerLevelsOf(axis.key));
+                  return (
+                    <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: axis.bg }}>
+                      <div className="taste5-top">
+                        <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
+                        <span className="taste5-claim" style={{ color: axis.hex }}>{axisLevelLabel(axis, sLevel)}</span>
+                      </div>
+                      <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: axis.hex }} /></div>
+                      <div className="taste5-agree">구매자 <b style={{ color: axis.hex }}>{pct}%</b> 동의</div>
+                    </div>
+                  );
+                })}
+                {/* 신선도 — 구매자 전용, 전체폭 */}
+                {(() => {
+                  const fresh = TASTE_AXES.find(a => a.key === 'fresh')!;
+                  const pct = avgPct(buyerLevelsOf('fresh'));
+                  return (
+                    <div className="taste5-card taste5-fresh taste5-extra" style={{ background: fresh.bg }}>
+                      <div className="taste5-top">
+                        <span className="taste5-name"><span className="taste5-icon">{fresh.icon}</span>{fresh.label}<span className="taste5-only">구매자 전용</span></span>
+                        <span className="taste5-claim" style={{ color: fresh.hex }}>{pct}%</span>
+                      </div>
+                      <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: fresh.hex }} /></div>
+                    </div>
+                  );
+                })()}
+                <button className="taste-more-btn" onClick={() => setTasteMore(v => !v)}>
+                  {tasteMore ? '접기 ▲' : '식감·과즙·신선도 더 보기 ▼'}
+                </button>
+              </div>
+            ) : (
+              <div className="taste-locked">
+                <div className="taste-locked-header">🔒 구매자 동의율 — 리뷰 {TASTE_REVEAL_MIN}개 이상 시 공개</div>
+                {TASTE_AXES.map(axis => (
+                  <div key={axis.key} className="taste-locked-bar">
+                    <span className="buyer-bar-icon" style={{ opacity:0.35 }}>{axis.icon}</span>
+                    <span className="buyer-bar-label" style={{ opacity:0.35 }}>{axis.label}</span>
+                    <div className="buyer-bar-track" style={{ flex:1, opacity:0.3 }} />
+                    <span className="taste-locked-pct">--%</span>
+                  </div>
+                ))}
+                <div className="taste-locked-msg">
+                  {product.review_count > 0
+                    ? `현재 맛 평가 ${tasteReviews.length}개 · ${TASTE_REVEAL_MIN}개 모이면 공개돼요`
+                    : '첫 구매자가 되어 맛 평가에 참여해보세요 👋'}
+                </div>
               </div>
             )}
           </div>
@@ -2300,6 +2291,39 @@ export default function ProductClient() {
                   alignSelf:'center', marginLeft:4 }}>
                   {['', '아쉬워요', '그냥 그래요', '괜찮아요', '정말 좋아요', '최고에요'][newRating]}
                 </span>
+              </div>
+            </div>
+
+            {/* 맛 평가 (5축) — 구매자 동의율에 반영 */}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:'var(--color-ink-soft)' }}>
+                맛 평가 <span style={{ fontSize:11, color:'#BBB', fontWeight:400 }}>선택 · 다른 구매자에게 도움돼요</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                {TASTE_AXES.map(axis => (
+                  <div key={axis.key}>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#555', marginBottom:6 }}>
+                      <span style={{ marginRight:4 }}>{axis.icon}</span>{axis.label}
+                    </div>
+                    <div style={{ display:'flex', gap:4 }}>
+                      {axis.levels.map((lv, i) => {
+                        const level = i + 1;
+                        const on = newTaste[axis.key] === level;
+                        return (
+                          <button key={level} type="button"
+                            onClick={() => setNewTaste(prev => ({ ...prev, [axis.key]: level }))}
+                            style={{ flex:1, padding:'7px 2px', borderRadius:8, cursor:'pointer',
+                              border:`1px solid ${on ? axis.hex : '#E5E5E5'}`,
+                              background: on ? axis.hex : '#fff', color: on ? '#fff' : '#999',
+                              fontSize:11, fontWeight:on ? 700 : 500, fontFamily:'inherit',
+                              lineHeight:1.3, transition:'all .12s' }}>
+                            {lv}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
