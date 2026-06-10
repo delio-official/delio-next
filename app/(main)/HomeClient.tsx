@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
-import { loadTabsFor, loadCategoryTabs, type FilterTab } from '@/lib/filterTabs';
+import { loadTabsFor, loadCategoryTabs } from '@/lib/filterTabs';
 import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -278,7 +278,13 @@ function QuickGuide() {
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
   const requireLogin = useLoginGuard();
   const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
+  const [qgHidden, setQgHidden] = useState(false);
   const qgScrollRef = useRef<HTMLDivElement>(null);
+
+  /* 노출 개수 0 → 섹션 숨김 */
+  useEffect(() => {
+    fetchSectionConfig(createClient(), 'qg').then(c => setQgHidden(c.count === 0));
+  }, []);
 
   /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
@@ -369,6 +375,8 @@ function QuickGuide() {
       return s;
     });
   }
+
+  if (qgHidden) return null;
 
   return (
     <section className="quick-guide-section" id="section-guide">
@@ -633,8 +641,10 @@ export default function HomeClient() {
   const reviewScrollRef = useRef<HTMLDivElement>(null);
   const [pickProds, setPickProds] = useState<PickProduct[]>([]);
   const [pickLoaded, setPickLoaded] = useState(false);
+  const [pickHidden, setPickHidden] = useState(false);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
   const [loungeLoaded, setLoungeLoaded] = useState(false);
+  const [loungeHidden, setLoungeHidden] = useState(false);
 
   /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
   const [secOff, setSecOff] = useState<Set<string>>(new Set());
@@ -666,6 +676,7 @@ export default function HomeClient() {
     async function loadLounge() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'lounge');
+      if (cfg.count === 0) { setLoungeHidden(true); setLoungePosts([]); setLoungeLoaded(true); return; }
       const cols = 'id,bg,emoji,title,badge,date,filter,thumbnail_url';
 
       let rows: LoungePost[] = [];
@@ -695,6 +706,7 @@ export default function HomeClient() {
     async function loadPicks() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'pick');
+      if (cfg.count === 0) { setPickHidden(true); setPickProds([]); setPickLoaded(true); return; }
       const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category';
 
       let rows: PickProduct[] = [];
@@ -858,7 +870,7 @@ export default function HomeClient() {
       {secOn('topbanner') && <MainBanner />}
 
       {/* ── 델리오 픽 ── */}
-      {secOn('pick') && (
+      {secOn('pick') && !pickHidden && (
       <section className="curation-section" id="section-pick">
         <div className="container">
           <div className="g-section-head">
@@ -1083,7 +1095,7 @@ export default function HomeClient() {
       )}
 
       {/* ── 델리오 라운지 ── */}
-      {secOn('lounge') && (
+      {secOn('lounge') && !loungeHidden && (
       <section className="lounge-section" id="section-lounge">
         <div className="container">
           <div className="g-section-head">

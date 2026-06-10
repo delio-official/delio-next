@@ -35,7 +35,8 @@ export function parseSectionConfig(settings: Record<string, string>, sec: string
   const rawMode = settings[`${sec}_mode`] as SectionMode | undefined;
   const mode: SectionMode = (rawMode && meta?.modes.includes(rawMode)) ? rawMode : (meta?.modes[0] ?? 'latest');
   const ids = (settings[`${sec}_ids`] || '').split(',').map(s => s.trim()).filter(Boolean);
-  const count = Math.max(1, parseInt(settings[countKey] || String(defCount)) || defCount);
+  const rawCount = settings[countKey];
+  const count = rawCount === '0' ? 0 : Math.max(0, parseInt(rawCount || String(defCount)) || defCount);
   return { mode, ids, count };
 }
 

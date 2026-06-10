@@ -97,17 +97,17 @@ export default function SectionCuration({ sec, items, buckets }: {
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#475569', fontWeight: 600 }}>
           노출 개수
-          <input type="number" min={1} max={50} value={count}
-            onChange={e => setCount(Math.max(1, parseInt(e.target.value) || 1))}
+          <input type="number" min={0} max={50} value={count}
+            onChange={e => setCount(Math.max(0, parseInt(e.target.value) || 0))}
             style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, width: 90, background: '#fff' }} />
         </label>
-        <div style={{ fontSize: 11.5, color: '#94A3B8', flex: '1 1 160px', lineHeight: 1.5 }}>
-          {mode === 'latest' && '최근 등록순으로 자동 노출됩니다.'}
-          {mode === 'popular' && '인기순(리뷰·좋아요·찜)으로 자동 노출됩니다.'}
-          {mode === 'views' && '조회수 높은 순으로 자동 노출됩니다.'}
-          {mode === 'manual' && (hasBuckets
-            ? '카테고리 탭마다 직접 고른 상품이 그 순서대로 노출됩니다. (플래그 탭은 자동 정렬)'
-            : '아래에서 직접 고른 항목이 고른 순서대로 노출됩니다.')}
+        <div style={{ fontSize: 11.5, color: count === 0 ? '#DC2626' : '#94A3B8', flex: '1 1 160px', lineHeight: 1.5 }}>
+          {count === 0 ? '0개 → 이 섹션을 메인에서 숨깁니다.'
+            : mode === 'latest' ? '최근 등록순으로 자동 노출됩니다.'
+            : mode === 'popular' ? '인기순(리뷰·좋아요·찜)으로 자동 노출됩니다.'
+            : mode === 'views' ? '조회수 높은 순으로 자동 노출됩니다.'
+            : hasBuckets ? '카테고리 탭마다 직접 고른 상품이 그 순서대로 노출됩니다. (플래그 탭은 자동 정렬)'
+            : '아래에서 직접 고른 항목이 고른 순서대로 노출됩니다.'}
         </div>
       </div>
 
