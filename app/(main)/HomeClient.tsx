@@ -11,6 +11,7 @@ import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 
 /* ===== 배너 인터페이스 ===== */
 interface Banner {
@@ -362,7 +363,8 @@ function QuickGuide() {
           <button className="qg-nav-btn next" onClick={() => qgScrollRef.current && smoothScroll(qgScrollRef.current, 494)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-        <div className="qg-products" ref={qgScrollRef}>
+        <div className="qg-products" ref={qgScrollRef}
+          style={!loading && items.length === 0 ? { display:'block', gridTemplateRows:'none', gridAutoColumns:'auto' } : undefined}>
           {loading
             ? [0,1,2,3].map(i => (
                 <div key={i} className="qg-card" style={{ opacity:0.35 }}>
@@ -375,7 +377,7 @@ function QuickGuide() {
                 </div>
               ))
             : items.length === 0
-              ? <p style={{ textAlign:'center', color:'#bbb', padding:'40px 0' }}>해당 카테고리 상품이 없습니다.</p>
+              ? <ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} />
               : items.map(p => {
                   const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
                   const icon = CAT_ICONS[catKey] || '🍑';
@@ -595,7 +597,9 @@ export default function HomeClient() {
   const router = useRouter();
   const reviewScrollRef = useRef<HTMLDivElement>(null);
   const [pickProds, setPickProds] = useState<PickProduct[]>([]);
+  const [pickLoaded, setPickLoaded] = useState(false);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
+  const [loungeLoaded, setLoungeLoaded] = useState(false);
 
   /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
   const [secOff, setSecOff] = useState<Set<string>>(new Set());
@@ -634,6 +638,7 @@ export default function HomeClient() {
         .order('created_at', { ascending: false })
         .limit(3);
       setLoungePosts((data as LoungePost[]) || []);
+      setLoungeLoaded(true);
     }
     loadLounge();
   }, []);
@@ -656,6 +661,7 @@ export default function HomeClient() {
         .order('review_count', { ascending: false })
         .limit(pickCount);
       setPickProds((data as PickProduct[]) || []);
+      setPickLoaded(true);
     }
     loadPicks();
   }, []);
@@ -791,6 +797,9 @@ export default function HomeClient() {
               </div>
             </h2>
           </div>
+          {pickLoaded && pickProds.length === 0 ? (
+            <ComingSoon title="추천 상품 준비중입니다." desc={['엄선한 상품을 준비하고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']} />
+          ) : (
           <div style={{ position: 'relative' }}>
             <div id="pickGrid" ref={pickWrapRef}>
               <div className="pick-track" style={{
@@ -896,6 +905,7 @@ export default function HomeClient() {
               </>
             )}
           </div>
+          )}
         </div>
       </section>
       )}
@@ -1009,6 +1019,9 @@ export default function HomeClient() {
               <div className="g-title-main"><span>델리오 라운지</span></div>
             </h2>
           </div>
+          {loungeLoaded && loungePosts.length === 0 ? (
+            <ComingSoon title="콘텐츠 준비중입니다." desc={['유익한 과일 이야기를 준비하고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']} />
+          ) : (
           <div className="lounge-grid">
             {loungePosts.length === 0
               ? /* 로딩 스켈레톤 */
@@ -1035,6 +1048,7 @@ export default function HomeClient() {
                 ))
             }
           </div>
+          )}
           <Link href="/lounge" className="lounge-more-btn">라운지 전체보기 &nbsp;›</Link>
         </div>
       </section>
