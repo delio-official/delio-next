@@ -1574,7 +1574,16 @@ export default function AdminClient() {
     byStatus: { status: string; count: number; amount: number }[];
     byMethod: { method: string; count: number; amount: number }[];
     daily: { date: string; amount: number }[];
+    realSettle: number; aov: number; couponTotal: number; pointTotal: number;
+    refundCount: number; refundRate: number;
+    prevTotal: number; prevOrderCount: number;
+    topProducts: { name: string; qty: number; amount: number }[];
+    topCategories: { category: string; qty: number; amount: number }[];
   } | null>(null);
+  /* 기간 프리셋 */
+  const [settlementPreset, setSettlementPreset] = useState<'today'|'yesterday'|'7d'|'30d'|'thisMonth'|'lastMonth'|'all'|'custom'>('thisMonth');
+  const [settlementCustFrom, setSettlementCustFrom] = useState('');
+  const [settlementCustTo, setSettlementCustTo] = useState('');
   const [settlementLoading, setSettlementLoading] = useState(false);
   /* ── 농가 정산 ── */
   const [farmSettleMonth, setFarmSettleMonth] = useState(() => {
@@ -2986,63 +2995,107 @@ export default function AdminClient() {
     setSettlementYearly(Object.entries(m).map(([month, amount]) => ({ month: Number(month), amount })));
   }
 
-  async function loadSettlement(month: string) {
+  async function loadSettlement(from: Date, to: Date) {
     setSettlementLoading(true);
     const supabase = createClient();
-    const [year, mon] = month.split('-').map(Number);
-    loadSettlementYearly(year);
-    const from = new Date(year, mon - 1, 1).toISOString();
-    const to   = new Date(year, mon,     1).toISOString();
+    loadSettlementYearly(new Date().getFullYear());
+    const fromISO = from.toISOString();
+    const toISO = to.toISOString();
+    const isConfirmed = (s: string) => s === 'delivered' || s === 'confirmed';
+    const isPending = (s: string) => ['paid','preparing','shipped'].includes(s);
+    const isCancel = (s: string) => ['cancelled','refunded','refunding'].includes(s);
 
     const { data } = await supabase
       .from('orders')
-      .select('status, final_amount, payment_method, created_at')
-      .gte('created_at', from)
-      .lt('created_at', to)
-      .limit(2000);
-
+      .select('id, status, final_amount, coupon_discount, point_used, payment_method, created_at')
+      .gte('created_at', fromISO).lt('created_at', toISO).limit(5000);
     if (!data) { setSettlementLoading(false); return; }
 
-    const confirmed = data.filter(o => o.status === 'delivered')
-      .reduce((s, o) => s + (o.final_amount || 0), 0);
-    const pending = data.filter(o => ['paid','preparing','shipped'].includes(o.status))
-      .reduce((s, o) => s + (o.final_amount || 0), 0);
-    const cancelled = data.filter(o => ['cancelled','refunded','refunding'].includes(o.status))
-      .reduce((s, o) => s + (o.final_amount || 0), 0);
-    const total = data.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const confirmed = data.filter(o => isConfirmed(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const pending   = data.filter(o => isPending(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const cancelled = data.filter(o => isCancel(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const total     = data.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const couponTotal = data.reduce((s, o) => s + (o.coupon_discount || 0), 0);
+    const pointTotal  = data.reduce((s, o) => s + (o.point_used || 0), 0);
+    const validOrders = data.filter(o => !isCancel(o.status));
+    const validTotal  = validOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const aov = validOrders.length ? Math.round(validTotal / validOrders.length) : 0;
+    const realSettle = confirmed; // 확정 매출(쿠폰·포인트 차감 후 실수령 추정)
+    const refundCount = data.filter(o => isCancel(o.status)).length;
+    const refundRate = data.length ? (refundCount / data.length * 100) : 0;
 
     const statusMap: Record<string, { count: number; amount: number }> = {};
-    data.forEach(o => {
-      if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 };
-      statusMap[o.status].count++;
-      statusMap[o.status].amount += o.final_amount || 0;
-    });
-    const byStatus = Object.entries(statusMap)
-      .map(([status, v]) => ({ status, ...v }))
-      .sort((a, b) => b.amount - a.amount);
+    data.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += o.final_amount || 0; });
+    const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.amount - a.amount);
 
     const methodMap: Record<string, { count: number; amount: number }> = {};
-    data.forEach(o => {
-      const m = o.payment_method || '기타';
-      if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 };
-      methodMap[m].count++;
-      methodMap[m].amount += o.final_amount || 0;
-    });
-    const byMethod = Object.entries(methodMap)
-      .map(([method, v]) => ({ method, ...v }))
-      .sort((a, b) => b.amount - a.amount);
+    data.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += o.final_amount || 0; });
+    const byMethod = Object.entries(methodMap).map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount);
 
-    const daysInMonth = new Date(year, mon, 0).getDate();
-    const dailyMap: Record<number, number> = {};
-    for (let d = 1; d <= daysInMonth; d++) dailyMap[d] = 0;
-    data.forEach(o => {
-      const d = new Date(o.created_at).getDate();
-      if (dailyMap[d] !== undefined) dailyMap[d] += o.final_amount || 0;
-    });
+    // 일별 (범위 92일 이하만 — 너무 길면 월별 그래프 사용)
+    const dayMs = 86400000;
+    const rangeDays = Math.round((to.getTime() - from.getTime()) / dayMs);
+    const dailyMap: Record<string, number> = {};
+    if (rangeDays <= 92) {
+      const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+      for (let t = start.getTime(); t < to.getTime(); t += dayMs) { const d = new Date(t); dailyMap[`${d.getMonth()+1}/${d.getDate()}`] = 0; }
+      data.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += o.final_amount || 0; });
+    }
     const daily = Object.entries(dailyMap).map(([date, amount]) => ({ date, amount }));
 
-    setSettlementData({ confirmed, pending, cancelled, total, orderCount: data.length, byStatus, byMethod, daily });
+    // 전기간 대비 (직전 동일 길이)
+    const lenMs = to.getTime() - from.getTime();
+    const { data: prev } = await supabase.from('orders').select('final_amount')
+      .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO).limit(5000);
+    const prevTotal = (prev || []).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const prevOrderCount = (prev || []).length;
+
+    // TOP 상품/카테고리 (order_items, 200개씩 청크)
+    const orderIds = data.map(o => o.id);
+    let topProducts: { name: string; qty: number; amount: number }[] = [];
+    let topCategories: { category: string; qty: number; amount: number }[] = [];
+    if (orderIds.length) {
+      const items: { product_id: string; product_name: string; quantity: number; subtotal: number }[] = [];
+      for (let i = 0; i < orderIds.length; i += 200) {
+        const { data: it } = await supabase.from('order_items').select('product_id, product_name, quantity, subtotal').in('order_id', orderIds.slice(i, i + 200));
+        if (it) items.push(...(it as typeof items));
+      }
+      const { data: prods } = await supabase.from('products').select('id, category');
+      const prodCat = new Map((prods || []).map((p: { id: string; category: string }) => [p.id, p.category]));
+      const pMap: Record<string, { qty: number; amount: number }> = {};
+      const cMap: Record<string, { qty: number; amount: number }> = {};
+      items.forEach(it => {
+        const nm = it.product_name || '(상품)';
+        if (!pMap[nm]) pMap[nm] = { qty: 0, amount: 0 }; pMap[nm].qty += it.quantity || 0; pMap[nm].amount += it.subtotal || 0;
+        const cat = (prodCat.get(it.product_id) as string) || '기타';
+        const cl = (catOptions[cat] || CAT_LABEL[cat] || cat);
+        if (!cMap[cl]) cMap[cl] = { qty: 0, amount: 0 }; cMap[cl].qty += it.quantity || 0; cMap[cl].amount += it.subtotal || 0;
+      });
+      topProducts = Object.entries(pMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
+      topCategories = Object.entries(cMap).map(([category, v]) => ({ category, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    }
+
+    setSettlementData({ confirmed, pending, cancelled, total, orderCount: data.length, byStatus, byMethod, daily,
+      realSettle, aov, couponTotal, pointTotal, refundCount, refundRate, prevTotal, prevOrderCount, topProducts, topCategories });
     setSettlementLoading(false);
+  }
+
+  /* 기간 프리셋 → [from, to] Date */
+  function settlementRange(preset: typeof settlementPreset = settlementPreset): [Date, Date] {
+    const now = new Date();
+    const sod = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const today = sod(now);
+    const tomorrow = new Date(today.getTime() + 86400000);
+    switch (preset) {
+      case 'today':     return [today, tomorrow];
+      case 'yesterday': return [new Date(today.getTime() - 86400000), today];
+      case '7d':        return [new Date(today.getTime() - 6 * 86400000), tomorrow];
+      case '30d':       return [new Date(today.getTime() - 29 * 86400000), tomorrow];
+      case 'thisMonth': return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 1)];
+      case 'lastMonth': return [new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 1)];
+      case 'all':       return [new Date(2020, 0, 1), tomorrow];
+      case 'custom':    return [settlementCustFrom ? new Date(`${settlementCustFrom}T00:00:00`) : new Date(2020,0,1), settlementCustTo ? new Date(`${settlementCustTo}T23:59:59`) : tomorrow];
+    }
   }
 
   /* ========== 주문 상태 변경 ========== */
@@ -3560,7 +3613,7 @@ export default function AdminClient() {
       case 'refund':    loadRefundRequests(); loadOrders(); break;
       case 'settings':    loadSettings(); loadSearchStats(7); break;
       case 'analytics':   loadSettings(); break;
-      case 'settlement':  loadSettlement(settlementMonth); break;
+      case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
       case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
     }
   }
@@ -7421,33 +7474,30 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 정산 관리 ===== */}
           {panel === 'settlement' && (
             <div className="adm-content">
-              {/* 월 선택 */}
-              <div className="adm-toolbar" style={{ marginBottom:16 }}>
-                <div className="adm-toolbar-left" style={{ gap:8 }}>
-                  <button className="adm-btn adm-btn-outline" style={{ padding:'6px 12px', fontSize:14 }}
-                    onClick={() => {
-                      const [y, m] = settlementMonth.split('-').map(Number);
-                      const d = new Date(y, m - 2, 1);
-                      const next = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                      setSettlementMonth(next);
-                      setSettlementData(null);
-                      loadSettlement(next);
-                    }}>◀</button>
-                  <span style={{ fontSize:15, fontWeight:700, minWidth:90, textAlign:'center' }}>
-                    {settlementMonth.replace('-', '년 ')}월
-                  </span>
-                  <button className="adm-btn adm-btn-outline" style={{ padding:'6px 12px', fontSize:14 }}
-                    onClick={() => {
-                      const [y, m] = settlementMonth.split('-').map(Number);
-                      const d = new Date(y, m, 1);
-                      const next = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                      setSettlementMonth(next);
-                      setSettlementData(null);
-                      loadSettlement(next);
-                    }}>▶</button>
+              {/* 기간 선택 */}
+              <div className="adm-toolbar" style={{ marginBottom:16, flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                  <AdmSelect value={settlementPreset} onChange={v => {
+                    const pv = v as typeof settlementPreset;
+                    setSettlementPreset(pv);
+                    if (pv !== 'custom') { const [f, t] = settlementRange(pv); setSettlementData(null); loadSettlement(f, t); }
+                  }} options={[
+                    { value:'today', label:'오늘' }, { value:'yesterday', label:'어제' },
+                    { value:'7d', label:'최근 7일' }, { value:'30d', label:'최근 30일' },
+                    { value:'thisMonth', label:'이번 달' }, { value:'lastMonth', label:'지난 달' },
+                    { value:'all', label:'전체 기간' }, { value:'custom', label:'사용자 정의' },
+                  ]} />
+                  {settlementPreset === 'custom' && (
+                    <>
+                      <input type="date" className="adm-select" value={settlementCustFrom} onChange={e => setSettlementCustFrom(e.target.value)} />
+                      <span style={{ color:'#94A3B8' }}>~</span>
+                      <input type="date" className="adm-select" value={settlementCustTo} onChange={e => setSettlementCustTo(e.target.value)} />
+                      <button className="adm-btn adm-btn-primary" onClick={() => { const [f, t] = settlementRange(); setSettlementData(null); loadSettlement(f, t); }}>조회</button>
+                    </>
+                  )}
                 </div>
                 <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={() => loadSettlement(settlementMonth)}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => { const [f, t] = settlementRange(); loadSettlement(f, t); }}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                   </button>
                 </div>
@@ -7471,6 +7521,74 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:18 }}>{v}</div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* 핵심 정산 지표 */}
+                  <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
+                    {[
+                      ['실정산 예상액', `${fmtPrice(settlementData.realSettle)}원`, '#16A34A', '확정 매출(쿠폰·포인트 차감 후)'],
+                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '취소 제외 평균 주문금액'],
+                      ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
+                      ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
+                      ['환불·취소율', `${settlementData.refundRate.toFixed(1)}%`, '#DC2626', `${settlementData.refundCount}건 / ${settlementData.orderCount}건`],
+                    ].map(([l, v, c, sub]) => (
+                      <div key={l} className="adm-kpi-card">
+                        <div className="adm-kpi-label">{l}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:18 }}>{v}</div>
+                        {sub && <div className="adm-muted" style={{ fontSize:10, marginTop:2, lineHeight:1.3 }}>{sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 전기간 대비 */}
+                  <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px' }}>
+                    <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>전기간 대비 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(직전 동일 길이 기간)</span></div>
+                    <div style={{ display:'flex', gap:32, flexWrap:'wrap' }}>
+                      {([['매출', settlementData.total, settlementData.prevTotal, true], ['주문수', settlementData.orderCount, settlementData.prevOrderCount, false]] as [string, number, number, boolean][]).map(([lb, cur, prev, money]) => {
+                        const p = prev > 0 ? ((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0);
+                        const up = p >= 0;
+                        return (
+                          <div key={lb}>
+                            <div className="adm-muted" style={{ fontSize:11, marginBottom:2 }}>{lb}</div>
+                            <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+                              <span style={{ fontSize:17, fontWeight:800 }}>{money ? `${fmtPrice(cur)}원` : `${cur}건`}</span>
+                              <span style={{ fontSize:13, fontWeight:700, color: up ? '#16A34A' : '#DC2626' }}>{up ? '▲' : '▼'} {Math.abs(p).toFixed(1)}%</span>
+                            </div>
+                            <div className="adm-muted" style={{ fontSize:10, marginTop:1 }}>이전: {money ? `${fmtPrice(prev)}원` : `${prev}건`}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* TOP 상품 / 카테고리 */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>상품</th><th>수량</th><th>매출</th></tr></thead>
+                        <tbody>
+                          {settlementData.topProducts.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
+                            : settlementData.topProducts.map((r, i) => (
+                              <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.name}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">카테고리별 매출 TOP</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>카테고리</th><th>수량</th><th>매출</th></tr></thead>
+                        <tbody>
+                          {settlementData.topCategories.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
+                            : settlementData.topCategories.map((r, i) => (
+                              <tr key={r.category}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.category}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
