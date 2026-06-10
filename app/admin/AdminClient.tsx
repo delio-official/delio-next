@@ -1991,11 +1991,14 @@ export default function AdminClient() {
     if (!farmForm.name.trim()) { alert('농가명을 입력해주세요.'); return; }
     setFarmSaving(true);
     const supabase = createClient();
-    const slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '');
+    let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
+    if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
     const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null };
     if (editingFarm) {
-      const { error } = await supabase.from('farms').update(payload).eq('id', editingFarm.id);
-      if (!error) setFarms(prev => prev.map(f => f.id === editingFarm.id ? { ...f, ...payload } : f));
+      // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
+      const editPayload = editingFarm.slug ? payload : { ...payload, slug };
+      const { error } = await supabase.from('farms').update(editPayload).eq('id', editingFarm.id);
+      if (!error) setFarms(prev => prev.map(f => f.id === editingFarm.id ? { ...f, ...editPayload } : f));
       else { alert('수정 실패: ' + error.message); setFarmSaving(false); return; }
     } else {
       const { data, error } = await supabase.from('farms').insert({ ...payload, slug }).select().single();
