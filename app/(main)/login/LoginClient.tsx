@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, signInWithKakao, signInWithNaver } from '@/lib/auth';
 import '@/styles/login.css';
 
 export default function LoginClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get('next') || '/';
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [error, setError] = useState('');
@@ -39,7 +41,7 @@ export default function LoginClient() {
     else localStorage.setItem('delio_session_only', '1');
     sessionStorage.setItem('delio_session_active', '1');
 
-    router.push('/');
+    router.push(nextUrl);
     router.refresh();
   }
 
@@ -110,13 +112,13 @@ export default function LoginClient() {
 
         <div className="sns-icon-row">
           {/* 네이버 */}
-          <button className="sns-circle sns-naver-btn" onClick={() => signInWithNaver()} title="네이버로 로그인">
+          <button className="sns-circle sns-naver-btn" onClick={() => signInWithNaver(nextUrl)} title="네이버로 로그인">
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
               <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="#ffffff"/>
             </svg>
           </button>
           {/* 카카오 */}
-          <button className="sns-circle sns-kakao-btn" onClick={() => signInWithKakao()} title="카카오로 로그인">
+          <button className="sns-circle sns-kakao-btn" onClick={() => signInWithKakao(nextUrl)} title="카카오로 로그인">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
               <path d="M12 4C6.48 4 2 7.58 2 12c0 2.96 1.78 5.56 4.5 7.06l-.77 3.44 3.9-2.44c.75.14 1.53.22 2.37.22 5.52 0 10-3.58 10-8S17.52 4 12 4z" fill="#3C1E1E"/>
             </svg>

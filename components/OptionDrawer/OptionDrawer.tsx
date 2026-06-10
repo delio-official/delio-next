@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { addToCart, showCartToast } from '@/lib/cart';
+import { useLoginGuard } from '@/hooks/useLoginGuard';
 
 interface Product {
   id: string; name: string; price: number; discounted_price: number | null;
@@ -17,6 +18,7 @@ const EMOJI = '🍑';
 
 export default function OptionDrawer() {
   const router = useRouter();
+  const requireLogin = useLoginGuard();
   const [open, setOpen]       = useState(false);
   const [closing, setClosing] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
@@ -98,11 +100,13 @@ export default function OptionDrawer() {
   }
 
   function handleAddCart() {
+    if (!requireLogin()) { close(); return; }
     if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
     const item = buildItem();
     if (item) { addToCart(item); showCartToast(); close(); }
   }
   function handleBuyNow() {
+    if (!requireLogin()) { close(); return; }
     if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
     const item = buildItem();
     if (item) { addToCart(item); close(); router.push('/cart'); }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
+import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -273,6 +274,7 @@ function QuickGuide() {
   const [items, setItems] = useState<QGProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
+  const requireLogin = useLoginGuard();
   const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
 
@@ -323,6 +325,7 @@ function QuickGuide() {
 
   async function handleQGWish(e: React.MouseEvent, productId: string) {
     e.stopPropagation();
+    if (!requireLogin()) return;
     const next = await toggleWishlist(productId);
     setWishedIds(prev => {
       const s = new Set(prev);
@@ -415,6 +418,7 @@ function QuickGuide() {
                           <span className="qg-body-actions-divider" />
                           <button className="qg-body-cart" onClick={e => {
                             e.stopPropagation();
+                            if (!requireLogin()) return;
                             openOptionDrawer(p.id);
                           }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
@@ -609,6 +613,7 @@ export default function HomeClient() {
   const pickWrapRef = useRef<HTMLDivElement>(null);
   const [pickIndex, setPickIndex] = useState(0);
   const [pickWishedIds, setPickWishedIds] = useState<Set<string>>(new Set());
+  const requireLogin = useLoginGuard();
 
   /* 리사이즈 시 재렌더 트리거 */
   const [, pickForce] = useState(0);
@@ -661,6 +666,7 @@ export default function HomeClient() {
 
   async function handlePickWish(e: React.MouseEvent, productId: string) {
     e.stopPropagation();
+    if (!requireLogin()) return;
     const next = await toggleWishlist(productId);
     setPickWishedIds(prev => {
       const s = new Set(prev);
@@ -823,7 +829,8 @@ export default function HomeClient() {
                                 </span>
                                 <button className="pick-mob-cart" aria-label="담기" onClick={e => {
                                   e.stopPropagation();
-                                  openOptionDrawer(p.id);
+                                  if (!requireLogin()) return;
+                            openOptionDrawer(p.id);
                                 }}>
                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="16" height="16">
                                     <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
@@ -837,7 +844,8 @@ export default function HomeClient() {
                                   <span className="product-card-actions-divider" />
                                   <button className="cart-btn" onClick={e => {
                                     e.stopPropagation();
-                                    openOptionDrawer(p.id);
+                                    if (!requireLogin()) return;
+                            openOptionDrawer(p.id);
                                   }}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
                                       <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>

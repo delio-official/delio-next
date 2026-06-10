@@ -8,6 +8,7 @@ import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { addToCart, showCartToast } from '@/lib/cart';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
+import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -88,6 +89,7 @@ export default function ProductClient() {
   const { id }    = useParams() as { id: string };
   const router    = useRouter();
   const { user }  = useAuth();
+  const requireLogin = useLoginGuard();
 
   const [product,    setProduct]    = useState<Product | null>(null);
   const [options,    setOptions]    = useState<ProductOption[]>([]);
@@ -393,7 +395,7 @@ export default function ProductClient() {
   }, [product, user]);
 
   async function toggleWishlist() {
-    if (!user) { router.push('/login'); return; }
+    if (!requireLogin() || !user) return;
     const supabase = createClient();
     if (wishlisted) {
       await supabase.from('wishlist').delete().eq('product_id', id).eq('user_id', user.id);
@@ -525,12 +527,14 @@ export default function ProductClient() {
   }, [product?.id]);
 
   function handleAddCart() {
+    if (!requireLogin()) return;
     if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
     addCartItem();
     showCartToast();
     setPicks([]);
   }
   function handleBuyNow() {
+    if (!requireLogin()) return;
     if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
     addCartItem(); router.push('/cart');
   }

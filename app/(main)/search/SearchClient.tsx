@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
+import { useLoginGuard } from '@/hooks/useLoginGuard';
 import '@/styles/category.css';
 import '@/styles/search.css';
 import { SingleStar } from '@/components/StarRating';
@@ -50,6 +51,7 @@ function SearchProductCard({ p }: { p: Product }) {
   const deliveryClass = p.is_dawn ? 'tag-dawn' : 'tag-regular';
   const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
+  const requireLogin = useLoginGuard();
 
   useEffect(() => {
     isWishlisted(p.id).then(setWished);
@@ -62,11 +64,13 @@ function SearchProductCard({ p }: { p: Product }) {
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (!requireLogin()) return;
     openOptionDrawer(p.id);
   }
 
   async function handleWish(e: React.MouseEvent) {
     e.preventDefault();
+    if (!requireLogin()) return;
     const next = await toggleWishlist(p.id);
     setWished(next);
   }

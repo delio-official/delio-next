@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
+import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { SingleStar } from '@/components/StarRating';
 import '@/styles/category.css';
 
@@ -46,6 +47,7 @@ function FarmProductCard({ p }: { p: Product }) {
   const deliveryClass = p.is_dawn ? 'tag-dawn' : 'tag-regular';
   const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
+  const requireLogin = useLoginGuard();
   useEffect(() => { isWishlisted(p.id).then(setWished); }, [p.id]);
 
   const reviewCount = p.review_count > 9999
@@ -61,11 +63,11 @@ function FarmProductCard({ p }: { p: Product }) {
         }
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
-          <button className="product-card-wish" onClick={async e => { e.preventDefault(); setWished(await toggleWishlist(p.id)); }}>
+          <button className="product-card-wish" onClick={async e => { e.preventDefault(); if (!requireLogin()) return; setWished(await toggleWishlist(p.id)); }}>
             <span style={{ color: wished ? '#E53935' : undefined }}>{wished ? '♥' : '♡'}</span> 찜
           </button>
           <span className="product-card-actions-divider" />
-          <button className="cart-btn" onClick={e => { e.preventDefault(); e.stopPropagation(); openOptionDrawer(p.id); }}>
+          <button className="cart-btn" onClick={e => { e.preventDefault(); e.stopPropagation(); if (!requireLogin()) return; openOptionDrawer(p.id); }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
