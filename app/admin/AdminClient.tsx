@@ -8,6 +8,7 @@ import '@/styles/login.css';
 import { StarRating } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
+import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import dynamic from 'next/dynamic';
 
 const ImageDetailEditor = dynamic(
@@ -2737,7 +2738,8 @@ export default function AdminClient() {
 
   /* ========== 포인트 적립 설정 ========== */
   function openPtEdit() {
-    setPtRate(siteSettings.point_rate ?? '1');
+    // 예약 변경이 있으면 그 값을, 없으면 현재값을 프리필
+    setPtRate(siteSettings.point_rate_next || siteSettings.point_rate || '1');
     setPtApply(siteSettings.point_apply_date || '');
     setPtEdit(true);
   }
@@ -2751,15 +2753,17 @@ export default function AdminClient() {
     if (isNaN(rate) || rate < 0 || rate > 10) { alert('적립률은 0% ~ 10% 사이로 입력해주세요.'); return; }
     if (ptApply && ptApply < today) { alert('적용일은 오늘 이후 날짜만 선택할 수 있습니다.'); return; }
     setPtSaving(true);
-    const rows = [
-      { key: 'point_rate', value: String(rate) },
-      { key: 'point_apply_date', value: ptApply || '' },
-      { key: 'point_updated_at', value: today },
-    ];
+    // 미래 적용일이면 예약(point_rate_next)으로 두고 현재 적립률은 유지(소급 적용 X).
+    // 적용일이 없거나 오늘이면 즉시 반영.
+    const scheduled = !!ptApply && ptApply > today;
+    const patch: Record<string, string> = scheduled
+      ? { point_rate_next: String(rate), point_apply_date: ptApply, point_updated_at: today }
+      : { point_rate: String(rate), point_rate_next: '', point_apply_date: '', point_updated_at: today };
+    const rows = Object.entries(patch).map(([key, value]) => ({ key, value }));
     const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
     setPtSaving(false);
     if (error) { alert('저장 실패: ' + error.message); return; }
-    setSiteSettings(prev => ({ ...prev, point_rate: String(rate), point_apply_date: ptApply || '', point_updated_at: today }));
+    setSiteSettings(prev => ({ ...prev, ...patch }));
     setPtEdit(false);
   }
 
@@ -5547,16 +5551,20 @@ export default function AdminClient() {
                       <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
                     </div>
                     {/* 현재값 카드 3개 */}
+                    {(() => {
+                      const ptEff = effectivePointRatePct(siteSettings);
+                      const ptPending = pendingPointChange(siteSettings);
+                      return (
                     <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:4 }}>
                       <div className="adm-kpi-card" style={{ background:'#EFF6FF', border:'1px solid #DBEAFE' }}>
                         <div className="adm-kpi-label">현재 적립률</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#2563EB' }}>{siteSettings.point_rate ?? '1'}%</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>구매액의 {siteSettings.point_rate ?? '1'}% 적립</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#2563EB' }}>{ptEff}%</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>구매액의 {ptEff}% 적립</div>
                       </div>
                       <div className="adm-kpi-card" style={{ background:'#F0FDF4', border:'1px solid #DCFCE7' }}>
-                        <div className="adm-kpi-label">적용일</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{siteSettings.point_apply_date || '즉시'}</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>해당 날짜부터 적용</div>
+                        <div className="adm-kpi-label">{ptPending ? '예약된 변경' : '적용일'}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{ptPending ? ptPending.applyDate : '즉시 적용 중'}</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>{ptPending ? `이 날부터 ${ptPending.rate}% 로 변경` : '예약된 변경 없음'}</div>
                       </div>
                       <div className="adm-kpi-card">
                         <div className="adm-kpi-label">최종 수정일</div>
@@ -5564,6 +5572,8 @@ export default function AdminClient() {
                         <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>마지막 설정 변경일</div>
                       </div>
                     </div>
+                      );
+                    })()}
                     {/* 설정 수정 버튼 / 설정 변경 폼 */}
                     {!ptEdit ? (
                       <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
