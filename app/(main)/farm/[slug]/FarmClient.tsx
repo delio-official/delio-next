@@ -175,25 +175,26 @@ export default function FarmClient() {
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
-      {/* ── 상단: 좌 농가명·설명 / 우 썸네일 ── */}
-      <div className="container" style={{ paddingTop:40, paddingBottom:28 }}>
-        <div style={{ display:'flex', gap:32, flexWrap:'wrap', alignItems:'center' }}>
-          <div style={{ flex:'1 1 320px', minWidth:0 }}>
-            <p style={{ fontSize:13, color:'#888', marginBottom:8 }}>{farm.region ? `${farm.region} · ` : ''}파트너 농가</p>
-            <h1 style={{ fontSize:'clamp(24px,4vw,34px)', fontWeight:800, marginBottom:16, lineHeight:1.25 }}>{farm.name}</h1>
+      {/* ── 상단: 좌 농가명·설명 / 우 썸네일 (카드) ── */}
+      <div className="container" style={{ paddingTop:36, paddingBottom:28 }}>
+        <div style={{ display:'flex', gap:28, flexWrap:'wrap', alignItems:'center',
+          border:'1px solid #EEECE7', borderRadius:18, padding:'24px 26px', background:'#fff' }}>
+          <div style={{ flex:'1 1 300px', minWidth:0 }}>
+            <p style={{ fontSize:12.5, color:'#9A8F7E', fontWeight:600, marginBottom:10 }}>{farm.region ? `${farm.region} · ` : ''}파트너 농가</p>
+            <h1 style={{ fontSize:'clamp(22px,2.6vw,30px)', fontWeight:800, marginBottom:16, lineHeight:1.3 }}>{farm.name}</h1>
             {farm.intro && (
-              <p style={{ fontSize:15, lineHeight:1.9, color:'#444', whiteSpace:'pre-line' }}>{farm.intro}</p>
+              <p style={{ fontSize:14.5, lineHeight:1.85, color:'#555', whiteSpace:'pre-line' }}>{farm.intro}</p>
             )}
             {farm.farmer_name && (
               <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
             )}
           </div>
-          <div style={{ flex:'1 1 380px', minWidth:0 }}>
+          <div style={{ flex:'1.3 1 360px', minWidth:0 }}>
             {farm.thumbnail_url ? (
               <img src={farm.thumbnail_url} alt={farm.name}
-                style={{ width:'100%', maxHeight:340, objectFit:'cover', borderRadius:16, display:'block' }} />
+                style={{ width:'100%', aspectRatio:'16/10', objectFit:'cover', borderRadius:14, display:'block' }} />
             ) : (
-              <div style={{ width:'100%', height:240, borderRadius:16, background:'linear-gradient(135deg,#2d5a27,#3d7a35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{emoji}</div>
+              <div style={{ width:'100%', aspectRatio:'16/10', borderRadius:14, background:'linear-gradient(135deg,#2d5a27,#3d7a35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{emoji}</div>
             )}
           </div>
         </div>
