@@ -701,15 +701,34 @@ export default function HomeClient() {
     return fallbackHref;
   };
 
-  const reviews = [
-    { photo: 'review-photo-orange', emoji: '🍊', stars: 5, text: '정말 달아요. 이렇게 달콤한 한라봉은 처음 먹어봐요. 당도가 기대 이상이라 가족들이 다 좋아해요.', prodName: '제주 황금 한라봉', prodRating: '4.9 (2,847)', prodHref: '/category?cat=citrus', reviewHref: '/review' },
-    { photo: 'review-photo-grape',  emoji: '🍇', stars: 5, text: '씨도 없고 달기도 너무 달아서 계속 손이 가요. 17.2 brix 보장이라고 했는데 그 이상인 것 같아요.', prodName: '영천 샤인머스캣', prodRating: '4.8 (1,019)', prodHref: '/category?cat=grape', reviewHref: '/review' },
-    { photo: 'review-photo-kiwi',   emoji: '🥝', stars: 5, text: '골드키위 처음 먹어봤는데 완전 다른 식감이에요. 그린키위보다 훨씬 달고 부드럽네요.', prodName: '제스프리 골드키위', prodRating: '4.9 (1,857)', prodHref: '/category?cat=kiwi', reviewHref: '/review' },
-    { photo: 'review-photo-apple',  emoji: '🍎', stars: 5, text: '충주 사과 맞나요? 이렇게 아삭하고 달수가. 매년 이맘때면 꼭 주문하게 될 것 같아요.', prodName: '충주 고당도 부사사과', prodRating: '4.7 (3,204)', prodHref: '/category?cat=apple', reviewHref: '/review' },
-    { photo: 'review-photo-mango',  emoji: '🥭', stars: 5, text: '태국 애플망고 직수입이라 그런지 신선도가 다르네요. 향도 너무 좋고 당도도 최상입니다.', prodName: '애플망고 (태국산)', prodRating: '4.6 (11)', prodHref: '/category?cat=mango', reviewHref: '/review' },
-    { photo: 'review-photo-berry',  emoji: '🫐', stars: 4, text: '블루베리가 알도 크고 터질때 달달해요. 냉동으로 먹어도 맛있어서 또 살게요.', prodName: '고성 친환경 블루베리', prodRating: '4.5 (628)', prodHref: '/category?cat=berry', reviewHref: '/review' },
-    { photo: 'review-photo-melon',  emoji: '🍈', stars: 5, text: '성주 참외 먹고 다른 데 참외는 못 먹겠어요. 아삭한 식감에 과즙이 넘쳐서 정말 맛있어요.', prodName: '성주 황토 참외', prodRating: '4.8 (492)', prodHref: '/category?cat=melon', reviewHref: '/review' },
-  ];
+  /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
+  const [reviews, setReviews] = useState<{ id: string; image: string; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string }[]>([]);
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('reviews')
+        .select('id, rating, content, image_urls, products(id, name, category, avg_rating, review_count)')
+        .order('rating', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(12);
+      const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
+      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null } | null };
+      const cards = ((data || []) as unknown as Row[])
+        .filter(r => r.image_urls && r.image_urls.length > 0 && r.products)
+        .slice(0, 8)
+        .map(r => ({
+          id: r.id,
+          image: r.image_urls![0],
+          stars: r.rating,
+          text: r.content,
+          prodId: r.products!.id,
+          prodName: r.products!.name,
+          prodRating: `${(r.products!.avg_rating || 0).toFixed(1)} (${(r.products!.review_count || 0).toLocaleString()})`,
+          emoji: EMOJI[r.products!.category] || '🍑',
+        }));
+      setReviews(cards);
+    })();
+  }, []);
 
   const brandCards = [
     { banner:'bdc-banner-citrus', logo:'bdc-logo-citrus', emoji:'🍊', brand:'서귀포 감귤농원', farmSlug:'seogwipo-citrus',   brandHref:'/farm/seogwipo-citrus',   catHref:'/category?cat=citrus', prodName:'당도 보장 한라봉 3kg',         prodPrice:'38,000원', discount:20 },
@@ -897,8 +916,8 @@ export default function HomeClient() {
       {/* ── 중간 배너 ── */}
       {secOn('midbanner') && <MidBanner />}
 
-      {/* ── 리뷰 하이라이트 ── */}
-      {secOn('review') && (
+      {/* ── 리뷰 하이라이트 (사진 리뷰 있을 때만) ── */}
+      {secOn('review') && reviews.length > 0 && (
       <section className="review-section" id="section-review">
         <div className="container">
           <div className="g-section-head">
@@ -921,16 +940,16 @@ export default function HomeClient() {
               {reviews.map((r, i) => (
                 <div key={i} className="review-card">
                   {/* 이미지 + 리뷰 텍스트 → 리뷰 상세 */}
-                  <Link href={r.reviewHref} className="review-card-top" style={{ textDecoration:'none', color:'inherit', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
-                    <div className={`review-photo ${r.photo}`}>{r.emoji}</div>
+                  <Link href={`/product/${r.prodId}`} className="review-card-top" style={{ textDecoration:'none', color:'inherit', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
+                    <div className="review-photo" style={{ overflow:'hidden' }}><img src={r.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
                     <div className="review-body">
                       <div className="review-stars"><StarRating rating={r.stars} size={14} /></div>
                       <div className="review-text">{r.text}</div>
                     </div>
                   </Link>
                   {/* 상품 정보 → 상품 상세 페이지 */}
-                  <Link href={productHref(r.prodHref, r.prodName)} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
-                    <div className={`review-prod-icon ${r.photo}`}>{r.emoji}</div>
+                  <Link href={`/product/${r.prodId}`} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
+                    <div className="review-prod-icon">{r.emoji}</div>
                     <div className="review-prod-info">
                       <div className="review-prod-name">{r.prodName}</div>
                       <div className="review-prod-rating"><SingleStar size={12} />{r.prodRating}</div>
