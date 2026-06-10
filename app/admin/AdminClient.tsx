@@ -5493,18 +5493,18 @@ export default function AdminClient() {
                     const today = new Date().toISOString().slice(0,10);
                     const totalAmt = pack.filter(c => c.is_active && c.discount_type === 'fixed').reduce((s,c) => s + c.discount_value, 0);
                     return (
-                      <div className="adm-card" style={{ marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                      <div className="adm-card" style={{ marginBottom:16 }}>
                         <div className="adm-card-head" style={{ alignItems:'center' }}>
-                          <span className="adm-card-title">🎁 신규회원 웰컴 쿠폰팩</span>
+                          <span className="adm-card-title">신규회원 웰컴 쿠폰팩</span>
                           <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openSignupCouponModal}>+ 신규회원 쿠폰 추가</button>
                         </div>
-                        <div style={{ fontSize:12, color:'#92400E', margin:'2px 0 12px' }}>
+                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
                           신규 회원이 가입하면 아래 쿠폰이 <strong>각자 가입일 기준으로 자동 발급</strong>됩니다. (정액 합계 <strong>{fmtPrice(totalAmt)}원</strong> · {pack.filter(c=>c.is_active).length}종 활성)
                         </div>
                         {pack.length === 0 ? (
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 신규회원 쿠폰이 없습니다. 우측 “+ 신규회원 쿠폰 추가”로 만드세요.</div>
                         ) : (
-                          <div className="adm-table-wrap" style={{ background:'#fff', borderRadius:8, border:'1px solid #FEF3C7' }}>
+                          <div className="adm-table-wrap">
                             <table className="adm-table">
                               <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
                               <tbody>
@@ -5514,7 +5514,7 @@ export default function AdminClient() {
                                   return (
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
                                       <td style={{ fontWeight:700 }}>{c.name}</td>
-                                      <td style={{ fontWeight:800, color:'#B45309' }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
+                                      <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
                                       <td className="adm-muted" style={{ fontSize:12 }}>
                                         {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
