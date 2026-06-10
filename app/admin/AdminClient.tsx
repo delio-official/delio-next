@@ -5718,7 +5718,7 @@ export default function AdminClient() {
                             <td>{f.farm_type || '-'}</td>
                             <td>{f.carrier ? <span className="adm-badge badge-carrier">{f.carrier}</span> : '-'}</td>
                             <td className="adm-mono" style={{ fontSize:12 }}>{f.active_count || 0}<span style={{ color:'#CBD5E1' }}>/{f.product_count || 0}</span></td>
-                            <td className="adm-mono" style={{ fontSize:12 }}>{(f.review_count || 0) > 0 ? <>★{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
+                            <td className="adm-mono" style={{ fontSize:12 }}>{(f.review_count || 0) > 0 ? <>{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
                             <td className="adm-mono">{(f.wish_count || 0).toLocaleString()}</td>
                             <td style={{ display:'flex', gap:6 }}>
                               <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openFarmDetail(f)}>분석</button>
