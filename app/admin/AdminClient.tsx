@@ -5520,10 +5520,12 @@ export default function AdminClient() {
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
-                                      <td style={{ display:'flex', gap:6 }}>
-                                        <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
-                                        <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
-                                        <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                      <td>
+                                        <div style={{ display:'flex', gap:6 }}>
+                                          <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                          <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                          <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                        </div>
                                       </td>
                                     </tr>
                                   );
@@ -5559,10 +5561,12 @@ export default function AdminClient() {
                                 <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
                                 <td className="adm-muted" style={{ fontSize:12 }}>{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
                                 <td><Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} /></td>
-                                <td style={{ display:'flex', gap:6 }}>
-                                  <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
-                                  <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
-                                  <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                <td>
+                                  <div style={{ display:'flex', gap:6 }}>
+                                    <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                    <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                    <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
