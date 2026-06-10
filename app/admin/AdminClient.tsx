@@ -5839,9 +5839,10 @@ export default function AdminClient() {
                           <button type="button" onClick={() => deleteMenu(g.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
                         </div>
                         {menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
+                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16, opacity: s.is_active ? 1 : 0.5 }}>
                             <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
                             {mText(s)}
+                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.is_active} onChange={e => updateMenu(s.id, { is_active: e.target.checked })} />노출</label>
                             <button type="button" onClick={() => deleteMenu(s.id)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
                           </div>
                         ))}
