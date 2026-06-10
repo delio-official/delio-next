@@ -5163,7 +5163,7 @@ export default function AdminClient() {
             <div className="adm-content">
               {/* 위치 탭 */}
               <div className="adm-btn-group" style={{ marginBottom:14, flexWrap:'wrap' }}>
-                {([['mega','🧭 메가메뉴'],['header','📌 상단바'],['productlist','📋 상품목록'],['shortcut','📱 하단바'],['home','🏠 퀵가이드']] as const).map(([k,lb]) => (
+                {([['mega','🧭 메가메뉴'],['header','📌 상단바'],['productlist','📋 상품목록'],['shortcut','📱 모바일 서랍'],['home','🏠 퀵가이드']] as const).map(([k,lb]) => (
                   <button key={k} className={`adm-seg-btn${menuTab===k?' active':''}`} onClick={() => setMenuTab(k)}>{lb}</button>
                 ))}
               </div>
@@ -5296,7 +5296,7 @@ export default function AdminClient() {
                 );
               })()) : (ftLoading ? <PanelLoading /> : (() => {
                 const flagKey: 'show_in_category'|'show_in_shortcut'|'show_in_home' = menuTab==='productlist' ? 'show_in_category' : menuTab==='shortcut' ? 'show_in_shortcut' : 'show_in_home';
-                const surfaceName = menuTab==='productlist' ? '상품목록 상단' : menuTab==='shortcut' ? '모바일 하단바' : '홈 퀵가이드';
+                const surfaceName = menuTab==='productlist' ? '상품목록 상단' : menuTab==='shortcut' ? '모바일 서랍 바로가기' : '홈 퀵가이드';
                 const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
                 const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent && t.is_active).sort((a,b)=>a.sort_order-b.sort_order);
                 const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
