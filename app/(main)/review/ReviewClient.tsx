@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import '@/styles/review.css';
 
 interface Review {
@@ -260,7 +261,11 @@ export default function ReviewClient() {
             {loading ? (
               <p style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>불러오는 중...</p>
             ) : textReviews.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#bbb', padding: '60px 0' }}>등록된 리뷰가 없습니다.</p>
+              <ComingSoon
+                compact
+                title="등록된 리뷰가 없습니다."
+                desc={['첫 구매 후기를 남겨주세요.']}
+              />
             ) : (
               <div>
                 {textReviews.map(r => {

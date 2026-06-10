@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import '@/styles/index.css';
 
 interface Farm {
@@ -81,10 +82,10 @@ export default function FarmsClient() {
               ))}
             </div>
           ) : farms.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '80px 0', color: '#bbb' }}>
-              <div style={{ fontSize: 48, marginBottom: 16 }}>🌱</div>
-              <p>등록된 파트너 농가가 없습니다.</p>
-            </div>
+            <ComingSoon
+              title="파트너 농가를 준비중입니다."
+              desc={['좋은 농가를 모시고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']}
+            />
           ) : (
             <div className="farms-grid">
               {farms.map(farm => {

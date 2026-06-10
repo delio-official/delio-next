@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import '@/styles/event.css';
 
 interface Event {
@@ -128,9 +129,12 @@ export default function EventClient() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 0', color: '#bbb', fontSize: 15 }}>
-            {filter === 'ongoing' ? '진행중인 이벤트가 없습니다.' : '종료된 이벤트가 없습니다.'}
-          </div>
+          <ComingSoon
+            title={filter === 'ongoing' ? '진행중인 이벤트를 준비중입니다.' : '종료된 이벤트가 없습니다.'}
+            desc={filter === 'ongoing'
+              ? ['알찬 이벤트를 준비하고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']
+              : ['아직 종료된 이벤트가 없습니다.']}
+          />
         ) : (
           <>
             <div className="event-grid">

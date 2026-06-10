@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import '@/styles/review.css';
 
 /* 작성일 표시: ISO datetime → "2026.05.30 14:30", 그 외(레거시 문자열)는 그대로 */
@@ -109,7 +110,10 @@ export default function LoungeClient() {
         {loading ? (
           <div style={{ textAlign: 'center', padding: '60px 0', color: '#bbb' }}>불러오는 중...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#bbb' }}>게시물이 없습니다.</div>
+          <ComingSoon
+            title="콘텐츠 준비중입니다."
+            desc={['유익한 과일 이야기를 준비하고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']}
+          />
         ) : (
           <>
             <div className="lounge-grid">
