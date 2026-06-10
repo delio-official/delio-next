@@ -5174,14 +5174,11 @@ export default function AdminClient() {
               </div>
 
               {menuTab === 'mega' ? (menusLoading || ftLoading ? <PanelLoading /> : (() => {
-                const ftText = (t: FilterTab) => (<>
-                  <input className="adm-input-text" style={{ flex:'1 1 120px', minWidth:0, fontWeight:600 }} value={t.label} placeholder="이름"
+                const ftText = (t: FilterTab) => (
+                  <input className="adm-input-text" style={{ flex:'1 1 140px', minWidth:0, fontWeight:600 }} value={t.label} placeholder="이름"
                     onChange={e => setFilterTabs(prev => prev.map(x => x.id===t.id ? { ...x, label:e.target.value } : x))}
                     onBlur={() => updateFt(t.id, { label: t.label }, false)} />
-                  <input className="adm-input-text" style={{ width:50, minWidth:0, textAlign:'center' }} value={t.emoji || ''} placeholder="🍎"
-                    onChange={e => setFilterTabs(prev => prev.map(x => x.id===t.id ? { ...x, emoji:e.target.value } : x))}
-                    onBlur={() => updateFt(t.id, { emoji: t.emoji }, false)} />
-                </>);
+                );
                 const mText = (m: MenuRow) => (<>
                   <input className="adm-input-text" style={{ flex:'1 1 120px', minWidth:0, fontWeight:600 }} value={m.label} placeholder="이름"
                     onChange={e => setMenus(prev => prev.map(x => x.id===m.id ? { ...x, label:e.target.value } : x))}
