@@ -15,6 +15,7 @@ interface Event {
   image_url: string | null;
   content: string | null;
   badge: string | null;
+  badge_color: string | null;
   starts_at: string;
   ends_at: string;
   is_active: boolean;
@@ -83,7 +84,7 @@ export default function EventDetailClient() {
           {event.badge && event.badge !== 'EVENT' && (
             <span style={{
               display: 'inline-block', marginLeft: 6,
-              background: '#F4EFE6', color: 'var(--color-accent)',
+              background: event.badge_color || '#1A8A4C', color: '#fff',
               fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
             }}>
               {event.badge}

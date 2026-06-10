@@ -143,6 +143,7 @@ interface AdminEvent {
   title: string;
   subtitle: string | null;
   badge: string | null;
+  badge_color: string | null;
   thumbnail_url: string | null;
   image_url: string | null;
   content: string | null;
@@ -1359,7 +1360,7 @@ export default function AdminClient() {
   const [eventModal, setEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const EVENT_EMPTY = {
-    slug: '', title: '', subtitle: '', badge: '',
+    slug: '', title: '', subtitle: '', badge: '', badge_color: BADGE_DEFAULT_COLOR,
     thumbnail_url: '', image_url: '', content: '',
     starts_at: '', ends_at: '', is_active: true,
   };
@@ -3390,7 +3391,7 @@ export default function AdminClient() {
       setEditingEvent(ev);
       setEvForm({
         slug: ev.slug, title: ev.title, subtitle: ev.subtitle || '',
-        badge: ev.badge || '',
+        badge: ev.badge || '', badge_color: ev.badge_color || BADGE_DEFAULT_COLOR,
         thumbnail_url: ev.thumbnail_url || '',
         image_url: ev.image_url || '',
         content: ev.content || '',
@@ -3441,6 +3442,7 @@ export default function AdminClient() {
       title:         evForm.title.trim(),
       subtitle:      evForm.subtitle.trim()     || null,
       badge:         evForm.badge.trim()        || null,
+      badge_color:   evForm.badge.trim() ? (evForm.badge_color || BADGE_DEFAULT_COLOR) : null,
       thumbnail_url: evForm.thumbnail_url.trim() || null,
       image_url:     evForm.image_url.trim()     || null,
       content:       evForm.content.trim()       || null,
@@ -4131,9 +4133,21 @@ export default function AdminClient() {
                     onChange={e => setEvForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="선택 입력" />
                 </div>
                 <div>
-                  <label className="adm-label">배지 텍스트</label>
+                  <label className="adm-label">배지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={evForm.badge}
                     onChange={e => setEvForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: HOT, NEW, 한정" />
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
+                    <BadgeColorRow
+                      value={evForm.badge_color || BADGE_DEFAULT_COLOR}
+                      presets={BADGE_COLORS.map(c => c.value)}
+                      onPick={v => setEvForm(f => ({ ...f, badge_color: v }))} />
+                    {evForm.badge && (
+                      <span style={{ fontSize:11, fontWeight:700, color:'#fff',
+                        background: evForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
+                        {evForm.badge}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
