@@ -647,7 +647,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             {targetMode === 'select' && (
               <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:8 }}>
                 <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
-                  <input type="text" className="adm-input-text" placeholder="이름·이메일·전화번호 검색"
+                  <input type="text" className="adm-input-text" placeholder="이름·아이디(이메일)·전화번호 검색"
                     style={{ flex:1 }} value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                   <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
                     <input type="checkbox"
@@ -666,7 +666,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                       <input type="checkbox" checked={selectedIds.has(m.id)} onChange={() => toggleSelect(m.id)} />
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
-                        <div style={{ fontSize:11, color:'#94A3B8' }}>{m.phone}</div>
+                        <div style={{ fontSize:11, color:'#64748B', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.email || '-'}</div>
+                        <div style={{ fontSize:11, color:'#94A3B8' }}>📞 {m.phone}</div>
                       </div>
                       <span className={`adm-badge ${m.grade === 'gold' || m.grade === 'vip' || m.grade === 'vvip' ? 'badge-gold' : 'badge-normal'}`} style={{ fontSize:10 }}>
                         {GRADE_LABEL_MAP[m.grade] || m.grade}
