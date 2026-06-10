@@ -1086,11 +1086,11 @@ function OptionTreeEditor({ options, setOptions }: {
         <span style={{ fontSize:11, color:'#94A3B8' }}>그룹마다 고객이 1개씩 선택합니다 (예: <b>중량</b> + <b>재배방식</b> → 각각 선택)</span>
         <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>옵션 없애기</button>
       </div>
-      {groups.map(g => {
+      {groups.map((g, gi) => {
         const gReq = options.find(o => o.group === g)?.required !== false;
         const gOpts = idx.filter(o => o.group === g);
         return (
-          <div key={g} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
+          <div key={gi} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
               <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
               <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>그룹명</span>
