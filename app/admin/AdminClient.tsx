@@ -1854,7 +1854,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let query = supabase
       .from('orders')
-      .select('*,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url,products(farm_id,farms(name,carrier)))')
+      .select('*,order_items(product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,products(farm_id,farms(name,carrier)))')
       .order(basis, { ascending: false })
       .limit(1000);
     /* 조회 기준(주문일/결제일) + 기간 필터 */
@@ -1869,10 +1869,10 @@ export default function AdminClient() {
         const farm = prod?.farms as Record<string, unknown> | null;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { products: _p, ...rest } = item;
-        return { ...rest, farm_id: prod?.farm_id ?? null, farm_name: farm?.name ?? null };
+        return { ...rest, farm_id: prod?.farm_id ?? null, farm_name: farm?.name ?? null, carrier: farm?.carrier ?? null };
       }),
     }));
-    setOrders(orders as Order[]);
+    setOrders(orders as unknown as Order[]);
     setOrdersLoading(false);
     refreshStageCounts();
   }
@@ -3714,50 +3714,77 @@ export default function AdminClient() {
   const orderCurPage = Math.min(orderPage, orderTotalPages);
   const pagedOrders = filteredOrders.slice((orderCurPage - 1) * orderPageSize, orderCurPage * orderPageSize);
 
-  /* 엑셀 다운로드 (농가별 발주서) */
+  /* 엑셀 다운로드 (농가별 주문서 겸 발주서) — 농가별 시트 + 배송행 + 발주 합계 */
   async function downloadOrderExcel(farmId?: string) {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
     const targetOrders = farmId
-      ? orders.filter(o => (o.order_items||[]).some(i => i.farm_id === farmId))
+      ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
       : filteredOrders;
-    const farm = farms.find(f => f.id === farmId);
-    const carrier = farm?.carrier || '기타';
 
-    const rows = targetOrders.flatMap(o =>
-      (o.order_items || [])
-        .filter(i => !farmId || i.farm_id === farmId)
-        .map(i => ({
-          '주문번호':    o.order_no,
-          '수령인':      o.recipient,
-          '전화번호':    o.phone,
-          '우편번호':    o.zipcode || '',
-          '주소':        o.address1 + (o.address2 ? ' ' + o.address2 : ''),
-          '배송메모':    o.delivery_memo || '',
-          '상품명':      i.product_name,
-          '수량':        i.quantity,
-          '단가':        i.unit_price,
-          '소계':        i.subtotal,
-          '택배사':      carrier,
-          '운송장번호':  o.tracking_number || '',
-          '주문일':      o.created_at.slice(0, 10),
-        }))
-    );
+    // 주문항목을 농가별로 평탄화
+    type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number };
+    const all: Row[] = [];
+    targetOrders.forEach(o => {
+      (o.order_items || []).forEach(it => {
+        const i = it as typeof it & { supply_price?: number|null; option_label?: string|null; carrier?: string|null };
+        if (farmId && i.farm_id !== farmId) return;
+        all.push({
+          farmId: (i.farm_id as string) || '__none__',
+          farmName: (i.farm_name as string) || '농가 미지정',
+          carrier: (i.carrier as string) || '미지정',
+          order_no: o.order_no, recipient: o.recipient, phone: o.phone, zipcode: o.zipcode || '',
+          address: o.address1 + (o.address2 ? ' ' + o.address2 : ''), memo: o.delivery_memo || '',
+          product: i.product_name, option: (i.option_label as string) || '', qty: Number(i.quantity) || 0,
+          supply: Number(i.supply_price) || 0,
+        });
+      });
+    });
+    if (all.length === 0) { alert('다운로드할 주문이 없습니다.'); return; }
 
-    if (rows.length === 0) { alert('다운로드할 주문이 없습니다.'); return; }
+    // 농가별 그룹
+    const byFarm: Record<string, Row[]> = {};
+    all.forEach(r => { (byFarm[r.farmId] ||= []).push(r); });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '발주서');
-    const fileName = farm
-      ? `발주서_${farm.name}_${new Date().toISOString().slice(0,10)}.xlsx`
-      : `발주서_전체_${new Date().toISOString().slice(0,10)}.xlsx`;
+    const usedNames = new Set<string>();
+    Object.values(byFarm).forEach(rows => {
+      const f = rows[0];
+      const aoa: (string | number)[][] = [];
+      aoa.push([`${f.farmName} 주문서 / 발주서`, '', '', '', `지정 택배사: ${f.carrier}`]);
+      aoa.push([`출력일: ${new Date().toISOString().slice(0,10)}`]);
+      aoa.push([]);
+      // 배송용 행 (택배사 업로드)
+      aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '공급단가', '공급가 소계', '배송메시지']);
+      rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.supply, r.supply * r.qty, r.memo]));
+      // 발주 합계
+      const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+      const totalSupply = rows.reduce((s, r) => s + r.supply * r.qty, 0);
+      aoa.push([]);
+      aoa.push(['── 상품별 발주 합계 ──']);
+      aoa.push(['상품명', '옵션', '수량', '공급가 합계']);
+      const pmap: Record<string, { qty: number; amount: number }> = {};
+      rows.forEach(r => { const k = `${r.product}|${r.option}`; (pmap[k] ||= { qty: 0, amount: 0 }); pmap[k].qty += r.qty; pmap[k].amount += r.supply * r.qty; });
+      Object.entries(pmap).forEach(([k, v]) => { const [p, op] = k.split('|'); aoa.push([p, op, v.qty, v.amount]); });
+      aoa.push([]);
+      aoa.push(['농가 발주 합계', '', totalQty, totalSupply]);
 
-    // 브라우저 다운로드
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 20 }];
+      // 시트명: 농가명(31자, 특수문자 제거, 중복방지)
+      let nm = f.farmName.replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || '농가';
+      let n = nm; let c = 2; while (usedNames.has(n)) { n = `${nm}_${c++}`; } usedNames.add(n);
+      XLSX.utils.book_append_sheet(wb, ws, n);
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const fileName = farmId
+      ? `주문서_${(byFarm[farmId]?.[0]?.farmName) || '농가'}_${today}.xlsx`
+      : `주문서_농가별_${today}.xlsx`;
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
     const blob = new Blob([buf], { type: 'application/octet-stream' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
     a.href = url; a.download = fileName; a.click();
     URL.revokeObjectURL(url);
   }
@@ -5287,7 +5314,7 @@ export default function AdminClient() {
                     <span className="adm-btn-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </span>
-                    {orderFarmFilter ? `${farms.find(f=>f.id===orderFarmFilter)?.name || ''} 발주서` : '발주서 다운로드'}
+                    {orderFarmFilter ? `${farms.find(f=>f.id===orderFarmFilter)?.name || ''} 주문서/발주서` : '농가별 주문서/발주서'}
                   </button>
                   <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
