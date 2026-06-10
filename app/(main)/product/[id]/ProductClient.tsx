@@ -113,6 +113,8 @@ export default function ProductClient() {
   const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
   const [openOptGroup, setOpenOptGroup] = useState<string | null>(null);
   const [qty,        setQty]        = useState(1);
+  /* 누적 선택된 옵션 조합 목록 (각 조합 = 옵션들 + 수량) */
+  const [picks, setPicks] = useState<{ key: string; opts: ProductOption[]; qty: number }[]>([]);
   const [activeTab,  setActiveTab]  = useState(0);
   const [wishlisted,       setWishlisted]       = useState(false);
   const [reviewSort,       setReviewSort]       = useState<SortKey>('latest');
@@ -420,18 +422,18 @@ export default function ProductClient() {
   }
 
   /* 그룹별 선택된 옵션들 (덧셈식) */
-  function getSelectedOpts(): ProductOption[] {
+  function getSelectedOpts(map: Record<string, string> = selByGroup): ProductOption[] {
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-    return gNames.map(g => options.find(o => o.id === selByGroup[g])).filter(Boolean) as ProductOption[];
+    return gNames.map(g => options.find(o => o.id === map[g])).filter(Boolean) as ProductOption[];
   }
-  function allGroupsSelected(): boolean {
+  function allGroupsSelected(map: Record<string, string> = selByGroup): boolean {
     if (options.length === 0) return true;
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
     const parentG = gNames[0];
-    const parentLabel = options.find(o => o.id === selByGroup[parentG])?.label || '';
+    const parentLabel = options.find(o => o.id === map[parentG])?.label || '';
     const requiredGroups = gNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
     return requiredGroups.every(g => {
-      if (selByGroup[g]) return true;
+      if (map[g]) return true;
       // 종속(하위) 그룹: 선택된 상위에 해당하는 하위 옵션이 하나도 없으면 충족으로 간주
       if (gNames.indexOf(g) > 0) {
         const avail = options.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
@@ -440,23 +442,37 @@ export default function ProductClient() {
       return false;
     });
   }
+  /* 옵션 조합을 누적 목록에 추가 (같은 조합이면 수량 +1) */
+  function addPick(opts: ProductOption[]) {
+    const key = opts.map(o => o.id).join(',');
+    setPicks(prev => {
+      const i = prev.findIndex(p => p.key === key);
+      if (i >= 0) { const next = [...prev]; next[i] = { ...next[i], qty: next[i].qty + 1 }; return next; }
+      return [...prev, { key, opts, qty: 1 }];
+    });
+  }
   function addCartItem() {
     if (!product) return;
-    const sel = getSelectedOpts();
-    const addP = sel.reduce((s, o) => s + (o.add_price || 0), 0);
-    const unitPrice = (product.discounted_price ?? product.price) + addP;
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: unitPrice,
-      originalPrice: product.price + addP,
-      thumbnail: product.thumbnail_url || '',
-      quantity: qty,
-      optionId: sel.map(o => o.id).join(',') || undefined,
-      options: sel.map(o => o.label).join(' / ') || undefined,
-      deliveryType: product.is_dawn ? '산지직송' : '자사배송',
+    const base = product.discounted_price ?? product.price;
+    // 옵션 상품: 누적 목록(picks) 각각을 담음 / 옵션 없는 상품: 단일 수량
+    const list = options.length > 0 ? picks : [{ opts: [] as ProductOption[], qty }];
+    list.forEach(p => {
+      const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
+      const unitPrice = base + addP;
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: unitPrice,
+        originalPrice: product.price + addP,
+        thumbnail: product.thumbnail_url || '',
+        quantity: p.qty,
+        optionId: p.opts.map(o => o.id).join(',') || undefined,
+        options: p.opts.map(o => o.label).join(' / ') || undefined,
+        deliveryType: product.is_dawn ? '산지직송' : '자사배송',
+      });
     });
-    gaAddToCart({ id: product.id, name: product.name, price: unitPrice, quantity: qty, category: product.category });
+    const totalQ = list.reduce((s, p) => s + p.qty, 0);
+    gaAddToCart({ id: product.id, name: product.name, price: base, quantity: totalQ, category: product.category });
   }
   /* GA4: 상품 조회 */
   useEffect(() => {
@@ -493,12 +509,13 @@ export default function ProductClient() {
   }, [product?.id]);
 
   function handleAddCart() {
-    if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
+    if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
     addCartItem();
     showCartToast();
+    setPicks([]);
   }
   function handleBuyNow() {
-    if (!allGroupsSelected()) { showToast('옵션을 모두 선택해 주세요.'); return; }
+    if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
     addCartItem(); router.push('/cart');
   }
 
@@ -644,10 +661,9 @@ export default function ProductClient() {
     if (g === parentGroup) return inGroup;
     return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
   };
-  const selectedOpts  = getSelectedOpts();
-  const allSelected   = allGroupsSelected();
-  const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
-  const totalPrice    = (basePrice + totalAddPrice) * qty;
+  const picksTotal    = picks.reduce((s, p) => s + (basePrice + p.opts.reduce((a, o) => a + (o.add_price || 0), 0)) * p.qty, 0);
+  const totalQty      = options.length > 0 ? picks.reduce((s, p) => s + p.qty, 0) : qty;
+  const totalPrice    = options.length > 0 ? picksTotal : basePrice * qty;
 
   /* 맛 프로파일: 판매자 점수(DB 우선, 없으면 카테고리 기본값) */
   const sellerScore: Record<string, number> =
@@ -1235,12 +1251,15 @@ export default function ProductClient() {
                           const selOpt = groupOpts.find(o => o.id === selByGroup[g]);
                           const open = openOptGroup === g;
                           const choose = (val: string) => {
-                            setSelByGroup(prev => {
-                              const next = { ...prev, [g]: val };
-                              if (g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
-                              return next;
-                            });
-                            setQty(1);
+                            const next = { ...selByGroup, [g]: val };
+                            if (g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
+                            if (allGroupsSelected(next)) {
+                              // 모든 (필수)그룹 선택 완료 → 조합을 누적 목록에 추가하고 선택 초기화
+                              addPick(getSelectedOpts(next));
+                              setSelByGroup({});
+                            } else {
+                              setSelByGroup(next);
+                            }
                             setOpenOptGroup(null);
                           };
                           return (
@@ -1276,71 +1295,37 @@ export default function ProductClient() {
                       );
                     })}
 
-                    {/* ── 선택된 옵션 박스 (모두 선택 후 표시) ── */}
-                    {allSelected && selectedOpts.length > 0 && (
-                      <div style={{
-                        border:'1px solid #DDDDD9', borderRadius:8,
-                        padding:'14px 16px', marginBottom:4,
-                        background:'#FAFAF8',
-                      }}>
-                        {/* 옵션명 + 닫기 */}
-                        <div style={{ display:'flex', justifyContent:'space-between',
-                          alignItems:'flex-start', marginBottom:12 }}>
-                          <span style={{ fontSize:13, fontWeight:600,
-                            color:'var(--color-ink)', flex:1, lineHeight:1.45 }}>
-                            {selectedOpts.map(o => o.label).join(' / ')}
-                            {totalAddPrice > 0 && (
-                              <span style={{ fontSize:12, color:'#1A1A1A',
-                                marginLeft:6, fontWeight:700 }}>
-                                +{fmtPrice(totalAddPrice)}원
-                              </span>
-                            )}
-                          </span>
-                          <button
-                            onClick={() => { setSelByGroup({}); setQty(1); }}
-                            style={{ background:'none', border:'none', cursor:'pointer',
-                              fontSize:15, color:'#AAAAAA', padding:'0 0 0 10px',
-                              lineHeight:1, flexShrink:0 }}>
-                            ✕
-                          </button>
-                        </div>
-
-                        {/* 수량 +/- + 소계 */}
-                        <div style={{ display:'flex', alignItems:'center',
-                          justifyContent:'space-between' }}>
-                          <div style={{ display:'inline-flex', alignItems:'center',
-                            border:'1.5px solid #DDDDD9', borderRadius:6,
-                            overflow:'hidden', background:'#fff' }}>
-                            <button
-                              onClick={() => setQty(q => Math.max(1, q - 1))}
-                              style={{ width:32, height:32, border:'none',
-                                borderRight:'1px solid #DDDDD9', background:'transparent',
-                                cursor:'pointer', fontSize:16, color:'var(--color-ink)',
-                                display:'flex', alignItems:'center', justifyContent:'center',
-                                lineHeight:1 }}>
-                              −
-                            </button>
-                            <span style={{ minWidth:36, textAlign:'center', fontSize:14,
-                              fontWeight:700, padding:'0 4px',
-                              lineHeight:'32px', display:'inline-block',
-                              color:'var(--color-ink)' }}>
-                              {qty}
-                            </span>
-                            <button
-                              onClick={() => setQty(q => q + 1)}
-                              style={{ width:32, height:32, border:'none',
-                                borderLeft:'1px solid #DDDDD9', background:'transparent',
-                                cursor:'pointer', fontSize:16, color:'var(--color-ink)',
-                                display:'flex', alignItems:'center', justifyContent:'center',
-                                lineHeight:1 }}>
-                              +
-                            </button>
-                          </div>
-                          <span style={{ fontSize:16, fontWeight:800,
-                            color:'#1A1A1A' }}>
-                            {fmtPrice((basePrice + totalAddPrice) * qty)}원
-                          </span>
-                        </div>
+                    {/* ── 선택된 옵션 목록 (누적) ── */}
+                    {picks.length > 0 && (
+                      <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:4 }}>
+                        {picks.map((p, idx) => {
+                          const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
+                          const unit = basePrice + addP;
+                          return (
+                            <div key={p.key} style={{ border:'1px solid #DDDDD9', borderRadius:8, padding:'14px 16px', background:'#FAFAF8' }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                                <span style={{ fontSize:13, fontWeight:600, color:'var(--color-ink)', flex:1, lineHeight:1.45 }}>
+                                  {p.opts.map(o => o.label).join(' / ') || product.name}
+                                  {addP > 0 && (
+                                    <span style={{ fontSize:12, color:'#1A1A1A', marginLeft:6, fontWeight:700 }}>+{fmtPrice(addP)}원</span>
+                                  )}
+                                </span>
+                                <button onClick={() => setPicks(prev => prev.filter((_, i) => i !== idx))}
+                                  style={{ background:'none', border:'none', cursor:'pointer', fontSize:15, color:'#AAAAAA', padding:'0 0 0 10px', lineHeight:1, flexShrink:0 }}>✕</button>
+                              </div>
+                              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                                <div style={{ display:'inline-flex', alignItems:'center', border:'1.5px solid #DDDDD9', borderRadius:6, overflow:'hidden', background:'#fff' }}>
+                                  <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
+                                    style={{ width:32, height:32, border:'none', borderRight:'1px solid #DDDDD9', background:'transparent', cursor:'pointer', fontSize:16, color:'var(--color-ink)', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>−</button>
+                                  <span style={{ minWidth:36, textAlign:'center', fontSize:14, fontWeight:700, padding:'0 4px', lineHeight:'32px', display:'inline-block', color:'var(--color-ink)' }}>{p.qty}</span>
+                                  <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x))}
+                                    style={{ width:32, height:32, border:'none', borderLeft:'1px solid #DDDDD9', background:'transparent', cursor:'pointer', fontSize:16, color:'var(--color-ink)', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>+</button>
+                                </div>
+                                <span style={{ fontSize:16, fontWeight:800, color:'#1A1A1A' }}>{fmtPrice(unit * p.qty)}원</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </>
@@ -1402,7 +1387,7 @@ export default function ProductClient() {
                   <span style={{ fontSize:14, color:'var(--color-ink-soft)' }}>총 상품금액</span>
                   <span>
                     <span style={{ fontSize:13, color:'var(--color-ink-mute)', marginRight:6 }}>
-                      {qty}개
+                      {totalQty}개
                     </span>
                     <span style={{ fontSize:22, fontWeight:700, color:'#1A1A1A' }}>
                       {fmtPrice(totalPrice)}원
