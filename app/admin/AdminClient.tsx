@@ -5130,48 +5130,127 @@ export default function AdminClient() {
                     ))}
                   </>
                 );
-              })()) : (ftLoading ? <PanelLoading /> : (() => {
-                const flagKey: 'show_in_category'|'show_in_shortcut'|'show_in_home' = menuTab==='productlist' ? 'show_in_category' : menuTab==='shortcut' ? 'show_in_shortcut' : 'show_in_home';
-                const surfaceName = menuTab==='productlist' ? '상품목록 상단' : menuTab==='shortcut' ? '모바일 서랍 바로가기' : '홈 퀵가이드';
+              })()) : menuTab === 'productlist' ? (ftLoading ? <PanelLoading /> : (() => {
+                const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent).sort((a,b)=>a.sort_order-b.sort_order);
                 const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
-                const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent && t.is_active).sort((a,b)=>a.sort_order-b.sort_order);
-                // 상품목록 탭은 대분류 카테고리도 관리 대상 (대분류·필탭 모두 show_in_category 공유)
-                const manageList = menuTab==='productlist' ? [...majors, ...filtags] : filtags;
-                const shownMajors = majors.filter(t => t[flagKey] && t.is_active);
-                const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
+                const subsOf = (mv: string) => filterTabs.filter(s => s.parent===mv).sort((a,b)=>a.sort_order-b.sort_order);
+                const shownMajors = majors.filter(m => m.show_in_category && m.is_active);
+                const shownTags = filtags.filter(t => t.show_in_category && t.is_active);
+                const catLabel = (t: FilterTab) => (
+                  <input className="adm-input-text" style={{ flex:'1 1 140px', minWidth:0, fontWeight:600 }} value={t.label} placeholder="이름"
+                    onChange={e => setFilterTabs(prev => prev.map(x => x.id===t.id ? { ...x, label:e.target.value } : x))}
+                    onBlur={() => updateFt(t.id, { label: t.label }, false)} />
+                );
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
-                const typeBadge = (t: FilterTab) => t.tab_type==='category' ? { cls:'badge-paid', txt:'대분류' } : t.tab_type==='flag' ? { cls:'badge-on', txt:'태그' } : t.tab_type==='sort' ? { cls:'badge-on', txt:'정렬' } : { cls:'badge-off', txt:'링크' };
                 return (
                   <>
-                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>{surfaceName}</strong>에 뜨는 항목입니다. <strong>노출</strong> 체크한 것만 실제 화면에 나옵니다.{menuTab==='productlist' ? ' (대분류 카테고리 + 정렬/태그 필탭)' : ''}</div>
-                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 {surfaceName} 미리보기</div>
-                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                        {menuTab==='productlist' && shownMajors.map(m => <span key={m.id} style={{ ...chip, borderColor:'#86EFAC', color:'#15803D', fontWeight:700 }}>{m.label}</span>)}
-                        {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
-                        {shownTags.length===0 && (menuTab!=='productlist' || shownMajors.length===0) && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>상품목록 상단</strong> 구조입니다. <strong>대분류</strong> 탭(국산과일·수입과일)을 누르면 그 아래 <strong>소분류</strong>가 필탭으로 뜹니다. 여기서 추가·수정하면 <strong>메가메뉴</strong>에도 함께 반영돼요. <strong>노출</strong> 체크한 것만 실제로 보입니다.</div>
+                    {/* 미리보기 */}
+                    <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                      <div style={{ fontWeight:800, fontSize:13, marginBottom:12 }}>🖥 상품목록 상단 미리보기</div>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+                        <span style={{ ...chip, background:'#1A1A1A', color:'#fff', borderColor:'#1A1A1A', fontWeight:700 }}>전체</span>
+                        {shownMajors.map(m => <span key={m.id} style={{ ...chip, borderColor:'#86EFAC', color:'#15803D', fontWeight:700 }}>{m.label}</span>)}
+                        {shownMajors.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출된 대분류 없음</span>}
                       </div>
+                      {shownMajors.map(m => {
+                        const ss = subsOf(m.tab_value).filter(s => s.show_in_category && s.is_active);
+                        if (!ss.length) return null;
+                        return (
+                          <div key={m.id} style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:6 }}>
+                            <span style={{ fontSize:11.5, color:'#94A3B8', minWidth:76 }}>{m.label} ▸</span>
+                            {ss.map(s => <span key={s.id} style={chip}>{s.label}</span>)}
+                          </div>
+                        );
+                      })}
+                      {shownTags.length>0 && (
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginTop:10, paddingTop:10, borderTop:'1px dashed #FCD34D' }}>
+                          <span style={{ fontSize:11.5, color:'#94A3B8', minWidth:76 }}>정렬·태그 ▸</span>
+                          {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
+                        </div>
+                      )}
                     </div>
+                    {/* 대분류·소분류 트리 (메가메뉴 공유) */}
                     <div className="adm-toolbar">
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>{menuTab==='productlist' ? '대분류 · 필탭 노출 관리' : '필탭(정렬/태그) 노출 관리'}</span></div>
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>대분류 · 소분류 <span style={{ color:'#CBD5E1' }}>(메가메뉴와 공유 — 여기 수정하면 메가메뉴도 반영)</span></span></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => addCategory(null)}>+ 대분류</button></div>
+                    </div>
+                    {majors.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>대분류 없음</div> : majors.map(m => (
+                      <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
+                          <span style={{ display:'inline-flex', gap:4 }}>
+                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, -1)}>▲</button>
+                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, 1)}>▼</button>
+                          </span>
+                          <span style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', flexShrink:0 }}>대분류</span>
+                          {catLabel(m)}
+                          <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={m.show_in_category} onChange={e => updateFt(m.id, { show_in_category: e.target.checked })} />노출</label>
+                          <button type="button" onClick={() => deleteCategory(m)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                        </div>
+                        {subsOf(m.tab_value).map(s => (
+                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
+                            <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+                            {catLabel(s)}
+                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.show_in_category} onChange={e => updateFt(s.id, { show_in_category: e.target.checked })} />노출</label>
+                            <button type="button" onClick={() => deleteCategory(s)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ fontSize:12, color:'#1A8A4C', background:'#fff', border:'1px dashed #BBF7D0', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 소분류 추가</button>
+                      </div>
+                    ))}
+                    {/* 정렬·태그 필탭 */}
+                    <div className="adm-toolbar" style={{ marginTop:18 }}>
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>정렬 · 태그 필탭 <span style={{ color:'#CBD5E1' }}>(보기 방식 — 신상품·당도순 등)</span></span></div>
                       <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
                     </div>
-                    {manageList.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>항목 없음</div> : manageList.map(t => {
-                      const tb = typeBadge(t);
-                      return (
+                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
                       <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
                         <span style={{ display:'inline-flex', gap:4 }}>
                           <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
                           <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
                         </span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
-                        <span className={`adm-badge ${tb.cls}`}>{tb.txt}</span>
+                        <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
+                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t.show_in_category} onChange={e => updateFt(t.id, { show_in_category: e.target.checked })} />노출</label>
+                        <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
+                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()) : (ftLoading ? <PanelLoading /> : (() => {
+                const flagKey: 'show_in_shortcut'|'show_in_home' = menuTab==='shortcut' ? 'show_in_shortcut' : 'show_in_home';
+                const surfaceName = menuTab==='shortcut' ? '모바일 서랍 바로가기' : '홈 퀵가이드';
+                const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
+                const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
+                const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
+                return (
+                  <>
+                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>{surfaceName}</strong>에 뜨는 항목입니다. <strong>노출</strong> 체크한 것만 실제 화면에 나옵니다.</div>
+                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 {surfaceName} 미리보기</div>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
+                        {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                      </div>
+                    </div>
+                    <div className="adm-toolbar">
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭(정렬/태그) 노출 관리</span></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
+                    </div>
+                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
+                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
+                        <span style={{ display:'inline-flex', gap:4 }}>
+                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
+                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
+                        </span>
+                        <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
+                        <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
                         <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t[flagKey]} onChange={e => updateFt(t.id, { [flagKey]: e.target.checked } as Partial<FilterTab>)} />노출</label>
                         <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
                         <button type="button" onClick={() => deleteFilterTab(t)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
                       </div>
-                      );
-                    })}
+                    ))}
                   </>
                 );
               })())}
