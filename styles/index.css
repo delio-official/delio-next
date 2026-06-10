@@ -1528,7 +1528,8 @@
       .mid-banner-nav-row { gap: 8px; }
       .mid-banner-arrow { display: none; }
       .mid-banner-page { grid-template-columns: 1fr; gap: 10px; }
-      .mid-banner-card { flex: 0 0 100%; height: 140px; border-radius: 12px; }
+      /* 풀블리드(폭=100vw)라 고정높이 대신 비율로 고정 → 기기마다 잘림 방지. 이미지 5:2 권장 */
+      .mid-banner-card { flex: 0 0 100%; height: auto; aspect-ratio: 5 / 2; border-radius: 12px; }
       .mid-banner-body { flex: 0 0 55%; padding: 16px 18px; }
       .mid-banner-tag { font-size: 10px; margin-bottom: 5px; }
       .mid-banner-title { font-size: 15px; line-height: 1.4; margin-bottom: 0; }
