@@ -1481,6 +1481,12 @@ export default function AdminClient() {
   interface AdminPopup { id: string; title: string | null; image_url: string | null; image_url_mobile: string | null; link_url: string; width: number; position: string; is_active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; }
   const [popups, setPopups] = useState<AdminPopup[]>([]);
   const [popupsLoading, setPopupsLoading] = useState(false);
+  /* 배너/팝업 변경 이력 */
+  interface MediaHistory { id: string; entity_type: string; entity_id: string | null; action: string; snapshot: Record<string, unknown>; changed_at: string; }
+  const [mediaHistory, setMediaHistory] = useState<MediaHistory[]>([]);
+  const [mediaHistoryOpen, setMediaHistoryOpen] = useState(false);
+  const [mhLoading, setMhLoading] = useState(false);
+  const [mhFilter, setMhFilter] = useState<'all' | 'banner' | 'popup'>('all');
   const [popupModal, setPopupModal] = useState(false);
   const [editingPopup, setEditingPopup] = useState<AdminPopup | null>(null);
   const POPUP_EMPTY = { title: '', link_url: '/', width: 400, position: 'center', is_active: true, starts_at: '', ends_at: '' };
@@ -2648,10 +2654,15 @@ export default function AdminClient() {
       starts_at: ppForm.starts_at ? new Date(ppForm.starts_at).toISOString() : null,
       ends_at:   ppForm.ends_at   ? new Date(ppForm.ends_at).toISOString()   : null,
     };
-    const { error } = editingPopup
-      ? await supabase.from('popups').update(payload).eq('id', editingPopup.id)
-      : await supabase.from('popups').insert(payload);
-    if (error) { alert('저장 실패: ' + error.message); setPpSaving(false); return; }
+    if (editingPopup) {
+      const { error } = await supabase.from('popups').update(payload).eq('id', editingPopup.id);
+      if (error) { alert('저장 실패: ' + error.message); setPpSaving(false); return; }
+      logMediaHistory('popup', editingPopup.id, 'update', { ...payload, id: editingPopup.id });
+    } else {
+      const { data, error } = await supabase.from('popups').insert(payload).select('id').single();
+      if (error) { alert('저장 실패: ' + error.message); setPpSaving(false); return; }
+      logMediaHistory('popup', (data as { id?: string })?.id ?? null, 'create', { ...payload, id: (data as { id?: string })?.id });
+    }
     setPpSaving(false);
     setPopupModal(false);
     loadPopups();
@@ -2660,7 +2671,9 @@ export default function AdminClient() {
   async function deletePopup(id: string) {
     if (!confirm('이 팝업을 삭제하시겠습니까?')) return;
     const supabase = createClient();
+    const snap = popups.find(p => p.id === id);
     await supabase.from('popups').delete().eq('id', id);
+    if (snap) logMediaHistory('popup', id, 'delete', snap);
     setPopups(prev => prev.filter(p => p.id !== id));
   }
 
@@ -2668,6 +2681,36 @@ export default function AdminClient() {
     const supabase = createClient();
     await supabase.from('popups').update({ is_active: !p.is_active }).eq('id', p.id);
     setPopups(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !p.is_active } : x));
+  }
+
+  /* ========== 배너/팝업 변경 이력 ========== */
+  async function logMediaHistory(entity_type: 'banner' | 'popup', entity_id: string | null, action: 'create' | 'update' | 'delete', snapshot: unknown) {
+    try { await createClient().from('banner_history').insert({ entity_type, entity_id, action, snapshot }); } catch { /* 이력 실패는 조용히 무시 */ }
+  }
+  async function loadMediaHistory() {
+    setMhLoading(true);
+    const { data } = await createClient()
+      .from('banner_history').select('*').order('changed_at', { ascending: false }).limit(200);
+    setMediaHistory((data as MediaHistory[]) || []);
+    setMhLoading(false);
+  }
+  function openMediaHistory() { setMediaHistoryOpen(true); loadMediaHistory(); }
+  async function restoreMedia(h: MediaHistory) {
+    if (!confirm('이 시점 내용으로 새로 복원하시겠습니까? (기존 항목은 그대로 두고 새 항목으로 추가됩니다)')) return;
+    const supabase = createClient();
+    const snap = { ...h.snapshot } as Record<string, unknown>;
+    delete snap.id; delete snap.created_at;
+    if (h.entity_type === 'banner') {
+      const { data } = await supabase.from('banners').insert(snap).select('id').single();
+      await logMediaHistory('banner', (data as { id?: string })?.id ?? null, 'create', { ...snap, id: (data as { id?: string })?.id });
+      loadBanners();
+    } else {
+      const { data } = await supabase.from('popups').insert(snap).select('id').single();
+      await logMediaHistory('popup', (data as { id?: string })?.id ?? null, 'create', { ...snap, id: (data as { id?: string })?.id });
+      loadPopups();
+    }
+    loadMediaHistory();
+    alert('복원되었습니다.');
   }
 
   /* ========== 배너 관리 ========== */
@@ -2718,10 +2761,15 @@ export default function AdminClient() {
       is_active: bnForm.is_active,
       sort_order: editingBanner?.sort_order ?? banners.filter(b => b.type === bnForm.type).length,
     };
-    const { error } = editingBanner
-      ? await supabase.from('banners').update(payload).eq('id', editingBanner.id)
-      : await supabase.from('banners').insert(payload);
-    if (error) { alert('저장 실패: ' + error.message); setBnSaving(false); return; }
+    if (editingBanner) {
+      const { error } = await supabase.from('banners').update(payload).eq('id', editingBanner.id);
+      if (error) { alert('저장 실패: ' + error.message); setBnSaving(false); return; }
+      logMediaHistory('banner', editingBanner.id, 'update', { ...payload, id: editingBanner.id });
+    } else {
+      const { data, error } = await supabase.from('banners').insert(payload).select('id').single();
+      if (error) { alert('저장 실패: ' + error.message); setBnSaving(false); return; }
+      logMediaHistory('banner', (data as { id?: string })?.id ?? null, 'create', { ...payload, id: (data as { id?: string })?.id });
+    }
     setBnSaving(false);
     setBannerModal(false);
     loadBanners();
@@ -2730,7 +2778,9 @@ export default function AdminClient() {
   async function deleteBanner(id: string) {
     if (!confirm('이 배너를 삭제하시겠습니까?')) return;
     const supabase = createClient();
+    const snap = banners.find(b => b.id === id);
     await supabase.from('banners').delete().eq('id', id);
+    if (snap) logMediaHistory('banner', id, 'delete', snap);
     setBanners(prev => prev.filter(b => b.id !== id));
   }
 
@@ -5775,12 +5825,15 @@ export default function AdminClient() {
           {/* ===== 배너 관리 ===== */}
           {panel === 'banner' && (
             <div className="adm-content">
-              <TabBtns active={bannerTab} setActive={setBannerTab}
-                tabs={[
-                  { id:'tab-banner', label:'메인 배너' },
-                  { id:'tab-mid',    label:'중간 배너' },
-                  { id:'tab-popup',  label:'팝업' },
-                ]} />
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
+                <TabBtns active={bannerTab} setActive={setBannerTab}
+                  tabs={[
+                    { id:'tab-banner', label:'메인 배너' },
+                    { id:'tab-mid',    label:'중간 배너' },
+                    { id:'tab-popup',  label:'팝업' },
+                  ]} />
+                <button className="adm-btn adm-btn-outline" onClick={openMediaHistory}>📜 변경 이력</button>
+              </div>
 
               {/* ── 배너 탭 (메인 / 중간) ── */}
               {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid') && (() => {
@@ -6156,6 +6209,56 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 );
               })()}
+
+              {/* 변경 이력 모달 */}
+              {mediaHistoryOpen && (
+                <div className="adm-modal-bg open" onClick={() => setMediaHistoryOpen(false)}>
+                  <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:780, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
+                    <div className="adm-modal-head">
+                      <span className="adm-modal-title">📜 배너 / 팝업 변경 이력</span>
+                      <button className="adm-modal-close" onClick={() => setMediaHistoryOpen(false)}>✕</button>
+                    </div>
+                    <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:12 }}>
+                      <AdmSelect value={mhFilter} onChange={v => setMhFilter(v as 'all'|'banner'|'popup')}
+                        options={[{ value:'all', label:'전체' }, { value:'banner', label:'배너' }, { value:'popup', label:'팝업' }]} />
+                      <button className="adm-btn adm-btn-outline" onClick={loadMediaHistory}>새로고침</button>
+                      <span className="adm-muted" style={{ fontSize:12, marginLeft:'auto' }}>최근 200건</span>
+                    </div>
+                    {mhLoading ? <PanelLoading /> : (() => {
+                      const rows = mediaHistory.filter(h => mhFilter === 'all' || h.entity_type === mhFilter);
+                      if (rows.length === 0) return <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0' }}>변경 이력이 없습니다. (이 기능 적용 후 등록/수정/삭제부터 기록됩니다)</div>;
+                      const ACT: Record<string, { t:string; c:string }> = { create:{ t:'등록', c:'badge-on' }, update:{ t:'수정', c:'badge-paid' }, delete:{ t:'삭제', c:'badge-off' } };
+                      return (
+                        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                          {rows.map(h => {
+                            const snap = h.snapshot as Record<string, unknown>;
+                            const img = (snap.image_url as string) || (snap.thumbnail_url as string) || '';
+                            const act = ACT[h.action] || { t:h.action, c:'badge-off' };
+                            return (
+                              <div key={h.id} style={{ display:'flex', gap:12, alignItems:'center', border:'1px solid #E2E8F0', borderRadius:8, padding:10 }}>
+                                <div style={{ width:88, height:55, borderRadius:6, background:'#F1F5F9', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                  {img ? <img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:11, color:'#94A3B8' }}>이미지 없음</span>}
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:3, flexWrap:'wrap' }}>
+                                    <span className="adm-badge badge-normal">{h.entity_type === 'banner' ? '배너' : '팝업'}</span>
+                                    <span className={`adm-badge ${act.c}`}>{act.t}</span>
+                                    <span className="adm-muted" style={{ fontSize:11 }}>{fmtDate(h.changed_at)}</span>
+                                  </div>
+                                  <div style={{ fontSize:12, color:'#475569', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                    🔗 {(snap.link_url as string) || '-'}{snap.type ? ` · ${String(snap.type)}` : ''}
+                                  </div>
+                                </div>
+                                <button className="adm-row-btn" onClick={() => restoreMedia(h)}>복원</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               {/* 배너 등록/수정 모달 */}
               {bannerModal && (() => {
