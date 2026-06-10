@@ -5263,11 +5263,71 @@ export default function AdminClient() {
                     ))}
                   </>
                 );
-              })()) : (
-                <div className="adm-card" style={{ padding:'40px 20px', textAlign:'center', color:'#94A3B8', fontSize:14 }}>
-                  📌 <strong>{({header:'상단바',productlist:'상품목록',shortcut:'하단바',home:'퀵가이드'} as Record<string,string>)[menuTab]}</strong> 탭은 다음 단계에서 만들어집니다.
-                </div>
-              )}
+              })()) : menuTab === 'header' ? (menusLoading ? <PanelLoading /> : (() => {
+                const navItems = menus.filter(m => !m.parent).sort((a,b)=>a.sort_order-b.sort_order);
+                const shown = navItems.filter(m => m.show_in_header && m.is_active);
+                const mIn = (m: MenuRow, field: 'label'|'href', ph: string, w: string) => (
+                  <input className="adm-input-text" style={{ flex:w, minWidth:0, ...(field==='label'?{fontWeight:600}:{fontSize:12}) }} value={m[field]} placeholder={ph}
+                    onChange={e => setMenus(prev => prev.map(x => x.id===m.id ? { ...x, [field]:e.target.value } : x))}
+                    onBlur={() => updateMenu(m.id, { [field]: m[field] }, false)} />
+                );
+                return (
+                  <>
+                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 PC 헤더 <strong>상단 가로 메뉴</strong>. 노출 체크한 메뉴가 헤더 상단에 뜹니다.</div>
+                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 상단바 미리보기</div>
+                      <div style={{ display:'flex', gap:24, flexWrap:'wrap', fontWeight:700 }}>
+                        {shown.length===0 ? <span className="adm-muted" style={{ fontWeight:600 }}>노출 항목 없음</span> : shown.map(m => <span key={m.id}>{m.label}</span>)}
+                      </div>
+                    </div>
+                    <div className="adm-toolbar"><div className="adm-toolbar-left" /><div className="adm-toolbar-right">
+                      <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_header:true, parent:null, label:'새 메뉴', href:'/' })}>+ 메뉴 추가</button>
+                    </div></div>
+                    {navItems.map(m => (
+                      <div key={m.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                        {mIn(m,'label','메뉴명','1 1 120px')}
+                        {mIn(m,'href','/경로','1 1 130px')}
+                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={m.show_in_header} onChange={e => updateMenu(m.id, { show_in_header: e.target.checked })} />상단바</label>
+                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={m.is_active} onChange={e => updateMenu(m.id, { is_active: e.target.checked })} />활성</label>
+                        <button type="button" onClick={() => deleteMenu(m.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()) : (ftLoading ? <PanelLoading /> : (() => {
+                const flagKey: 'show_in_category'|'show_in_shortcut'|'show_in_home' = menuTab==='productlist' ? 'show_in_category' : menuTab==='shortcut' ? 'show_in_shortcut' : 'show_in_home';
+                const surfaceName = menuTab==='productlist' ? '상품목록 상단' : menuTab==='shortcut' ? '모바일 하단바' : '홈 퀵가이드';
+                const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
+                const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent && t.is_active).sort((a,b)=>a.sort_order-b.sort_order);
+                const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
+                const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
+                return (
+                  <>
+                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>{surfaceName}</strong>에 뜨는 항목. 카테고리는 자동 노출(메가메뉴 탭에서 관리), <strong>필탭(정렬/태그)</strong>은 아래에서 노출 토글.</div>
+                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
+                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 {surfaceName} 미리보기</div>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {menuTab==='productlist' && majors.map(m => <span key={m.id} style={{ ...chip, borderColor:'#86EFAC', color:'#15803D', fontWeight:700 }}>{m.label}</span>)}
+                        {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
+                        {(menuTab!=='productlist' || majors.length===0) && shownTags.length===0 && majors.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                      </div>
+                    </div>
+                    <div className="adm-toolbar">
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭(정렬/태그) 노출 관리</span></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
+                    </div>
+                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
+                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
+                        <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
+                        <span className={`adm-badge ${t.tab_type==='flag'?'badge-on':'badge-off'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
+                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t[flagKey]} onChange={e => updateFt(t.id, { [flagKey]: e.target.checked } as Partial<FilterTab>)} />노출</label>
+                        <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
+                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                      </div>
+                    ))}
+                  </>
+                );
+              })())}
             </div>
           )}
 
