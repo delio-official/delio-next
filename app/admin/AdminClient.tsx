@@ -3375,8 +3375,12 @@ export default function AdminClient() {
 
   async function saveEvent() {
     if (!evForm.title.trim()) { alert('이벤트명을 입력하세요.'); return; }
-    if (!evForm.starts_at)    { alert('시작일을 입력하세요.'); return; }
-    if (!evForm.ends_at)      { alert('종료일을 입력하세요.'); return; }
+    // 즉시 활성화 체크 시 날짜를 비워도 "지금부터 ~ 무기한"으로 자동 설정
+    const immediate = evForm.is_active;
+    const startsRaw = evForm.starts_at || (immediate ? new Date().toISOString().slice(0, 16) : '');
+    const endsRaw   = evForm.ends_at   || (immediate ? '2099-12-31T23:59' : '');
+    if (!startsRaw) { alert('시작일을 입력하세요. (또는 "즉시 활성화"를 체크하면 지금부터 노출됩니다)'); return; }
+    if (!endsRaw)   { alert('종료일을 입력하세요. (또는 "즉시 활성화"를 체크하면 무기한 노출됩니다)'); return; }
     // 새 등록 시 슬러그 없으면 자동 생성
     if (!evForm.slug.trim()) setEvForm(f => ({ ...f, slug: makeSlug(f.title) }));
     setEvSaving(true);
@@ -3389,8 +3393,8 @@ export default function AdminClient() {
       thumbnail_url: evForm.thumbnail_url.trim() || null,
       image_url:     evForm.image_url.trim()     || null,
       content:       evForm.content.trim()       || null,
-      starts_at:     new Date(evForm.starts_at).toISOString(),
-      ends_at:       new Date(evForm.ends_at).toISOString(),
+      starts_at:     new Date(startsRaw).toISOString(),
+      ends_at:       new Date(endsRaw).toISOString(),
       is_active:     evForm.is_active,
     };
     const { error } = editingEvent
@@ -4143,12 +4147,12 @@ export default function AdminClient() {
               {/* 기간 */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label className="adm-label">시작일시 *</label>
+                  <label className="adm-label">시작일시 {evForm.is_active ? <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택)</span> : '*'}</label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="datetime-local" value={evForm.starts_at}
                     onChange={e => setEvForm(f => ({ ...f, starts_at: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="adm-label">종료일시 *</label>
+                  <label className="adm-label">종료일시 {evForm.is_active ? <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택)</span> : '*'}</label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="datetime-local" value={evForm.ends_at}
                     onChange={e => setEvForm(f => ({ ...f, ends_at: e.target.value }))} />
                 </div>
@@ -4159,6 +4163,11 @@ export default function AdminClient() {
                   onChange={e => setEvForm(f => ({ ...f, is_active: e.target.checked }))} />
                 즉시 활성화
               </label>
+              {evForm.is_active && (!evForm.starts_at || !evForm.ends_at) && (
+                <div style={{ fontSize:11, color:'#16A34A', marginTop:-6 }}>
+                  ✓ 날짜를 비워두면 <strong>지금부터{!evForm.ends_at ? ' 무기한' : ''}</strong> 즉시 노출됩니다. (원하면 위에서 기간 지정 가능)
+                </div>
+              )}
 
               <div className="adm-flex-gap adm-flex-end">
                 <button className="adm-btn adm-btn-outline" onClick={() => setEventModal(false)}>취소</button>
