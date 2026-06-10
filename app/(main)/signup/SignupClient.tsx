@@ -41,7 +41,7 @@ export default function SignupClient() {
   /* 회원가입 쿠폰 금액 (관리자 설정값) */
   const [welcomeAmount, setWelcomeAmount] = useState(0);
   useEffect(() => {
-    createClient().from('settings').select('value').eq('key', 'signup_coupon').maybeSingle()
+    createClient().from('site_settings').select('value').eq('key', 'signup_coupon').maybeSingle()
       .then(({ data }) => { if (data?.value) setWelcomeAmount(Number(data.value) || 0); });
   }, []);
 
