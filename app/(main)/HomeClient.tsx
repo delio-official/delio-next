@@ -730,12 +730,39 @@ export default function HomeClient() {
     })();
   }, []);
 
-  const brandCards = [
-    { banner:'bdc-banner-citrus', logo:'bdc-logo-citrus', emoji:'🍊', brand:'서귀포 감귤농원', farmSlug:'seogwipo-citrus',   brandHref:'/farm/seogwipo-citrus',   catHref:'/category?cat=citrus', prodName:'당도 보장 한라봉 3kg',         prodPrice:'38,000원', discount:20 },
-    { banner:'bdc-banner-grape',  logo:'bdc-logo-grape',  emoji:'🍇', brand:'영천포도원',     farmSlug:'yeongcheon-grape',   brandHref:'/farm/yeongcheon-grape',   catHref:'/category?cat=grape',  prodName:'샤인머스캣 GAP인증 2kg',       prodPrice:'42,000원', discount:10 },
-    { banner:'bdc-banner-berry',  logo:'bdc-logo-berry',  emoji:'🫐', brand:'고성 블루팜',    farmSlug:'goseong-bluefarm',   brandHref:'/farm/goseong-bluefarm',   catHref:'/category?cat=berry',  prodName:'무농약 블루베리 500g',          prodPrice:'16,000원', discount:10 },
-    { banner:'bdc-banner-apple',  logo:'bdc-logo-apple',  emoji:'🍎', brand:'충주사과마을',   farmSlug:'chungju-apple',       brandHref:'/farm/chungju-apple',     catHref:'/category?cat=apple',  prodName:'[수율보장] 부사사과 프리미엄 5kg', prodPrice:'38,000원', discount:10 },
-  ];
+  /* 브랜드 직송관 — 농가 + 대표상품 실데이터 (없으면 섹션 숨김) */
+  const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number }[]>([]);
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: farmsData } = await supabase.from('farms').select('id, name, slug').limit(12);
+      if (!farmsData || farmsData.length === 0) { setBrandCards([]); return; }
+      const { data: prods } = await supabase.from('products')
+        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order')
+        .in('farm_id', farmsData.map(f => f.id))
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
+      const SUF: Record<string, string> = { apple:'apple', citrus:'citrus', grape:'grape', berry:'berry', kiwi:'berry', melon:'citrus', mango:'citrus', gift:'citrus' };
+      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null };
+      const byFarm: Record<string, PRow> = {};
+      ((prods || []) as PRow[]).forEach(p => { if (p.farm_id && !byFarm[p.farm_id]) byFarm[p.farm_id] = p; });
+      const cards = farmsData
+        .filter(f => byFarm[f.id])
+        .slice(0, 4)
+        .map(f => {
+          const p = byFarm[f.id];
+          const suf = SUF[p.category] || 'citrus';
+          const price = p.discounted_price ?? p.price;
+          return {
+            banner: `bdc-banner-${suf}`, logo: `bdc-logo-${suf}`, emoji: EMOJI[p.category] || '🍑',
+            brand: f.name, brandHref: `/farm/${f.slug}`, prodHref: `/product/${p.id}`,
+            prodName: p.name, prodPrice: `${price.toLocaleString()}원`, discount: p.discount_rate || 0,
+          };
+        });
+      setBrandCards(cards);
+    })();
+  }, []);
 
   return (
     <>
@@ -868,8 +895,8 @@ export default function HomeClient() {
       {/* ── 퀵 가이드 ── */}
       {secOn('quickguide') && <QuickGuide />}
 
-      {/* ── 브랜드 직송관 ── */}
-      {secOn('brand') && (
+      {/* ── 브랜드 직송관 (농가 직송상품 있을 때만) ── */}
+      {secOn('brand') && brandCards.length > 0 && (
       <section className="brand-direct-section" id="section-brand">
         <div className="container">
           <div className="g-section-head">
@@ -897,11 +924,11 @@ export default function HomeClient() {
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </Link>
-                  <Link href={productHref(b.catHref, b.prodName)} className="bdc-product-row">
+                  <Link href={b.prodHref} className="bdc-product-row">
                     <div className={`bdc-product-thumb ${b.logo.replace('logo','thumb')}`}>{b.emoji}</div>
                     <div className="bdc-product-info">
                       <div className="bdc-product-name">{b.prodName}</div>
-                      <div className="bdc-product-price"><span className="bdc-discount">{b.discount}%</span> {b.prodPrice}</div>
+                      <div className="bdc-product-price">{b.discount > 0 && <span className="bdc-discount">{b.discount}%</span>} {b.prodPrice}</div>
                     </div>
                   </Link>
                 </div>
