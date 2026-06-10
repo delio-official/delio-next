@@ -12,6 +12,7 @@ import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
+import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 
 /* ── 타입 ── */
 interface Product {
@@ -299,7 +300,6 @@ export default function ProductClient() {
         if (s.key === 'dispatch_cutoff' && s.value) setSiteDispatchCutoff(s.value);
         if (s.key === 'cs_phone'        && s.value) setCsPhone(s.value);
         if (s.key === 'signup_coupon'   && s.value) setSignupCoupon(Number(s.value));
-        if (s.key === 'point_rate'      && s.value) setPointRate(Number(s.value));
       });
 
       if (prodT.farm_id) {
@@ -480,6 +480,21 @@ export default function ProductClient() {
   useEffect(() => {
     if (product) gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* 적립률: 로그인 회원 등급별(membership_tiers) — 비로그인은 비기너 기준 */
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      let grade = 'beginner';
+      if (user) {
+        const { data: prof } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle();
+        grade = normalizeGrade((prof as { grade?: string } | null)?.grade);
+      }
+      const { data: tier } = await supabase.from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
+      const t = (tier as MembershipTier | null) ?? DEFAULT_TIERS.find(x => x.grade === grade)!;
+      setPointRate(effectiveRate(t));
+    })();
+  }, [user]);
 
   /* 구매 지표: 재구매율(2회+ 구매자 비율) · 최근 30일 구매자 수 */
   useEffect(() => {
