@@ -210,7 +210,7 @@ function BottomNavInner() {
             {/* 카테고리 아코디언 */}
             <div className="cd-acc-wrap">
               {accData.map((cat, i) => (
-                <div key={cat.name} className={`cat-drawer-acc-item${openAcc === i ? ' open' : ''}`}>
+                <div key={`${cat.name}-${i}`} className={`cat-drawer-acc-item${openAcc === i ? ' open' : ''}`}>
                   <div className="cat-drawer-acc-header" onClick={() => toggleAcc(i)}>
                     <span className="cat-drawer-name">{cat.name}</span>
                     <svg className="cat-drawer-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -220,7 +220,7 @@ function BottomNavInner() {
                   <div className="cat-drawer-sub-grid" style={{ height: openAcc === i ? 'auto' : 0 }}>
                     {cat.subs.map((sub, j) => (
                       <div
-                        key={sub.label}
+                        key={`${sub.label}-${j}`}
                         className={`cat-drawer-sub2${j === 0 ? ' full-view' : ''}`}
                         onClick={() => goAndClose(sub.href)}
                       >
