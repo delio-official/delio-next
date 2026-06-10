@@ -429,18 +429,9 @@ export default function ProductClient() {
   function allGroupsSelected(map: Record<string, string> = selByGroup): boolean {
     if (options.length === 0) return true;
     const gNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-    const parentG = gNames[0];
-    const parentLabel = options.find(o => o.id === map[parentG])?.label || '';
+    // 독립 그룹: 필수인 모든 그룹이 실제로 선택돼야 완성
     const requiredGroups = gNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
-    return requiredGroups.every(g => {
-      if (map[g]) return true;
-      // 종속(하위) 그룹: 선택된 상위에 해당하는 하위 옵션이 하나도 없으면 충족으로 간주
-      if (gNames.indexOf(g) > 0) {
-        const avail = options.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
-        if (avail.length === 0) return true;
-      }
-      return false;
-    });
+    return requiredGroups.every(g => !!map[g]);
   }
   /* 옵션 조합을 누적 목록에 추가 (같은 조합이면 수량 +1) */
   function addPick(opts: ProductOption[]) {
