@@ -8371,14 +8371,24 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           );
                         })() : marketingTab === 'hour' ? (() => {
                           const max = Math.max(...m.byHour.map(h => h.count), 1);
+                          const peak = m.byHour.reduce((a, b) => b.count > a.count ? b : a, m.byHour[0]);
                           return (
-                            <div style={{ display:'flex', alignItems:'flex-end', gap:2, height:150 }}>
-                              {m.byHour.map(h => (
-                                <div key={h.h} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }} title={`${h.h}시 ${h.count}건`}>
-                                  <div style={{ width:'72%', height:`${Math.max(2, h.count/max*120)}px`, background:'#3B82F6', borderRadius:'3px 3px 0 0' }} />
-                                  {h.h % 3 === 0 && <div style={{ fontSize:9, color:'#94A3B8' }}>{h.h}</div>}
-                                </div>
-                              ))}
+                            <div>
+                              <div style={{ fontSize:11, color:'#94A3B8', marginBottom:8 }}>가장 주문 많은 시간대 <span style={{ color:'#1A1A1A', fontWeight:700 }}>{peak.h}시 ({peak.count}건)</span></div>
+                              {/* 막대 */}
+                              <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:130, borderBottom:'1.5px solid #E2E8F0' }}>
+                                {m.byHour.map(h => (
+                                  <div key={h.h} style={{ flex:1, height:'100%', display:'flex', alignItems:'flex-end', justifyContent:'center' }} title={`${h.h}시 ${h.count}건`}>
+                                    {h.count > 0 && <div style={{ width:'68%', height:`${Math.max(3, h.count / max * 100)}%`, background: h.h === peak.h ? '#2563EB' : '#93C5FD', borderRadius:'3px 3px 0 0' }} />}
+                                  </div>
+                                ))}
+                              </div>
+                              {/* 라벨 */}
+                              <div style={{ display:'flex', gap:3, marginTop:5 }}>
+                                {m.byHour.map(h => (
+                                  <div key={h.h} style={{ flex:1, textAlign:'center', fontSize:9, color:'#94A3B8' }}>{h.h % 3 === 0 ? `${h.h}시` : ''}</div>
+                                ))}
+                              </div>
                             </div>
                           );
                         })() : (
