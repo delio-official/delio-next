@@ -4085,6 +4085,7 @@ export default function AdminClient() {
               {/* 썸네일 이미지 */}
               <div>
                 <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 카드에 표시)</span></label>
+                <div style={{ fontSize:11, color:'#64748B', margin:'-2px 0 6px' }}>권장 <strong>800 × 500px</strong> (가로:세로 = 1.6:1) · 최소 640×400 · JPG/PNG</div>
                 <input ref={evThumbRef} type="file" accept="image/*" style={{ display:'none' }}
                   onChange={async e => {
                     const file = e.target.files?.[0]; if (!file) return;
@@ -4109,6 +4110,7 @@ export default function AdminClient() {
               {/* 본문 이미지 */}
               <div>
                 <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 상세 페이지 상단)</span></label>
+                <div style={{ fontSize:11, color:'#64748B', margin:'-2px 0 6px' }}>가로 <strong>960px</strong> 권장 · 세로 자유(긴 이미지 가능) · JPG/PNG</div>
                 <input ref={evImgRef} type="file" accept="image/*" style={{ display:'none' }}
                   onChange={async e => {
                     const file = e.target.files?.[0]; if (!file) return;
