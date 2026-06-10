@@ -203,7 +203,6 @@ function BottomNavInner() {
               {shortcuts.map(sc => (
                 <div key={sc.label} className="cd-sc-item" onClick={() => goAndClose(sc.href)}>
                   <span className="cd-sc-label">{sc.label}</span>
-                  {sc.icon && <span className="cd-sc-emoji">{sc.icon}</span>}
                 </div>
               ))}
             </div>
@@ -213,7 +212,6 @@ function BottomNavInner() {
               {accData.map((cat, i) => (
                 <div key={cat.name} className={`cat-drawer-acc-item${openAcc === i ? ' open' : ''}`}>
                   <div className="cat-drawer-acc-header" onClick={() => toggleAcc(i)}>
-                    <div className="cat-drawer-thumb" style={{ background: cat.bg }}>{cat.icon}</div>
                     <span className="cat-drawer-name">{cat.name}</span>
                     <svg className="cat-drawer-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2">
                       <polyline points="6 9 12 15 18 9"/>

@@ -349,7 +349,6 @@ function QuickGuide() {
               className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
               onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
               <span className="qg-label">{t.label}</span>
-              {t.icon ? <span className="qg-emoji">{t.icon}</span> : null}
             </a>
           ))}
         </div>
