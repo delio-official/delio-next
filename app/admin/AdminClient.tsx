@@ -1366,6 +1366,11 @@ export default function AdminClient() {
   const [pointMembers, setPointMembers] = useState<AdminProfile[]>([]);
   const [pointMembersLoading, setPointMembersLoading] = useState(false);
   const [pointSearch, setPointSearch] = useState('');
+  /* 포인트 적립 설정 */
+  const [ptEdit, setPtEdit] = useState(false);
+  const [ptRate, setPtRate] = useState('1');
+  const [ptApply, setPtApply] = useState('');
+  const [ptSaving, setPtSaving] = useState(false);
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
   const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null } | null }[]>([]);
@@ -2730,6 +2735,34 @@ export default function AdminClient() {
     else alert('저장되었습니다!');
   }
 
+  /* ========== 포인트 적립 설정 ========== */
+  function openPtEdit() {
+    setPtRate(siteSettings.point_rate ?? '1');
+    setPtApply(siteSettings.point_apply_date || '');
+    setPtEdit(true);
+  }
+  async function togglePointEnabled(v: boolean) {
+    setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }));
+    await createClient().from('site_settings').upsert({ key: 'point_enabled', value: v ? 'true' : 'false' }, { onConflict: 'key' });
+  }
+  async function savePointSettings() {
+    const rate = Number(ptRate);
+    const today = new Date().toISOString().slice(0, 10);
+    if (isNaN(rate) || rate < 0 || rate > 10) { alert('적립률은 0% ~ 10% 사이로 입력해주세요.'); return; }
+    if (ptApply && ptApply < today) { alert('적용일은 오늘 이후 날짜만 선택할 수 있습니다.'); return; }
+    setPtSaving(true);
+    const rows = [
+      { key: 'point_rate', value: String(rate) },
+      { key: 'point_apply_date', value: ptApply || '' },
+      { key: 'point_updated_at', value: today },
+    ];
+    const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
+    setPtSaving(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setSiteSettings(prev => ({ ...prev, point_rate: String(rate), point_apply_date: ptApply || '', point_updated_at: today }));
+    setPtEdit(false);
+  }
+
   /* ========== 검색어 통계 ========== */
   async function loadSearchStats(days: 7|30) {
     setSearchStatsLoading(true);
@@ -3367,7 +3400,7 @@ export default function AdminClient() {
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
       case 'reviews':   loadReviews(); break;
-      case 'coupon':    loadCoupons(); loadPointData(); break;
+      case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
       case 'referral':     loadReferrals(); break;
@@ -5497,6 +5530,71 @@ export default function AdminClient() {
                 </>
               ) : (
                 <>
+                  {/* 포인트 적립 설정 */}
+                  <div className="adm-card" style={{ marginBottom:16 }}>
+                    <div className="adm-card-head">
+                      <div>
+                        <div className="adm-card-title">포인트 적립 설정</div>
+                        <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>구매액에 대한 포인트 적립률과 적용일을 설정할 수 있습니다.</div>
+                      </div>
+                    </div>
+                    {/* 시스템 활성화 토글 */}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'12px 14px', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, margin:'10px 0 14px' }}>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:13 }}>포인트 시스템 활성화</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>포인트 적립 및 사용 기능을 활성화합니다.</div>
+                      </div>
+                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
+                    </div>
+                    {/* 현재값 카드 3개 */}
+                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:4 }}>
+                      <div className="adm-kpi-card" style={{ background:'#EFF6FF', border:'1px solid #DBEAFE' }}>
+                        <div className="adm-kpi-label">현재 적립률</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#2563EB' }}>{siteSettings.point_rate ?? '1'}%</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>구매액의 {siteSettings.point_rate ?? '1'}% 적립</div>
+                      </div>
+                      <div className="adm-kpi-card" style={{ background:'#F0FDF4', border:'1px solid #DCFCE7' }}>
+                        <div className="adm-kpi-label">적용일</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{siteSettings.point_apply_date || '즉시'}</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>해당 날짜부터 적용</div>
+                      </div>
+                      <div className="adm-kpi-card">
+                        <div className="adm-kpi-label">최종 수정일</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt">{siteSettings.point_updated_at || '-'}</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>마지막 설정 변경일</div>
+                      </div>
+                    </div>
+                    {/* 설정 수정 버튼 / 설정 변경 폼 */}
+                    {!ptEdit ? (
+                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
+                        <button className="adm-btn adm-btn-primary" onClick={openPtEdit}>설정 수정</button>
+                      </div>
+                    ) : (
+                      <div className="adm-card" style={{ background:'#fff', border:'1px solid #E2E8F0', marginTop:14 }}>
+                        <div className="adm-card-title" style={{ marginBottom:10 }}>설정 변경</div>
+                        <div className="adm-info-box" style={{ marginBottom:14 }}>⚠️ 포인트 적립률 변경은 설정한 적용일로부터 적용되며, 소급 적용되지 않습니다.</div>
+                        <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+                          <div style={{ flex:'1 1 220px' }}>
+                            <label className="adm-label">포인트 적립률</label>
+                            <input type="number" className="adm-input-text" style={{ width:'100%' }} min={0} max={10} step={0.5}
+                              value={ptRate} onChange={e => setPtRate(e.target.value)} />
+                            <div className="adm-muted" style={{ fontSize:11, marginTop:3 }}>0% ~ 10% 사이로 설정 가능</div>
+                          </div>
+                          <div style={{ flex:'1 1 220px' }}>
+                            <label className="adm-label">적용일</label>
+                            <input type="date" className="adm-input-text" style={{ width:'100%' }} min={new Date().toISOString().slice(0,10)}
+                              value={ptApply} onChange={e => setPtApply(e.target.value)} />
+                            <div className="adm-muted" style={{ fontSize:11, marginTop:3 }}>오늘 이후 날짜만 선택 가능</div>
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', gap:8, marginTop:16 }}>
+                          <button className="adm-btn adm-btn-primary" disabled={ptSaving} onClick={savePointSettings}>{ptSaving ? '저장 중...' : '저장'}</button>
+                          <button className="adm-btn adm-btn-outline" onClick={() => setPtEdit(false)}>취소</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* KPI */}
                   <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                     {[
