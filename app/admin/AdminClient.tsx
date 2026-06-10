@@ -1391,6 +1391,7 @@ export default function AdminClient() {
   const [pmPage, setPmPage] = useState(1); const [pmSize, setPmSize] = useState(10);
   const [plPage, setPlPage] = useState(1); const [plSize, setPlSize] = useState(10);
   const [memPage, setMemPage] = useState(1); const [memSize, setMemSize] = useState(10);
+  const [cpPage, setCpPage] = useState(1); const [cpSize, setCpSize] = useState(10);
   /* 포인트 적립 설정 */
   const [ptEdit, setPtEdit] = useState(false);
   const [ptRate, setPtRate] = useState('1');
@@ -3600,6 +3601,8 @@ export default function AdminClient() {
   const pagedPointLogs = pointLogs.slice((plCur - 1) * plSize, plCur * plSize);
   const memCur = Math.min(Math.max(1, memPage), Math.max(1, Math.ceil(filteredMembers.length / memSize)));
   const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
+  const cpCur = Math.min(Math.max(1, cpPage), Math.max(1, Math.ceil(coupons.length / cpSize)));
+  const pagedCoupons = coupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
 
   /* 필터된 라운지 */
   const filteredLounge = loungeFilter
@@ -5543,7 +5546,7 @@ export default function AdminClient() {
                           <tbody>
                             {coupons.length === 0 ? (
                               <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>쿠폰 없음</td></tr>
-                            ) : coupons.map(c => (
+                            ) : pagedCoupons.map(c => (
                               <tr key={c.id}>
                                 <td>{c.name}</td>
                                 <td className="adm-mono" style={{ fontSize:12 }}>{c.code || '-'}</td>
@@ -5563,6 +5566,7 @@ export default function AdminClient() {
                       </div>
                     )}
                   </div>
+                  <Pager page={cpCur} pageSize={cpSize} total={coupons.length} onPage={setCpPage} onPageSize={setCpSize} />
                 </>
               ) : (
                 <>
