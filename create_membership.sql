@@ -56,10 +56,19 @@ grant all on membership_grants to service_role;
 alter table profiles add column if not exists grade_updated_at timestamptz;
 alter table profiles add column if not exists grade_locked boolean not null default false;
 
+-- 기존 CHECK 제약(normal~vvip만 허용)을 먼저 제거해야 신규 키로 갱신 가능
+alter table profiles drop constraint if exists profiles_grade_check;
+
 update profiles set grade = 'beginner' where grade is null or grade in ('normal');
 update profiles set grade = 'taster'   where grade = 'silver';
 update profiles set grade = 'buyer'    where grade in ('gold','vip');
 update profiles set grade = 'master'   where grade = 'vvip';
+-- 혹시 남은 알 수 없는 값도 비기너로 정규화
+update profiles set grade = 'beginner' where grade not in ('beginner','taster','buyer','master');
+
+-- 신규 등급키로 CHECK 제약 재설정 + 기본값
+alter table profiles add constraint profiles_grade_check check (grade in ('beginner','taster','buyer','master'));
+alter table profiles alter column grade set default 'beginner';
 
 -- ── 4. user_coupons: 월 반복발급 위해 기간 컬럼 + 유니크 완화 ───
 -- 같은 멤버십 쿠폰을 매월 재발급하려면 (user, coupon, 기간)으로 풀어야 함.
