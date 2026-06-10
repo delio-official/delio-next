@@ -548,9 +548,9 @@ export default function MypageClient() {
     alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
   }
 
-  /* 내 환불 신청 내역 — CS/환불 패널 열릴 때 로드 */
+  /* 내 환불 신청 내역 — 주문/환불 패널 열릴 때 로드 */
   useEffect(() => {
-    if (activePanel !== 'csrefund' || !user) return;
+    if ((activePanel !== 'csrefund' && activePanel !== 'order') || !user) return;
     createClient()
       .from('refund_requests')
       .select('id, order_id, reason, detail, status, reject_reason, created_at, orders ( order_no )')
@@ -1123,6 +1123,41 @@ export default function MypageClient() {
                   </div>
                 </div>
               </div>
+
+              {/* 환불 신청 내역 (상태·거부사유) */}
+              {myRefundReqs.length > 0 && (
+                <div className="mp-section">
+                  <div className="mp-section-header">
+                    <span className="mp-section-title">환불 신청 내역</span>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {myRefundReqs.map(r => {
+                      const stMap: Record<string, { t:string; c:string; bg:string }> = {
+                        pending:    { t:'환불요청 접수', c:'#C8841C', bg:'#FFF3E0' },
+                        processing: { t:'환불 진행중',   c:'#2563EB', bg:'#EFF6FF' },
+                        completed:  { t:'환불 완료',     c:'#2D7A4D', bg:'#E8F5E9' },
+                        rejected:   { t:'환불 불가',     c:'#DC2626', bg:'#FEF2F2' },
+                        hold:       { t:'환불 보류',     c:'#64748B', bg:'#F1F5F9' },
+                      };
+                      const st = stMap[r.status] || { t:r.status, c:'#64748B', bg:'#F1F5F9' };
+                      return (
+                        <div key={r.id} style={{ border:'1px solid #EEE', borderRadius:12, padding:'14px 16px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:6 }}>
+                            <span style={{ fontSize:13, color:'#888' }}>{r.orders?.order_no ? `주문 ${r.orders.order_no}` : '주문번호 미연결'} · {new Date(r.created_at).toLocaleDateString('ko-KR')}</span>
+                            <span style={{ fontSize:12, fontWeight:700, color:st.c, background:st.bg, borderRadius:6, padding:'3px 10px', whiteSpace:'nowrap' }}>{st.t}</span>
+                          </div>
+                          <div style={{ fontSize:14, color:'#333' }}>신청 사유: {r.reason}{r.detail ? ` — ${r.detail}` : ''}</div>
+                          {r.status === 'rejected' && r.reject_reason && (
+                            <div style={{ marginTop:10, padding:'11px 13px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, fontSize:13, color:'#991B1B', lineHeight:1.65 }}>
+                              <strong>환불 불가 사유</strong><br />{r.reject_reason}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* 주문내역 목록 */}
               <div className="mp-section">
