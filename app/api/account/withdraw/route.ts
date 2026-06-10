@@ -2,40 +2,30 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
-/* 회원 본인 탈퇴 — 소프트 삭제(재로그인·동일 이메일 재가입 차단).
-   주문/리뷰 기록은 FK 보존 위해 남기고, 개인정보는 최소화.
-   탈퇴 이력을 withdrawn_users 에 기록(재가입 어뷰징 방어 데이터). */
+/* 회원 본인 탈퇴 — 하드 삭제.
+   소프트 삭제는 auth.identities 잔여로 동일 이메일 재가입(특히 네이버/카카오)을 막으므로 하드 삭제.
+   주문/리뷰는 FK(set null/cascade)로 정리됨. 재가입 어뷰징 차단은 B단계(본인인증 CI).
+   탈퇴 이력은 withdrawn_users 에 기록(이메일/번호 → 향후 CI 연결). */
 export async function POST() {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
 
-  try {
-    const admin = createAdminSupabaseClient();
+  const admin = createAdminSupabaseClient();
 
-    // 번호 확보(있으면) → 탈퇴 이력 기록
+  // 탈퇴 이력 기록 (테이블 없거나 실패해도 탈퇴 자체는 진행)
+  try {
     const { data: prof } = await admin.from('profiles').select('phone').eq('id', user.id).maybeSingle();
     await admin.from('withdrawn_users').insert({
       user_id: user.id,
       email: user.email ?? null,
       phone: (prof as { phone?: string | null } | null)?.phone ?? null,
     });
+  } catch { /* 기록 실패는 무시 */ }
 
-    // 개인정보 최소화
-    await admin.from('profiles')
-      .update({ name: '탈퇴회원', phone: null, birth: null, marketing_email: false, marketing_sms: false, push_enabled: false })
-      .eq('id', user.id);
+  // 하드 삭제 (재로그인·동일 이메일 재가입 모두 깔끔히 정리)
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-    // 원래 이메일을 tombstone 으로 변경 → 같은 이메일로 재가입 가능하게 풀어줌
-    // (어뷰징 완전 차단은 B단계 본인인증 CI에서. withdrawn_users 에 원본 이메일은 보존됨)
-    await admin.auth.admin.updateUserById(user.id, { email: `withdrawn+${user.id}@deleted.delio.co.kr` });
-
-    // auth 유저 소프트 삭제(= 재로그인 불가). 2번째 인자 true = shouldSoftDelete
-    const { error } = await admin.auth.admin.deleteUser(user.id, true);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true });
 }
