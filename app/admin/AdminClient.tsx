@@ -8300,48 +8300,56 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 const arrC = (v: number) => v >= 0 ? '#16A34A' : '#DC2626';
                 const salesPct = pct(m.monthSales, m.prevSales);
                 const aovPct = pct(m.aov, m.prevAov);
-                const kpiCard = (l: string, v: string, sub: string, sc: string) => (
+                const trendObj = (v: number) => ({ t: arr(v), c: arrC(v), bg: v >= 0 ? '#ECFDF5' : '#FEF2F2' });
+                const kpiCard = (l: string, v: string, sub: string, opts: { trend?: { t: string; c: string; bg: string }; valColor?: string } = {}) => (
                   <div key={l} className="adm-kpi-card">
                     <div className="adm-kpi-label">{l}</div>
-                    <div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:18 }}>{v}</div>
-                    <div style={{ fontSize:11, color: sc, marginTop:3 }}>{sub}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:21, color: opts.valColor }}>{v}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
+                      {opts.trend && <span style={{ fontSize:10.5, fontWeight:800, color: opts.trend.c, background: opts.trend.bg, borderRadius:5, padding:'2px 7px' }}>{opts.trend.t}</span>}
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>{sub}</span>
+                    </div>
+                  </div>
+                );
+                const sectionH = (t: string, d: string) => (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, margin:'8px 0 11px' }}>
+                    <span style={{ width:3, height:15, background:'#1A1A1A', borderRadius:2 }} />
+                    <span style={{ fontSize:13.5, fontWeight:800, color:'#1A1A1A' }}>{t}</span>
+                    <span style={{ fontSize:11, color:'#94A3B8' }}>{d}</span>
                   </div>
                 );
                 return (
                   <>
-                    {/* 1줄 핵심 지표 */}
-                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>핵심 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 매일 먼저 확인</span></div>
+                    {sectionH('핵심 지표', '· 매일 먼저 확인')}
                     <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                      {kpiCard('오늘 주문 건수', `${m.todayOrders}건`, `이번달 누적 ${m.monthOrders}건`, '#94A3B8')}
-                      {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '2회 이상 구매 고객', '#94A3B8')}
-                      {kpiCard('이번달 매출', `${fmtPrice(m.monthSales)}원`, `전월 동기 대비 ${arr(salesPct)}`, arrC(salesPct))}
-                      {kpiCard('환불·취소율', `${m.refundRate.toFixed(1)}%`, `이번달 ${m.refundCount}건`, '#94A3B8')}
+                      {kpiCard('오늘 주문 건수', `${m.todayOrders}건`, `이번달 누적 ${m.monthOrders}건`)}
+                      {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '2회 이상 구매 고객')}
+                      {kpiCard('이번달 매출', `${fmtPrice(m.monthSales)}원`, '전월 동기 대비', { trend: trendObj(salesPct) })}
+                      {kpiCard('환불·취소율', `${m.refundRate.toFixed(1)}%`, `이번달 ${m.refundCount}건`, { valColor: m.refundRate > 0 ? '#DC2626' : undefined })}
                     </div>
 
-                    {/* 2줄 참고 지표 */}
-                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>참고 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 맥락 파악용</span></div>
+                    {sectionH('참고 지표', '· 맥락 파악용')}
                     <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                      {kpiCard('신규 회원', `${m.newMembers}명`, '이번달 가입', '#94A3B8')}
-                      {kpiCard('평균 객단가', `${fmtPrice(m.aov)}원`, `전월 평균 대비 ${arr(aovPct)}`, arrC(aovPct))}
-                      {kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', '#CBD5E1')}
-                      {kpiCard('결제 전환율', '—', 'GA 연동 시 표시', '#CBD5E1')}
+                      {kpiCard('신규 회원', `${m.newMembers}명`, '이번달 가입')}
+                      {kpiCard('평균 객단가', `${fmtPrice(m.aov)}원`, '전월 평균 대비', { trend: trendObj(aovPct) })}
+                      {kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
+                      {kpiCard('결제 전환율', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
                     </div>
 
-                    {/* 광고(배너) 지표 */}
-                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>광고(배너) 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 등록 배너 기준</span></div>
+                    {sectionH('광고(배너) 지표', '· 등록 배너 기준')}
                     <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
-                      {kpiCard('총 조회수', m.adView.toLocaleString(), '배너 노출 합계', '#2563EB')}
-                      {kpiCard('총 클릭수', m.adClick.toLocaleString(), '배너 클릭 합계', '#7C3AED')}
-                      {kpiCard('평균 CTR', `${m.adCtr.toFixed(2)}%`, '클릭/조회', '#16A34A')}
+                      {kpiCard('총 조회수', m.adView.toLocaleString(), '배너 노출 합계', { valColor: '#2563EB' })}
+                      {kpiCard('총 클릭수', m.adClick.toLocaleString(), '배너 클릭 합계', { valColor: '#7C3AED' })}
+                      {kpiCard('평균 CTR', `${m.adCtr.toFixed(2)}%`, '클릭 ÷ 조회', { valColor: '#16A34A' })}
                     </div>
 
                     {/* 마케팅 주요 지표 (토글) */}
                     <div className="adm-card" style={{ marginBottom:16 }}>
                       <div className="adm-card-head"><span className="adm-card-title">마케팅 주요 지표</span></div>
-                      <div style={{ padding:'14px 18px' }}>
-                        <div className="adm-btn-group" style={{ marginBottom:16, flexWrap:'wrap' }}>
+                      <div style={{ padding:'16px 18px' }}>
+                        <div style={{ display:'inline-flex', background:'#F1F5F9', borderRadius:10, padding:3, gap:2, marginBottom:18 }}>
                           {([['channel','채널별 유입'],['hour','시간대별 주문'],['age','연령대 분포']] as const).map(([k, lb]) => (
-                            <button key={k} className={`adm-seg-btn${marketingTab===k?' active':''}`} onClick={() => setMarketingTab(k)}>{lb}</button>
+                            <button key={k} onClick={() => setMarketingTab(k)} style={{ border:'none', cursor:'pointer', fontSize:12.5, fontWeight:700, padding:'7px 16px', borderRadius:8, whiteSpace:'nowrap', background: marketingTab===k ? '#fff' : 'transparent', color: marketingTab===k ? '#1A1A1A' : '#94A3B8', boxShadow: marketingTab===k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'all .15s' }}>{lb}</button>
                           ))}
                         </div>
                         {marketingTab === 'channel' ? (() => {
