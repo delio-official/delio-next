@@ -3500,7 +3500,7 @@ export default function AdminClient() {
   const filteredReviews = reviews.filter(r => {
     const matchRating = !reviewRating || r.rating === Number(reviewRating);
     const matchAns = reviewAnswered === 'all' || (reviewAnswered === 'answered' ? !!r.seller_reply : !r.seller_reply);
-    const q = reviewSearch.toLowerCase();
+    const q = reviewSearch.trim().toLowerCase();
     const matchSearch = !q || (r.content || '').toLowerCase().includes(q) || (r.profiles?.email || '').toLowerCase().includes(q) || (r.profiles?.name || '').toLowerCase().includes(q);
     const matchFrom = !reviewFrom || r.created_at >= new Date(`${reviewFrom}T00:00:00`).toISOString();
     const matchTo   = !reviewTo   || r.created_at <= new Date(`${reviewTo}T23:59:59`).toISOString();
@@ -5336,7 +5336,7 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
-                  <input type="text" className="adm-input-text" placeholder="내용·아이디 검색"
+                  <input type="text" className="adm-input-text" placeholder="내용·작성자(이름/이메일) 검색"
                     value={reviewSearch} onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
@@ -5349,14 +5349,18 @@ export default function AdminClient() {
                 {reviewsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>별점</th><th>내용</th><th>상품</th><th>답변</th><th>베스트</th><th>👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>별점</th><th>내용</th><th>작성자(아이디)</th><th>상품</th><th>답변</th><th>베스트</th><th>👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredReviews.length === 0 ? (
-                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
+                          <tr><td colSpan={10} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
                         ) : pagedReviews.map(r => (
                           <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>
                             <td><StarRating rating={r.rating} size={13} /></td>
                             <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.content}</td>
+                            <td style={{ fontSize:12, lineHeight:1.35 }}>
+                              <div style={{ fontWeight:600 }}>{r.profiles?.name || '익명'}</div>
+                              <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || '-'}</div>
+                            </td>
                             <td className="adm-muted" style={{ fontSize:12 }}>{r.products?.name || '-'}</td>
                             <td>
                               {r.seller_reply
