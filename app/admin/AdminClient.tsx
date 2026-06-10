@@ -1477,6 +1477,7 @@ export default function AdminClient() {
   const [csCatFilter, setCsCatFilter] = useState('');
   const [csFrom, setCsFrom] = useState('');
   const [csTo, setCsTo] = useState('');
+  const [csSearch, setCsSearch] = useState('');
 
   /* ── 배너 ── */
   const [banners, setBanners] = useState<AdminBanner[]>([]);
@@ -3763,7 +3764,9 @@ export default function AdminClient() {
     const matchCat  = !csCatFilter || c.category === csCatFilter;
     const matchFrom = !csFrom || c.created_at >= new Date(`${csFrom}T00:00:00`).toISOString();
     const matchTo   = !csTo   || c.created_at <= new Date(`${csTo}T23:59:59`).toISOString();
-    return matchCat && matchFrom && matchTo;
+    const q = csSearch.trim().toLowerCase();
+    const matchSearch = !q || (c.title || '').toLowerCase().includes(q) || (c.message || '').toLowerCase().includes(q);
+    return matchCat && matchFrom && matchTo && matchSearch;
   });
 
   /* 이벤트 상태 */
@@ -7070,11 +7073,19 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={csCatFilter} onChange={setCsCatFilter}
                     options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(CS_CAT_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
+                  <div style={{ display:'inline-flex', gap:4 }}>
+                    {([['오늘',0],['3일',3],['1주일',7],['1개월',30],['3개월',90]] as const).map(([lb, d]) => (
+                      <button key={lb} className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'5px 10px' }}
+                        onClick={() => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - d); setCsFrom(from.toISOString().slice(0,10)); setCsTo(to.toISOString().slice(0,10)); }}>{lb}</button>
+                    ))}
+                  </div>
                   <input type="date" className="adm-select" value={csFrom} onChange={e => setCsFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={csTo} onChange={e => setCsTo(e.target.value)} />
-                  {(csCatFilter || csFrom || csTo) && (
-                    <button className="adm-btn adm-btn-outline" onClick={() => { setCsCatFilter(''); setCsFrom(''); setCsTo(''); }}>초기화</button>
+                  <input type="text" className="adm-input-text" placeholder="제목·내용 검색"
+                    value={csSearch} onChange={e => setCsSearch(e.target.value)} />
+                  {(csCatFilter || csFrom || csTo || csSearch) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setCsCatFilter(''); setCsFrom(''); setCsTo(''); setCsSearch(''); }}>초기화</button>
                   )}
                 </div>
                 <div className="adm-toolbar-right">
