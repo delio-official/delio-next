@@ -8596,7 +8596,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
               <div className="adm-card adm-card-settings">
                 <div className="adm-card-head"><span className="adm-card-title">메인 섹션 노출</span></div>
                 <div style={{ padding:'4px 0 8px', fontSize:12, color:'#94A3B8' }}>끄면 해당 섹션이 메인 페이지에서 숨겨집니다.</div>
-                <div className="adm-form">
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:'8px 12px' }}>
                   {([
                     ['sec_topbanner','상단 배너'],
                     ['sec_quickguide','퀵가이드'],
@@ -8607,8 +8607,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     ['sec_lounge','델리오 라운지'],
                     ['sec_survey','취향찾기 CTA'],
                   ] as const).map(([key, label]) => (
-                    <div className="adm-form-row" key={key}>
-                      <label className="adm-label">{label}</label>
+                    <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', border:'1px solid #EEF2F6', borderRadius:8, background:'#FAFBFC' }}>
+                      <span style={{ fontSize:13, fontWeight:600, color:'#334155' }}>{label}</span>
                       <Toggle defaultOn={siteSettings[key] !== 'false'}
                         onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
                     </div>
