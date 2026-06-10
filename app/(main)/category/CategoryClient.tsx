@@ -200,16 +200,15 @@ export default function CategoryClient() {
     });
   }, []);
 
-  /* 품목(소분류) 평면 탭 — 대분류 행 없이 한 줄로 (대분류 순서 → 소분류 순서) */
+  /* 소분류 탭 — 현재 대분류 컨텍스트(selMajor) 안에서만 (국산/수입 분리 유지, 대분류 행 없음) */
   const majors = catRows.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
-  const majorOrder = new Map(majors.map(m => [m.tab_value, m.sort_order]));
-  const itemRows = catRows.filter(t => t.parent).sort((a, b) => {
-    const ma = majorOrder.get(a.parent || '') ?? 999, mb = majorOrder.get(b.parent || '') ?? 999;
-    return ma !== mb ? ma - mb : a.sort_order - b.sort_order;
-  });
-  const itemTabs = itemRows.length
-    ? [{ value: '', label: '전체' }, ...itemRows.map(s => ({ value: s.tab_value, label: s.label }))]
-    : CAT_TABS_FALLBACK;
+  const curCatRow = catRows.find(t => t.tab_value === catParam);
+  const selMajor = curCatRow ? (curCatRow.parent || curCatRow.tab_value) : '';
+  const selMajorRow = majors.find(m => m.tab_value === selMajor);
+  const curMajorSubs = selMajor ? catRows.filter(t => t.parent === selMajor).sort((a, b) => a.sort_order - b.sort_order) : [];
+  const subTabs = curMajorSubs.length
+    ? [{ value: selMajor, label: `${selMajorRow?.label ?? ''} 전체`.trim() }, ...curMajorSubs.map(s => ({ value: s.tab_value, label: s.label }))]
+    : [];
 
   /* 현재 정렬 라벨 */
   const sortLabel = SORT_OPTS.find(o => o.value === sortParam)?.label || '정렬';
@@ -279,15 +278,17 @@ export default function CategoryClient() {
     <>
       {/* ── 모바일 뷰 ── */}
       <div className="mob-product-view active">
-        <div className="mob-pv-filter">
-          {itemTabs.map(tab => (
-            <button key={tab.value}
-              className={`mob-pv-chip${(tab.value === '' ? !catParam : catParam === tab.value) ? ' active' : ''}`}
-              onClick={() => setCat(tab.value)}>
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {subTabs.length > 0 && (
+          <div className="mob-pv-filter">
+            {subTabs.map(tab => (
+              <button key={tab.value}
+                className={`mob-pv-chip${catParam === tab.value ? ' active' : ''}`}
+                onClick={() => setCat(tab.value)}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mob-pv-result-bar">
           <span>총 {products.length}개</span>
@@ -322,16 +323,18 @@ export default function CategoryClient() {
       <div className="pc-product-view">
         <div className="container pc-cat-container">
 
-          {/* 품목 탭 */}
-          <div className="pc-cat-tabs">
-            {itemTabs.map(tab => (
-              <a key={tab.value}
-                className={`pc-cat-tab${(tab.value === '' ? !catParam : catParam === tab.value) ? ' active' : ''}`}
-                href="#" onClick={e => { e.preventDefault(); setCat(tab.value); }}>
-                {tab.label}
-              </a>
-            ))}
-          </div>
+          {/* 품목 탭 (현재 대분류 컨텍스트) */}
+          {subTabs.length > 0 && (
+            <div className="pc-cat-tabs">
+              {subTabs.map(tab => (
+                <a key={tab.value}
+                  className={`pc-cat-tab${catParam === tab.value ? ' active' : ''}`}
+                  href="#" onClick={e => { e.preventDefault(); setCat(tab.value); }}>
+                  {tab.label}
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* 필터 바 */}
           <div className="pc-filter-bar">
