@@ -1323,6 +1323,7 @@ export default function AdminClient() {
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
+  const [dragProductId, setDragProductId] = useState<string | null>(null);
 
   /* ── 필탭 / 카테고리 ── */
   const FT_EMPTY = { tab_type: 'category' as TabType, tab_value: '', label: '', emoji: '', bg: '#F5F5F5',
@@ -3670,6 +3671,30 @@ export default function AdminClient() {
     const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
     return matchCat && matchSearch && matchStatus;
   });
+  /* 드래그 정렬: 특정 카테고리 선택 + 검색·상태필터 없을 때만 (전체에선 순서 의미 없음) */
+  const canDragProducts = !!productCatFilter && !productSearch && !productStatusFilter;
+  async function reorderProducts(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    const catList = filteredProducts;
+    const fromIdx = catList.findIndex(p => p.id === fromId);
+    const toIdx = catList.findIndex(p => p.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const reordered = [...catList];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const catIds = new Set(catList.map(p => p.id));
+    const soMap = new Map(reordered.map((p, i) => [p.id, i + 1]));
+    setProducts(prev => {
+      let ri = 0;
+      return prev.map(p => {
+        if (!catIds.has(p.id)) return p;
+        const np = reordered[ri++];
+        return { ...np, sort_order: soMap.get(np.id)! };
+      });
+    });
+    const supabase = createClient();
+    await Promise.all(reordered.map((p, i) => supabase.from('products').update({ sort_order: i + 1 }).eq('id', p.id)));
+  }
 
   /* 리뷰 필터·페이지 */
   const reviewUnansweredCount = reviews.filter(r => !r.seller_reply).length;
@@ -5160,21 +5185,33 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-primary" onClick={() => openProductModal()}>+ 상품 등록</button>
                 </div>
               </div>
+              {canDragProducts ? (
+                <div className="adm-muted" style={{ fontSize:12, margin:'0 0 8px' }}>⠿ 행을 <strong>드래그</strong>하면 이 카테고리 안에서 노출 순서가 바뀝니다 (저장 자동).</div>
+              ) : (
+                <div className="adm-muted" style={{ fontSize:12, margin:'0 0 8px' }}>💡 순서를 드래그로 바꾸려면 위에서 <strong>카테고리를 선택</strong>하세요. (전체·검색·상태 필터 상태에선 비활성)</div>
+              )}
               <div className="adm-card">
                 {productsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
                         <tr>
+                          {canDragProducts && <th style={{ width:34 }}></th>}
                           <th>상품명</th><th>카테고리</th><th>정상가</th><th>판매가</th>
                           <th>할인율</th><th>상태</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>상품 없음</td></tr>
+                          <tr><td colSpan={canDragProducts ? 8 : 7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>상품 없음</td></tr>
                         ) : filteredProducts.map(p => (
-                          <tr key={p.id}>
+                          <tr key={p.id}
+                            draggable={canDragProducts}
+                            onDragStart={canDragProducts ? () => setDragProductId(p.id) : undefined}
+                            onDragOver={canDragProducts ? (e) => e.preventDefault() : undefined}
+                            onDrop={canDragProducts ? () => { if (dragProductId) reorderProducts(dragProductId, p.id); setDragProductId(null); } : undefined}
+                            style={canDragProducts ? { cursor:'move', background: dragProductId===p.id ? '#EFF6FF' : undefined } : undefined}>
+                            {canDragProducts && <td style={{ color:'#CBD5E1', textAlign:'center', cursor:'grab', fontSize:15 }}>⠿</td>}
                             <td>{p.name}</td>
                             <td>{catOptions[p.category] || CAT_LABEL[p.category] || p.category}</td>
                             <td className="adm-mono adm-muted"><s>{fmtPrice(p.price)}원</s></td>
