@@ -708,7 +708,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             </button>
           </div>
           {/* 기간 조회 */}
-          <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'4px 0 12px', borderBottom:'1px solid #F1F5F9', marginBottom:12 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 18px', borderBottom:'1px solid #F1F5F9' }}>
             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
               <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:0 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
               <span style={{ color:'#94A3B8', flexShrink:0 }}>~</span>
@@ -717,9 +717,9 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             <button className="adm-btn adm-btn-primary" style={{ fontSize:12, width:'100%' }} onClick={() => loadSmsLogs()}>조회</button>
           </div>
           {logsLoading ? <PanelLoading /> : smsLogs.length === 0 ? (
-            <div className="adm-muted" style={{ padding:'24px 0', fontSize:13, textAlign:'center' }}>발송 이력 없음</div>
+            <div className="adm-muted" style={{ padding:'28px 18px', fontSize:13, textAlign:'center' }}>발송 이력 없음</div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 18px' }}>
               {smsLogs.map(log => (
                 <div key={log.id} style={{ padding:'12px 14px', border:'1px solid #EEF2F6', borderRadius:10, background:'#fff' }}>
                   <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
