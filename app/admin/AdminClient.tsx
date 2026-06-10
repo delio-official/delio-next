@@ -1487,6 +1487,7 @@ export default function AdminClient() {
   const [mediaHistoryOpen, setMediaHistoryOpen] = useState(false);
   const [mhLoading, setMhLoading] = useState(false);
   const [mhFilter, setMhFilter] = useState<'all' | 'banner' | 'popup'>('all');
+  const [mhPage, setMhPage] = useState(1); const [mhSize, setMhSize] = useState(10);
   const [popupModal, setPopupModal] = useState(false);
   const [editingPopup, setEditingPopup] = useState<AdminPopup | null>(null);
   const POPUP_EMPTY = { title: '', link_url: '/', width: 400, position: 'center', is_active: true, starts_at: '', ends_at: '' };
@@ -6220,7 +6221,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     </div>
                     <div className="adm-modal-body">
                     <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:16 }}>
-                      <AdmSelect value={mhFilter} onChange={v => setMhFilter(v as 'all'|'banner'|'popup')}
+                      <AdmSelect value={mhFilter} onChange={v => { setMhFilter(v as 'all'|'banner'|'popup'); setMhPage(1); }}
                         options={[{ value:'all', label:'전체' }, { value:'banner', label:'배너' }, { value:'popup', label:'팝업' }]} />
                       <button className="adm-btn adm-btn-outline" onClick={loadMediaHistory}>새로고침</button>
                       <span className="adm-muted" style={{ fontSize:12, marginLeft:'auto' }}>최근 200건</span>
@@ -6229,9 +6230,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       const rows = mediaHistory.filter(h => mhFilter === 'all' || h.entity_type === mhFilter);
                       if (rows.length === 0) return <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0' }}>변경 이력이 없습니다. (이 기능 적용 후 등록/수정/삭제부터 기록됩니다)</div>;
                       const ACT: Record<string, { t:string; c:string }> = { create:{ t:'등록', c:'badge-on' }, update:{ t:'수정', c:'badge-paid' }, delete:{ t:'삭제', c:'badge-off' } };
+                      const mhCur = Math.min(Math.max(1, mhPage), Math.max(1, Math.ceil(rows.length / mhSize)));
+                      const pagedRows = rows.slice((mhCur - 1) * mhSize, mhCur * mhSize);
                       return (
+                        <>
                         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                          {rows.map(h => {
+                          {pagedRows.map(h => {
                             const snap = h.snapshot as Record<string, unknown>;
                             const img = (snap.image_url as string) || (snap.thumbnail_url as string) || '';
                             const act = ACT[h.action] || { t:h.action, c:'badge-off' };
@@ -6255,6 +6259,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                             );
                           })}
                         </div>
+                        <Pager page={mhCur} pageSize={mhSize} total={rows.length} onPage={setMhPage} onPageSize={setMhSize} />
+                        </>
                       );
                     })()}
                     </div>
