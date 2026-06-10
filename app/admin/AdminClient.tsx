@@ -6218,7 +6218,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <span className="adm-modal-title">📜 배너 / 팝업 변경 이력</span>
                       <button className="adm-modal-close" onClick={() => setMediaHistoryOpen(false)}>✕</button>
                     </div>
-                    <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:12 }}>
+                    <div className="adm-modal-body">
+                    <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:16 }}>
                       <AdmSelect value={mhFilter} onChange={v => setMhFilter(v as 'all'|'banner'|'popup')}
                         options={[{ value:'all', label:'전체' }, { value:'banner', label:'배너' }, { value:'popup', label:'팝업' }]} />
                       <button className="adm-btn adm-btn-outline" onClick={loadMediaHistory}>새로고침</button>
@@ -6256,6 +6257,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         </div>
                       );
                     })()}
+                    </div>
                   </div>
                 </div>
               )}
