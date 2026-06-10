@@ -16,7 +16,7 @@ export interface SectionMeta {
 
 export const HOME_SECTIONS: Record<string, SectionMeta> = {
   pick:     { key:'pick',     label:'델리오 픽',      modes:['popular','latest','views','manual'], defaultCount:6,  countKey:'pick_count' },
-  qg:       { key:'qg',       label:'퀵 가이드',      modes:['latest','popular','views'],          defaultCount:8,  countKey:'qg_count' },
+  qg:       { key:'qg',       label:'퀵 가이드',      modes:['latest','popular','views','manual'], defaultCount:8,  countKey:'qg_count' },
   brand:    { key:'brand',    label:'브랜드 직송관',  modes:['latest','popular','views','manual'], defaultCount:4, countKey:'brand_count' },
   reviewhl: { key:'reviewhl', label:'리뷰 하이라이트', modes:['latest','popular','manual'],         defaultCount:6,  countKey:'reviewhl_count' },
   lounge:   { key:'lounge',   label:'델리오 라운지',  modes:['manual','latest','views'],           defaultCount:3,  countKey:'lounge_count' },
@@ -60,6 +60,20 @@ export function orderColumn(sec: string, mode: SectionMode): { col: string; asc:
     return { col: 'review_count', asc: false }; // 상품
   }
   return { col: 'created_at', asc: false };
+}
+
+/** 퀵가이드 직접선택: 카테고리별 id 목록 맵 (JSON) 파싱 */
+export function parseBucketMap(s: string): Record<string, string[]> {
+  if (!s) return {};
+  try {
+    const o = JSON.parse(s);
+    if (o && typeof o === 'object' && !Array.isArray(o)) {
+      const out: Record<string, string[]> = {};
+      for (const k of Object.keys(o)) if (Array.isArray(o[k])) out[k] = o[k].map(String);
+      return out;
+    }
+  } catch { /* noop */ }
+  return {};
 }
 
 /** 가져온 행을 ids 순서대로 재정렬 (manual) */

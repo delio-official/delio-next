@@ -2,19 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
-import { HOME_SECTIONS, MODE_LABEL, parseSectionConfig, type SectionMode } from '@/lib/homeSections';
+import { HOME_SECTIONS, MODE_LABEL, parseSectionConfig, parseBucketMap, type SectionMode } from '@/lib/homeSections';
 
-export interface CurationItem { id: string; label: string; sub?: string; }
+export interface CurationItem { id: string; label: string; sub?: string; bucket?: string; }
 
 /** 메인페이지 섹션 노출 설정 카드 (어드민 각 관리 탭에 삽입)
    - 노출 방식: 최신/인기/조회/직접 (섹션별 가능 목록)
    - 노출 개수
-   - 직접 선택 시: 후보에서 골라 순서 지정 → site_settings 저장 */
-export default function SectionCuration({ sec, items }: { sec: string; items: CurationItem[] }) {
+   - 직접 선택 시: 후보에서 골라 순서 지정 → site_settings 저장
+   - buckets 전달 시(퀵가이드): 카테고리별로 직접선택, ids 는 JSON 맵으로 저장 */
+export default function SectionCuration({ sec, items, buckets }: {
+  sec: string; items: CurationItem[]; buckets?: { value: string; label: string }[];
+}) {
   const meta = HOME_SECTIONS[sec];
+  const hasBuckets = !!(buckets && buckets.length > 0);
   const [mode, setMode] = useState<SectionMode>(meta?.modes[0] ?? 'latest');
   const [count, setCount] = useState(meta?.defaultCount ?? 6);
-  const [ids, setIds] = useState<string[]>([]);
+  const [ids, setIds] = useState<string[]>([]);                       // 평면 (일반 섹션)
+  const [idsMap, setIdsMap] = useState<Record<string, string[]>>({}); // 카테고리별 (퀵가이드)
+  const [bucket, setBucket] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -28,24 +34,39 @@ export default function SectionCuration({ sec, items }: { sec: string; items: Cu
       const map: Record<string, string> = {};
       ((data as { key: string; value: string }[]) || []).forEach(r => { map[r.key] = r.value; });
       const cfg = parseSectionConfig(map, sec);
-      setMode(cfg.mode); setCount(cfg.count); setIds(cfg.ids); setLoaded(true);
+      setMode(cfg.mode); setCount(cfg.count);
+      if (hasBuckets) setIdsMap(parseBucketMap(map[`${sec}_ids`] || ''));
+      else setIds(cfg.ids);
+      setLoaded(true);
     })();
   }, [sec]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (hasBuckets && !bucket && buckets) setBucket(buckets[0].value); }, [hasBuckets, buckets, bucket]);
+
+  /* 현재 편집 중인 id 목록 (버킷이면 해당 카테고리, 아니면 평면) */
+  const curIds = hasBuckets ? (idsMap[bucket] || []) : ids;
+  const setCurIds = (fn: (prev: string[]) => string[]) => {
+    if (hasBuckets) setIdsMap(prev => ({ ...prev, [bucket]: fn(prev[bucket] || []) }));
+    else setIds(fn);
+  };
 
   async function save() {
     setSaving(true);
     const supabase = createClient();
+    const idsValue = hasBuckets ? JSON.stringify(idsMap) : ids.join(',');
     const rows = [
       { key: `${sec}_mode`, value: mode },
-      { key: `${sec}_ids`, value: ids.join(',') },
+      { key: `${sec}_ids`, value: idsValue },
       { key: meta.countKey, value: String(count) },
     ];
     await supabase.from('site_settings').upsert(rows, { onConflict: 'key' });
     setSaving(false); setMsg('저장됐어요 ✓'); setTimeout(() => setMsg(''), 2500);
   }
 
-  const selected = ids.map(id => items.find(i => i.id === id)).filter((v): v is CurationItem => !!v);
-  const filtered = items.filter(i => !ids.includes(i.id) &&
+  /* 버킷이면 후보를 현재 카테고리 상품으로 제한 */
+  const candItems = hasBuckets ? items.filter(i => i.bucket === bucket) : items;
+  const selected = curIds.map(id => candItems.find(i => i.id === id) || items.find(i => i.id === id)).filter((v): v is CurationItem => !!v);
+  const filtered = candItems.filter(i => !curIds.includes(i.id) &&
     (q === '' || i.label.toLowerCase().includes(q.toLowerCase()) || (i.sub || '').toLowerCase().includes(q.toLowerCase())))
     .slice(0, 30);
 
@@ -84,9 +105,21 @@ export default function SectionCuration({ sec, items }: { sec: string; items: Cu
           {mode === 'latest' && '최근 등록순으로 자동 노출됩니다.'}
           {mode === 'popular' && '인기순(리뷰·좋아요·찜)으로 자동 노출됩니다.'}
           {mode === 'views' && '조회수 높은 순으로 자동 노출됩니다.'}
-          {mode === 'manual' && '아래에서 직접 고른 항목이 고른 순서대로 노출됩니다.'}
+          {mode === 'manual' && (hasBuckets
+            ? '카테고리 탭마다 직접 고른 상품이 그 순서대로 노출됩니다. (플래그 탭은 자동 정렬)'
+            : '아래에서 직접 고른 항목이 고른 순서대로 노출됩니다.')}
         </div>
       </div>
+
+      {mode === 'manual' && hasBuckets && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 12, color: '#475569', fontWeight: 700 }}>카테고리</span>
+          <select value={bucket} onChange={e => { setBucket(e.target.value); setQ(''); }}
+            style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, background: '#fff' }}>
+            {buckets!.map(b => <option key={b.value} value={b.value}>{b.label}{(idsMap[b.value]?.length ? ` (${idsMap[b.value].length})` : '')}</option>)}
+          </select>
+        </div>
+      )}
 
       {mode === 'manual' && (
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -103,11 +136,11 @@ export default function SectionCuration({ sec, items }: { sec: string; items: Cu
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
                       {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
                     </div>
-                    <button onClick={() => setIds(p => { const a = [...p]; if (idx > 0) { [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; } return a; })}
+                    <button onClick={() => setCurIds(p => { const a = [...p]; if (idx > 0) { [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; } return a; })}
                       disabled={idx === 0} style={btnMini}>▲</button>
-                    <button onClick={() => setIds(p => { const a = [...p]; if (idx < a.length - 1) { [a[idx + 1], a[idx]] = [a[idx], a[idx + 1]]; } return a; })}
+                    <button onClick={() => setCurIds(p => { const a = [...p]; if (idx < a.length - 1) { [a[idx + 1], a[idx]] = [a[idx], a[idx + 1]]; } return a; })}
                       disabled={idx === selected.length - 1} style={btnMini}>▼</button>
-                    <button onClick={() => setIds(p => p.filter(x => x !== it.id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA' }}>×</button>
+                    <button onClick={() => setCurIds(p => p.filter(x => x !== it.id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA' }}>×</button>
                   </div>
                 ))}
             </div>
@@ -120,7 +153,7 @@ export default function SectionCuration({ sec, items }: { sec: string; items: Cu
               {filtered.length === 0
                 ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>{items.length === 0 ? '항목을 불러오는 중…' : '검색 결과 없음'}</div>
                 : filtered.map(it => (
-                  <div key={it.id} onClick={() => setIds(p => [...p, it.id])}
+                  <div key={it.id} onClick={() => setCurIds(p => [...p, it.id])}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#F1F5F9')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>

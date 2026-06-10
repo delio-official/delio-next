@@ -5676,8 +5676,10 @@ export default function AdminClient() {
           {/* ===== 상품 관리 ===== */}
           {panel === 'products' && (
             <div className="adm-content">
-              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: p.category }))} />
-              <SectionCuration sec="qg" items={[]} />
+              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category }))} />
+              <SectionCuration sec="qg"
+                buckets={[...new Set(products.map(p => p.category))].map(c => ({ value: c, label: catOptions[c] || CAT_LABEL[c] || c }))}
+                items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category, bucket: p.category }))} />
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
                   { l:'전체 상품', v:products.length, st:'' as const, red:false },

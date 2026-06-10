@@ -8,7 +8,7 @@ import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
-import { fetchSectionConfig, orderColumn, orderByIds } from '@/lib/homeSections';
+import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
@@ -304,10 +304,27 @@ function QuickGuide() {
       setLoading(true);
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'qg');
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category';
+
+      /* 직접 선택: 카테고리별 지정 상품 (플래그 탭/미지정 카테고리는 자동 정렬로 폴백) */
+      if (cfg.mode === 'manual') {
+        const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
+        const bmap = parseBucketMap(row?.value || '');
+        const picked = bmap[activeCat] || [];
+        if (picked.length > 0) {
+          const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', picked);
+          if (!cancelled) {
+            setItems(orderByIds((data as QGProduct[]) || [], picked).slice(0, cfg.count));
+            setLoading(false);
+          }
+          return;
+        }
+      }
+
       const ord = orderColumn('qg', cfg.mode === 'manual' ? 'latest' : cfg.mode);
       let q = supabase
         .from('products')
-        .select('id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category')
+        .select(cols)
         .eq('is_active', true);
       if      (activeCat === 'best') q = (q as any).eq('is_best', true);
       else if (activeCat === 'dawn') q = (q as any).eq('is_dawn', true);
