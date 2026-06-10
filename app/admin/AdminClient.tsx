@@ -8615,89 +8615,69 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 </div>
               </div>
 
+              {/* 표시 · 배송 설정 */}
               <div className="adm-card adm-card-settings">
-                <div className="adm-card-head"><span className="adm-card-title">홈 화면 설정</span></div>
+                <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
                 <div className="adm-form">
                   <div className="adm-form-row">
                     <label className="adm-label">델리오 픽 노출 수</label>
                     <div className="adm-flex-center-gap">
-                      <input
-                        type="number"
-                        className="adm-input-text adm-input-w100"
-                        value={siteSettings.pick_count ?? '6'}
-                        min={3} max={12} step={3}
-                        onChange={e => setSiteSettings(prev => ({ ...prev, pick_count: e.target.value }))}
-                      />
+                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.pick_count ?? '6'} min={3} max={12} step={3} onChange={e => setSiteSettings(prev => ({ ...prev, pick_count: e.target.value }))} />
                       <span className="adm-muted">개 (3·6·9·12 권장)</span>
                     </div>
                   </div>
                   <div className="adm-form-row">
                     <label className="adm-label">전체 출발 마감 시간 (기본값)</label>
                     <div className="adm-flex-center-gap">
-                      <input
-                        type="text"
-                        className="adm-input-text adm-input-w100"
-                        value={siteSettings.dispatch_cutoff ?? ''}
-                        placeholder="예: 14:00"
-                        onChange={e => setSiteSettings(prev => ({ ...prev, dispatch_cutoff: e.target.value }))}
-                      />
-                      <span className="adm-muted">상품별 설정이 없으면 이 값으로 표시</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">고객센터 전화번호</label>
-                    <input
-                      type="text"
-                      className="adm-input-text"
-                      style={{ maxWidth:200 }}
-                      value={siteSettings.cs_phone ?? ''}
-                      placeholder="예: 02-0000-0000"
-                      onChange={e => setSiteSettings(prev => ({ ...prev, cs_phone: e.target.value }))}
-                    />
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">회원가입 쿠폰 금액</label>
-                    <div className="adm-flex-center-gap">
-                      <input
-                        type="number"
-                        className="adm-input-text adm-input-w100"
-                        value={siteSettings.signup_coupon ?? '5000'}
-                        min={0} step={1000}
-                        onChange={e => setSiteSettings(prev => ({ ...prev, signup_coupon: e.target.value }))}
-                      />
-                      <span className="adm-muted">원</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">포인트 적립 사용</label>
-                    <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
-                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'}
-                        onChange={v => setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }))} />
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>끄면 구매 시 포인트가 적립되지 않습니다.</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">포인트 비율</label>
-                    <div className="adm-flex-center-gap">
-                      <input
-                        type="number"
-                        className="adm-input-text adm-input-w100"
-                        value={siteSettings.point_rate ?? '1'}
-                        min={0} max={10} step={0.5}
-                        onChange={e => setSiteSettings(prev => ({ ...prev, point_rate: e.target.value }))}
-                      />
-                      <span className="adm-muted">% (구매금액 기준)</span>
+                      <input type="text" className="adm-input-text adm-input-w100" value={siteSettings.dispatch_cutoff ?? ''} placeholder="예: 14:00" onChange={e => setSiteSettings(prev => ({ ...prev, dispatch_cutoff: e.target.value }))} />
+                      <span className="adm-muted">상품별 설정 없으면 이 값으로 표시</span>
                     </div>
                   </div>
                   <div className="adm-form-row">
                     <label className="adm-label">상단 배송안내 탭 노출</label>
-                    <Toggle
-                      defaultOn={siteSettings.show_shipping_tab !== 'false'}
-                      onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))}
-                    />
+                    <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                   </div>
+                </div>
+              </div>
+
+              {/* 적립 · 혜택 · 고객센터 */}
+              <div className="adm-card adm-card-settings">
+                <div className="adm-card-head"><span className="adm-card-title">적립 · 혜택 · 고객센터</span></div>
+                <div className="adm-form">
+                  <div className="adm-form-row">
+                    <label className="adm-label">포인트 적립 사용</label>
+                    <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }))} />
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>끄면 구매 시 포인트가 적립되지 않습니다. (적립률 상세는 쿠폰/포인트 탭)</span>
+                    </div>
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">포인트 적립률</label>
+                    <div className="adm-flex-center-gap">
+                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.point_rate ?? '1'} min={0} max={10} step={0.5} onChange={e => setSiteSettings(prev => ({ ...prev, point_rate: e.target.value }))} />
+                      <span className="adm-muted">% (구매금액 기준)</span>
+                    </div>
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">회원가입 쿠폰 금액</label>
+                    <div className="adm-flex-center-gap">
+                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.signup_coupon ?? '5000'} min={0} step={1000} onChange={e => setSiteSettings(prev => ({ ...prev, signup_coupon: e.target.value }))} />
+                      <span className="adm-muted">원</span>
+                    </div>
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">고객센터 전화번호</label>
+                    <input type="text" className="adm-input-text" style={{ maxWidth:200 }} value={siteSettings.cs_phone ?? ''} placeholder="예: 02-0000-0000" onChange={e => setSiteSettings(prev => ({ ...prev, cs_phone: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 인기 검색어 */}
+              <div className="adm-card adm-card-settings">
+                <div className="adm-card-head"><span className="adm-card-title">인기 검색어 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>· 검색창·검색페이지 추천</span></span></div>
+                <div className="adm-form">
                   <div className="adm-form-row" style={{ alignItems:'flex-start' }}>
-                    <label className="adm-label" style={{ paddingTop:6 }}>인기 검색어</label>
+                    <label className="adm-label" style={{ paddingTop:6 }}>순위</label>
                     <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1 }}>
                       <button className="adm-btn adm-btn-outline" style={{ alignSelf:'flex-start', fontSize:13 }}
                         onClick={() => {
