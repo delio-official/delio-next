@@ -5567,15 +5567,15 @@ export default function AdminClient() {
               ) : (
                 <>
                   {/* 포인트 적립 설정 */}
-                  <div className="adm-card" style={{ marginBottom:16 }}>
-                    <div className="adm-card-head">
+                  <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
+                    <div className="adm-card-head" style={{ paddingBottom:16, marginBottom:18, borderBottom:'1px solid #EEF2F6' }}>
                       <div>
                         <div className="adm-card-title">포인트 적립 설정</div>
-                        <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>구매액에 대한 포인트 적립률과 적용일을 설정할 수 있습니다.</div>
+                        <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>구매액에 대한 포인트 적립률과 적용일을 설정할 수 있습니다.</div>
                       </div>
                     </div>
                     {/* 시스템 활성화 토글 */}
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'12px 14px', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, margin:'10px 0 14px' }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'14px 16px', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, margin:'0 0 18px' }}>
                       <div>
                         <div style={{ fontWeight:700, fontSize:13 }}>포인트 시스템 활성화</div>
                         <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>포인트 적립 및 사용 기능을 활성화합니다.</div>
@@ -5587,7 +5587,7 @@ export default function AdminClient() {
                       const ptEff = effectivePointRatePct(siteSettings);
                       const ptPending = pendingPointChange(siteSettings);
                       return (
-                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:4 }}>
+                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:0 }}>
                       <div className="adm-kpi-card" style={{ background:'#EFF6FF', border:'1px solid #DBEAFE' }}>
                         <div className="adm-kpi-label">현재 적립률</div>
                         <div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#2563EB' }}>{ptEff}%</div>
@@ -5608,7 +5608,7 @@ export default function AdminClient() {
                     })()}
                     {/* 설정 수정 버튼 / 설정 변경 폼 */}
                     {!ptEdit ? (
-                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:18 }}>
                         <button className="adm-btn adm-btn-primary" onClick={openPtEdit}>설정 수정</button>
                       </div>
                     ) : (
