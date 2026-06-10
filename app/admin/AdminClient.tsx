@@ -1549,6 +1549,8 @@ export default function AdminClient() {
   const [inquiryTab, setInquiryTab] = useState('tab-general');
   const [inquiryFrom, setInquiryFrom] = useState('');
   const [inquiryTo, setInquiryTo] = useState('');
+  const [inquirySearch, setInquirySearch] = useState('');
+  const [inquiryTypeFilter, setInquiryTypeFilter] = useState('');
 
   /* ── 사이트 설정 ── */
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({ pick_count: '6' });
@@ -6921,11 +6923,21 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <span className="adm-card-title">입점·협업 문의</span>
                   <span className="adm-badge badge-paid">총 {inquiries.length}건</span>
                 </div>
-                <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  <AdmSelect value={inquiryTypeFilter} onChange={setInquiryTypeFilter}
+                    options={[{ value:'', label:'전체 유형' }, ...[...new Set(inquiries.map(i => i.inquiry_type).filter(Boolean))].map(t => ({ value:t as string, label:t as string }))]} />
+                  <div style={{ display:'inline-flex', gap:4 }}>
+                    {([['오늘',0],['3일',3],['1주일',7],['1개월',30],['3개월',90]] as const).map(([lb, d]) => (
+                      <button key={lb} className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'5px 10px' }}
+                        onClick={() => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - d); setInquiryFrom(from.toISOString().slice(0,10)); setInquiryTo(to.toISOString().slice(0,10)); }}>{lb}</button>
+                    ))}
+                  </div>
                   <input type="date" className="adm-select" value={inquiryFrom} onChange={e => setInquiryFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={inquiryTo} onChange={e => setInquiryTo(e.target.value)} />
-                  {(inquiryFrom || inquiryTo) && <button className="adm-btn adm-btn-outline" onClick={() => { setInquiryFrom(''); setInquiryTo(''); }}>초기화</button>}
+                  <input type="text" className="adm-input-text" placeholder="업체·이름·연락처·이메일·내용 검색"
+                    value={inquirySearch} onChange={e => setInquirySearch(e.target.value)} />
+                  {(inquiryFrom || inquiryTo || inquirySearch || inquiryTypeFilter) && <button className="adm-btn adm-btn-outline" onClick={() => { setInquiryFrom(''); setInquiryTo(''); setInquirySearch(''); setInquiryTypeFilter(''); }}>초기화</button>}
                 </div>
               </div>
               <TabBtns active={inquiryTab} setActive={setInquiryTab}
@@ -6942,7 +6954,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   const base = inquiryTab === 'tab-general' ? pendingInquiries
                              : inquiryTab === 'tab-done'    ? doneInquiries
                              : inquiries;
-                  const list = base.filter(i => inDate(i.created_at));
+                  const q = inquirySearch.trim().toLowerCase();
+                  const list = base.filter(i =>
+                    inDate(i.created_at) &&
+                    (!inquiryTypeFilter || i.inquiry_type === inquiryTypeFilter) &&
+                    (!q || [i.company, i.contact, i.email, i.message].some(v => (v || '').toLowerCase().includes(q)))
+                  );
                   return (
                     <div className="adm-table-wrap">
                       <table className="adm-table">
