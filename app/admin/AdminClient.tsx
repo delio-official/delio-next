@@ -469,6 +469,26 @@ function PanelLoading() {
   return <div style={{ textAlign:'center', padding:'60px 0', color:'#94A3B8', fontSize:14 }}>불러오는 중...</div>;
 }
 
+/* ===== 페이지네이션 (페이지 크기 선택 + 이전/다음) ===== */
+function Pager({ page, pageSize, total, onPage, onPageSize }: {
+  page: number; pageSize: number; total: number;
+  onPage: (p: number) => void; onPageSize: (n: number) => void;
+}) {
+  if (total === 0) return null;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const cur = Math.min(Math.max(1, page), totalPages);
+  return (
+    <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14, flexWrap:'wrap' }}>
+      <AdmSelect value={String(pageSize)} onChange={v => { onPageSize(Number(v)); onPage(1); }}
+        options={[10, 20, 30, 50, 100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
+      <button className="adm-btn adm-btn-outline" disabled={cur <= 1} onClick={() => onPage(cur - 1)}>이전</button>
+      <span className="adm-muted" style={{ fontSize:13 }}>{cur} / {totalPages}</span>
+      <button className="adm-btn adm-btn-outline" disabled={cur >= totalPages} onClick={() => onPage(cur + 1)}>다음</button>
+      <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {total.toLocaleString()}건</span>
+    </div>
+  );
+}
+
 /* ===== SMS 발송 패널 ===== */
 function SmsPanel({ members, loadMembers, membersLoading }: {
   members: AdminProfile[];
@@ -1367,6 +1387,10 @@ export default function AdminClient() {
   const [pointMembers, setPointMembers] = useState<AdminProfile[]>([]);
   const [pointMembersLoading, setPointMembersLoading] = useState(false);
   const [pointSearch, setPointSearch] = useState('');
+  /* 페이지네이션: 포인트 회원 / 포인트 내역 / 회원관리 */
+  const [pmPage, setPmPage] = useState(1); const [pmSize, setPmSize] = useState(10);
+  const [plPage, setPlPage] = useState(1); const [plSize, setPlSize] = useState(10);
+  const [memPage, setMemPage] = useState(1); const [memSize, setMemSize] = useState(10);
   /* 포인트 적립 설정 */
   const [ptEdit, setPtEdit] = useState(false);
   const [ptRate, setPtRate] = useState('1');
@@ -3569,6 +3593,14 @@ export default function AdminClient() {
     return matchGrade && matchBlock && matchProvider && matchSearch;
   });
 
+  /* 페이지 슬라이스 (포인트회원 / 포인트내역 / 회원관리) */
+  const pmCur = Math.min(Math.max(1, pmPage), Math.max(1, Math.ceil(filteredPointMembers.length / pmSize)));
+  const pagedPointMembers = filteredPointMembers.slice((pmCur - 1) * pmSize, pmCur * pmSize);
+  const plCur = Math.min(Math.max(1, plPage), Math.max(1, Math.ceil(pointLogs.length / plSize)));
+  const pagedPointLogs = pointLogs.slice((plCur - 1) * plSize, plCur * plSize);
+  const memCur = Math.min(Math.max(1, memPage), Math.max(1, Math.ceil(filteredMembers.length / memSize)));
+  const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
+
   /* 필터된 라운지 */
   const filteredLounge = loungeFilter
     ? loungePosts.filter(p => p.filter === loungeFilter)
@@ -5645,7 +5677,7 @@ export default function AdminClient() {
                           <tbody>
                             {filteredPointMembers.length === 0 ? (
                               <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>회원 없음</td></tr>
-                            ) : filteredPointMembers.map(m => (
+                            ) : pagedPointMembers.map(m => (
                               <tr key={m.id}>
                                 <td style={{ fontWeight:500 }}>{m.name}</td>
                                 <td className="adm-muted" style={{ fontSize:12 }}>{m.email}</td>
@@ -5670,6 +5702,7 @@ export default function AdminClient() {
                       </div>
                     )}
                   </div>
+                  <Pager page={pmCur} pageSize={pmSize} total={filteredPointMembers.length} onPage={setPmPage} onPageSize={setPmSize} />
 
                   {/* 포인트 지급/사용 내역 (기간별) */}
                   <div className="adm-toolbar" style={{ marginTop:20, flexWrap:'wrap', gap:8 }}>
@@ -5690,7 +5723,7 @@ export default function AdminClient() {
                         <tbody>
                           {pointLogs.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 기간 포인트 내역이 없습니다.</td></tr>
-                          ) : pointLogs.map(l => (
+                          ) : pagedPointLogs.map(l => (
                             <tr key={l.id}>
                               <td className="adm-muted">{fmtDate(l.created_at)}</td>
                               <td>{l.profiles?.name || '-'} <span className="adm-muted" style={{ fontSize:11 }}>{l.profiles?.email || ''}</span></td>
@@ -5709,6 +5742,7 @@ export default function AdminClient() {
                       </table>
                     </div>
                   </div>
+                  <Pager page={plCur} pageSize={plSize} total={pointLogs.length} onPage={setPlPage} onPageSize={setPlSize} />
                 </>
               )}
             </div>
@@ -6460,7 +6494,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {members.length === 0 ? '회원 없음' : '검색 결과 없음'}
                           </td></tr>
-                        ) : filteredMembers.map(m => (
+                        ) : pagedMembers.map(m => (
                           <tr key={m.id} style={{ opacity: m.is_blocked ? 0.55 : 1 }}>
                             <td style={{ fontWeight:500 }}>
                               {m.memo && <span title={m.memo} style={{ marginRight:4, cursor:'help' }}>📌</span>}
@@ -6496,6 +6530,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 )}
               </div>
+              <Pager page={memCur} pageSize={memSize} total={filteredMembers.length} onPage={setMemPage} onPageSize={setMemSize} />
             </div>
           )}
 
