@@ -5504,27 +5504,32 @@ export default function AdminClient() {
                         {pack.length === 0 ? (
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 신규회원 쿠폰이 없습니다. 우측 “+ 신규회원 쿠폰 추가”로 만드세요.</div>
                         ) : (
-                          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                            {pack.map(c => {
-                              const relative = c.valid_days != null;
-                              const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
-                              return (
-                                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap', background:'#fff', borderRadius:8, padding:'11px 14px', border:'1px solid #FEF3C7', opacity: c.is_active ? 1 : 0.55 }}>
-                                  <span style={{ fontWeight:700, minWidth:120 }}>{c.name}</span>
-                                  <span style={{ fontWeight:800, color:'#B45309', minWidth:70 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</span>
-                                  <span style={{ fontSize:12, color:'#475569' }}>
-                                    유효기간: {relative ? <strong>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
-                                  </span>
-                                  {!c.is_active && <span className="adm-badge badge-off" style={{ fontSize:11 }}>비활성</span>}
-                                  {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700 }}>⚠️ 고정 만료일이 지남 → 유효기간(N일)으로 변경 필요</span>}
-                                  <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                                    <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
-                                    <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
-                                    <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          <div className="adm-table-wrap" style={{ background:'#fff', borderRadius:8, border:'1px solid #FEF3C7' }}>
+                            <table className="adm-table">
+                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
+                              <tbody>
+                                {pack.map(c => {
+                                  const relative = c.valid_days != null;
+                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                                  return (
+                                    <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
+                                      <td style={{ fontWeight:700 }}>{c.name}</td>
+                                      <td style={{ fontWeight:800, color:'#B45309' }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
+                                      <td className="adm-muted" style={{ fontSize:12 }}>
+                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
+                                      </td>
+                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
+                                      <td style={{ display:'flex', gap:6 }}>
+                                        <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                        <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                        <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
                         )}
                       </div>
