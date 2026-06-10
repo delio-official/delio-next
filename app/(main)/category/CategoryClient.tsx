@@ -133,21 +133,21 @@ function ProductCard({ p }: { p: Product }) {
           {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
-        {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
+        <div className="product-card-desc">{p.short_desc || ''}</div>
         <div className="product-price-row">
           {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
           <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
           {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
         </div>
-        {p.review_count > 0 && (
-          <div className="product-rating-row">
+        <div className="product-rating-row">
+          {p.review_count > 0 && (
             <div className="rating-stars">
               <SingleStar size={13} />
               <span>{p.avg_rating.toFixed(1)}</span>
               <span style={{ color:'#bbb' }}>({reviewCount})</span>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </Link>
   );
