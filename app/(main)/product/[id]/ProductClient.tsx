@@ -482,6 +482,12 @@ export default function ProductClient() {
     if (product) gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* 모바일 하단 구매 CTA바가 있는 페이지 → 플로팅 버튼(카카오·맨위로)을 그 위로 올림 */
+  useEffect(() => {
+    document.body.classList.add('has-mobile-cta');
+    return () => document.body.classList.remove('has-mobile-cta');
+  }, []);
+
   /* 적립률: 로그인 회원 등급별(membership_tiers) — 비로그인은 비기너 기준 */
   useEffect(() => {
     (async () => {

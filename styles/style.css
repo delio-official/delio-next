@@ -831,6 +831,11 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 768px) {
   .kakao-float { bottom: calc(64px + 14px); }
   .scroll-active .kakao-float { bottom: calc(64px + 14px + 48px + 10px); }
+
+  /* 상품 상세 등 하단 구매 CTA바(bottom:58px·높이~60px)가 있는 페이지: 그 위로 */
+  body.has-mobile-cta .scroll-top-btn { bottom: 132px; }
+  body.has-mobile-cta .kakao-float { bottom: 132px; }
+  body.has-mobile-cta.scroll-active .kakao-float { bottom: calc(132px + 48px + 10px); }
 }
 
 /* ===== 버튼 ===== */
