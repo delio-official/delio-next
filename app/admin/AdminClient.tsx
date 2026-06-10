@@ -667,7 +667,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
                         <div style={{ fontSize:11, color:'#64748B', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.email || '-'}</div>
-                        <div style={{ fontSize:11, color:'#94A3B8' }}>📞 {m.phone}</div>
+                        <div style={{ fontSize:11, color:'#94A3B8' }}>{m.phone}</div>
                       </div>
                       <span className={`adm-badge ${m.grade === 'gold' || m.grade === 'vip' || m.grade === 'vvip' ? 'badge-gold' : 'badge-normal'}`} style={{ fontSize:10 }}>
                         {GRADE_LABEL_MAP[m.grade] || m.grade}
