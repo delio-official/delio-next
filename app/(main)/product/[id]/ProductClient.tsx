@@ -33,7 +33,7 @@ interface ProductOption {
 }
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
-  intro: string | null; slug: string;
+  intro: string | null; slug: string; thumbnail_url: string | null;
 }
 interface ProductInquiry {
   id: string;
@@ -1142,7 +1142,11 @@ export default function ProductClient() {
               {/* 농가 카드 */}
               {farm && (
                 <Link href={`/farm/${farm.slug}`} className="brand-card">
-                  <div className="brand-card-logo">{emoji}</div>
+                  <div className="brand-card-logo">
+                    {farm.thumbnail_url
+                      ? <img src={farm.thumbnail_url} alt={farm.name} />
+                      : emoji}
+                  </div>
                   <div className="brand-card-body">
                     <div className="brand-card-name">
                       {farm.name}
