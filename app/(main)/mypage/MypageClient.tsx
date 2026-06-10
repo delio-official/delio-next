@@ -766,7 +766,7 @@ export default function MypageClient() {
   const [withdrawing, setWithdrawing] = useState(false);
   async function handleWithdraw() {
     if (withdrawing) return;
-    if (!confirm('정말 탈퇴하시겠어요?\n\n· 보유 적립금·쿠폰이 모두 소멸됩니다.\n· 동일 계정(이메일)으로는 다시 가입할 수 없습니다.')) return;
+    if (!confirm('정말 탈퇴하시겠어요?\n\n· 보유 적립금·쿠폰이 모두 소멸됩니다.\n· 주문 내역 등 개인정보가 삭제됩니다.')) return;
     setWithdrawing(true);
     try {
       const res = await fetch('/api/account/withdraw', { method: 'POST' });

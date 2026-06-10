@@ -26,7 +26,11 @@ export async function POST() {
       .update({ name: '탈퇴회원', phone: null, birth: null, marketing_email: false, marketing_sms: false, push_enabled: false })
       .eq('id', user.id);
 
-    // auth 유저 소프트 삭제(= 재로그인 불가, 동일 이메일 재가입 차단). 2번째 인자 true = shouldSoftDelete
+    // 원래 이메일을 tombstone 으로 변경 → 같은 이메일로 재가입 가능하게 풀어줌
+    // (어뷰징 완전 차단은 B단계 본인인증 CI에서. withdrawn_users 에 원본 이메일은 보존됨)
+    await admin.auth.admin.updateUserById(user.id, { email: `withdrawn+${user.id}@deleted.delio.co.kr` });
+
+    // auth 유저 소프트 삭제(= 재로그인 불가). 2번째 인자 true = shouldSoftDelete
     const { error } = await admin.auth.admin.deleteUser(user.id, true);
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
