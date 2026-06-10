@@ -5318,6 +5318,10 @@ export default function AdminClient() {
                     </div>
                     {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
                       <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
+                        <span style={{ display:'inline-flex', gap:4 }}>
+                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
+                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
+                        </span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                         <span className={`adm-badge ${t.tab_type==='flag'?'badge-on':'badge-off'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
                         <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t[flagKey]} onChange={e => updateFt(t.id, { [flagKey]: e.target.checked } as Partial<FilterTab>)} />노출</label>
