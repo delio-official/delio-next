@@ -3482,7 +3482,7 @@ export default function AdminClient() {
   const dynCatLabel: Record<string, string> = filterTabs
     .filter(t => t.tab_type === 'category')
     .sort((a, b) => a.sort_order - b.sort_order)
-    .reduce((m, t) => { m[t.tab_value] = `${t.emoji ? t.emoji + ' ' : ''}${t.label}`; return m; }, {} as Record<string, string>);
+    .reduce((m, t) => { m[t.tab_value] = t.label; return m; }, {} as Record<string, string>);
   const catOptions = Object.keys(dynCatLabel).length ? dynCatLabel : CAT_LABEL;
   /* 카테고리 트리 (대분류/소분류) — filter_tabs(category형) */
   const catTabsAll = filterTabs.filter(t => t.tab_type === 'category');
@@ -3662,11 +3662,11 @@ export default function AdminClient() {
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                         <AdmSelect style={{ flex:'1 1 160px' }} value={majorVal}
                           onChange={v => setCat(v)}
-                          options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:`${m.emoji?m.emoji+' ':''}${m.label}` }))]} />
+                          options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
                         {majorVal && subs.length > 0 && (
                           <AdmSelect style={{ flex:'1 1 160px' }} value={subVal}
                             onChange={v => setCat(v || majorVal)}
-                            options={[{ value:'', label:'전체 (대분류 직속)' }, ...subs.map(s => ({ value:s.tab_value, label:`${s.emoji?s.emoji+' ':''}${s.label}` }))]} />
+                            options={[{ value:'', label:'전체 (대분류 직속)' }, ...subs.map(s => ({ value:s.tab_value, label:s.label }))]} />
                         )}
                       </div>
                     );
@@ -4209,11 +4209,6 @@ export default function AdminClient() {
                       onChange={e => setFtForm(f => ({ ...f, tab_value: e.target.value }))}
                       placeholder={ftForm.tab_type === 'category' ? '예: apple' : '예: /brand'} />
                   )}
-                </div>
-                <div>
-                  <label className="adm-label">이모지</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={ftForm.emoji}
-                    onChange={e => setFtForm(f => ({ ...f, emoji: e.target.value }))} placeholder="🍎" />
                 </div>
               </div>
               {ftForm.tab_type === 'category' && (
@@ -5031,13 +5026,13 @@ export default function AdminClient() {
                           return (
                             <div key={m.id} style={{ background:'#fff', border:'1px solid #FEF3C7', borderRadius:10, padding:'12px 14px', opacity: m.is_active ? 1 : 0.5 }}>
                               <div style={{ fontWeight:800, fontSize:13, marginBottom:8, color:'#B45309' }}>
-                                {m.label}{m.emoji ? ` ${m.emoji}` : ''}{!m.is_active && <span style={{ fontSize:10, color:'#94A3B8', marginLeft:4 }}>(꺼짐)</span>}
+                                {m.label}{!m.is_active && <span style={{ fontSize:10, color:'#94A3B8', marginLeft:4 }}>(꺼짐)</span>}
                               </div>
                               <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                                 <span style={{ fontSize:12, color:'#94A3B8' }}>└ 전체보기</span>
                                 {subs.map(s => (
                                   <span key={s.id} style={{ fontSize:12.5, color: s.is_active ? '#374151' : '#CBD5E1' }}>
-                                    └ {s.label}{s.emoji ? ` ${s.emoji}` : ''}{!s.is_active && ' (꺼짐)'}
+                                    └ {s.label}{!s.is_active && ' (꺼짐)'}
                                   </span>
                                 ))}
                                 {subs.length === 0 && <span style={{ fontSize:11, color:'#CBD5E1' }}>(소분류 없음)</span>}
@@ -5072,7 +5067,7 @@ export default function AdminClient() {
                                 <span key={t.id} style={{ display:'inline-flex', alignItems:'center', gap:4,
                                   padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff',
                                   fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>
-                                  {t.label}{t.emoji ? ` ${t.emoji}` : ''}
+                                  {t.label}
                                 </span>
                               ))}
                         </div>
@@ -5135,7 +5130,7 @@ export default function AdminClient() {
                             </td>
                             <td>
                               <span style={{ fontWeight: isMajor ? 800 : 600, paddingLeft: isSub ? 20 : 0, color: isSub ? '#475569' : '#1A1A1A' }}>
-                                {isSub && <span style={{ color:'#CBD5E1' }}>└ </span>}{t.label}{t.emoji ? ` ${t.emoji}` : ''}
+                                {isSub && <span style={{ color:'#CBD5E1' }}>└ </span>}{t.label}
                               </span>
                             </td>
                             <td>
@@ -5198,10 +5193,10 @@ export default function AdminClient() {
                       <div style={{ display:'flex', gap:28, flexWrap:'wrap' }}>
                         {majors.map(m => (
                           <div key={m.id} style={{ minWidth:110 }}>
-                            <div style={{ fontWeight:800, borderBottom:'2px solid #1A1A1A', paddingBottom:6, marginBottom:8 }}>{m.label}{m.emoji ? ` ${m.emoji}` : ''}</div>
+                            <div style={{ fontWeight:800, borderBottom:'2px solid #1A1A1A', paddingBottom:6, marginBottom:8 }}>{m.label}</div>
                             <div style={{ fontSize:12, color:'#94A3B8', marginBottom:5 }}>전체보기</div>
                             {filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                              <div key={s.id} style={{ fontSize:12.5, color:'#374151', marginBottom:5 }}>{s.label}{s.emoji ? ` ${s.emoji}` : ''}</div>
+                              <div key={s.id} style={{ fontSize:12.5, color:'#374151', marginBottom:5 }}>{s.label}</div>
                             ))}
                           </div>
                         ))}

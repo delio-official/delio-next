@@ -35,14 +35,14 @@ interface Product {
 /* ── 카테고리 탭 ── */
 const CAT_TABS_FALLBACK = [
   { value: '', label: '전체' },
-  { value: 'apple',  label: '사과/배 🍎' },
-  { value: 'citrus', label: '감귤 🍊' },
-  { value: 'berry',  label: '베리류 🫐' },
-  { value: 'melon',  label: '멜론/참외 🍈' },
-  { value: 'kiwi',   label: '키위 🥝' },
-  { value: 'mango',  label: '망고 🥭' },
-  { value: 'grape',  label: '포도 🍇' },
-  { value: 'gift',   label: '선물세트 🎁' },
+  { value: 'apple',  label: '사과/배' },
+  { value: 'citrus', label: '감귤' },
+  { value: 'berry',  label: '베리류' },
+  { value: 'melon',  label: '멜론/참외' },
+  { value: 'kiwi',   label: '키위' },
+  { value: 'mango',  label: '망고' },
+  { value: 'grape',  label: '포도' },
+  { value: 'gift',   label: '선물세트' },
 ];
 
 const SORT_OPTS = [
@@ -201,7 +201,7 @@ export default function CategoryClient() {
   }, []);
 
   /* 대분류 / 소분류 행 구성 */
-  const lbl = (t: FilterTab) => `${t.label}${t.emoji ? ' ' + t.emoji : ''}`;
+  const lbl = (t: FilterTab) => t.label;
   const majors = catRows.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
   const catTabs = majors.length
     ? [{ value: '', label: '전체' }, ...majors.map(m => ({ value: m.tab_value, label: lbl(m) }))]
