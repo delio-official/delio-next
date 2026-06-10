@@ -653,12 +653,14 @@ export default function ProductClient() {
   const bg         = BG_MAP[product.category]    || BG_MAP.default;
   const basePrice  = product.discounted_price    ?? product.price;
   const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-  /* 2단(종속) 옵션: 첫 그룹=상위, 이후=하위. 하위는 parent_label이 선택된 상위 label과 맞을 때만 노출 */
+  /* 종속(2단) 옵션 여부: parent_label이 채워진 옵션이 있으면 종속, 없으면 독립 다중 그룹 */
+  const isCascade = options.some(o => !!(o.parent_label && o.parent_label.trim()));
   const parentGroup = optGroupNames[0];
   const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
   const optsForGroup = (g: string): ProductOption[] => {
     const inGroup = options.filter(o => (o.group_name || '옵션') === g);
-    if (g === parentGroup) return inGroup;
+    // 독립 그룹이거나 상위 그룹이면 전체 노출, 종속 하위는 선택된 상위에 맞는 것만
+    if (!isCascade || g === parentGroup) return inGroup;
     return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
   };
   const picksTotal    = picks.reduce((s, p) => s + (basePrice + p.opts.reduce((a, o) => a + (o.add_price || 0), 0)) * p.qty, 0);
@@ -1242,8 +1244,8 @@ export default function ProductClient() {
                       const gReq = options.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
                       const isDependent = gIdx > 0;
                       const groupOpts = optsForGroup(g);
-                      // 종속 그룹인데 상위 미선택이면 잠금
-                      const locked = isDependent && !selectedParentLabel;
+                      // 종속(2단) 하위 그룹인데 상위 미선택이면 잠금 (독립 그룹은 잠금 없음)
+                      const locked = isCascade && isDependent && !selectedParentLabel;
                       return (
                       <div key={g}>
                         <div className="option-label">{g === '옵션' ? '옵션 선택' : g}{gReq ? '' : ' (선택)'}</div>
@@ -1252,7 +1254,7 @@ export default function ProductClient() {
                           const open = openOptGroup === g;
                           const choose = (val: string) => {
                             const next = { ...selByGroup, [g]: val };
-                            if (g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
+                            if (isCascade && g === parentGroup) optGroupNames.slice(1).forEach(sub => { delete next[sub]; });
                             if (allGroupsSelected(next)) {
                               // 모든 (필수)그룹 선택 완료 → 조합을 누적 목록에 추가하고 선택 초기화
                               addPick(getSelectedOpts(next));

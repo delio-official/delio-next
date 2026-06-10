@@ -1029,42 +1029,25 @@ function OptionTreeEditor({ options, setOptions }: {
   setOptions: React.Dispatch<React.SetStateAction<POpt[]>>;
 }) {
   const groups = [...new Set(options.map(o => o.group))];
-  const twoLevel = groups.length >= 2;
-  const supName = groups[0] || '';
-  const subName = twoLevel ? groups[1] : (groups[0] || '');
-  const supReq = options.find(o => o.group === supName)?.required !== false;
-  const subReq = options.find(o => o.group === subName)?.required !== false;
   const idx = options.map((o, i) => ({ ...o, _i: i }));
-  const supOpts = twoLevel ? idx.filter(o => o.group === supName) : [];
-  const subOpts = idx.filter(o => o.group === subName);
 
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
   const setGroupReq = (g: string, req: boolean) => setOptions(prev => prev.map(o => o.group === g ? { ...o, required: req } : o));
-  const renameSup = (_i: number, oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => {
-    if (i === _i) return { ...o, label: nv };
-    if (o.group === subName && (o.parent_label || '') === (oldLabel || '')) return { ...o, parent_label: nv };
-    return o;
-  }));
   const startOne = () => setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]);
-  const startTwo = () => setOptions([
-    { group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' },
-    { group:'중량', required:true, label:'', add_price:0, stock:0, parent_label:'' },
-  ]);
   const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) setOptions([]); };
-  const addFlat = () => setOptions(prev => [...prev, { group: subName, required: subReq, label:'', add_price:0, stock:0, parent_label:'' }]);
-  const convertToTwo = () => setOptions(prev => [
-    { group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' },
-    ...prev.map(o => ({ ...o, parent_label:'' })),
-  ]);
-  const flattenToOne = () => setOptions(prev => prev.filter(o => o.group !== supName).map(o => ({ ...o, parent_label:'' })));
-  const addSup = () => setOptions(prev => {
-    const sup = prev.filter(o => o.group === supName);
-    const rest = prev.filter(o => o.group !== supName);
-    return [...sup, { group: supName, required: supReq, label:'', add_price:0, stock:0, parent_label:'' }, ...rest];
+  const addValue = (g: string) => {
+    const req = options.find(o => o.group === g)?.required !== false;
+    setOptions(prev => [...prev, { group: g, required: req, label:'', add_price:0, stock:0, parent_label:'' }]);
+  };
+  const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
+  const addGroup = () => setOptions(prev => {
+    const gs = [...new Set(prev.map(o => o.group))];
+    let n = gs.length + 1; let name = `옵션${n}`;
+    while (gs.includes(name)) { n++; name = `옵션${n}`; }
+    return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }];
   });
-  const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName, required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
 
   const reqToggle = (g: string, req: boolean) => (
     <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
@@ -1072,9 +1055,9 @@ function OptionTreeEditor({ options, setOptions }: {
       <button type="button" onClick={() => setGroupReq(g, false)} style={{ fontSize:11, padding:'4px 9px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600, background: !req ? '#1A1A1A':'#fff', color: !req ? '#fff':'#64748B' }}>선택</button>
     </div>
   );
-  const valueRow = (o: { _i:number; label:string; add_price:number; stock:number }, indent: boolean) => (
-    <div key={o._i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft: indent ? 16 : 0 }}>
-      {indent && <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>}
+  const valueRow = (o: { _i:number; label:string; add_price:number; stock:number }) => (
+    <div key={o._i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft:16 }}>
+      <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
       <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
       <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
       <input className="adm-input-text" style={{ width:84, minWidth:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
@@ -1091,60 +1074,36 @@ function OptionTreeEditor({ options, setOptions }: {
   if (options.length === 0) {
     return (
       <div>
-        <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션이 필요하면 아래에서 추가하세요.</div>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 1단계 옵션 <span style={{ color:'#94A3B8' }}>(예: 중량)</span></button>
-          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startTwo}>+ 2단계 옵션 <span style={{ color:'#94A3B8' }}>(예: 재배방식 → 중량)</span></button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!twoLevel) {
-    return (
-      <div style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
-          <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>옵션 이름</span>
-          <input className="adm-input-text" style={{ flex:1, maxWidth:180, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameGroup(subName, e.target.value)} />
-          {reqToggle(subName, subReq)}
-          <button type="button" onClick={clearAll} style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>옵션 없애기</button>
-        </div>
-        {subOpts.map(o => valueRow(o, false))}
-        {addBtn('+ 옵션값 추가', addFlat)}
-        <button type="button" onClick={convertToTwo} style={{ fontSize:12, color:'#7C3AED', background:'#fff', border:'1px dashed #DDD6FE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:6 }}>⬆ 상위 분류 추가 (2단계로)</button>
+        <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션 그룹이 필요하면 아래에서 추가하세요.</div>
+        <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 옵션 그룹 추가</button>
       </div>
     );
   }
 
   return (
-    <div style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
-        <span style={{ fontSize:11, color:'#1A8A4C', fontWeight:800 }}>1단계·상위</span>
-        <input className="adm-input-text" style={{ flex:1, maxWidth:160, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 재배방식" onChange={e => renameGroup(supName, e.target.value)} />
-        {reqToggle(supName, supReq)}
-        <button type="button" onClick={flattenToOne} style={{ fontSize:11, color:'#64748B', background:'#fff', border:'1px solid #E2E8F0', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>1단계로</button>
-        <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>없애기</button>
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+        <span style={{ fontSize:11, color:'#94A3B8' }}>그룹마다 고객이 1개씩 선택합니다 (예: <b>중량</b> + <b>재배방식</b> → 각각 선택)</span>
+        <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>옵션 없애기</button>
       </div>
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12, flexWrap:'wrap' }}>
-        <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800 }}>2단계·하위</span>
-        <input className="adm-input-text" style={{ flex:1, maxWidth:160, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameGroup(subName, e.target.value)} />
-        {reqToggle(subName, subReq)}
-        <span style={{ fontSize:11, color:'#94A3B8' }}>(가격·재고는 하위에만)</span>
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        {supOpts.map(sup => (
-          <div key={sup._i} style={{ border:'1px solid #EEF2F6', borderRadius:8, padding:'10px', background:'#fff' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+      {groups.map(g => {
+        const gReq = options.find(o => o.group === g)?.required !== false;
+        const gOpts = idx.filter(o => o.group === g);
+        return (
+          <div key={g} style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
               <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
-              <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 유기농방토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
-              <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>상위 삭제</button>
+              <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>그룹명</span>
+              <input className="adm-input-text" style={{ flex:1, maxWidth:180, minWidth:0, fontWeight:600 }} value={g} placeholder="예: 중량" onChange={e => renameGroup(g, e.target.value)} />
+              {reqToggle(g, gReq)}
+              <button type="button" onClick={() => removeGroup(g)} style={{ marginLeft:'auto', fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>그룹 삭제</button>
             </div>
-            {subOpts.filter(s => (s.parent_label || '') === (sup.label || '')).map(s => valueRow(s, true))}
-            {addBtn(`+ ${sup.label || '이 상위'}의 하위 추가`, () => addSubUnder(sup.label))}
+            {gOpts.map(o => valueRow(o))}
+            {addBtn(`+ ${g || '이 그룹'} 값 추가`, () => addValue(g))}
           </div>
-        ))}
-      </div>
-      {addBtn('+ 상위 옵션 추가', addSup)}
+        );
+      })}
+      {addBtn('+ 옵션 그룹 추가', addGroup)}
     </div>
   );
 }
