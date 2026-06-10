@@ -66,16 +66,17 @@ export async function GET(request: Request) {
     // 5) 신규/기존 회원 프로비저닝 (추천코드·프로필사진·웰컴쿠폰) — 빈 값만 채움
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: prof } = await supabase
+      // 프로필 갱신은 service-role(admin)로 — 유저 세션 클라이언트는 RLS로 provider 변경이 막혀 조용히 실패할 수 있음
+      const { data: prof } = await admin
         .from('profiles').select('referral_code, avatar_url, provider').eq('id', user.id).maybeSingle();
       const patch: Record<string, unknown> = {};
-      if (prof && !prof.referral_code) {
+      if (!prof?.referral_code) {
         patch.referral_code = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
       }
-      if (prof && !prof.avatar_url && avatar) patch.avatar_url = avatar;
+      if (!prof?.avatar_url && avatar) patch.avatar_url = avatar;
       // GoTrue admin.createUser가 provider를 email로 덮어쓰므로 naver로 직접 기록
-      if (prof && prof.provider !== 'naver') patch.provider = 'naver';
-      if (Object.keys(patch).length) await supabase.from('profiles').update(patch).eq('id', user.id);
+      if (prof?.provider !== 'naver') patch.provider = 'naver';
+      if (Object.keys(patch).length) await admin.from('profiles').update(patch).eq('id', user.id);
       await supabase.rpc('grant_signup_coupons');
     }
   } catch {
