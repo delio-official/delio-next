@@ -6685,7 +6685,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           <label className="adm-label">클릭 시 이동 페이지</label>
                           <AdmSelect className="adm-cs-full" style={{ marginBottom:8 }} value={ppDropVal}
                             onChange={v => {
-                              if (v === '__custom__') setPpForm(f => ({ ...f, link_url: f.link_url || '/' }));
+                              if (v === '__custom__') setPpForm(f => ({ ...f, link_url: isPpCustom ? f.link_url : '' }));
                               else setPpForm(f => ({ ...f, link_url: v }));
                             }}
                             options={QUICK_LINKS_PP.map(l => ({ value:l.url, label:`${l.label}${l.url !== '__custom__' ? ` — ${l.url}` : ''}` }))} />
@@ -6983,7 +6983,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           <label className="adm-label">클릭 시 이동 페이지</label>
                           <AdmSelect className="adm-cs-full" style={{ marginBottom:8 }} value={dropVal}
                             onChange={v => {
-                              if (v === '__custom__') setBnForm(f => ({ ...f, link_url: f.link_url || '/' }));
+                              if (v === '__custom__') setBnForm(f => ({ ...f, link_url: isCustomUrl ? f.link_url : '' }));
                               else setBnForm(f => ({ ...f, link_url: v }));
                             }}
                             options={QUICK_LINKS.map(l => ({ value:l.url, label:`${l.label}${l.url !== '__custom__' ? ` — ${l.url}` : ''}` }))} />
