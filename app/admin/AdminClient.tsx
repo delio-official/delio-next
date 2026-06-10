@@ -708,29 +708,33 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             </button>
           </div>
           {/* 기간 조회 */}
-          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 0', flexWrap:'wrap' }}>
-            <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:120 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
-            <span style={{ color:'#94A3B8' }}>~</span>
-            <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:120 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
-            <button className="adm-btn adm-btn-primary" style={{ fontSize:12, padding:'4px 12px' }} onClick={() => loadSmsLogs()}>조회</button>
+          <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'4px 0 12px', borderBottom:'1px solid #F1F5F9', marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:0 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
+              <span style={{ color:'#94A3B8', flexShrink:0 }}>~</span>
+              <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:0 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
+            </div>
+            <button className="adm-btn adm-btn-primary" style={{ fontSize:12, width:'100%' }} onClick={() => loadSmsLogs()}>조회</button>
           </div>
           {logsLoading ? <PanelLoading /> : smsLogs.length === 0 ? (
             <div className="adm-muted" style={{ padding:'24px 0', fontSize:13, textAlign:'center' }}>발송 이력 없음</div>
           ) : (
-            <div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {smsLogs.map(log => (
-                <div key={log.id} style={{ padding:'12px 16px', borderBottom:'1px solid #F1F5F9' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                    <span style={{ fontSize:11, background: log.status==='sent'?'#DCFCE7':'#FEE2E2', color: log.status==='sent'?'#166534':'#991B1B', borderRadius:4, padding:'1px 6px', fontWeight:700 }}>
+                <div key={log.id} style={{ padding:'12px 14px', border:'1px solid #EEF2F6', borderRadius:10, background:'#fff' }}>
+                  <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
+                    <span style={{ fontSize:11, background: log.status==='sent'?'#DCFCE7':'#FEE2E2', color: log.status==='sent'?'#166534':'#991B1B', borderRadius:4, padding:'2px 7px', fontWeight:700 }}>
                       {log.status==='sent' ? '발송완료' : '실패'}
                     </span>
-                    <span style={{ fontSize:11, background:'#F1F5F9', color:'#64748B', borderRadius:4, padding:'1px 6px', fontWeight:700 }}>{log.msg_type}</span>
+                    <span style={{ fontSize:11, background:'#F1F5F9', color:'#64748B', borderRadius:4, padding:'2px 7px', fontWeight:700, marginLeft:'auto' }}>{log.msg_type}</span>
                   </div>
-                  <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</div>
-                  <div style={{ fontSize:11, color:'#94A3B8' }}>
-                    {log.target_count}명 · {new Date(log.created_at).toLocaleString('ko-KR', { month:'numeric', day:'numeric', hour:'numeric', minute:'2-digit' })}
+                  <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:6, lineHeight:1.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</div>
+                  <div style={{ fontSize:11, color:'#94A3B8', display:'flex', gap:6, alignItems:'center' }}>
+                    <span style={{ fontWeight:700, color:'#475569' }}>{log.target_count}명</span>
+                    <span>·</span>
+                    <span>{new Date(log.created_at).toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
                   </div>
-                  {log.error_msg && <div style={{ fontSize:11, color:'#DC2626', marginTop:2 }}>{log.error_msg}</div>}
+                  {log.error_msg && <div style={{ fontSize:11, color:'#DC2626', marginTop:4 }}>{log.error_msg}</div>}
                 </div>
               ))}
             </div>
