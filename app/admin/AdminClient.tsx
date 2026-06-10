@@ -106,6 +106,10 @@ interface AdminFarm {
   carrier: string | null;
   created_at: string;
   wish_count?: number;
+  product_count?: number;
+  active_count?: number;
+  review_count?: number;
+  avg_rating?: number;
 }
 
 interface AdminProfile {
@@ -1593,6 +1597,16 @@ export default function AdminClient() {
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, string>>({}); // farmId → paid_at
+  /* 농가 상세 분석 */
+  const [farmDetailOpen, setFarmDetailOpen] = useState(false);
+  const [farmDetailTarget, setFarmDetailTarget] = useState<AdminFarm | null>(null);
+  const [farmDetailLoading, setFarmDetailLoading] = useState(false);
+  const [farmDetail, setFarmDetail] = useState<{
+    sales: number; payout: number; margin: number; qty: number; orderCount: number;
+    topProducts: { name: string; qty: number; amount: number }[];
+    monthly: { ym: string; amount: number }[];
+    recentReviews: { id: string; rating: number; content: string; created_at: string; product_name: string }[];
+  } | null>(null);
 
   async function loadFarmSettlement(month: string) {
     setFarmSettleLoading(true);
@@ -2030,20 +2044,67 @@ export default function AdminClient() {
   async function loadFarms() {
     setFarmsLoading(true);
     const supabase = createClient();
-    const [{ data: farmData }, { data: wishData }] = await Promise.all([
+    const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
       supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
+      supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
-    // 농가별 찜(팔로워) 수 집계 — 실제 농장 하트 기준
+    // 농가별 찜(팔로워) 수
     const wishMap: Record<string, number> = {};
-    (wishData || []).forEach((w: { farm_id: string }) => {
-      if (w.farm_id) wishMap[w.farm_id] = (wishMap[w.farm_id] || 0) + 1;
+    (wishData || []).forEach((w: { farm_id: string }) => { if (w.farm_id) wishMap[w.farm_id] = (wishMap[w.farm_id] || 0) + 1; });
+    // 농가별 상품 수·판매중·리뷰 수·가중 평균 평점
+    const pStat: Record<string, { count: number; active: number; reviews: number; rSum: number; rW: number }> = {};
+    (prodData as { farm_id: string|null; is_active: boolean; review_count: number|null; avg_rating: number|null }[] | null || []).forEach(p => {
+      if (!p.farm_id) return;
+      if (!pStat[p.farm_id]) pStat[p.farm_id] = { count: 0, active: 0, reviews: 0, rSum: 0, rW: 0 };
+      const s = pStat[p.farm_id]; s.count++; if (p.is_active) s.active++;
+      const rc = p.review_count || 0; s.reviews += rc;
+      if (rc > 0 && p.avg_rating) { s.rSum += p.avg_rating * rc; s.rW += rc; }
     });
-    const farms = (farmData || []).map((f: Record<string, unknown>) => ({
-      ...f, wish_count: wishMap[f.id as string] || 0,
-    }));
+    const farms = (farmData || []).map((f: Record<string, unknown>) => {
+      const s = pStat[f.id as string] || { count: 0, active: 0, reviews: 0, rSum: 0, rW: 0 };
+      return { ...f, wish_count: wishMap[f.id as string] || 0, product_count: s.count, active_count: s.active, review_count: s.reviews, avg_rating: s.rW > 0 ? s.rSum / s.rW : 0 };
+    });
     setFarms(farms as AdminFarm[]);
     setFarmsLoading(false);
+  }
+
+  async function openFarmDetail(farm: AdminFarm) {
+    setFarmDetailTarget(farm); setFarmDetailOpen(true); setFarmDetailLoading(true); setFarmDetail(null);
+    const supabase = createClient();
+    const { data: prods } = await supabase.from('products').select('id, name').eq('farm_id', farm.id);
+    const prodIds = (prods || []).map((p: { id: string }) => p.id);
+    const prodName = new Map((prods || []).map((p: { id: string; name: string }) => [p.id, p.name]));
+    if (prodIds.length === 0) {
+      setFarmDetail({ sales:0, payout:0, margin:0, qty:0, orderCount:0, topProducts:[], monthly:[], recentReviews:[] });
+      setFarmDetailLoading(false); return;
+    }
+    // 주문항목(배송완료/구매확정)
+    const items: { order_id: string; product_id: string; quantity: number; subtotal: number; supply_price: number|null; orders: { created_at: string } | null }[] = [];
+    for (let i = 0; i < prodIds.length; i += 200) {
+      const { data: it } = await supabase.from('order_items')
+        .select('order_id, product_id, quantity, subtotal, supply_price, orders!inner(status, created_at)')
+        .in('product_id', prodIds.slice(i, i + 200)).in('orders.status', ['delivered','confirmed']).limit(10000);
+      if (it) items.push(...(it as unknown as typeof items));
+    }
+    let sales = 0, payout = 0, qty = 0;
+    const orderSet = new Set<string>();
+    const pMap: Record<string, { qty: number; amount: number }> = {};
+    const mMap: Record<string, number> = {};
+    items.forEach(it => {
+      const q = it.quantity || 0; sales += it.subtotal || 0; payout += (it.supply_price || 0) * q; qty += q;
+      if (it.order_id) orderSet.add(it.order_id);
+      const nm = (prodName.get(it.product_id) as string) || '(상품)';
+      if (!pMap[nm]) pMap[nm] = { qty: 0, amount: 0 }; pMap[nm].qty += q; pMap[nm].amount += it.subtotal || 0;
+      const ca = it.orders?.created_at; if (ca) { const d = new Date(ca); const ym = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`; mMap[ym] = (mMap[ym] || 0) + (it.subtotal || 0); }
+    });
+    const topProducts = Object.entries(pMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const monthly = Object.entries(mMap).map(([ym, amount]) => ({ ym, amount })).sort((a, b) => a.ym.localeCompare(b.ym)).slice(-6);
+    // 최근 리뷰
+    const { data: revs } = await supabase.from('reviews').select('id, rating, content, created_at, product_id').in('product_id', prodIds).order('created_at', { ascending: false }).limit(3);
+    const recentReviews = (revs || []).map((r: { id: string; rating: number; content: string; created_at: string; product_id: string }) => ({ id: r.id, rating: r.rating, content: r.content, created_at: r.created_at, product_name: (prodName.get(r.product_id) as string) || '' }));
+    setFarmDetail({ sales, payout, margin: sales - payout, qty, orderCount: orderSet.size, topProducts, monthly, recentReviews });
+    setFarmDetailLoading(false);
   }
 
   function openFarmModal(farm?: AdminFarm) {
@@ -4622,6 +4683,86 @@ export default function AdminClient() {
       )}
 
       {/* ===== 농가 등록/수정 모달 ===== */}
+      {/* 농가 상세 분석 모달 */}
+      {farmDetailOpen && (
+        <div className="adm-modal-bg open" onClick={() => setFarmDetailOpen(false)}>
+          <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:720, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">📊 {farmDetailTarget?.name} 분석</span>
+              <button className="adm-modal-close" onClick={() => setFarmDetailOpen(false)}>✕</button>
+            </div>
+            <div className="adm-modal-body">
+              {farmDetailLoading || !farmDetail ? <PanelLoading /> : (() => {
+                const d = farmDetail;
+                const maxM = Math.max(...d.monthly.map(m => m.amount), 1);
+                return (
+                  <>
+                    {/* 핵심 지표 */}
+                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:14 }}>
+                      {[
+                        ['총 매출(확정)', `${fmtPrice(d.sales)}원`, '#1A1A1A'],
+                        ['농가 정산액', `${fmtPrice(d.payout)}원`, '#2563EB'],
+                        ['마진(매출-정산)', `${fmtPrice(d.margin)}원`, '#16A34A'],
+                        ['판매 수량', `${d.qty.toLocaleString()}개`, '#7C3AED'],
+                        ['주문 건수', `${d.orderCount.toLocaleString()}건`, '#1A1A1A'],
+                        ['평균 평점', farmDetailTarget?.review_count ? `★ ${(farmDetailTarget.avg_rating||0).toFixed(1)} (${farmDetailTarget.review_count})` : '리뷰 없음', '#C8841C'],
+                      ].map(([l, v, c]) => (
+                        <div key={l} className="adm-kpi-card">
+                          <div className="adm-kpi-label">{l}</div>
+                          <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:16 }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 월별 매출 추이 */}
+                    <div className="adm-card" style={{ padding:'14px 16px', marginBottom:14 }}>
+                      <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>월별 매출 추이 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(최근 6개월)</span></div>
+                      {d.monthly.length === 0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>매출 데이터 없음</div> : (
+                        <div style={{ display:'flex', alignItems:'flex-end', gap:10, height:120 }}>
+                          {d.monthly.map(m => (
+                            <div key={m.ym} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                              <div style={{ fontSize:10, color:'#64748B' }}>{(m.amount/10000).toFixed(0)}만</div>
+                              <div style={{ width:'100%', maxWidth:40, height:`${Math.max(4, m.amount/maxM*90)}px`, background:'#3B82F6', borderRadius:'4px 4px 0 0' }} />
+                              <div style={{ fontSize:10, color:'#94A3B8' }}>{m.ym.slice(5)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 인기 상품 + 최근 리뷰 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
+                        <table className="adm-table" style={{ marginTop:4 }}>
+                          <thead><tr><th>상품</th><th>수량</th><th>매출</th></tr></thead>
+                          <tbody>
+                            {d.topProducts.length === 0 ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'16px 0' }}>판매 없음</td></tr>
+                              : d.topProducts.map((r, i) => <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:5 }}>{i+1}</span>{r.name}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>)}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">최근 리뷰</span></div>
+                        <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+                          {d.recentReviews.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>리뷰 없음</div>
+                            : d.recentReviews.map(rv => (
+                              <div key={rv.id} style={{ borderBottom:'1px solid #F1F5F9', paddingBottom:8 }}>
+                                <div style={{ fontSize:11, color:'#C8841C', fontWeight:700 }}>{'★'.repeat(rv.rating)}<span style={{ color:'#E2E8F0' }}>{'★'.repeat(5-rv.rating)}</span> <span style={{ color:'#94A3B8' }}>· {rv.product_name}</span></div>
+                                <div style={{ fontSize:12, color:'#475569', marginTop:3, lineHeight:1.5, overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{rv.content}</div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {farmModal && (
         <div className="adm-modal-bg open" onClick={() => setFarmModal(false)}>
           <div className="adm-modal adm-modal-farm" onClick={e => e.stopPropagation()}>
@@ -5565,10 +5706,10 @@ export default function AdminClient() {
                 {farmsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>농가 유형</th><th>담당 택배사</th><th>❤️찜</th><th>등록일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>농가 유형</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredFarms.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '해당 유형 농가 없음'}</td></tr>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '해당 유형 농가 없음'}</td></tr>
                         ) : filteredFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
@@ -5576,9 +5717,11 @@ export default function AdminClient() {
                             <td className="adm-muted">{f.region || '-'}</td>
                             <td>{f.farm_type || '-'}</td>
                             <td>{f.carrier ? <span className="adm-badge badge-carrier">{f.carrier}</span> : '-'}</td>
+                            <td className="adm-mono" style={{ fontSize:12 }}>{f.active_count || 0}<span style={{ color:'#CBD5E1' }}>/{f.product_count || 0}</span></td>
+                            <td className="adm-mono" style={{ fontSize:12 }}>{(f.review_count || 0) > 0 ? <>★{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
                             <td className="adm-mono">{(f.wish_count || 0).toLocaleString()}</td>
-                            <td className="adm-muted">{fmtDateShort(f.created_at)}</td>
                             <td style={{ display:'flex', gap:6 }}>
+                              <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openFarmDetail(f)}>분석</button>
                               <button className="adm-row-btn" onClick={() => openFarmModal(f)}>수정</button>
                               <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFarm(f.id)}>삭제</button>
                             </td>
