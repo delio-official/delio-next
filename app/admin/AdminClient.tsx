@@ -1565,6 +1565,21 @@ export default function AdminClient() {
   const [noResultStats, setNoResultStats] = useState<{ keyword: string; count: number }[]>([]);
   const [searchStatsLoading, setSearchStatsLoading] = useState(false);
   const [statsDays, setStatsDays] = useState<7|30>(7);
+  /* ── 마케팅 분석 (자체 DB) ── */
+  const [marketingTab, setMarketingTab] = useState<'channel'|'hour'|'age'>('channel');
+  const [marketingLoading, setMarketingLoading] = useState(false);
+  const [marketing, setMarketing] = useState<{
+    todayOrders: number; monthOrders: number; repeatCustomers: number;
+    monthSales: number; prevSales: number; refundRate: number; refundCount: number;
+    newMembers: number; aov: number; prevAov: number;
+    adView: number; adClick: number; adCtr: number;
+    channels: { label: string; orders: number; revenue: number; color: string }[];
+    byHour: { h: number; count: number }[];
+    byAge: { label: string; n: number }[];
+    couponActive: number; couponTotal: number; couponIssued: number; couponUsed: number;
+    topCoupons: { name: string; used: number; issued: number; rate: number }[];
+    smsCount: number; smsRecipients: number;
+  } | null>(null);
   const [statsTab, setStatsTab] = useState<'all'|'empty'>('all');
 
   /* ── 정산 관리 ── */
@@ -2976,6 +2991,95 @@ export default function AdminClient() {
     setPtEdit(false);
   }
 
+  /* ========== 마케팅 분석 (자체 DB 집계) ========== */
+  async function loadMarketing() {
+    setMarketingLoading(true);
+    const supabase = createClient();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevPeriodEnd = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), 23, 59, 59);
+    const isCancel = (s: string) => ['cancelled', 'refunded', 'refunding'].includes(s);
+
+    const [oRes, pRes, bRes, cRes, ucRes, sRes, svRes] = await Promise.all([
+      supabase.from('orders').select('user_id, final_amount, status, created_at').gte('created_at', lastMonthStart.toISOString()).order('created_at', { ascending: false }).limit(8000),
+      supabase.from('profiles').select('id, created_at, provider').limit(10000),
+      supabase.from('banners').select('view_count, click_count'),
+      supabase.from('coupons').select('id, name, is_active'),
+      supabase.from('user_coupons').select('coupon_id, is_used').limit(10000),
+      supabase.from('sms_logs').select('target_count, created_at').gte('created_at', monthStart.toISOString()).limit(2000),
+      supabase.from('survey_results').select('age_group').limit(5000),
+    ]);
+    const orders = (oRes.data || []) as { user_id: string|null; final_amount: number; status: string; created_at: string }[];
+    const profs = (pRes.data || []) as { id: string; created_at: string; provider: string|null }[];
+
+    const inMonth = (d: string) => d >= monthStart.toISOString();
+    const inPrev = (d: string) => d >= lastMonthStart.toISOString() && d < monthStart.toISOString();
+    const inPrevSame = (d: string) => d >= lastMonthStart.toISOString() && d <= prevPeriodEnd.toISOString();
+    const valid = (o: { status: string }) => !isCancel(o.status);
+
+    const monthOrdersArr = orders.filter(o => inMonth(o.created_at));
+    const todayOrders = orders.filter(o => o.created_at >= today.toISOString()).length;
+    const monthSales = monthOrdersArr.filter(valid).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const prevSales = orders.filter(o => inPrevSame(o.created_at) && valid(o)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const refundCount = monthOrdersArr.filter(o => isCancel(o.status)).length;
+    const refundRate = monthOrdersArr.length ? refundCount / monthOrdersArr.length * 100 : 0;
+    // 재주문 고객(2회+ 구매)
+    const userOrderCnt: Record<string, number> = {};
+    orders.filter(valid).forEach(o => { if (o.user_id) userOrderCnt[o.user_id] = (userOrderCnt[o.user_id] || 0) + 1; });
+    const repeatCustomers = Object.values(userOrderCnt).filter(n => n >= 2).length;
+    // 객단가
+    const mValid = monthOrdersArr.filter(valid);
+    const aov = mValid.length ? Math.round(monthSales / mValid.length) : 0;
+    const pValid = orders.filter(o => inPrev(o.created_at) && valid(o));
+    const prevAov = pValid.length ? Math.round(pValid.reduce((s, o) => s + (o.final_amount || 0), 0) / pValid.length) : 0;
+    // 신규 회원(이번달)
+    const newMembers = profs.filter(p => inMonth(p.created_at)).length;
+    // 광고(배너)
+    const adView = (bRes.data || []).reduce((s: number, b: { view_count: number|null }) => s + (b.view_count || 0), 0);
+    const adClick = (bRes.data || []).reduce((s: number, b: { click_count: number|null }) => s + (b.click_count || 0), 0);
+    const adCtr = adView ? adClick / adView * 100 : 0;
+    // 채널별(가입경로) — 회원 기준 주문/매출
+    const provMap = new Map(profs.map(p => [p.id, providerKey(p.provider)]));
+    const chAgg: Record<string, { orders: number; revenue: number }> = { kakao: { orders:0, revenue:0 }, naver: { orders:0, revenue:0 }, email: { orders:0, revenue:0 } };
+    orders.filter(valid).forEach(o => { const ch = (o.user_id && provMap.get(o.user_id)) || 'email'; chAgg[ch].orders++; chAgg[ch].revenue += o.final_amount || 0; });
+    const channels = [
+      { label: '카카오', ...chAgg.kakao, color: '#FEE500' },
+      { label: '네이버', ...chAgg.naver, color: '#03C75A' },
+      { label: '일반', ...chAgg.email, color: '#94A3B8' },
+    ];
+    // 시간대별 주문(최근 fetch 범위)
+    const hourMap: Record<number, number> = {};
+    for (let h = 0; h < 24; h++) hourMap[h] = 0;
+    orders.forEach(o => { hourMap[new Date(o.created_at).getHours()]++; });
+    const byHour = Object.entries(hourMap).map(([h, count]) => ({ h: Number(h), count }));
+    // 연령대(취향진단)
+    const AGE_ORDER = ['10대', '20대', '30대', '40대', '50대 이상'];
+    const ageMap: Record<string, number> = {};
+    (svRes.data || []).forEach((r: { age_group: string|null }) => { if (r.age_group) ageMap[r.age_group] = (ageMap[r.age_group] || 0) + 1; });
+    const byAge = AGE_ORDER.filter(a => ageMap[a]).map(a => ({ label: a, n: ageMap[a] }));
+    const byAgeFinal = byAge.length ? byAge : Object.entries(ageMap).map(([label, n]) => ({ label, n }));
+    // 쿠폰
+    const coupons = (cRes.data || []) as { id: string; name: string; is_active: boolean }[];
+    const ucs = (ucRes.data || []) as { coupon_id: string; is_used: boolean }[];
+    const couponActive = coupons.filter(c => c.is_active).length;
+    const couponTotal = coupons.length;
+    const couponIssued = ucs.length;
+    const couponUsed = ucs.filter(u => u.is_used).length;
+    const cName = new Map(coupons.map(c => [c.id, c.name]));
+    const cAgg: Record<string, { used: number; issued: number }> = {};
+    ucs.forEach(u => { (cAgg[u.coupon_id] ||= { used: 0, issued: 0 }); cAgg[u.coupon_id].issued++; if (u.is_used) cAgg[u.coupon_id].used++; });
+    const topCoupons = Object.entries(cAgg).map(([id, v]) => ({ name: (cName.get(id) as string) || '(삭제된 쿠폰)', used: v.used, issued: v.issued, rate: v.issued ? Math.round(v.used / v.issued * 100) : 0 })).sort((a, b) => b.used - a.used).slice(0, 3);
+    // SMS
+    const sms = (sRes.data || []) as { target_count: number|null }[];
+    const smsCount = sms.length;
+    const smsRecipients = sms.reduce((s, x) => s + (x.target_count || 0), 0);
+
+    setMarketing({ todayOrders, monthOrders: monthOrdersArr.length, repeatCustomers, monthSales, prevSales, refundRate, refundCount, newMembers, aov, prevAov, adView, adClick, adCtr, channels, byHour, byAge: byAgeFinal, couponActive, couponTotal, couponIssued, couponUsed, topCoupons, smsCount, smsRecipients });
+    setMarketingLoading(false);
+  }
+
   /* ========== 검색어 통계 ========== */
   async function loadSearchStats(days: 7|30) {
     setSearchStatsLoading(true);
@@ -3673,7 +3777,7 @@ export default function AdminClient() {
       case 'cs':        loadCsInquiries(); break;
       case 'refund':    loadRefundRequests(); loadOrders(); break;
       case 'settings':    loadSettings(); loadSearchStats(7); break;
-      case 'analytics':   loadSettings(); break;
+      case 'analytics':   loadMarketing(); break;
       case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
       case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
     }
@@ -8180,25 +8284,151 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {panel === 'analytics' && (
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                <div className="adm-toolbar-left">
-                  <span className="adm-card-title">마케팅 분석 (GA4 / Looker Studio)</span>
+                <div className="adm-toolbar-left" style={{ alignItems:'baseline', gap:8 }}>
+                  <span className="adm-card-title">마케팅 분석</span>
+                  <span className="adm-muted" style={{ fontSize:12 }}>· 우리 데이터 실시간 집계</span>
                 </div>
-                <div className="adm-toolbar-right" style={{ flex:1, gap:8, minWidth:280 }}>
-                  <input type="text" className="adm-input-text" style={{ flex:1 }}
-                    placeholder="(기본값 적용 중) Looker Studio 임베드 URL 붙여넣어 변경"
-                    value={siteSettings.looker_embed_url ?? ''}
-                    onChange={e => setSiteSettings(prev => ({ ...prev, looker_embed_url: e.target.value }))} />
-                  <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
-                    {settingsSaving ? '저장 중...' : '저장'}
-                  </button>
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  <button className="adm-btn adm-btn-outline" onClick={loadMarketing}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
                 </div>
               </div>
-              <div className="adm-card" style={{ padding:0, overflow:'hidden' }}>
-                <iframe src={(siteSettings.looker_embed_url || LOOKER_DEFAULT_URL)} title="마케팅 분석"
-                  style={{ width:'100%', height:'80vh', border:'none', display:'block' }}
-                  allowFullScreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" />
-              </div>
+              {marketingLoading || !marketing ? <PanelLoading /> : (() => {
+                const m = marketing;
+                const pct = (c: number, p: number) => p > 0 ? Math.round((c - p) / p * 100) : (c > 0 ? 100 : 0);
+                const arr = (v: number) => `${v >= 0 ? '▲' : '▼'} ${Math.abs(v)}%`;
+                const arrC = (v: number) => v >= 0 ? '#16A34A' : '#DC2626';
+                const salesPct = pct(m.monthSales, m.prevSales);
+                const aovPct = pct(m.aov, m.prevAov);
+                const kpiCard = (l: string, v: string, sub: string, sc: string) => (
+                  <div key={l} className="adm-kpi-card">
+                    <div className="adm-kpi-label">{l}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:18 }}>{v}</div>
+                    <div style={{ fontSize:11, color: sc, marginTop:3 }}>{sub}</div>
+                  </div>
+                );
+                return (
+                  <>
+                    {/* 1줄 핵심 지표 */}
+                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>핵심 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 매일 먼저 확인</span></div>
+                    <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                      {kpiCard('오늘 주문 건수', `${m.todayOrders}건`, `이번달 누적 ${m.monthOrders}건`, '#94A3B8')}
+                      {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '2회 이상 구매 고객', '#94A3B8')}
+                      {kpiCard('이번달 매출', `${fmtPrice(m.monthSales)}원`, `전월 동기 대비 ${arr(salesPct)}`, arrC(salesPct))}
+                      {kpiCard('환불·취소율', `${m.refundRate.toFixed(1)}%`, `이번달 ${m.refundCount}건`, '#94A3B8')}
+                    </div>
+
+                    {/* 2줄 참고 지표 */}
+                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>참고 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 맥락 파악용</span></div>
+                    <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                      {kpiCard('신규 회원', `${m.newMembers}명`, '이번달 가입', '#94A3B8')}
+                      {kpiCard('평균 객단가', `${fmtPrice(m.aov)}원`, `전월 평균 대비 ${arr(aovPct)}`, arrC(aovPct))}
+                      {kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', '#CBD5E1')}
+                      {kpiCard('결제 전환율', '—', 'GA 연동 시 표시', '#CBD5E1')}
+                    </div>
+
+                    {/* 광고(배너) 지표 */}
+                    <div style={{ fontSize:13, fontWeight:800, margin:'2px 0 8px' }}>광고(배너) 지표 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 등록 배너 기준</span></div>
+                    <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                      {kpiCard('총 조회수', m.adView.toLocaleString(), '배너 노출 합계', '#2563EB')}
+                      {kpiCard('총 클릭수', m.adClick.toLocaleString(), '배너 클릭 합계', '#7C3AED')}
+                      {kpiCard('평균 CTR', `${m.adCtr.toFixed(2)}%`, '클릭/조회', '#16A34A')}
+                    </div>
+
+                    {/* 마케팅 주요 지표 (토글) */}
+                    <div className="adm-card" style={{ marginBottom:16 }}>
+                      <div className="adm-card-head"><span className="adm-card-title">마케팅 주요 지표</span></div>
+                      <div style={{ padding:'14px 18px' }}>
+                        <div className="adm-btn-group" style={{ marginBottom:16, flexWrap:'wrap' }}>
+                          {([['channel','채널별 유입'],['hour','시간대별 주문'],['age','연령대 분포']] as const).map(([k, lb]) => (
+                            <button key={k} className={`adm-seg-btn${marketingTab===k?' active':''}`} onClick={() => setMarketingTab(k)}>{lb}</button>
+                          ))}
+                        </div>
+                        {marketingTab === 'channel' ? (() => {
+                          const max = Math.max(...m.channels.map(c => c.orders), 1);
+                          return (
+                            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                              {m.channels.map(c => (
+                                <div key={c.label}>
+                                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                                    <span style={{ fontWeight:700 }}>{c.label}</span>
+                                    <span className="adm-muted">{c.orders}건 · {fmtPrice(c.revenue)}원</span>
+                                  </div>
+                                  <div style={{ height:20, background:'#F1F5F9', borderRadius:5, overflow:'hidden' }}>
+                                    <div style={{ width:`${c.orders/max*100}%`, height:'100%', background: c.color === '#FEE500' ? '#F2C200' : c.color }} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })() : marketingTab === 'hour' ? (() => {
+                          const max = Math.max(...m.byHour.map(h => h.count), 1);
+                          return (
+                            <div style={{ display:'flex', alignItems:'flex-end', gap:2, height:150 }}>
+                              {m.byHour.map(h => (
+                                <div key={h.h} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }} title={`${h.h}시 ${h.count}건`}>
+                                  <div style={{ width:'72%', height:`${Math.max(2, h.count/max*120)}px`, background:'#3B82F6', borderRadius:'3px 3px 0 0' }} />
+                                  {h.h % 3 === 0 && <div style={{ fontSize:9, color:'#94A3B8' }}>{h.h}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })() : (
+                          m.byAge.length === 0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>취향진단 데이터 없음</div> : (() => {
+                            const max = Math.max(...m.byAge.map(a => a.n), 1);
+                            return (
+                              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                                {m.byAge.map(a => (
+                                  <div key={a.label} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                    <span style={{ width:64, fontSize:12, fontWeight:600 }}>{a.label}</span>
+                                    <div style={{ flex:1, height:20, background:'#F1F5F9', borderRadius:5, overflow:'hidden' }}><div style={{ width:`${a.n/max*100}%`, height:'100%', background:'#3B82F6' }} /></div>
+                                    <span style={{ width:44, fontSize:12, color:'#64748B', textAlign:'right' }}>{a.n}명</span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 마케팅 진단 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">🎟 쿠폰 효과</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+                            {[['발행 쿠폰', `${m.couponActive}/${m.couponTotal}`], ['사용률', `${m.couponIssued ? Math.round(m.couponUsed/m.couponIssued*100) : 0}%`], ['발급', `${m.couponIssued}건`], ['사용', `${m.couponUsed}건`]].map(([l, v]) => (
+                              <div key={l} style={{ background:'#F8FAFC', borderRadius:8, padding:'9px 10px' }}>
+                                <div style={{ fontSize:10, color:'#64748B' }}>{l}</div>
+                                <div style={{ fontSize:15, fontWeight:800, marginTop:2 }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>사용 많은 쿠폰 TOP 3</div>
+                          {m.topCoupons.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>발급 내역 없음</div> : m.topCoupons.map((c, i) => (
+                            <div key={c.name} style={{ display:'flex', justifyContent:'space-between', fontSize:12, padding:'6px 0', borderBottom:'1px solid #F1F5F9' }}>
+                              <span><b style={{ color:'#CBD5E1', marginRight:5 }}>{i+1}</b>{c.name}</span>
+                              <span className="adm-muted">{c.used}/{c.issued}건 · {c.rate}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">💬 마케팅 메시지 (SMS)</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                            {[['이번달 발송', `${m.smsCount}건`], ['총 수신자', `${m.smsRecipients.toLocaleString()}명`]].map(([l, v]) => (
+                              <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:18 }}>{v}</div></div>
+                            ))}
+                          </div>
+                          <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.5 }}>읽음·클릭률은 SMS로는 추적이 안 됩니다. (카카오 알림톡 전환 시 가능)</div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
