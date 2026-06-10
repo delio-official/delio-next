@@ -8103,7 +8103,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   ['이메일', selectedMember.email],
                   ['연락처', selectedMember.phone || '-'],
                   ['포인트', `${(selectedMember.point_balance||0).toLocaleString()}P`],
-                  ['누적 구매', `${memberStats.totalSpent.toLocaleString()}원 (${memberStats.orderCount}건)`],
                   ['가입일', fmtDate(selectedMember.created_at)],
                 ].map(([l,v]) => (
                   <div key={l} style={{ display:'flex', gap:12, marginBottom:8, fontSize:13 }}>
@@ -8111,6 +8110,28 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <span style={{ fontWeight:500 }}>{v}</span>
                   </div>
                 ))}
+              </div>
+
+              {/* 구매 통계 */}
+              <div>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>구매 통계 <span style={{ fontWeight:400, color:'#94A3B8' }}>(취소·환불 제외)</span></div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                  {(() => {
+                    const avg = memberStats.orderCount > 0 ? Math.round(memberStats.totalSpent / memberStats.orderCount) : 0;
+                    const lastAt = memberOrders[0]?.created_at;
+                    return [
+                      ['누적 구매금액', `${memberStats.totalSpent.toLocaleString()}원`, '#2563EB'],
+                      ['주문 횟수', `${memberStats.orderCount}건`, '#1A1A1A'],
+                      ['평균 주문금액', `${avg.toLocaleString()}원`, '#1A1A1A'],
+                      ['최근 주문일', lastAt ? fmtDateShort(lastAt) : '-', '#1A1A1A'],
+                    ] as [string, string, string][];
+                  })().map(([l, v, c]) => (
+                    <div key={l} style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'11px 13px' }}>
+                      <div style={{ fontSize:11, color:'#64748B' }}>{l}</div>
+                      <div style={{ fontSize:16, fontWeight:800, color:c, marginTop:3 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* 등급 변경 */}
