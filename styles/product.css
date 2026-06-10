@@ -495,6 +495,8 @@
     .taste5-fill { height: 100%; border-radius: 4px; transition: width .5s; }
     .taste5-agree { font-size: 11px; color: #777; text-align: right; margin-top: 6px; }
     .taste5-agree b { font-weight: 800; }
+    .taste5-agree-wait { font-size: 10px; color: #A39E96; text-align: left; }
+    .tp-summary-wait { flex: 1; display: flex; align-items: center; font-size: 12px; color: #A39E96; line-height: 1.5; }
     .taste-more-btn {
       display: none; grid-column: 1 / -1; width: 100%; justify-content: center; align-items: center;
       padding: 11px; margin-top: 2px; border: 1px solid #E5E3DE; border-radius: 10px;

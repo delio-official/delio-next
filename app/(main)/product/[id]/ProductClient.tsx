@@ -1512,90 +1512,80 @@ export default function ProductClient() {
         <div className="container">
           <div className="taste-profile-card">
 
-            {/* ── 상단 요약: 평점 | 만족도·재구매율·구매자수 ── */}
+            {/* ── 상단 요약: 평점 | 만족도·재구매율·구매자수 (리뷰 5개 이상에서만 지표 공개) ── */}
             {(() => {
               const satisfiedPct = product.review_count > 0
                 ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
+              const statsRevealed = product.review_count >= TASTE_REVEAL_MIN;
               return (
                 <div className="tp-summary">
                   <div className="tp-summary-rating">
                     <div className="tp-summary-star"><SingleStar size={20} /><b>{product.avg_rating.toFixed(1)}</b></div>
                     <span className="tp-summary-rcount">리뷰 {product.review_count.toLocaleString()}개</span>
                   </div>
-                  <div className="tp-summary-metrics">
-                    <div className="tp-metric">
-                      <span className="tp-metric-label">만족도</span>
-                      <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#3E9B5F' }} /></div>
-                      <span className="tp-metric-val">{satisfiedPct}%</span>
+                  {statsRevealed ? (
+                    <div className="tp-summary-metrics">
+                      <div className="tp-metric">
+                        <span className="tp-metric-label">만족도</span>
+                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#3E9B5F' }} /></div>
+                        <span className="tp-metric-val">{satisfiedPct}%</span>
+                      </div>
+                      <div className="tp-metric">
+                        <span className="tp-metric-label">재구매율</span>
+                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#E8632B' }} /></div>
+                        <span className="tp-metric-val">{buyerStats.repurchase}%</span>
+                      </div>
+                      <div className="tp-metric tp-metric-badge">
+                        <span className="tp-metric-label">최근 구매자</span>
+                        <span className="tp-buyer-badge">{buyerStats.recent.toLocaleString()}명</span>
+                      </div>
                     </div>
-                    <div className="tp-metric">
-                      <span className="tp-metric-label">재구매율</span>
-                      <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#E8632B' }} /></div>
-                      <span className="tp-metric-val">{buyerStats.repurchase}%</span>
-                    </div>
-                    <div className="tp-metric tp-metric-badge">
-                      <span className="tp-metric-label">최근 구매자</span>
-                      <span className="tp-buyer-badge">{buyerStats.recent.toLocaleString()}명</span>
-                    </div>
-                  </div>
+                  ) : (
+                    <div className="tp-summary-wait">만족도·재구매율은 리뷰 {TASTE_REVEAL_MIN}개 이상 모이면 공개돼요</div>
+                  )}
                 </div>
               );
             })()}
 
-            <div className="tp-axis-head">맛 프로파일 <span>· 구매자 동의율</span></div>
+            <div className="tp-axis-head">맛 프로파일 <span>· {tasteRevealed ? '구매자 동의율' : '판매자 제공 정보'}</span></div>
 
-            {tasteRevealed ? (
-              <div className={`taste5-grid${tasteMore ? ' expanded' : ' collapsed'}`}>
-                {SELLER_AXES.map((axis, idx) => {
-                  const sLevel = toLevel(sellerScore[axis.key]);
-                  const pct = agreePct(sLevel, buyerLevelsOf(axis.key));
-                  return (
-                    <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: axis.bg }}>
-                      <div className="taste5-top">
-                        <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
-                        <span className="taste5-claim" style={{ color: axis.hex }}>{axisLevelLabel(axis, sLevel)}</span>
-                      </div>
-                      <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: axis.hex }} /></div>
-                      <div className="taste5-agree">구매자 <b style={{ color: axis.hex }}>{pct}%</b> 동의</div>
+            {/* 판매자 4축은 항상 노출(등록 시 입력한 맛 정보). 구매자 동의율·신선도는 리뷰 5개 이상에서만 */}
+            <div className={`taste5-grid${tasteMore ? ' expanded' : ' collapsed'}`}>
+              {SELLER_AXES.map((axis, idx) => {
+                const sLevel = toLevel(sellerScore[axis.key]);
+                const pct = agreePct(sLevel, buyerLevelsOf(axis.key));
+                const fillPct = tasteRevealed ? pct : sLevel / 5 * 100;
+                return (
+                  <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: axis.bg }}>
+                    <div className="taste5-top">
+                      <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
+                      <span className="taste5-claim" style={{ color: axis.hex }}>{axisLevelLabel(axis, sLevel)}</span>
                     </div>
-                  );
-                })}
-                {/* 신선도 — 구매자 전용, 전체폭 */}
-                {(() => {
-                  const fresh = TASTE_AXES.find(a => a.key === 'fresh')!;
-                  const pct = avgPct(buyerLevelsOf('fresh'));
-                  return (
-                    <div className="taste5-card taste5-fresh taste5-extra" style={{ background: fresh.bg }}>
-                      <div className="taste5-top">
-                        <span className="taste5-name"><span className="taste5-icon">{fresh.icon}</span>{fresh.label}<span className="taste5-only">구매자 전용</span></span>
-                        <span className="taste5-claim" style={{ color: fresh.hex }}>{pct}%</span>
-                      </div>
-                      <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: fresh.hex }} /></div>
-                    </div>
-                  );
-                })()}
-                <button className="taste-more-btn" onClick={() => setTasteMore(v => !v)}>
-                  {tasteMore ? '접기 ▲' : '식감·과즙·신선도 더 보기 ▼'}
-                </button>
-              </div>
-            ) : (
-              <div className="taste-locked">
-                <div className="taste-locked-header">🔒 구매자 동의율 — 리뷰 {TASTE_REVEAL_MIN}개 이상 시 공개</div>
-                {TASTE_AXES.map(axis => (
-                  <div key={axis.key} className="taste-locked-bar">
-                    <span className="buyer-bar-icon" style={{ opacity:0.35 }}>{axis.icon}</span>
-                    <span className="buyer-bar-label" style={{ opacity:0.35 }}>{axis.label}</span>
-                    <div className="buyer-bar-track" style={{ flex:1, opacity:0.3 }} />
-                    <span className="taste-locked-pct">--%</span>
+                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${fillPct}%`, background: axis.hex }} /></div>
+                    {tasteRevealed
+                      ? <div className="taste5-agree">구매자 <b style={{ color: axis.hex }}>{pct}%</b> 동의</div>
+                      : <div className="taste5-agree taste5-agree-wait">판매자 제공 · 구매자 동의율은 리뷰 {TASTE_REVEAL_MIN}개 이상 공개</div>}
                   </div>
-                ))}
-                <div className="taste-locked-msg">
-                  {product.review_count > 0
-                    ? `현재 맛 평가 ${tasteReviews.length}개 · ${TASTE_REVEAL_MIN}개 모이면 공개돼요`
-                    : '첫 구매자가 되어 맛 평가에 참여해보세요 👋'}
-                </div>
-              </div>
-            )}
+                );
+              })}
+              {/* 신선도 — 구매자 전용 (리뷰 5개 이상에서만 노출) */}
+              {tasteRevealed && (() => {
+                const fresh = TASTE_AXES.find(a => a.key === 'fresh')!;
+                const pct = avgPct(buyerLevelsOf('fresh'));
+                return (
+                  <div className="taste5-card taste5-fresh taste5-extra" style={{ background: fresh.bg }}>
+                    <div className="taste5-top">
+                      <span className="taste5-name"><span className="taste5-icon">{fresh.icon}</span>{fresh.label}<span className="taste5-only">구매자 전용</span></span>
+                      <span className="taste5-claim" style={{ color: fresh.hex }}>{pct}%</span>
+                    </div>
+                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: fresh.hex }} /></div>
+                  </div>
+                );
+              })()}
+              <button className="taste-more-btn" onClick={() => setTasteMore(v => !v)}>
+                {tasteMore ? '접기 ▲' : (tasteRevealed ? '식감·과즙·신선도 더 보기 ▼' : '과즙·식감 더 보기 ▼')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
