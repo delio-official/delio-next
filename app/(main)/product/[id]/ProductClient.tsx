@@ -646,6 +646,9 @@ export default function ProductClient() {
   const optGroupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
   /* 각 옵션 그룹은 독립 — 그룹마다 1개씩 선택해 조합 (종속/잠금 없음) */
   const optsForGroup = (g: string): ProductOption[] => options.filter(o => (o.group_name || '옵션') === g);
+  /* 선택(비필수) 그룹 존재 여부 — 있으면 필수 완료 후 '담기' 버튼으로 확정 */
+  const hasOptionalGroup = optGroupNames.some(g => options.find(o => (o.group_name || '옵션') === g)?.is_required === false);
+  const commitPick = () => { addPick(getSelectedOpts()); setSelByGroup({}); setOpenOptGroup(null); };
   const picksTotal    = picks.reduce((s, p) => s + (basePrice + p.opts.reduce((a, o) => a + (o.add_price || 0), 0)) * p.qty, 0);
   const totalQty      = options.length > 0 ? picks.reduce((s, p) => s + p.qty, 0) : qty;
   const totalPrice    = options.length > 0 ? picksTotal : basePrice * qty;
@@ -1235,14 +1238,17 @@ export default function ProductClient() {
                           const open = openOptGroup === g;
                           const choose = (val: string) => {
                             const next = { ...selByGroup, [g]: val };
-                            if (allGroupsSelected(next)) {
-                              // 모든 (필수)그룹 선택 완료 → 조합을 누적 목록에 추가하고 선택 초기화
-                              addPick(getSelectedOpts(next));
-                              setSelByGroup({});
-                            } else {
-                              setSelByGroup(next);
+                            if (!hasOptionalGroup) {
+                              // 필수 그룹만 있는 상품: 필수 다 차면 자동 담기
+                              if (allGroupsSelected(next)) { addPick(getSelectedOpts(next)); setSelByGroup({}); }
+                              else setSelByGroup(next);
+                              setOpenOptGroup(null);
+                              return;
                             }
-                            setOpenOptGroup(null);
+                            // 선택옵션 있는 상품: 자동 담기 X. 필수 완료 시 미선택(선택옵션) 드롭다운 자동 오픈
+                            setSelByGroup(next);
+                            const unselected = optGroupNames.find(gn => !next[gn]);
+                            setOpenOptGroup(allGroupsSelected(next) && unselected ? unselected : null);
                           };
                           return (
                             <div className="opt-dd">
@@ -1276,6 +1282,16 @@ export default function ProductClient() {
                       </div>
                       );
                     })}
+
+                    {/* 선택옵션 있는 상품: 필수 완료 시 '담기' 버튼 (선택옵션 고르거나 건너뛰고 확정) */}
+                    {hasOptionalGroup && allGroupsSelected() && (
+                      <button type="button" onClick={commitPick}
+                        style={{ width:'100%', padding:'11px', marginBottom:8, borderRadius:8,
+                          border:'1.5px solid #1A1A1A', background:'#1A1A1A', color:'#fff',
+                          fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                        이 옵션 담기
+                      </button>
+                    )}
 
                     {/* ── 선택된 옵션 목록 (누적) ── */}
                     {picks.length > 0 && (
