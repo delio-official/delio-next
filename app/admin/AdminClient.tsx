@@ -1521,7 +1521,7 @@ export default function AdminClient() {
   const [referralSearch, setReferralSearch] = useState('');
   const [referralStatusFilter, setReferralStatusFilter] = useState<'all'|'pending'|'rewarded'>('all');
   /* 친구추천 발급 쿠폰 내역 */
-  interface RefCoupon { key: string; reward_type: string; created_at: string; recipient_name: string; recipient_email: string; discount_value: number; is_used: boolean; used_at: string | null; expires_at: string | null; }
+  interface RefCoupon { key: string; referral_id: string | null; reward_type: string; created_at: string; recipient_name: string; recipient_email: string; discount_value: number; is_used: boolean; used_at: string | null; expires_at: string | null; }
   const [refCoupons, setRefCoupons] = useState<RefCoupon[]>([]);
   const [refCouponsLoading, setRefCouponsLoading] = useState(false);
   const [refcPage, setRefcPage] = useState(1); const [refcSize, setRefcSize] = useState(10);
@@ -2363,7 +2363,7 @@ export default function AdminClient() {
     setRefCouponsLoading(true);
     const supabase = createClient();
     const { data: rewards } = await supabase.from('referral_rewards')
-      .select('reward_type, user_coupon_id, created_at').order('created_at', { ascending: false }).limit(500);
+      .select('referral_id, reward_type, user_coupon_id, created_at').order('created_at', { ascending: false }).limit(500);
     const ucIds = [...new Set((rewards || []).map((r: { user_coupon_id: string }) => r.user_coupon_id).filter(Boolean))];
     if (ucIds.length === 0) { setRefCoupons([]); setRefCouponsLoading(false); return; }
     const { data: ucs } = await supabase.from('user_coupons')
@@ -2377,12 +2377,13 @@ export default function AdminClient() {
     ]);
     const profMap = new Map((profs || []).map((p: { id: string }) => [p.id, p]));
     const cpMap = new Map((cps || []).map((c: { id: string }) => [c.id, c]));
-    const rows: RefCoupon[] = (rewards || []).map((r: { reward_type: string; user_coupon_id: string; created_at: string }) => {
+    const rows: RefCoupon[] = (rewards || []).map((r: { referral_id: string | null; reward_type: string; user_coupon_id: string; created_at: string }) => {
       const uc = ucMap.get(r.user_coupon_id) as { user_id: string; coupon_id: string; is_used: boolean; used_at: string | null; expires_at: string | null } | undefined;
       const prof = uc ? profMap.get(uc.user_id) as { name: string | null; email: string } | undefined : undefined;
       const cp = uc ? cpMap.get(uc.coupon_id) as { discount_value: number } | undefined : undefined;
       return {
         key: r.user_coupon_id || r.created_at,
+        referral_id: r.referral_id,
         reward_type: r.reward_type,
         created_at: r.created_at,
         recipient_name: prof?.name || '(탈퇴)',
@@ -6741,6 +6742,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
             const total        = referrals.length;
             const thisMonthCnt = referrals.filter(r => r.created_at.startsWith(thisMonth)).length;
             const rewarded     = referrals.filter(r => r.rewarded).length;
+            // 추천인 보상 쿠폰을 이미 사용한 referral_id (철회 비활성화용)
+            const usedReferrerSet = new Set(refCoupons.filter(c => c.reward_type === 'referrer' && c.is_used && c.referral_id).map(c => c.referral_id));
 
             const filteredReferrals = referrals.filter(r => {
               const status = r.rewarded ? 'rewarded' : 'pending';
@@ -6823,10 +6826,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               </td>
                               <td className="adm-muted">{r.rewarded_at ? fmtDateShort(r.rewarded_at) : '—'}</td>
                               <td>
-                                {r.rewarded && (
-                                  <button className="adm-row-btn adm-row-btn-danger"
-                                    onClick={() => revokeReferralReward(r)}>철회</button>
-                                )}
+                                {r.rewarded && (() => {
+                                  const used = usedReferrerSet.has(r.id);
+                                  return (
+                                    <button className="adm-row-btn adm-row-btn-danger" disabled={used}
+                                      title={used ? '추천인이 보상 쿠폰을 이미 사용하여 철회할 수 없습니다' : ''}
+                                      onClick={() => { if (!used) revokeReferralReward(r); }}
+                                      style={used ? { opacity:0.45, cursor:'not-allowed' } : undefined}>철회</button>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           ))}
