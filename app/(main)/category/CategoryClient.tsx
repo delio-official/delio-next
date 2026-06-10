@@ -133,7 +133,7 @@ function ProductCard({ p }: { p: Product }) {
           {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
-        <div className="product-card-desc">{p.short_desc || ''}</div>
+        {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
         <div className="product-price-row">
           {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
           <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
