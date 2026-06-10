@@ -465,6 +465,14 @@ function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange
   );
 }
 
+/* 문자열 날짜 → datetime-local 입력값(YYYY-MM-DDTHH:mm). 레거시 "2026.05.30"도 변환 */
+function toDateTimeLocal(s: string): string {
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  const m = s.match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+  return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00` : '';
+}
+
 /* ===== 로딩 스피너 ===== */
 function PanelLoading() {
   return <div style={{ textAlign:'center', padding:'60px 0', color:'#94A3B8', fontSize:14 }}>불러오는 중...</div>;
@@ -3132,7 +3140,7 @@ export default function AdminClient() {
   function openLoungeModal(post?: AdminLoungePost) {
     if (post) {
       setEditingLounge(post);
-      setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', date: post.date || '', thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
+      setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', date: toDateTimeLocal(post.date || ''), thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
     } else {
       setEditingLounge(null);
       setLoungeForm({ filter: 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
@@ -8543,8 +8551,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
                 </div>
                 <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:4 }}>
-                  <label className="adm-label">작성일</label>
-                  <input type="text" className="adm-input-text" placeholder="예: 2026.05.30"
+                  <label className="adm-label">작성일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(달력+시간)</span></label>
+                  <input type="datetime-local" className="adm-input-text" style={{ width:'100%' }}
                     value={loungeForm.date} onChange={e => setLoungeForm(p => ({ ...p, date: e.target.value }))} />
                 </div>
               </div>

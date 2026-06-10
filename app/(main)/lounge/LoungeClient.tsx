@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import '@/styles/review.css';
 
+/* 작성일 표시: ISO datetime → "2026.05.30 14:30", 그 외(레거시 문자열)는 그대로 */
+function fmtLoungeDate(s: string | null | undefined): string {
+  if (!s) return '';
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}.${m[2]}.${m[3]} ${m[4]}:${m[5]}` : s;
+}
+
 interface LoungePost {
   id: number;
   filter: string;
@@ -124,7 +131,7 @@ export default function LoungeClient() {
                     <div className="lounge-card-title">{p.title}</div>
                     <div className="lounge-card-meta">
                       <span className="lounge-badge">{p.badge}</span>
-                      <span className="lounge-card-date">{p.date}</span>
+                      <span className="lounge-card-date">{fmtLoungeDate(p.date)}</span>
                     </div>
                   </div>
                 </Link>
