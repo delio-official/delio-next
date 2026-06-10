@@ -1389,6 +1389,14 @@ export default function MypageClient() {
                     if (uc.used) return false;
                     const exp = uc.expires_at ?? uc.coupon?.expires_at; // 개별 만료 우선
                     return !exp || new Date(exp) >= now;
+                  }).sort((a, b) => {
+                    // 유효기간 임박순(가까운 만료일 먼저). 만료일 없는 쿠폰은 맨 뒤
+                    const ea = a.expires_at ?? a.coupon?.expires_at;
+                    const eb = b.expires_at ?? b.coupon?.expires_at;
+                    if (!ea && !eb) return 0;
+                    if (!ea) return 1;
+                    if (!eb) return -1;
+                    return new Date(ea).getTime() - new Date(eb).getTime();
                   });
                   const used = userCoupons.filter(uc => uc.used);
                   const fmtDate = (s: string) => {
