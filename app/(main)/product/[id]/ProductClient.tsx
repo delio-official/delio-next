@@ -271,8 +271,7 @@ export default function ProductClient() {
         setInfoData(defaultInfoData);
       }
 
-      const def = (opts as ProductOption[])?.find(o => o.is_default);
-      if (def) setSelByGroup({ [def.group_name || '옵션']: def.id });
+      // 옵션은 기본 선택 없이 '[필수] 옵션 선택'으로 시작 (사용자가 직접 선택)
 
       // 최근 본 상품 저장 (localStorage)
       try {
