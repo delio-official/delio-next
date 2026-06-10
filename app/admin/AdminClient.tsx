@@ -20,7 +20,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'filtertabs'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -274,7 +274,7 @@ interface CsInquiryAdmin {
 
 /* ===== 상수 ===== */
 const TITLES: Record<PanelKey, string> = {
-  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', filtertabs:'필탭 / 카테고리', menu:'메뉴 관리', farms:'농가 관리',
+  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', menu:'메뉴 관리', farms:'농가 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
@@ -1890,10 +1890,6 @@ export default function AdminClient() {
     if (error) { alert('삭제 실패: ' + error.message); return; }
     loadFilterTabs();
   }
-  async function toggleFtField(t: FilterTab, field: 'is_active'|'show_in_home'|'show_in_category'|'show_in_shortcut', val: boolean) {
-    await createClient().from('filter_tabs').update({ [field]: val }).eq('id', t.id);
-    setFilterTabs(prev => prev.map(x => x.id === t.id ? { ...x, [field]: val } : x));
-  }
   async function moveFilterTab(t: FilterTab, dir: -1 | 1) {
     const sorted = [...filterTabs].sort((a, b) => a.sort_order - b.sort_order);
     const i = sorted.findIndex(x => x.id === t.id);
@@ -3363,7 +3359,6 @@ export default function AdminClient() {
     switch (p) {
       case 'orders':    loadOrders(); loadFarms(); break;
       case 'products':  loadProducts(); loadFilterTabs(); break;
-      case 'filtertabs': loadFilterTabs(); break;
       case 'menu': loadMenus(); loadFilterTabs(); break;
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
@@ -4553,8 +4548,7 @@ export default function AdminClient() {
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
-              <NavItem panel="filtertabs" icon={<Icon.Products />} label="필탭 / 카테고리" />
-              <NavItem panel="menu" icon={<Icon.Products />} label="상단 메뉴 관리" />
+              <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="농가 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </div>
@@ -4992,164 +4986,6 @@ export default function AdminClient() {
                             </td>
                           </tr>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ===== 필탭 / 카테고리 ===== */}
-          {panel === 'filtertabs' && (
-            <div className="adm-content">
-              <div className="adm-info-box" style={{ marginBottom:12 }}>
-                💡 메인 <strong>퀵 가이드</strong>·<strong>상품목록 상단</strong>·<strong>모바일 카테고리 탭</strong>에 노출되는 탭을 한 곳에서 관리합니다.
-                각 위치별로 노출을 따로 켜고 끌 수 있고, <strong>카테고리형</strong>은 상품 등록 시 선택하는 분류와 연결됩니다.
-                카테고리를 삭제하면 그 카테고리를 쓰던 상품은 자동으로 <strong>기타</strong>로 이동합니다.
-              </div>
-
-              {/* 카테고리 대분류 → 소분류 트리 미리보기 */}
-              {!ftLoading && (() => {
-                const cats = filterTabs.filter(t => t.tab_type === 'category');
-                if (cats.length === 0) return null;
-                const majors = cats.filter(t => !t.parent).sort((a, b) => a.sort_order - b.sort_order);
-                return (
-                  <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                    <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>🗂 카테고리 대분류 → 소분류 미리보기</div>
-                    {majors.length === 0 ? (
-                      <div className="adm-muted" style={{ fontSize:12 }}>대분류가 없습니다. 카테고리 추가 시 “대분류로 만들기”로 만드세요.</div>
-                    ) : (
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px,1fr))', gap:14 }}>
-                        {majors.map(m => {
-                          const subs = cats.filter(t => t.parent === m.tab_value).sort((a, b) => a.sort_order - b.sort_order);
-                          return (
-                            <div key={m.id} style={{ background:'#fff', border:'1px solid #FEF3C7', borderRadius:10, padding:'12px 14px', opacity: m.is_active ? 1 : 0.5 }}>
-                              <div style={{ fontWeight:800, fontSize:13, marginBottom:8, color:'#B45309' }}>
-                                {m.label}{!m.is_active && <span style={{ fontSize:10, color:'#94A3B8', marginLeft:4 }}>(꺼짐)</span>}
-                              </div>
-                              <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                                <span style={{ fontSize:12, color:'#94A3B8' }}>└ 전체보기</span>
-                                {subs.map(s => (
-                                  <span key={s.id} style={{ fontSize:12.5, color: s.is_active ? '#374151' : '#CBD5E1' }}>
-                                    └ {s.label}{!s.is_active && ' (꺼짐)'}
-                                  </span>
-                                ))}
-                                {subs.length === 0 && <span style={{ fontSize:11, color:'#CBD5E1' }}>(소분류 없음)</span>}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* 노출 미리보기 (실제 사이트 칩 스타일) */}
-              {!ftLoading && (
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:14, marginBottom:16 }}>
-                  {([
-                    ['🏠 퀵 가이드 (메인)',   'show_in_home'],
-                    ['📋 상품목록 상단',       'show_in_category'],
-                    ['📱 모바일 카테고리탭',   'show_in_shortcut'],
-                  ] as const).map(([title, key]) => {
-                    const tabs = filterTabs.filter(t => t.is_active && (t as unknown as Record<string, boolean>)[key]).sort((a, b) => a.sort_order - b.sort_order);
-                    return (
-                      <div key={key} className="adm-card" style={{ padding:'14px 16px' }}>
-                        <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:10 }}>
-                          {title} <span className="adm-muted" style={{ fontWeight:600 }}>({tabs.length})</span>
-                        </div>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                          {tabs.length === 0
-                            ? <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>
-                            : tabs.map(t => (
-                                <span key={t.id} style={{ display:'inline-flex', alignItems:'center', gap:4,
-                                  padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff',
-                                  fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' }}>
-                                  {t.label}
-                                </span>
-                              ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <span className="adm-muted" style={{ fontSize:13 }}>
-                    유형: <strong>카테고리</strong>(상품분류) · <strong>태그</strong>(베스트/새벽배송/신상품) · <strong>정렬</strong> · <strong>링크</strong>
-                  </span>
-                </div>
-                <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={loadFilterTabs}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-primary" onClick={() => openFtModal()}>+ 필탭 추가</button>
-                </div>
-              </div>
-              <div className="adm-card">
-                {ftLoading ? <PanelLoading /> : (
-                  <div className="adm-table-wrap">
-                    <table className="adm-table">
-                      <thead>
-                        <tr>
-                          <th>순서</th><th>필탭</th><th>유형</th><th>값</th>
-                          <th>퀵가이드</th><th>상품목록상단</th><th>모바일카테고리탭</th><th>사용</th><th>관리</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filterTabs.length === 0 ? (
-                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
-                            필탭 없음 — add_filter_tabs.sql 을 먼저 실행하세요.
-                          </td></tr>
-                        ) : (() => {
-                          // 대분류 → 그 소분류 → ... → 비카테고리(태그/정렬/링크) 순으로 정렬
-                          const cats = filterTabs.filter(t => t.tab_type === 'category');
-                          const majors = cats.filter(t => !t.parent).sort((a,b)=>a.sort_order-b.sort_order);
-                          const others = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
-                          const ordered: FilterTab[] = [];
-                          majors.forEach(m => {
-                            ordered.push(m);
-                            cats.filter(t => t.parent === m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).forEach(s => ordered.push(s));
-                          });
-                          const placed = new Set(ordered.map(t => t.id));
-                          cats.filter(t => !placed.has(t.id)).forEach(s => ordered.push(s)); // 미연결 소분류
-                          ordered.push(...others);
-                          return ordered;
-                        })().map(t => {
-                          const isSub = t.tab_type === 'category' && !!t.parent;
-                          const isMajor = t.tab_type === 'category' && !t.parent;
-                          return (
-                          <tr key={t.id}>
-                            <td>
-                              <div style={{ display:'inline-flex', gap:4 }}>
-                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
-                                <button className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
-                              </div>
-                            </td>
-                            <td>
-                              <span style={{ fontWeight: isMajor ? 800 : 600, paddingLeft: isSub ? 20 : 0, color: isSub ? '#475569' : '#1A1A1A' }}>
-                                {isSub && <span style={{ color:'#CBD5E1' }}>└ </span>}{t.label}
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`adm-badge ${t.tab_type==='category'?'badge-paid':t.tab_type==='flag'?'badge-on':'badge-off'}`}>
-                                {isMajor ? '대분류' : isSub ? '소분류' : t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}
-                              </span>
-                            </td>
-                            <td className="adm-mono adm-muted" style={{ fontSize:12 }}>{t.tab_value}</td>
-                            <td><Toggle defaultOn={t.show_in_home} onChange={v => toggleFtField(t, 'show_in_home', v)} /></td>
-                            <td><Toggle defaultOn={t.show_in_category} onChange={v => toggleFtField(t, 'show_in_category', v)} /></td>
-                            <td><Toggle defaultOn={t.show_in_shortcut} onChange={v => toggleFtField(t, 'show_in_shortcut', v)} /></td>
-                            <td><Toggle defaultOn={t.is_active} onChange={v => toggleFtField(t, 'is_active', v)} /></td>
-                            <td style={{ display:'flex', gap:6 }}>
-                              <button className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFilterTab(t)}>삭제</button>
-                            </td>
-                          </tr>
-                          );
-                        })}
                       </tbody>
                     </table>
                   </div>
