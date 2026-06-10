@@ -7969,6 +7969,18 @@ GRANT ALL ON popups TO authenticated, anon;`}
             const AXIS1_LABEL: Record<string, string> = { routine:'루틴형', free:'자유형' };
             const AXIS2_LABEL: Record<string, string> = { care:'케어형', self:'자기충전형' };
             const AXIS3_LABEL: Record<string, string> = { vitamin:'비타민형', healing:'힐링형' };
+            /* 성향 축 분포 집계 */
+            const axisDist = (vals: (string | null)[], labels: Record<string, string>) => {
+              const c: Record<string, number> = {};
+              vals.forEach(v => { if (v) c[v] = (c[v] || 0) + 1; });
+              const tot = Object.values(c).reduce((s, n) => s + n, 0) || 1;
+              return Object.entries(labels).map(([k, lb]) => ({ lb, n: c[k] || 0, pct: Math.round((c[k] || 0) / tot * 100) }));
+            };
+            const axisRows = [
+              axisDist(surveyResults.map(r => r.axis1), AXIS1_LABEL),
+              axisDist(surveyResults.map(r => r.axis2), AXIS2_LABEL),
+              axisDist(surveyResults.map(r => r.axis3), AXIS3_LABEL),
+            ];
 
             return (
               <div className="adm-content">
@@ -7987,6 +7999,32 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     </div>
                   ))}
                 </div>
+
+                {/* 성향 축 분포 */}
+                {total > 0 && (
+                  <div className="adm-card" style={{ marginBottom:16 }}>
+                    <div className="adm-card-head"><span className="adm-card-title">성향(축) 분포</span></div>
+                    <div style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:16 }}>
+                      {axisRows.map((row, ai) => (
+                        <div key={ai}>
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:700, color:'#475569', marginBottom:5 }}>
+                            <span>{row[0]?.lb}</span><span>{row[1]?.lb}</span>
+                          </div>
+                          <div style={{ display:'flex', height:26, borderRadius:6, overflow:'hidden', border:'1px solid #EEF2F6' }}>
+                            {row.map((e, i) => (
+                              <div key={e.lb} style={{ width:`${e.pct}%`, background: i === 0 ? '#3B82F6' : '#CBD5E1', color:'#fff', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', whiteSpace:'nowrap' }}>
+                                {e.pct >= 10 && `${e.pct}%`}
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#94A3B8', marginTop:3 }}>
+                            {row.map(e => <span key={e.lb}>{e.lb} {e.n}명 ({e.pct}%)</span>)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* 결과 페이지 설정 */}
                 <div className="adm-card" style={{ marginBottom:16 }}>
