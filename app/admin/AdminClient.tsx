@@ -1360,6 +1360,7 @@ export default function AdminClient() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
+  const [orderReqOnly, setOrderReqOnly] = useState(false);
   const [orderDateBasis, setOrderDateBasis] = useState<'created_at'|'paid_at'>('created_at');
   const [orderFrom, setOrderFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
   const [orderTo, setOrderTo] = useState<string>(() => ymd(new Date()));
@@ -3932,7 +3933,7 @@ export default function AdminClient() {
     if (loadedPanels.current.has(p)) return;
     loadedPanels.current.add(p);
     switch (p) {
-      case 'orders':    loadOrders(); loadFarms(); break;
+      case 'orders':    loadOrders(); loadFarms(); loadRefundRequests(); break;
       case 'products':  loadProducts(); loadFilterTabs(); break;
       case 'menu': loadMenus(); loadFilterTabs(); break;
       case 'farms':     loadFarms(); break;
@@ -3978,13 +3979,20 @@ export default function AdminClient() {
   }
 
   /* 필터된 주문 목록 */
+  /* 주문별 진행 중(접수/처리중) 취소·환불 요청 — 주문관리에서 배지·처리 노출용 */
+  const pendingReqByOrder = new Map<string, AdminRefundReq>();
+  refundReqs.forEach(r => {
+    if (r.order_id && (r.status === 'pending' || r.status === 'processing')) pendingReqByOrder.set(r.order_id, r);
+  });
+
   const filteredOrders = orders.filter(o => {
     const matchStatus = !orderStatusFilter || o.status === orderStatusFilter;
     const matchFarm   = !orderFarmFilter || (o.order_items || []).some(i => i.farm_id === orderFarmFilter);
     const q = orderSearch.toLowerCase();
     const matchSearch = !q || o.order_no.toLowerCase().includes(q) ||
       o.recipient.toLowerCase().includes(q) || o.phone.includes(q);
-    return matchStatus && matchFarm && matchSearch;
+    const matchReq = !orderReqOnly || pendingReqByOrder.has(o.id);
+    return matchStatus && matchFarm && matchSearch && matchReq;
   });
 
   /* 페이지네이션 (N개씩) */
@@ -5308,6 +5316,41 @@ export default function AdminClient() {
                 </div>
               </div>
 
+              {/* 고객 취소/환불 요청 (진행중일 때) — 여기서 바로 승인/거절 */}
+              {(() => {
+                const rq = pendingReqByOrder.get(selectedOrder.id);
+                if (!rq) return null;
+                const w = rq.type === 'cancel' ? '취소' : '환불';
+                return (
+                  <div className="adm-detail-group adm-detail-mt16" style={{ border:'1px solid #FECACA', background:'#FEF2F2', borderRadius:10, padding:'14px 16px' }}>
+                    <div style={{ fontWeight:800, color:'#B91C1C', marginBottom:8 }}>🔔 고객 {w} 요청{rq.status === 'processing' ? ' (진행중)' : ''}</div>
+                    <div style={{ fontSize:13, color:'#333', marginBottom:4 }}>사유: {rq.reason}{rq.detail ? ` — ${rq.detail}` : ''}</div>
+                    <div style={{ fontSize:12, color:'#888', marginBottom:12 }}>신청일 {fmtDate(rq.created_at)}</div>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      <button className="adm-btn adm-btn-primary" disabled={updatingStatus === selectedOrder.id}
+                        onClick={async () => {
+                          if (!confirm(`${w} 요청을 승인할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.`)) return;
+                          await updateRefundStatus(rq, 'completed');
+                          await loadRefundRequests(); await loadOrders();
+                          setSelectedOrder(null);
+                        }}>승인 ({w} 처리)</button>
+                      <button className="adm-btn adm-btn-outline" disabled={updatingStatus === selectedOrder.id}
+                        onClick={async () => {
+                          const reason = prompt('거절(반려) 사유를 입력하세요. (고객 마이페이지에 표시됩니다)');
+                          if (reason === null) return;
+                          await updateRefundStatus(rq, 'rejected', reason || '');
+                          await loadRefundRequests();
+                        }}>거절(반려)</button>
+                      <button className="adm-btn adm-btn-outline" disabled={updatingStatus === selectedOrder.id}
+                        onClick={async () => {
+                          await updateRefundStatus(rq, 'hold');
+                          await loadRefundRequests();
+                        }}>보류</button>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label">주문 상태 변경</div>
                 <div className="adm-flex-gap adm-mt-6 adm-flex-wrap">
@@ -5660,6 +5703,12 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
                     value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
+                  <button
+                    className={`adm-seg-btn${orderReqOnly ? ' active' : ''}`}
+                    style={{ borderColor: pendingReqByOrder.size > 0 ? '#DC2626' : undefined, color: !orderReqOnly && pendingReqByOrder.size > 0 ? '#DC2626' : undefined, fontWeight:700 }}
+                    onClick={() => { setOrderReqOnly(v => !v); setOrderPage(1); }}>
+                    🔔 취소·환불 요청{pendingReqByOrder.size > 0 ? ` ${pendingReqByOrder.size}` : ''}
+                  </button>
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => downloadOrderExcel(orderFarmFilter || undefined)}>
@@ -5698,6 +5747,15 @@ export default function AdminClient() {
                               <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
                                 {STATUS_LABEL[o.status] || o.status}
                               </span>
+                              {(() => {
+                                const rq = pendingReqByOrder.get(o.id);
+                                if (!rq) return null;
+                                return (
+                                  <span style={{ marginLeft:6, fontSize:10, fontWeight:800, color:'#fff', background:'#DC2626', borderRadius:5, padding:'2px 6px', whiteSpace:'nowrap' }}>
+                                    {rq.type === 'cancel' ? '취소요청' : '환불요청'}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td>
                               <button className="adm-row-btn" onClick={() => {
