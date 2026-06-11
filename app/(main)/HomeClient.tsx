@@ -278,13 +278,7 @@ function QuickGuide() {
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
   const requireLogin = useLoginGuard();
   const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
-  const [qgHidden, setQgHidden] = useState(false);
   const qgScrollRef = useRef<HTMLDivElement>(null);
-
-  /* 노출 개수 0 → 섹션 숨김 */
-  useEffect(() => {
-    fetchSectionConfig(createClient(), 'qg').then(c => setQgHidden(c.count === 0));
-  }, []);
 
   /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
@@ -375,8 +369,6 @@ function QuickGuide() {
       return s;
     });
   }
-
-  if (qgHidden) return null;
 
   return (
     <section className="quick-guide-section" id="section-guide">
@@ -641,10 +633,8 @@ export default function HomeClient() {
   const reviewScrollRef = useRef<HTMLDivElement>(null);
   const [pickProds, setPickProds] = useState<PickProduct[]>([]);
   const [pickLoaded, setPickLoaded] = useState(false);
-  const [pickHidden, setPickHidden] = useState(false);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
   const [loungeLoaded, setLoungeLoaded] = useState(false);
-  const [loungeHidden, setLoungeHidden] = useState(false);
 
   /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
   const [secOff, setSecOff] = useState<Set<string>>(new Set());
@@ -676,7 +666,7 @@ export default function HomeClient() {
     async function loadLounge() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'lounge');
-      if (cfg.count === 0) { setLoungeHidden(true); setLoungePosts([]); setLoungeLoaded(true); return; }
+      if (cfg.count === 0) { setLoungePosts([]); setLoungeLoaded(true); return; }
       const cols = 'id,bg,emoji,title,badge,date,filter,thumbnail_url';
 
       let rows: LoungePost[] = [];
@@ -706,7 +696,7 @@ export default function HomeClient() {
     async function loadPicks() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'pick');
-      if (cfg.count === 0) { setPickHidden(true); setPickProds([]); setPickLoaded(true); return; }
+      if (cfg.count === 0) { setPickProds([]); setPickLoaded(true); return; }
       const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category';
 
       let rows: PickProduct[] = [];
@@ -774,6 +764,7 @@ export default function HomeClient() {
 
   /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
   const [reviews, setReviews] = useState<{ id: string; image: string; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string }[]>([]);
+  const [reviewLoaded, setReviewLoaded] = useState(false);
   useEffect(() => {
     (async () => {
       const supabase = createClient();
@@ -807,11 +798,13 @@ export default function HomeClient() {
           emoji: EMOJI[r.products!.category] || '🍑',
         }));
       setReviews(cards);
+      setReviewLoaded(true);
     })();
   }, []);
 
   /* 브랜드 직송관 — 농가 + 대표상품 실데이터 (없으면 섹션 숨김) */
   const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number }[]>([]);
+  const [brandLoaded, setBrandLoaded] = useState(false);
   useEffect(() => {
     (async () => {
       const supabase = createClient();
@@ -833,7 +826,7 @@ export default function HomeClient() {
         const { data } = await supabase.from('farms').select(fcols).order(ord.col, { ascending: ord.asc });
         farmsData = (data as FRow[]) || [];
       }
-      if (!farmsData || farmsData.length === 0) { setBrandCards([]); return; }
+      if (!farmsData || farmsData.length === 0) { setBrandCards([]); setBrandLoaded(true); return; }
       const { data: prods } = await supabase.from('products')
         .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order')
         .in('farm_id', farmsData.map(f => f.id))
@@ -858,6 +851,7 @@ export default function HomeClient() {
           };
         });
       setBrandCards(cards);
+      setBrandLoaded(true);
     })();
   }, []);
 
@@ -870,7 +864,7 @@ export default function HomeClient() {
       {secOn('topbanner') && <MainBanner />}
 
       {/* ── 델리오 픽 ── */}
-      {secOn('pick') && !pickHidden && (
+      {secOn('pick') && (
       <section className="curation-section" id="section-pick">
         <div className="container">
           <div className="g-section-head">
@@ -998,8 +992,8 @@ export default function HomeClient() {
       {/* ── 퀵 가이드 ── */}
       {secOn('quickguide') && <QuickGuide />}
 
-      {/* ── 브랜드 직송관 (농가 직송상품 있을 때만) ── */}
-      {secOn('brand') && brandCards.length > 0 && (
+      {/* ── 브랜드 직송관 ── */}
+      {secOn('brand') && (brandCards.length > 0 || brandLoaded) && (
       <section className="brand-direct-section" id="section-brand">
         <div className="container">
           <div className="g-section-head">
@@ -1011,6 +1005,9 @@ export default function HomeClient() {
               </div>
             </h2>
           </div>
+          {brandCards.length === 0 ? (
+            <ComingSoon title="브랜드 직송관 준비중입니다." desc={['좋은 농가를 모시고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']} />
+          ) : (
           <div className="brand-direct-grid">
             {brandCards.map((b, i) => (
               <div key={i} className="brand-direct-card">
@@ -1038,6 +1035,7 @@ export default function HomeClient() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </section>
 
@@ -1046,8 +1044,8 @@ export default function HomeClient() {
       {/* ── 중간 배너 ── */}
       {secOn('midbanner') && <MidBanner />}
 
-      {/* ── 리뷰 하이라이트 (사진 리뷰 있을 때만) ── */}
-      {secOn('review') && reviews.length > 0 && (
+      {/* ── 리뷰 하이라이트 ── */}
+      {secOn('review') && (reviews.length > 0 || reviewLoaded) && (
       <section className="review-section" id="section-review">
         <div className="container">
           <div className="g-section-head">
@@ -1059,6 +1057,9 @@ export default function HomeClient() {
               </div>
             </h2>
           </div>
+          {reviews.length === 0 ? (
+            <ComingSoon title="리뷰 준비중입니다." desc={['고객님들의 생생한 후기를 모으고 있어요.']} />
+          ) : (
           <div className="review-scroll-wrap">
             <button className="review-nav-btn prev" onClick={() => reviewScrollRef.current && smoothScroll(reviewScrollRef.current, -265)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="22" height="22" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6"/></svg>
@@ -1089,13 +1090,14 @@ export default function HomeClient() {
               ))}
             </div>
           </div>
+          )}
         </div>
       </section>
 
       )}
 
       {/* ── 델리오 라운지 ── */}
-      {secOn('lounge') && !loungeHidden && (
+      {secOn('lounge') && (
       <section className="lounge-section" id="section-lounge">
         <div className="container">
           <div className="g-section-head">

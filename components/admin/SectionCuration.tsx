@@ -102,7 +102,7 @@ export default function SectionCuration({ sec, items, buckets }: {
             style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, width: 90, background: '#fff' }} />
         </label>
         <div style={{ fontSize: 11.5, color: count === 0 ? '#DC2626' : '#94A3B8', flex: '1 1 160px', lineHeight: 1.5 }}>
-          {count === 0 ? '0개 → 이 섹션을 메인에서 숨깁니다.'
+          {count === 0 ? "0개 → 메인에서 '준비중'으로 표시됩니다. (완전히 숨기려면 설정 탭의 섹션 토글 사용)"
             : mode === 'latest' ? '최근 등록순으로 자동 노출됩니다.'
             : mode === 'popular' ? '인기순(리뷰·좋아요·찜)으로 자동 노출됩니다.'
             : mode === 'views' ? '조회수 높은 순으로 자동 노출됩니다.'
