@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -231,6 +232,7 @@ function calcResult(answers: Record<string, number>) {
 // ════════════════════════════════════════════════
 export default function SurveyClient() {
   const { user } = useAuth();
+  const sp = useSearchParams();
 
   const [phase,        setPhase]        = useState<Phase>('intro');
   const [info,         setInfo]         = useState({ gender:'', age:'', family:'' });
@@ -242,6 +244,17 @@ export default function SurveyClient() {
   const [copied,       setCopied]       = useState(false);
   const [sharingInsta, setSharingInsta] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
+
+  /* 공유 링크(?r=key)로 들어오면 결과 화면을 바로 표시 (처음부터 다시 안 하게) */
+  useEffect(() => {
+    const r = sp.get('r');
+    if (r && RESULTS[r]) {
+      const [a1, a2, a3] = r.split('-');
+      setResult({ axis1: a1, axis2: a2, axis3: a3, key: r } as ReturnType<typeof calcResult>);
+      setPhase('result');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* 맞춤 상품 */
   interface RecProduct {
@@ -343,7 +356,11 @@ export default function SurveyClient() {
 
   /* ── 공유 ─────────────────── */
   function copyLink() {
-    navigator.clipboard.writeText(window.location.href)
+    /* 결과 공유 링크: ?r=<유형key> 를 붙여, 받는 사람이 결과 화면을 바로 보게 */
+    const url = result
+      ? `${window.location.origin}/survey?r=${encodeURIComponent(result.key)}`
+      : window.location.href;
+    navigator.clipboard.writeText(url)
       .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   }
 
