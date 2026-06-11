@@ -482,6 +482,22 @@ export default function MypageClient() {
     finally { setSavingCard(false); }
   }
 
+  /* 취향진단 결과 카카오 공유 (취향진단 페이지와 동일 — ?r=key 링크) */
+  function shareSurveyKakao() {
+    if (!surveyResult || surveyResult === 'none') return;
+    const key = `${surveyResult.axis1}-${surveyResult.axis2}-${surveyResult.axis3}`;
+    const info = SURVEY_MAP[key];
+    const url = `${window.location.origin}/survey?r=${encodeURIComponent(key)}`;
+    const ok = shareKakaoFeed({
+      title: `내 과일 취향유형 · ${info?.name ?? '취향진단'}`,
+      description: info?.tagline ?? '델리오 취향진단으로 내 과일 유형을 확인해보세요!',
+      imageUrl: `${window.location.origin}/DelioLogo.png`,
+      linkUrl: url,
+      buttonTitle: '내 결과 보기',
+    });
+    if (!ok) { navigator.clipboard.writeText(url).then(() => showToastMsg('결과 링크를 복사했어요')); }
+  }
+
   /* 취향 진단 맞춤 상품 로드 */
   useEffect(() => {
     if (activePanel !== 'survey' || !surveyResult || surveyResult === 'none' || surveyRecProducts.length > 0) return;
@@ -2878,27 +2894,37 @@ export default function MypageClient() {
                         마지막 진단: {new Date(surveyResult.created_at).toLocaleDateString('ko-KR')}
                       </div>
 
-                      {/* 버튼 */}
-                      <div style={{ display:'flex', gap:8, marginBottom:10 }}>
-                        <button onClick={saveResultCard} disabled={savingCard}
-                          style={{ flex:1, padding:'13px', border:'1.5px solid #EBEBEB', borderRadius:12,
-                            background:'#fff', fontSize:13, fontWeight:700, cursor:'pointer',
-                            color:'#1A1A1A', fontFamily:'inherit', opacity: savingCard ? 0.6 : 1 }}>
-                          {savingCard ? '저장 중...' : '저장하기'}
+                      {/* 공유 버튼 (취향진단 페이지와 동일하게 카카오·인스타) */}
+                      <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                        <button onClick={shareSurveyKakao}
+                          style={{ flex:1, padding:'13px', border:'none', borderRadius:12,
+                            background:'#FEE500', color:'#3C1E1E', fontSize:13, fontWeight:700, cursor:'pointer',
+                            fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                          <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/></svg>
+                          카카오 공유
                         </button>
+                        <button onClick={saveResultCard} disabled={savingCard}
+                          style={{ flex:1, padding:'13px', border:'none', borderRadius:12,
+                            background:'linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)', color:'#fff', fontSize:13, fontWeight:700, cursor:'pointer',
+                            fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:6, opacity: savingCard ? 0.6 : 1 }}>
+                          📸 {savingCard ? '준비 중...' : '인스타 공유'}
+                        </button>
+                      </div>
+                      {/* 맞춤상품 / 재검사 */}
+                      <div style={{ display:'flex', gap:8, marginBottom:10 }}>
                         <button onClick={() => router.push('/category')}
                           style={{ flex:1, padding:'13px', border:'1.5px solid #EBEBEB', borderRadius:12,
                             background:'#fff', fontSize:13, fontWeight:700, cursor:'pointer',
                             color:'#1A1A1A', fontFamily:'inherit' }}>
                           맞춤 상품
                         </button>
+                        <button onClick={() => { setSurveyResult('none'); router.push('/survey'); }}
+                          style={{ flex:1, padding:'13px', border:'none', borderRadius:12,
+                            background:'#1A1A1A', color:'#fff', fontSize:13, fontWeight:700,
+                            cursor:'pointer', fontFamily:'inherit' }}>
+                          재검사하기
+                        </button>
                       </div>
-                      <button onClick={() => { setSurveyResult('none'); router.push('/survey'); }}
-                        style={{ width:'100%', padding:'13px', border:'none', borderRadius:12,
-                          background:'#1A1A1A', color:'#fff', fontSize:13, fontWeight:700,
-                          cursor:'pointer', fontFamily:'inherit' }}>
-                        재검사하기
-                      </button>
 
                       {/* ─ 숨김 캡처 카드 ─ */}
                       <div style={{ position:'fixed', top:0, left:0, width:0, height:0, overflow:'hidden', pointerEvents:'none' }} aria-hidden="true">
