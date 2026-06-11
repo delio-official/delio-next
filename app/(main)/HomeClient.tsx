@@ -139,6 +139,7 @@ function MainBanner() {
   const touchStartX = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioning = useRef(false);
+  const transFallback = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bannerHovered, setBannerHovered] = useState(false);
   const [glowUrl, setGlowUrl] = useState<string | null>(null);
 
@@ -183,10 +184,13 @@ function MainBanner() {
     curRef.current = next;
     setPos(next, true);
     updateProgress(next);
+    /* 안전장치: transitionend 가 안 터져도 잠금이 영구히 걸리지 않게 풀어줌 */
+    if (transFallback.current) clearTimeout(transFallback.current);
+    transFallback.current = setTimeout(() => { transitioning.current = false; }, 500);
   }, [TOTAL, CLONES, snapTo, setPos, updateProgress]);
 
-  const startTimer = useCallback(() => { timerRef.current = setInterval(() => go(curRef.current + 1), 4500); }, [go]);
-  const stopTimer  = useCallback(() => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+  const stopTimer  = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
+  const startTimer = useCallback(() => { stopTimer(); timerRef.current = setInterval(() => go(curRef.current + 1), 4500); }, [go, stopTimer]);
 
   useEffect(() => {
     if (!ready || TOTAL === 0) return;
@@ -199,6 +203,7 @@ function MainBanner() {
       const onEnd = (e: TransitionEvent) => {
         if (e.target !== track || e.propertyName !== 'transform') return;
         if (curRef.current < CLONES) snapTo(curRef.current + TOTAL);
+        if (transFallback.current) clearTimeout(transFallback.current);
         transitioning.current = false;
       };
       track.addEventListener('transitionend', onEnd);
