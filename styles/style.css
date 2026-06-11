@@ -649,10 +649,12 @@ input, select, textarea { font-family: inherit; }
   position: relative;
   cursor: pointer;
 }
-.bottom-nav-item svg {
-  width: 22px; height: 22px;
+/* 5개 아이콘 크기·굵기 통일 (홈 특수 강조 제거) */
+.bottom-nav-item svg,
+.bottom-nav-item.nav-home svg {
+  width: 23px; height: 23px;
   stroke: currentColor; fill: none;
-  stroke-width: 1.6;
+  stroke-width: 1.7;
   flex-shrink: 0;
 }
 .bottom-nav-item span:last-child {
@@ -663,13 +665,6 @@ input, select, textarea { font-family: inherit; }
 }
 .bottom-nav-item.active { color: var(--color-ink); }
 .bottom-nav-item.active svg { stroke: var(--color-ink); }
-
-/* 홈 버튼 — 중앙 강조 */
-.bottom-nav-item.nav-home svg {
-  width: 28px; height: 28px;
-  stroke-width: 2;
-}
-.bottom-nav-item.nav-home.active svg { stroke: var(--color-ink); }
 
 /* 장바구니 배지 */
 .bottom-nav-item .cart-badge {

@@ -240,31 +240,31 @@ function BottomNavInner() {
         <div className="bottom-nav-inner">
           {/* 카테고리 */}
           <button className={`bottom-nav-item${catOpen ? ' active' : ''}`} onClick={() => catOpen ? closeCat() : openCat()}>
-            <Menu size={21} strokeWidth={1.8} />
+            <Menu size={23} strokeWidth={1.7} />
             <span>카테고리</span>
           </button>
 
           {/* 배송조회 */}
-          <Link href="/mypage?panel=order" onClick={closeCatForNav} className={`bottom-nav-item${onMypage && panel === 'order' ? ' active' : ''}`}>
-            <Truck size={21} strokeWidth={1.8} />
+          <Link href="/mypage?panel=order" onClick={closeCatForNav} className={`bottom-nav-item${!catOpen && onMypage && panel === 'order' ? ' active' : ''}`}>
+            <Truck size={23} strokeWidth={1.7} />
             <span>배송조회</span>
           </Link>
 
           {/* 홈 */}
-          <Link href="/" onClick={closeCatForNav} className={`bottom-nav-item nav-home${pathname === '/' ? ' active' : ''}`}>
-            <Home size={21} strokeWidth={1.8} />
+          <Link href="/" onClick={closeCatForNav} className={`bottom-nav-item nav-home${!catOpen && pathname === '/' ? ' active' : ''}`}>
+            <Home size={23} strokeWidth={1.7} />
             <span>홈</span>
           </Link>
 
           {/* 찜 */}
-          <Link href="/mypage?panel=wish" onClick={closeCatForNav} className={`bottom-nav-item${onMypage && panel === 'wish' ? ' active' : ''}`}>
-            <Heart size={21} strokeWidth={1.8} />
+          <Link href="/mypage?panel=wish" onClick={closeCatForNav} className={`bottom-nav-item${!catOpen && onMypage && panel === 'wish' ? ' active' : ''}`}>
+            <Heart size={23} strokeWidth={1.7} />
             <span>찜</span>
           </Link>
 
           {/* 마이/로그인 */}
-          <Link href={loggedIn ? '/mypage' : '/login'} onClick={closeCatForNav} className={`bottom-nav-item${(onMypage && panel !== 'order' && panel !== 'wish') || isActive('/login') ? ' active' : ''}`}>
-            <User size={21} strokeWidth={1.8} />
+          <Link href={loggedIn ? '/mypage' : '/login'} onClick={closeCatForNav} className={`bottom-nav-item${!catOpen && ((onMypage && panel !== 'order' && panel !== 'wish') || isActive('/login')) ? ' active' : ''}`}>
+            <User size={23} strokeWidth={1.7} />
             <span>{loggedIn ? '마이' : '로그인'}</span>
           </Link>
         </div>
