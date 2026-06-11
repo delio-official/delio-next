@@ -184,10 +184,15 @@ function MainBanner() {
     curRef.current = next;
     setPos(next, true);
     updateProgress(next);
-    /* 안전장치: transitionend 가 안 터져도 잠금이 영구히 걸리지 않게 풀어줌 */
+    /* 안전장치: transitionend 가 누락돼도 클론 구간에서 진짜 슬라이드로 스냅 복구 + 잠금 해제
+       → 빠른 연타로 빈 영역에 갇히는 것 방지 */
     if (transFallback.current) clearTimeout(transFallback.current);
-    transFallback.current = setTimeout(() => { transitioning.current = false; }, 500);
-  }, [TOTAL, setPos, updateProgress]);
+    transFallback.current = setTimeout(() => {
+      if (curRef.current >= TOTAL + CLONES) snapTo(curRef.current - TOTAL);
+      else if (curRef.current < CLONES) snapTo(curRef.current + TOTAL);
+      transitioning.current = false;
+    }, 450);
+  }, [TOTAL, CLONES, snapTo, setPos, updateProgress]);
 
   const stopTimer  = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
   const startTimer = useCallback(() => { stopTimer(); timerRef.current = setInterval(() => go(curRef.current + 1), 4500); }, [go, stopTimer]);
