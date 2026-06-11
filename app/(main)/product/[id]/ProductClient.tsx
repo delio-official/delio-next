@@ -130,6 +130,7 @@ export default function ProductClient() {
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
   const [mediaUploading,   setMediaUploading]   = useState(false);
   const [submitting,       setSubmitting]       = useState(false);
+  const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [tasteMore,           setTasteMore]           = useState(false);
   const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0 });
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
@@ -491,6 +492,20 @@ export default function ProductClient() {
     return () => document.body.classList.remove('has-mobile-cta');
   }, []);
 
+  /* 리뷰 작성 적립 포인트 (안내용) */
+  useEffect(() => {
+    createClient().from('site_settings').select('key,value')
+      .in('key', ['review_point_text', 'review_point_photo'])
+      .then(({ data }) => {
+        const m: Record<string, string> = {};
+        ((data as { key: string; value: string }[]) || []).forEach(s => { m[s.key] = s.value; });
+        setReviewPt({
+          text: parseInt(m.review_point_text || '100') || 0,
+          photo: parseInt(m.review_point_photo || '500') || 0,
+        });
+      });
+  }, []);
+
   /* 적립률: 로그인 회원 등급별(membership_tiers) — 비로그인은 비기너 기준 */
   useEffect(() => {
     (async () => {
@@ -586,7 +601,7 @@ export default function ProductClient() {
       setMediaUploading(false);
     }
 
-    const { error } = await supabase.from('reviews').insert({
+    const { data: inserted, error } = await supabase.from('reviews').insert({
       product_id: product!.id,
       user_id: user.id,
       rating: newRating,
@@ -595,9 +610,21 @@ export default function ProductClient() {
       video_url: uploadedVideoUrl,
       taste: Object.keys(newTaste).length > 0 ? newTaste : null,
       is_best: false,
-    });
+    }).select('id').single();
     setSubmitting(false);
     if (error) { alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+
+    /* 리뷰 작성 포인트 적립 (멱등) */
+    let earnedPt = 0;
+    if (inserted?.id) {
+      try {
+        const res = await fetch('/api/reviews/reward', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reviewId: inserted.id }),
+        });
+        earnedPt = (await res.json())?.granted || 0;
+      } catch { /* 적립 실패는 리뷰 등록에 영향 없음 */ }
+    }
 
     // 리뷰 새로 불러오기
     const { data: refreshed } = await supabase
@@ -618,7 +645,7 @@ export default function ProductClient() {
     }).eq('id', product!.id);
     setProduct(prev => prev ? { ...prev, review_count: newCount, avg_rating: newAvg } : prev);
 
-    alert('리뷰가 등록됐습니다. 감사합니다!');
+    alert(earnedPt > 0 ? `리뷰가 등록됐습니다. ${earnedPt.toLocaleString()}P 적립! 감사합니다 🎉` : '리뷰가 등록됐습니다. 감사합니다!');
     setReviewModalOpen(false);
     setNewRating(5);
     setNewContent('');
@@ -2289,6 +2316,22 @@ export default function ProductClient() {
                 ✕
               </button>
             </div>
+
+            {/* 포인트 적립 안내 */}
+            {(reviewPt.text > 0 || reviewPt.photo > 0) && (
+              <div style={{
+                display:'flex', alignItems:'center', gap:10, marginBottom:20,
+                padding:'12px 14px', borderRadius:12,
+                background:'var(--color-accent-bg)', border:'1px solid var(--color-accent-soft)',
+              }}>
+                <span style={{ fontSize:18, lineHeight:1 }}>✨</span>
+                <div style={{ fontSize:12.5, lineHeight:1.6, color:'var(--color-ink-soft)' }}>
+                  리뷰를 남기면 포인트를 드려요!{' '}
+                  <b style={{ color:'var(--color-accent)' }}>리뷰 작성 +{reviewPt.text.toLocaleString()}P</b>
+                  {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>사진·영상 첨부 시 +{reviewPt.photo.toLocaleString()}P</b></>}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom:20 }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:10,
