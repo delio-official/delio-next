@@ -1349,11 +1349,11 @@
     .main-banner-edge { position: absolute; top: 0; bottom: 0; z-index: 3; pointer-events: none; }
     .main-banner-edge-l {
       left: 0; width: max(20px, calc((100% - 1118px) / 2 - 10px));
-      background: linear-gradient(to right, rgba(0,0,0,.30), rgba(0,0,0,.30) calc(100% - 46px), transparent);
+      background: rgba(0,0,0,.30);
     }
     .main-banner-edge-r {
       right: 0; width: max(20px, calc((100% - 1118px) / 2 + 10px));
-      background: linear-gradient(to left, rgba(0,0,0,.30), rgba(0,0,0,.30) calc(100% - 46px), transparent);
+      background: rgba(0,0,0,.30);
     }
     @media(max-width:640px) { .main-banner-edge { display: none; } }
     @media(max-width:640px) {
