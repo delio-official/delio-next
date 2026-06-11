@@ -273,6 +273,9 @@ function MainBanner() {
             ))}
           </div>
         </div>
+        {/* 양옆 미리보기 고정 어둠 패널 (가운데 2장만 또렷) */}
+        <div className="main-banner-edge main-banner-edge-l" aria-hidden />
+        <div className="main-banner-edge main-banner-edge-r" aria-hidden />
         <BannerArrow dir="prev" visible={bannerHovered} onClick={() => { stopTimer(); go(curRef.current - 1); startTimer(); }} />
         <BannerArrow dir="next" visible={bannerHovered} onClick={() => { stopTimer(); go(curRef.current + 1); startTimer(); }} />
       </div>
