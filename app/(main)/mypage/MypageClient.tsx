@@ -198,6 +198,30 @@ export default function MypageClient() {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) activeReqByOrder.set(r.order_id, r);
   });
 
+  /* 즉시 취소 (결제완료 상태) — 승인 없이 바로 처리 */
+  async function instantCancel(o: Order) {
+    if (!confirm('주문을 취소할까요?\n결제가 즉시 취소되고, 사용한 쿠폰·포인트가 복원됩니다.')) return;
+    try {
+      const res = await fetch('/api/orders/cancel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: o.id }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (j?.cancelled) {
+        setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: 'cancelled' } : x));
+        await loadMyRefundReqs();
+        alert('주문이 취소됐습니다. 결제·쿠폰·포인트가 복원됩니다.');
+      } else if (j?.needsRequest) {
+        alert('이미 상품 준비가 시작돼 즉시취소가 어려워요.\n취소 신청으로 진행해주세요.');
+        setReqModal({ order: o, type: 'cancel' }); setReqReason(''); setReqDetail('');
+      } else {
+        alert('취소 처리 중 오류가 발생했습니다.' + (j?.error ? `\n${j.error}` : ''));
+      }
+    } catch {
+      alert('취소 처리 중 오류가 발생했습니다.');
+    }
+  }
+
   async function submitReq() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
     setReqSubmitting(true);
@@ -1322,18 +1346,23 @@ export default function MypageClient() {
                             {(() => {
                               const active = activeReqByOrder.get(o.id);
                               const btnGhost: React.CSSProperties = { fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9', borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' };
-                              const canCancel = ['pending','paid','preparing'].includes(o.status);
+                              const instantCancelable = o.status === 'paid';            // 결제완료 → 즉시 취소
+                              const requestCancelable = o.status === 'preparing';       // 준비중 → 취소 신청
                               const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
+                              const accentBtn: React.CSSProperties = { ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' };
                               return (
                                 <>
-                                  {active && (canCancel || canRefund) && (
+                                  {active && (instantCancelable || requestCancelable || canRefund) && (
                                     <span style={{ fontSize:12, padding:'6px 14px', borderRadius:6, background:'#FFF3E0', color:'#C8841C', fontWeight:700 }}>
                                       {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
                                     </span>
                                   )}
-                                  {!active && canCancel && (
+                                  {!active && instantCancelable && (
+                                    <button onClick={() => instantCancel(o)} style={accentBtn}>주문취소</button>
+                                  )}
+                                  {!active && requestCancelable && (
                                     <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }}
-                                      style={{ ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' }}>
+                                      style={accentBtn}>
                                       주문취소
                                     </button>
                                   )}
