@@ -3020,7 +3020,12 @@ export default function AdminClient() {
   async function saveSettings() {
     setSettingsSaving(true);
     const supabase = createClient();
-    const upsertRows = Object.entries(siteSettings).map(([key, value]) => ({ key, value }));
+    /* 메인 큐레이션 키(_mode/_ids/_count)는 각 관리 탭에서 관리 → 여기선 건드리지 않음 */
+    const CURATION_KEYS = new Set(['pick_count', 'qg_count', 'brand_count', 'reviewhl_count', 'lounge_count']);
+    const isCuration = (k: string) => k.endsWith('_mode') || k.endsWith('_ids') || CURATION_KEYS.has(k);
+    const upsertRows = Object.entries(siteSettings)
+      .filter(([key]) => !isCuration(key))
+      .map(([key, value]) => ({ key, value }));
     const { error } = await supabase.from('site_settings').upsert(upsertRows, { onConflict: 'key' });
     setSettingsSaving(false);
     if (error) alert('저장 실패: ' + error.message);
@@ -8876,13 +8881,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
               <div className="adm-card adm-card-settings">
                 <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
                 <div className="adm-form">
-                  <div className="adm-form-row">
-                    <label className="adm-label">델리오 픽 노출 수</label>
-                    <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" value={siteSettings.pick_count ?? '6'} min={3} max={12} step={3} onChange={e => setSiteSettings(prev => ({ ...prev, pick_count: e.target.value }))} />
-                      <span className="adm-muted">개 (3·6·9·12 권장)</span>
-                    </div>
-                  </div>
                   <div className="adm-form-row">
                     <label className="adm-label">전체 출발 마감 시간 (기본값)</label>
                     <div className="adm-flex-center-gap">
