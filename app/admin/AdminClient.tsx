@@ -3421,8 +3421,9 @@ export default function AdminClient() {
   async function updateOrderStatus(orderId: string, newStatus: string) {
     setUpdatingStatus(orderId);
 
-    /* 주문취소(cancelled)면 결제된 카드도 실제 취소(포트원) 먼저 수행 */
-    if (newStatus === 'cancelled') {
+    /* 취소(cancelled)·환불(refunded)이면 결제된 카드도 실제 취소(포트원) 먼저 수행 */
+    const isVoid = newStatus === 'cancelled' || newStatus === 'refunded';
+    if (isVoid) {
       const ord = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
       const pid = (ord as unknown as { portone_payment_id?: string | null })?.portone_payment_id;
       const alreadyVoid = ord && ['cancelled', 'refunded', 'refunding'].includes(ord.status);
@@ -3430,11 +3431,11 @@ export default function AdminClient() {
         const res = await fetch('/api/payment/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: pid, reason: '관리자 주문취소' }),
+          body: JSON.stringify({ paymentId: pid, reason: newStatus === 'cancelled' ? '관리자 주문취소' : '관리자 환불' }),
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
-          alert('카드 취소 실패 — 주문취소 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
+          alert((newStatus === 'cancelled' ? '주문취소' : '환불') + ' 중 카드 취소 실패 — 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
           setUpdatingStatus(null);
           return;
         }
@@ -3449,6 +3450,24 @@ export default function AdminClient() {
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
+
+      /* 취소·환불이면 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
+      if (isVoid) {
+        try {
+          const rr = await fetch('/api/admin/refund-restore', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId }),
+          });
+          const rj = await rr.json().catch(() => ({}));
+          if (rj?.restored) {
+            const parts: string[] = [];
+            if (rj.refundedPoint > 0) parts.push(`포인트 ${rj.refundedPoint.toLocaleString()}P 환급`);
+            if (rj.clawback > 0) parts.push(`적립 ${rj.clawback.toLocaleString()}P 회수`);
+            if (rj.couponRestored) parts.push('쿠폰 복원');
+            if (parts.length) alert('복원 완료: ' + parts.join(' · '));
+          }
+        } catch { /* 복원 실패해도 상태는 유지 */ }
+      }
 
       /* 추천 리워드는 첫 구매 배송완료(delivered) 시 DB 트리거가 자동 지급 (5,000원 쿠폰) */
       if (newStatus === 'delivered') {
@@ -5303,10 +5322,15 @@ export default function AdminClient() {
                     </button>
                   ))}
                   <button
-                    className="adm-btn adm-btn-refund"
+                    className={`adm-btn adm-btn-refund${selectedOrder.status === 'cancelled' ? ' adm-btn-primary' : ''}`}
                     disabled={updatingStatus === selectedOrder.id}
-                    onClick={() => updateOrderStatus(selectedOrder.id, 'cancelled')}
-                  >취소/환불</button>
+                    onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
+                  >취소</button>
+                  <button
+                    className={`adm-btn adm-btn-refund${selectedOrder.status === 'refunded' ? ' adm-btn-primary' : ''}`}
+                    disabled={updatingStatus === selectedOrder.id}
+                    onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
+                  >환불</button>
                 </div>
               </div>
             </div>
