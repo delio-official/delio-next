@@ -227,7 +227,13 @@ function MainBanner() {
       {glowUrl && <div className="banner-img-glow" style={{ backgroundImage: `url(${glowUrl})` }} />}
       <div className="main-banner-inner" onMouseEnter={() => setBannerHovered(true)} onMouseLeave={() => setBannerHovered(false)}>
         <div className="main-banner-clip" ref={clipRef}
-          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; stopTimer(); }}
+          onTouchStart={e => {
+            touchStartX.current = e.touches[0].clientX;
+            stopTimer();
+            /* 새 제스처마다 잠금 해제 → 이전 전환이 멈춰도(이벤트 누락) 다음 스와이프가 무조건 먹힘 */
+            if (transFallback.current) clearTimeout(transFallback.current);
+            transitioning.current = false;
+          }}
           onTouchEnd={e => {
             const dx = e.changedTouches[0].clientX - touchStartX.current;
             if (Math.abs(dx) > 40) go(curRef.current + (dx < 0 ? 1 : -1));
