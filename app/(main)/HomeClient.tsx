@@ -1185,7 +1185,7 @@ export default function HomeClient() {
             {/* 고객센터 */}
             <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터</div>
-              <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>031-987-0825</div>
+              <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>070-8064-3601</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>운영시간 : 평일 09:00 ~ 18:00</div>
                 <div>토·일·공휴일은 운영하지 않습니다.</div>
@@ -1197,8 +1197,8 @@ export default function HomeClient() {
             <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                <div>국민은행 253401-04-398102</div>
-                <div>예금주 : (주)델리오 송민창</div>
+                <div>국민은행 293201-04-204386</div>
+                <div>예금주 : 송민창</div>
               </div>
               <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize:13, padding:'9px 16px', borderRadius:6 }}>
                 입금 시 주문자 성함 기재
