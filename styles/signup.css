@@ -277,7 +277,7 @@ body { background: #fff; }
     .done-overlay.show { opacity: 1; pointer-events: all; }
     .done-inner {
       width: 100%; max-width: 480px;
-      padding: 52px 24px 80px;
+      padding: 96px 24px 80px;
       text-align: center;
     }
     .done-title {
