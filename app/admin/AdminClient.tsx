@@ -993,7 +993,9 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
@@ -1002,16 +1004,25 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
+  function toggle() {
+    if (disabled) return;
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const listH = Math.min(280, options.length * 38 + 12);
+      setDropUp(window.innerHeight - rect.bottom < listH + 16 && rect.top > listH + 16);
+    }
+    setOpen(o => !o);
+  }
   const selected = options.find(o => o.value === value);
   return (
     <div ref={ref} className={`adm-cs${className ? ' ' + className : ''}`} style={style}>
-      <button type="button" className={`adm-cs-btn${open ? ' open' : ''}`} disabled={disabled}
-        onClick={() => !disabled && setOpen(o => !o)}>
+      <button ref={btnRef} type="button" className={`adm-cs-btn${open ? ' open' : ''}`} disabled={disabled}
+        onClick={toggle}>
         <span className={selected ? 'adm-cs-val' : 'adm-cs-ph'}>{selected ? selected.label : (placeholder || '선택')}</span>
         <svg className="adm-cs-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
-        <div className="adm-cs-list">
+        <div className="adm-cs-list" style={dropUp ? { top: 'auto', bottom: 'calc(100% + 5px)' } : undefined}>
           {options.map(o => (
             <button type="button" key={o.value} className={`adm-cs-item${o.value === value ? ' active' : ''}`}
               onClick={() => { onChange(o.value); setOpen(false); }}>
