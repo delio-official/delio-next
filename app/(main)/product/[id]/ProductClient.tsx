@@ -131,6 +131,7 @@ export default function ProductClient() {
   const [mediaUploading,   setMediaUploading]   = useState(false);
   const [submitting,       setSubmitting]       = useState(false);
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
+  const [hasPurchased,     setHasPurchased]     = useState(false);
   const [tasteMore,           setTasteMore]           = useState(false);
   const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0 });
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
@@ -492,6 +493,21 @@ export default function ProductClient() {
     return () => document.body.classList.remove('has-mobile-cta');
   }, []);
 
+  /* 이 상품 구매 여부 (리뷰 작성 권한) — 결제완료/배송/구매확정 주문에 포함 */
+  useEffect(() => {
+    if (!user || !product?.id) { setHasPurchased(false); return; }
+    (async () => {
+      const { data } = await createClient()
+        .from('order_items')
+        .select('order_id, orders!inner(user_id, status)')
+        .eq('product_id', product.id)
+        .eq('orders.user_id', user.id)
+        .in('orders.status', ['paid', 'delivered', 'confirmed'])
+        .limit(1);
+      setHasPurchased(!!data && data.length > 0);
+    })();
+  }, [user, product?.id]);
+
   /* 리뷰 작성 적립 포인트 (안내용) */
   useEffect(() => {
     createClient().from('site_settings').select('key,value')
@@ -565,6 +581,7 @@ export default function ProductClient() {
 
   async function handleSubmitReview() {
     if (!user) { router.push('/login'); return; }
+    if (!hasPurchased) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     setSubmitting(true);
     const supabase = createClient();
@@ -1810,7 +1827,11 @@ export default function ProductClient() {
               justifyContent:'space-between', marginBottom:20 }}>
               <span style={{ fontSize:18, fontWeight:700 }}>리뷰 <span style={{ fontSize:15, color:'var(--color-ink-mute)', fontWeight:500 }}>({product.review_count})</span></span>
               <button
-                onClick={() => { if (!user) { router.push('/login'); return; } setReviewModalOpen(true); }}
+                onClick={() => {
+                  if (!user) { router.push('/login'); return; }
+                  if (!hasPurchased) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+                  setReviewModalOpen(true);
+                }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
                   background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer',
                   color:'var(--color-ink)' }}>
