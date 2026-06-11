@@ -7,6 +7,29 @@ import { signUp, signIn } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 import '@/styles/signup.css';
 
+/* 비밀번호 보기/숨기기 눈 토글 (입력칸 우측) */
+function PwEye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-label={shown ? '비밀번호 숨기기' : '비밀번호 표시'} tabIndex={-1}
+      style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+        background: 'none', border: 'none', cursor: 'pointer', padding: 8, color: '#9AA0A6',
+        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {shown ? (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+          <path d="M6.61 6.61A18.45 18.45 0 0 0 2 12s3 8 10 8a9.12 9.12 0 0 0 5.39-1.61" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8-10-8-10-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 /* 원형 체크박스 */
 function CircleCheck({ on, onClick, sm }: { on: boolean; onClick: (e?: React.MouseEvent) => void; sm?: boolean }) {
   return (
@@ -30,6 +53,8 @@ export default function SignupClient() {
   const [showDirect, setShowDirect] = useState(false);
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('other');
   const [birthY, setBirthY] = useState('');
@@ -228,8 +253,12 @@ export default function SignupClient() {
           <div className="su-row" ref={rowPwRef}>
             <div className="su-lbl">비밀번호<em>*</em></div>
             <div className="su-ctrl">
-              <input type="password" className={`su-input${fieldErrors.pw ? ' su-err' : ''}`} placeholder="8자 이상 입력해주세요"
-                value={pw} onChange={e => { setPw(e.target.value); if (fieldErrors.pw) setFieldErrors(p => ({ ...p, pw: '' })); }} />
+              <div style={{ position: 'relative' }}>
+                <input type={showPw ? 'text' : 'password'} className={`su-input${fieldErrors.pw ? ' su-err' : ''}`} placeholder="8자 이상 입력해주세요"
+                  style={{ paddingRight: 44 }}
+                  value={pw} onChange={e => { setPw(e.target.value); if (fieldErrors.pw) setFieldErrors(p => ({ ...p, pw: '' })); }} />
+                <PwEye shown={showPw} onToggle={() => setShowPw(v => !v)} />
+              </div>
               {pw.length > 0 && (
                 <>
                   {/* 강도 바 */}
@@ -271,8 +300,12 @@ export default function SignupClient() {
           <div className="su-row" ref={rowPw2Ref}>
             <div className="su-lbl">비밀번호확인<em>*</em></div>
             <div className="su-ctrl">
-              <input type="password" className={`su-input${fieldErrors.pw2 ? ' su-err' : ''}`} placeholder="비밀번호를 한번 더 입력해주세요"
-                value={pw2} onChange={e => { setPw2(e.target.value); if (fieldErrors.pw2) setFieldErrors(p => ({ ...p, pw2: '' })); }} />
+              <div style={{ position: 'relative' }}>
+                <input type={showPw2 ? 'text' : 'password'} className={`su-input${fieldErrors.pw2 ? ' su-err' : ''}`} placeholder="비밀번호를 한번 더 입력해주세요"
+                  style={{ paddingRight: 44 }}
+                  value={pw2} onChange={e => { setPw2(e.target.value); if (fieldErrors.pw2) setFieldErrors(p => ({ ...p, pw2: '' })); }} />
+                <PwEye shown={showPw2} onToggle={() => setShowPw2(v => !v)} />
+              </div>
               {pw2.length > 0 && (
                 <div className={`su-hint ${pw2Ok ? 'ok' : 'err'}`}>
                   {pw2Ok ? '비밀번호가 일치합니다.' : '비밀번호가 일치하지 않습니다.'}
