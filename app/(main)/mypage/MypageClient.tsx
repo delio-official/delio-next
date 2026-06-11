@@ -98,6 +98,10 @@ const STATUS_LABEL: Record<string, string> = {
   exchanging:'교환처리중', exchanged:'교환완료',
   refunding:'환불처리중', refunded:'환불완료',
 };
+/* 주문처리현황 단계 라벨 (필터 칩 표시용) */
+const STATUS_GROUP_LABEL: Record<string, string> = {
+  pending:'입금전', preparing:'배송준비중', shipped:'배송중', delivered:'배송완료',
+};
 const EMOJI_MAP: Record<string, string> = {
   apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
   kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
@@ -134,6 +138,8 @@ export default function MypageClient() {
   const [tiers,          setTiers]          = useState<MembershipTier[]>(DEFAULT_TIERS);
   const [orderCount,     setOrderCount]     = useState(0);     // 전체 주문 건수(정확)
   const [orderSearch,    setOrderSearch]    = useState('');    // 주문내역 검색어
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string | null>(null); // 주문처리현황 단계 클릭 필터
+  const orderListRef = useRef<HTMLDivElement>(null);          // 단계 클릭 시 목록으로 스크롤
   const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
   const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
@@ -726,6 +732,12 @@ export default function MypageClient() {
     router.push(`/mypage?panel=${panel}`);
     window.scrollTo(0, 0);
   }
+  /* 주문처리현황 단계 클릭 → 해당 상태로 필터 + 목록으로 스크롤 (같은 단계 재클릭 시 해제) */
+  function selectStatusFilter(key: string) {
+    setOrderStatusFilter(prev => (prev === key ? null : key));
+    setOrderSearch('');
+    setTimeout(() => orderListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  }
   /* ── 리뷰 삭제 ── */
   async function handleDeleteReview(id: string) {
     if (!confirm('리뷰를 삭제할까요?')) return;
@@ -961,10 +973,22 @@ export default function MypageClient() {
   };
   const totalOrderAmount = orders.reduce((s, o) => s + o.final_amount, 0);
   /* 주문내역 검색 (주문번호 · 상품명 · 날짜) */
+  /* 주문처리현황 단계 → 주문 상태 그룹 */
+  const STATUS_GROUPS: Record<string, string[]> = {
+    pending:   ['pending'],
+    preparing: ['paid', 'preparing'],
+    shipped:   ['shipped'],
+    delivered: ['delivered', 'confirmed'],
+  };
   const filteredOrders = (() => {
+    let list = orders;
+    if (orderStatusFilter && STATUS_GROUPS[orderStatusFilter]) {
+      const allow = STATUS_GROUPS[orderStatusFilter];
+      list = list.filter(o => allow.includes(o.status));
+    }
     const q = orderSearch.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter(o => {
+    if (!q) return list;
+    return list.filter(o => {
       const dateStr = new Date(o.created_at).toLocaleDateString('ko-KR'); // 2026. 3. 10.
       const dateCompact = dateStr.replace(/[\s.]/g, ''); // 2026310 형태
       return (
@@ -1226,25 +1250,25 @@ export default function MypageClient() {
                   <span className="mp-section-sub">(최근 3개월 기준)</span>
                 </div>
                 <div className="mp-order-flow">
-                  <div className="mp-flow-step">
+                  <button type="button" className={`mp-flow-step${orderStatusFilter==='pending'?' active':''}`} onClick={() => selectStatusFilter('pending')}>
                     <div className="mp-flow-num">{orderCounts.pending}</div>
                     <div className="mp-flow-label">입금전</div>
-                  </div>
+                  </button>
                   <div className="mp-flow-arrow">›</div>
-                  <div className="mp-flow-step">
+                  <button type="button" className={`mp-flow-step${orderStatusFilter==='preparing'?' active':''}`} onClick={() => selectStatusFilter('preparing')}>
                     <div className="mp-flow-num">{orderCounts.preparing}</div>
                     <div className="mp-flow-label">배송준비중</div>
-                  </div>
+                  </button>
                   <div className="mp-flow-arrow">›</div>
-                  <div className="mp-flow-step">
+                  <button type="button" className={`mp-flow-step${orderStatusFilter==='shipped'?' active':''}`} onClick={() => selectStatusFilter('shipped')}>
                     <div className="mp-flow-num">{orderCounts.shipped}</div>
                     <div className="mp-flow-label">배송중</div>
-                  </div>
+                  </button>
                   <div className="mp-flow-arrow">›</div>
-                  <div className="mp-flow-step">
+                  <button type="button" className={`mp-flow-step${orderStatusFilter==='delivered'?' active':''}`} onClick={() => selectStatusFilter('delivered')}>
                     <div className="mp-flow-num">{orders.filter(o => o.status === 'delivered' || o.status === 'confirmed').length}</div>
                     <div className="mp-flow-label">배송완료</div>
-                  </div>
+                  </button>
                 </div>
               </div>
 
@@ -1303,9 +1327,14 @@ export default function MypageClient() {
               )}
 
               {/* 주문내역 목록 */}
-              <div className="mp-section">
+              <div className="mp-section" ref={orderListRef}>
                 <div className="mp-section-header">
                   <span className="mp-section-title">주문내역 조회</span>
+                  {orderStatusFilter && (
+                    <button type="button" className="mp-order-filter-chip" onClick={() => setOrderStatusFilter(null)}>
+                      {STATUS_GROUP_LABEL[orderStatusFilter]} ✕
+                    </button>
+                  )}
                   {orderCount > 0 && (
                     <span className="mp-section-sub" style={{ marginLeft:'auto' }}>{orderCount}건</span>
                   )}

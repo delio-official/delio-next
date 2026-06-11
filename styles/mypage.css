@@ -155,9 +155,20 @@ body { background: #fff; }
     .mp-flow-step {
       flex: 1; text-align: center;
       display: flex; flex-direction: column; align-items: center; gap: 10px;
+      background: none; border: none; font-family: inherit; cursor: pointer;
+      padding: 8px 4px; border-radius: 12px; transition: background .15s;
     }
+    .mp-flow-step:hover { background: #F7F7F5; }
+    .mp-flow-step.active { background: #F2F1EE; }
+    .mp-flow-step.active .mp-flow-num { color: var(--color-accent); }
+    .mp-flow-step.active .mp-flow-label { color: var(--color-accent); font-weight: 700; }
     .mp-flow-num { font-size: 30px; font-weight: 800; color: #1A1A1A; line-height: 1; }
     .mp-flow-label { font-size: 13px; color: #888; }
+    .mp-order-filter-chip {
+      margin-left: 10px; font-size: 12px; font-weight: 700; color: var(--color-accent);
+      background: #FBEEE9; border: 1px solid #F3D3C7; border-radius: 999px;
+      padding: 4px 11px; cursor: pointer; font-family: inherit;
+    }
     .mp-flow-arrow {
       flex: 0 0 auto; font-size: 24px; color: #CFCFCF; font-weight: 400;
       margin: 0 2px; transform: translateY(-13px);
