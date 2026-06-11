@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { maybeSendWelcome } from '@/lib/welcome';
 
 /* 네이버 OAuth 콜백 — 코드교환·프로필조회 후 Supabase 세션 발급(매직링크) */
 export async function GET(request: Request) {
@@ -79,6 +80,7 @@ export async function GET(request: Request) {
       if (!prof?.provider || prof.provider === 'email') patch.provider = 'naver';
       if (Object.keys(patch).length) await admin.from('profiles').update(patch).eq('id', user.id);
       await supabase.rpc('grant_signup_coupons');
+      await maybeSendWelcome(admin, user.id);
     }
   } catch {
     return fail('naver');

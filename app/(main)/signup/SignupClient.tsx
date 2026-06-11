@@ -162,6 +162,8 @@ export default function SignupClient() {
     } else {
       // 가입 성공 → 자동 로그인 (세션 확실히 확보)
       await signIn(email, pw);
+      // 가입 환영 알림톡 1회 발송 (세션 확보 후)
+      fetch('/api/auth/welcome', { method: 'POST' }).catch(() => {});
       setLoading(false);
       setDone(true);
     }

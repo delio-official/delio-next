@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { maybeSendWelcome } from '@/lib/welcome';
 
 /* OAuth 콜백 — 카카오 등 PKCE 코드를 세션으로 교환 후 신규회원 프로비저닝 */
 export async function GET(request: Request) {
@@ -41,6 +43,7 @@ export async function GET(request: Request) {
         await supabase.from('profiles').update(patch).eq('id', user.id);
       }
       await supabase.rpc('grant_signup_coupons');
+      await maybeSendWelcome(createAdminSupabaseClient(), user.id);
     }
   } catch { /* 프로비저닝 실패는 로그인 자체를 막지 않음 */ }
 

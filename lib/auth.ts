@@ -41,14 +41,7 @@ export async function signUp(
 
     // 회원가입 웰컴 쿠폰팩 자동 지급 (signup_grant 쿠폰들, 멱등)
     await supabase.rpc('grant_signup_coupons');
-
-    // 가입 환영 알림톡 (휴대폰 있으면, 실패해도 가입은 정상)
-    if (phone?.trim()) {
-      fetch('/api/notify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'signup_coupon', phone: phone.trim(), recipient: name }),
-      }).catch(() => {});
-    }
+    // 가입 환영 알림톡은 세션 확보(아래 자동로그인) 후 /api/auth/welcome 에서 1회 발송
   }
 
   return { data, error };
