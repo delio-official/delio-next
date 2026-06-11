@@ -5365,12 +5365,14 @@ export default function AdminClient() {
                     </button>
                   ))}
                   <button
-                    className={`adm-btn adm-btn-refund${selectedOrder.status === 'cancelled' ? ' adm-btn-primary' : ''}`}
+                    className="adm-btn adm-btn-refund"
+                    style={selectedOrder.status === 'cancelled' ? { background:'#F1F1EF', color:'#6B7280', borderColor:'#D9D9D5' } : undefined}
                     disabled={updatingStatus === selectedOrder.id}
                     onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
                   >취소</button>
                   <button
-                    className={`adm-btn adm-btn-refund${selectedOrder.status === 'refunded' ? ' adm-btn-primary' : ''}`}
+                    className="adm-btn adm-btn-refund"
+                    style={selectedOrder.status === 'refunded' ? { background:'#F1F1EF', color:'#6B7280', borderColor:'#D9D9D5' } : undefined}
                     disabled={updatingStatus === selectedOrder.id}
                     onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   >환불</button>
