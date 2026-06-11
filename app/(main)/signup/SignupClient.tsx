@@ -93,6 +93,14 @@ export default function SignupClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  /* 완료 오버레이가 뜨면 뒤 페이지 스크롤 잠금 (스크롤바 중복 방지) */
+  useEffect(() => {
+    if (!done) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [done]);
+
   /* ── 필드별 에러 ── */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
