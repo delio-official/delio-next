@@ -46,9 +46,9 @@ export default function OrderCompleteClient() {
         maxWidth:380, width:'100%', textAlign:'left' }}>
         <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>배송 안내</div>
         <p style={{ fontSize:13, color:'#666', lineHeight:1.8 }}>
-          · 새벽배송: 오후 11시 이전 결제 완료 → 내일 새벽 도착<br/>
-          · 일반택배: 결제 후 1~3 영업일 소요<br/>
-          · 문의: 1588-0000 (평일 09~18시)
+          · 산지배송: 오전 11시 이전 결제 완료 시 → 당일수확 → 당일배송<br/>
+          · 자사배송: 오전 11시 이전 결제 완료 시 → 결제 후 1~2 영업일 소요<br/>
+          · 문의: 070-8064-3601 (평일 09~18시)
         </p>
       </div>
     </div>
