@@ -222,6 +222,14 @@ export default function MypageClient() {
     }
   }
 
+  /* 반려/보류된 신청 → 같은 주문·유형으로 다시 신청 */
+  function reapplyReq(r: MyRefundReq) {
+    const o = orders.find(x => x.id === r.order_id);
+    if (!o) { alert('주문 정보를 찾을 수 없습니다.'); return; }
+    setReqModal({ order: o, type: (r.type === 'cancel' ? 'cancel' : 'refund') });
+    setReqReason(''); setReqDetail('');
+  }
+
   async function submitReq() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
     setReqSubmitting(true);
@@ -1231,6 +1239,23 @@ export default function MypageClient() {
                               <strong>{w} 불가 사유</strong><br />{r.reject_reason}
                             </div>
                           )}
+                          {(() => {
+                            /* 반려·보류 + 진행중 신청 없음 + 주문이 아직 해당 유형 신청 가능 상태 → 다시 신청 */
+                            if (r.status !== 'rejected' && r.status !== 'hold') return null;
+                            if (r.order_id && activeReqByOrder.has(r.order_id)) return null;
+                            const o = orders.find(x => x.id === r.order_id);
+                            const eligible = o && (
+                              (isCancel && o.status === 'preparing') ||
+                              (!isCancel && ['shipped','delivered','confirmed'].includes(o.status))
+                            );
+                            if (!eligible) return null;
+                            return (
+                              <button onClick={() => reapplyReq(r)}
+                                style={{ marginTop:12, fontSize:13, fontWeight:700, padding:'9px 16px', border:'1.5px solid var(--color-accent)', color:'var(--color-accent)', background:'#fff', borderRadius:8, cursor:'pointer', fontFamily:'inherit' }}>
+                                다시 신청하기
+                              </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
