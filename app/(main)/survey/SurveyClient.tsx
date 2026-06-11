@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { shareKakaoFeed } from '@/lib/kakao';
 import '@/styles/survey.css';
 
 // ════════════════════════════════════════════════
@@ -364,7 +365,19 @@ export default function SurveyClient() {
       .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   }
 
-  function shareKakao() { alert('카카오 공유 기능은 카카오 SDK 연동 후 활성화됩니다.'); }
+  function shareKakao() {
+    if (!result) return;
+    const r = RESULTS[result.key];
+    const url = `${window.location.origin}/survey?r=${encodeURIComponent(result.key)}`;
+    const ok = shareKakaoFeed({
+      title: `내 과일 취향유형 · ${r?.name ?? '취향진단'}`,
+      description: r?.tagline ?? '델리오 취향진단으로 내 과일 유형을 확인해보세요!',
+      imageUrl: `${window.location.origin}/DelioLogo.png`,
+      linkUrl: url,
+      buttonTitle: '내 결과 보기',
+    });
+    if (!ok) { copyLink(); alert('카카오톡 공유가 아직 준비 중이라 결과 링크를 복사했어요. 붙여넣어 공유해 주세요.'); }
+  }
 
   async function shareInstagram() {
     if (!storyCardRef.current || sharingInsta) return;

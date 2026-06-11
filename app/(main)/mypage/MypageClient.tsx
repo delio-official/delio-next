@@ -8,6 +8,7 @@ import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode } from '@/li
 import { DEFAULT_TIERS, GRADE_LABEL, GRADE_LABEL_EN, GRADE_COLOR, MEMBERSHIP_COUPON, normalizeGrade, effectiveRate, type MembershipTier } from '@/lib/membership';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { shareKakaoFeed } from '@/lib/kakao';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
 import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
@@ -2034,7 +2035,17 @@ export default function MypageClient() {
                   {/* 버튼들 */}
                   <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                     <button
-                      onClick={() => showToastMsg('카카오톡 공유 기능은 SDK 연동 후 활성화됩니다.')}
+                      onClick={() => {
+                        const url = `${window.location.origin}/signup?ref=${encodeURIComponent(referralCode)}`;
+                        const ok = shareKakaoFeed({
+                          title: '델리오 초대 — 친구 추천 혜택',
+                          description: `추천코드 ${referralCode} · 가입하면 둘 다 5,000원 쿠폰을 받아요!`,
+                          imageUrl: `${window.location.origin}/DelioLogo.png`,
+                          linkUrl: url,
+                          buttonTitle: '델리오 가입하기',
+                        });
+                        if (!ok) { navigator.clipboard.writeText(url).then(() => showToastMsg('초대 링크를 복사했어요')); }
+                      }}
                       style={{ width:'100%', padding:'16px', background:'#FEE500', color:'#3C1E1E',
                         border:'none', borderRadius:12, fontSize:15, fontWeight:800,
                         cursor:'pointer', fontFamily:'inherit', display:'flex',

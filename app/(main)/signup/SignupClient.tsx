@@ -38,6 +38,12 @@ export default function SignupClient() {
   const [refCode, setRefCode] = useState('');
   const [showRef, setShowRef] = useState(false);
 
+  /* 초대 링크(?ref=코드)로 들어오면 추천코드 자동 입력 + 펼침 */
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('ref');
+    if (r) { setRefCode(r); setShowRef(true); }
+  }, []);
+
   /* 회원가입 쿠폰 금액 (관리자 설정값) */
   const [welcomeAmount, setWelcomeAmount] = useState(0);
   useEffect(() => {
