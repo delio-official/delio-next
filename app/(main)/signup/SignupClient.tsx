@@ -485,7 +485,7 @@ export default function SignupClient() {
           <hr className="done-hr" />
           <p className="done-headline">
             신규 고객 전용<br />
-            <em>{welcomeAmount > 0 ? `${welcomeAmount.toLocaleString()}원 할인쿠폰` : '할인쿠폰'}</em>을 발급했어요
+            <em>할인쿠폰</em>을 발급했어요
           </p>
           {/* 쿠폰 카드 (친구초대 쿠폰과 동일 디자인) */}
           <div style={{ background:'#1A1A1A', borderRadius:16, padding:'34px 24px', maxWidth:280,
