@@ -289,7 +289,7 @@ export default function CsClient() {
               <div className="inq-card-head">빠른 문의 채널</div>
               <div className="inq-card-body">
                 <div className="quick-channels">
-                  <button className="quick-ch kakao" onClick={() => alert('카카오 채널: @델리오')}>
+                  <button className="quick-ch kakao" onClick={() => window.open('https://pf.kakao.com/_RxnrxbX/chat', '_blank')}>
                     <span className="quick-ch-icon">
                       <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                         <rect width="28" height="28" rx="8" fill="#FEE500"/>

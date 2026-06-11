@@ -169,7 +169,7 @@ export default function FaqClient() {
                 cursor:'pointer', fontFamily:'inherit' }}>
               1:1 문의하기
             </button>
-            <button onClick={() => alert('카카오 채널: @델리오')}
+            <button onClick={() => window.open('https://pf.kakao.com/_RxnrxbX/chat', '_blank')}
               style={{ padding:'11px 22px', background:'#FEE500', border:'none',
                 borderRadius:10, color:'#3C1E1E', fontSize:13, fontWeight:700,
                 cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:6 }}>
