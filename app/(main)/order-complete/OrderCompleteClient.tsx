@@ -10,9 +10,9 @@ export default function OrderCompleteClient() {
   const earnedPoint = Number(sp.get('point') || 0);
 
   return (
-    <div style={{ minHeight:'80vh', display:'flex', flexDirection:'column',
-      alignItems:'center', justifyContent:'center', textAlign:'center', padding:'48px 20px 100px' }}>
-      <div style={{ fontSize:72, marginBottom:20 }}>🎉</div>
+    <div style={{ minHeight:'calc(100dvh - 64px)', display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center', textAlign:'center',
+      padding:'40px 20px 96px', boxSizing:'border-box' }}>
       <h1 style={{ fontSize:'clamp(22px,4vw,32px)', fontWeight:800, marginBottom:10 }}>
         주문이 완료되었습니다!
       </h1>
@@ -21,7 +21,7 @@ export default function OrderCompleteClient() {
       )}
       {earnedPoint > 0 && (
         <p style={{ fontSize:13, color:'var(--color-accent)', fontWeight:700, marginBottom:6 }}>
-          🎁 {earnedPoint.toLocaleString()}P 적립 완료!
+          {earnedPoint.toLocaleString()}P 적립 완료!
         </p>
       )}
       <p style={{ fontSize:15, color:'#555', lineHeight:1.8, marginBottom:32 }}>
