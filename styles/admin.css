@@ -829,6 +829,7 @@ select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 
 /* 특수 버튼 */
 .adm-btn-refund { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
+.adm-btn-refund:hover { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
 .adm-btn-icon { margin-right: 4px; }
 .adm-row-btn-danger { color: #DC2626; }
 .adm-row-btn-blue { color: #3B82F6; }
