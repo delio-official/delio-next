@@ -307,6 +307,7 @@ export default function CheckoutClient() {
             user_id: user.id, status: 'paid',
             total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
             coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
+            used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
             recipient, phone, zipcode, address1: addr1, address2: addr2,
             delivery_type: 'parcel', delivery_memo: memo,
             payment_method: payMethod, paid_at: new Date().toISOString(),

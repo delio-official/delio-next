@@ -2621,6 +2621,23 @@ export default function AdminClient() {
     if (req.order_id && nextOrderStatus) {
       await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
+    /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
+    if (newStatus === 'completed' && req.order_id) {
+      try {
+        const rr = await fetch('/api/admin/refund-restore', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: req.order_id }),
+        });
+        const rj = await rr.json().catch(() => ({}));
+        if (rj?.restored) {
+          const parts: string[] = [];
+          if (rj.refundedPoint > 0) parts.push(`포인트 ${rj.refundedPoint.toLocaleString()}P 환급`);
+          if (rj.clawback > 0) parts.push(`적립 ${rj.clawback.toLocaleString()}P 회수`);
+          if (rj.couponRestored) parts.push('쿠폰 복원');
+          if (parts.length) alert('복원 완료: ' + parts.join(' · '));
+        }
+      } catch { /* 복원 실패해도 환불 상태는 유지 */ }
+    }
     setRefundReqs(prev => prev.map(r => r.id === req.id
       ? { ...r, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : r.reject_reason,
           orders: r.orders && nextOrderStatus ? { ...r.orders, status: nextOrderStatus } : r.orders }

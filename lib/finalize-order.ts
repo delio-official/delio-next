@@ -72,6 +72,7 @@ export async function finalizeOrder(
     discount_amount: couponDiscount + pointUsed,
     coupon_discount: couponDiscount,
     point_used:      pointUsed,
+    used_coupon_id:  orderData.userCouponId || null,
     final_amount:    orderData.totalAmount,
     recipient:       orderData.recipient,
     phone:           orderData.phone,
@@ -148,6 +149,7 @@ export async function finalizeOrder(
       const newBalance = (prof.point_balance || 0) - pointUsed + earned;
       await supabase.from('profiles')
         .update({ point_balance: Math.max(0, newBalance) }).eq('id', orderData.userId);
+      if (earned > 0) await supabase.from('orders').update({ earned_point: earned }).eq('id', order.id);
     }
   }
 
