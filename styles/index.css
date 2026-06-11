@@ -1340,22 +1340,16 @@
     }
     .main-banner-slide::after {
       content: ''; position: absolute; inset: 0; border-radius: 8px;
-      background: transparent; transition: opacity .22s; pointer-events: none; z-index: 0;
+      background: rgba(0,0,0,.28); transition: opacity .22s; pointer-events: none; z-index: 0;
     }
     .main-banner-slide .bs-content, .main-banner-slide .bs-deco { z-index: 1; position: relative; }
-    /* 양옆 미리보기 영역 고정 어둠 패널 (슬라이드 위 / arrow 아래).
-       슬라이드별 토글이 아니라 화면 좌우에 고정 → 무한루프 스냅 시 깜빡임 없음.
-       폭은 트랙 좌우 패딩과 동일하게 맞춰 가운데 2장만 또렷하게 보이도록. */
-    .main-banner-edge { position: absolute; top: 0; bottom: 0; z-index: 3; pointer-events: none; }
-    .main-banner-edge-l {
-      left: 0; width: max(20px, calc((100% - 1118px) / 2 - 10px));
-      background: rgba(0,0,0,.30);
-    }
-    .main-banner-edge-r {
-      right: 0; width: max(20px, calc((100% - 1118px) / 2 + 10px));
-      background: rgba(0,0,0,.30);
-    }
-    @media(max-width:640px) { .main-banner-edge { display: none; } }
+    /* 가운데 활성 슬라이드(PC 2장·모바일 1장)만 오버레이 제거로 또렷하게.
+       slide-active 클래스는 .banner-slide-wrap 에 붙으므로 자손 선택자로 매칭 */
+    .banner-slide-wrap.slide-active .main-banner-slide::after { opacity: 0; }
+    .banner-slide-wrap.slide-active .main-banner-slide { filter: brightness(1.04); }
+    /* 스냅(끝→처음 순간 복귀) 시점에는 오버레이/밝기 전환을 꺼 검은 깜빡임 방지 */
+    .main-banner-inner.snap-mode .main-banner-slide::after,
+    .main-banner-inner.snap-mode .main-banner-slide { transition: none !important; }
     @media(max-width:640px) {
       .main-banner-slide { border-radius: 0; }
       .main-banner-track { padding: 0; gap: 0; }
