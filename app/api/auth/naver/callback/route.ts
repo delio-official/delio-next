@@ -74,8 +74,9 @@ export async function GET(request: Request) {
         patch.referral_code = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
       }
       if (!prof?.avatar_url && avatar) patch.avatar_url = avatar;
-      // GoTrue admin.createUser가 provider를 email로 덮어쓰므로 naver로 직접 기록
-      if (prof?.provider !== 'naver') patch.provider = 'naver';
+      // 최초 가입 경로 고정(B): 이미 카카오 등으로 가입한 계정은 덮어쓰지 않음.
+      // provider가 비어있거나 기본값(email)일 때만 naver로 기록.
+      if (!prof?.provider || prof.provider === 'email') patch.provider = 'naver';
       if (Object.keys(patch).length) await admin.from('profiles').update(patch).eq('id', user.id);
       await supabase.rpc('grant_signup_coupons');
     }
