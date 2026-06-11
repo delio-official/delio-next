@@ -147,6 +147,28 @@ body { background: #fff; }
     .mp-os3-label { font-size: 13px; color: #888; }
     .mp-os3-num { font-size: 30px; font-weight: 800; color: #1A1A1A; }
 
+    /* ===== 주문 처리 현황 4단계 배송흐름 ===== */
+    .mp-order-flow {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 26px 6px 18px;
+    }
+    .mp-flow-step {
+      flex: 1; text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .mp-flow-num { font-size: 30px; font-weight: 800; color: #1A1A1A; line-height: 1; }
+    .mp-flow-label { font-size: 13px; color: #888; }
+    .mp-flow-arrow {
+      flex: 0 0 auto; font-size: 24px; color: #CFCFCF; font-weight: 400;
+      margin: 0 2px; transform: translateY(-13px);
+    }
+    @media (max-width: 768px) {
+      .mp-order-flow { padding: 20px 2px 14px; }
+      .mp-flow-num { font-size: 22px; }
+      .mp-flow-label { font-size: 11px; }
+      .mp-flow-arrow { font-size: 18px; transform: translateY(-11px); }
+    }
+
     /* ===== 주문내역 검색바 ===== */
     .mp-order-search {
       position: relative;

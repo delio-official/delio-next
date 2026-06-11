@@ -1225,18 +1225,25 @@ export default function MypageClient() {
                   <span className="mp-section-title">나의 주문처리 현황</span>
                   <span className="mp-section-sub">(최근 3개월 기준)</span>
                 </div>
-                <div className="mp-order-summary3">
-                  <div className="mp-os3-col">
-                    <div className="mp-os3-label">배송중</div>
-                    <div className="mp-os3-num">{orderCounts.pending + orderCounts.preparing + orderCounts.shipped}</div>
+                <div className="mp-order-flow">
+                  <div className="mp-flow-step">
+                    <div className="mp-flow-num">{orderCounts.pending}</div>
+                    <div className="mp-flow-label">입금전</div>
                   </div>
-                  <div className="mp-os3-col">
-                    <div className="mp-os3-label">배송완료</div>
-                    <div className="mp-os3-num">{orders.filter(o => o.status === 'delivered' || o.status === 'confirmed').length}</div>
+                  <div className="mp-flow-arrow">›</div>
+                  <div className="mp-flow-step">
+                    <div className="mp-flow-num">{orderCounts.preparing}</div>
+                    <div className="mp-flow-label">배송준비중</div>
                   </div>
-                  <div className="mp-os3-col">
-                    <div className="mp-os3-label">취소/환불</div>
-                    <div className="mp-os3-num">{orderCounts.cancelled + orderCounts.refund}</div>
+                  <div className="mp-flow-arrow">›</div>
+                  <div className="mp-flow-step">
+                    <div className="mp-flow-num">{orderCounts.shipped}</div>
+                    <div className="mp-flow-label">배송중</div>
+                  </div>
+                  <div className="mp-flow-arrow">›</div>
+                  <div className="mp-flow-step">
+                    <div className="mp-flow-num">{orders.filter(o => o.status === 'delivered' || o.status === 'confirmed').length}</div>
+                    <div className="mp-flow-label">배송완료</div>
                   </div>
                 </div>
               </div>
