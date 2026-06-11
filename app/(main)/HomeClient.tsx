@@ -133,6 +133,7 @@ function MainBanner() {
   const allSlides = TOTAL > 0 ? [...slides.slice(-CLONES), ...slides, ...slides.slice(0, CLONES)] : [];
 
   const trackRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
   const clipRef  = useRef<HTMLDivElement>(null);
   const fillRef  = useRef<HTMLDivElement>(null);
   const curRef   = useRef(CLONES);
@@ -173,8 +174,15 @@ function MainBanner() {
 
   const snapTo = useCallback((idx: number) => {
     curRef.current = idx;
+    /* 스냅(순간 복귀) 시점에는 오버레이/밝기 전환을 꺼서 검은 깜빡임 방지 */
+    const inner = innerRef.current;
+    if (inner) inner.classList.add('snap-mode');
     setPos(idx, false);
     updateProgress(idx);
+    if (inner) {
+      void inner.offsetHeight; /* reflow로 무전환 상태 확정 */
+      requestAnimationFrame(() => inner.classList.remove('snap-mode'));
+    }
   }, [setPos, updateProgress]);
 
   const go = useCallback((next: number) => {
@@ -232,7 +240,7 @@ function MainBanner() {
     <div className="main-banner" id="mainBanner">
       {/* 이미지 색상 후광 */}
       {glowUrl && <div className="banner-img-glow" style={{ backgroundImage: `url(${glowUrl})` }} />}
-      <div className="main-banner-inner" onMouseEnter={() => setBannerHovered(true)} onMouseLeave={() => setBannerHovered(false)}>
+      <div className="main-banner-inner" ref={innerRef} onMouseEnter={() => setBannerHovered(true)} onMouseLeave={() => setBannerHovered(false)}>
         <div className="main-banner-clip" ref={clipRef}
           onTouchStart={e => { touchStartX.current = e.touches[0].clientX; stopTimer(); }}
           onTouchEnd={e => {
