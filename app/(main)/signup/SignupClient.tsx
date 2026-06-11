@@ -485,12 +485,18 @@ export default function SignupClient() {
             <em>{welcomeAmount > 0 ? `${welcomeAmount.toLocaleString()}원 할인쿠폰` : '할인쿠폰'}</em>과<br />
             무료배송 혜택을 받았어요
           </p>
-          <div className="done-illus">
-            <div className="done-envelope">
-              <div className="done-coupon-amount">{welcomeAmount > 0 ? welcomeAmount.toLocaleString() : '쿠폰'}</div>
-              <div className="done-coupon-sub">+ 첫 주문 무료배송</div>
-            </div>
-            <span className="done-truck">🚚</span>
+          {/* 쿠폰 카드 (친구초대 쿠폰과 동일 디자인) */}
+          <div style={{ background:'#1A1A1A', borderRadius:16, padding:'34px 24px', maxWidth:280,
+            margin:'0 auto 36px', position:'relative', overflow:'hidden', textAlign:'center' }}>
+            <div style={{ position:'absolute', left:0, top:'50%', transform:'translateY(-50%)', width:0, height:0,
+              borderTop:'22px solid transparent', borderBottom:'22px solid transparent', borderLeft:'18px solid #fff' }} />
+            <div style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)', width:0, height:0,
+              borderTop:'22px solid transparent', borderBottom:'22px solid transparent', borderRight:'18px solid #fff' }} />
+            <p style={{ fontSize:14, fontWeight:600, color:'#fff', letterSpacing:3, margin:'0 0 12px' }}>COUPON</p>
+            <p style={{ fontSize:48, fontWeight:800, color:'#fff', lineHeight:1, letterSpacing:-1, margin:0 }}>
+              {welcomeAmount > 0 ? welcomeAmount.toLocaleString() : '쿠폰'}
+            </p>
+            <p style={{ fontSize:12, color:'#bbb', margin:'12px 0 0' }}>+ 첫 주문 무료배송</p>
           </div>
           <ul className="done-notes">
             <li>무료배송 혜택은 첫구매에 자동으로 적용돼요.</li>
