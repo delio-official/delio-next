@@ -7877,14 +7877,16 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {panel === 'refund' && (
             <div className="adm-content">
               <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
-                {[
-                  { l:'환불 요청', st:'pending',    red:true  },
-                  { l:'환불 보류', st:'hold',       red:false },
+                {(() => {
+                  const w = refundTypeFilter === 'cancel' ? '취소' : refundTypeFilter === 'refund' ? '환불' : '취소·환불';
+                  return [
+                  { l:`${w} 요청`, st:'pending',    red:true  },
+                  { l:`${w} 보류`, st:'hold',       red:false },
                   { l:'진행중',    st:'processing', red:false },
-                  { l:'환불 완료', st:'completed',  red:false },
-                  { l:'환불 불가', st:'rejected',   red:false },
-                ].map(k => {
-                  const cnt = refundReqs.filter(r => r.status === k.st).length;
+                  { l:`${w} 완료`, st:'completed',  red:false },
+                  { l:`${w} 불가`, st:'rejected',   red:false },
+                ]; })().map(k => {
+                  const cnt = refundReqs.filter(r => r.status === k.st && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter)).length;
                   const active = refundStatusFilter === k.st;
                   return (
                     <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: active ? '2px solid #1A1A1A' : 'none' }}
