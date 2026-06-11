@@ -63,10 +63,13 @@ export default function SignupClient() {
   const [refCode, setRefCode] = useState('');
   const [showRef, setShowRef] = useState(false);
 
-  /* 초대 링크(?ref=코드)로 들어오면 추천코드 자동 입력 + 펼침 */
+  /* 초대 링크(?ref=코드)로 들어오면 추천코드 자동 입력 + 펼침
+     · ?preview=done → 가입 안 해도 완료화면 미리보기 */
   useEffect(() => {
-    const r = new URLSearchParams(window.location.search).get('ref');
+    const sp = new URLSearchParams(window.location.search);
+    const r = sp.get('ref');
     if (r) { setRefCode(r); setShowRef(true); }
+    if (sp.get('preview') === 'done') setDone(true);
   }, []);
 
   /* 회원가입 쿠폰 금액 (관리자 설정값) */
