@@ -180,9 +180,37 @@ export default function MypageClient() {
   const [mPush,         setMPush]         = useState(false);
   const [mktSaving,     setMktSaving]     = useState(false);
 
-  /* 내 환불 신청 내역 */
-  interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; reject_reason?: string | null; created_at: string; orders: { order_no: string } | null; }
+  /* 내 환불/취소 신청 내역 */
+  interface MyRefundReq { id: string; order_id: string | null; reason: string; detail: string; status: string; reject_reason?: string | null; created_at: string; type?: string; orders: { order_no: string } | null; }
   const [myRefundReqs, setMyRefundReqs] = useState<MyRefundReq[]>([]);
+
+  /* 취소/환불 신청 모달 */
+  const [reqModal, setReqModal] = useState<{ order: Order; type: 'cancel' | 'refund' } | null>(null);
+  const [reqReason, setReqReason] = useState('');
+  const [reqDetail, setReqDetail] = useState('');
+  const [reqSubmitting, setReqSubmitting] = useState(false);
+  const CANCEL_REASONS = ['단순 변심', '상품 정보와 다름', '배송 지연', '중복 주문', '기타'];
+  const REFUND_REASONS = ['상품 불량/파손', '오배송', '상품 누락', '품질 불만족', '기타'];
+
+  /* 진행 중(접수/처리중)인 신청이 있는 주문 → order_id 맵 */
+  const activeReqByOrder = new Map<string, MyRefundReq>();
+  myRefundReqs.forEach(r => {
+    if (r.order_id && (r.status === 'pending' || r.status === 'processing')) activeReqByOrder.set(r.order_id, r);
+  });
+
+  async function submitReq() {
+    if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
+    setReqSubmitting(true);
+    const { error } = await createClient().from('refund_requests').insert({
+      order_id: reqModal.order.id, user_id: user.id,
+      reason: reqReason, detail: reqDetail.trim(), type: reqModal.type,
+    });
+    setReqSubmitting(false);
+    if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
+    setReqModal(null); setReqReason(''); setReqDetail('');
+    await loadMyRefundReqs();
+    alert(reqModal.type === 'cancel' ? '주문취소 신청이 접수됐습니다.' : '환불 신청이 접수됐습니다.');
+  }
 
   /* 배송지 */
   const [addresses,    setAddresses]    = useState<Address[]>([]);
@@ -555,15 +583,20 @@ export default function MypageClient() {
     alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
   }
 
-  /* 내 환불 신청 내역 — 주문/환불 패널 열릴 때 로드 */
+  /* 내 취소/환불 신청 내역 로드 */
+  async function loadMyRefundReqs() {
+    if (!user) return;
+    const { data } = await createClient()
+      .from('refund_requests')
+      .select('id, order_id, reason, detail, status, reject_reason, created_at, type, orders ( order_no )')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setMyRefundReqs((data as unknown as MyRefundReq[]) || []);
+  }
+  /* 주문/환불 패널 열릴 때 로드 */
   useEffect(() => {
     if ((activePanel !== 'csrefund' && activePanel !== 'order') || !user) return;
-    createClient()
-      .from('refund_requests')
-      .select('id, order_id, reason, detail, status, reject_reason, created_at, orders ( order_no )')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setMyRefundReqs((data as unknown as MyRefundReq[]) || []));
+    loadMyRefundReqs();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, user]);
 
@@ -1148,16 +1181,18 @@ export default function MypageClient() {
               {myRefundReqs.length > 0 && (
                 <div className="mp-section">
                   <div className="mp-section-header">
-                    <span className="mp-section-title">환불 신청 내역</span>
+                    <span className="mp-section-title">취소 · 환불 신청 내역</span>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                     {myRefundReqs.map(r => {
+                      const isCancel = r.type === 'cancel';
+                      const w = isCancel ? '취소' : '환불';
                       const stMap: Record<string, { t:string; c:string; bg:string }> = {
-                        pending:    { t:'환불요청 접수', c:'#C8841C', bg:'#FFF3E0' },
-                        processing: { t:'환불 진행중',   c:'#2563EB', bg:'#EFF6FF' },
-                        completed:  { t:'환불 완료',     c:'#2D7A4D', bg:'#E8F5E9' },
-                        rejected:   { t:'환불 불가',     c:'#DC2626', bg:'#FEF2F2' },
-                        hold:       { t:'환불 보류',     c:'#64748B', bg:'#F1F5F9' },
+                        pending:    { t:`${w}요청 접수`, c:'#C8841C', bg:'#FFF3E0' },
+                        processing: { t:`${w} 진행중`,   c:'#2563EB', bg:'#EFF6FF' },
+                        completed:  { t:`${w} 완료`,     c:'#2D7A4D', bg:'#E8F5E9' },
+                        rejected:   { t:`${w} 불가`,     c:'#DC2626', bg:'#FEF2F2' },
+                        hold:       { t:`${w} 보류`,     c:'#64748B', bg:'#F1F5F9' },
                       };
                       const st = stMap[r.status] || { t:r.status, c:'#64748B', bg:'#F1F5F9' };
                       return (
@@ -1169,7 +1204,7 @@ export default function MypageClient() {
                           <div style={{ fontSize:14, color:'#333' }}>신청 사유: {r.reason}{r.detail ? ` — ${r.detail}` : ''}</div>
                           {r.status === 'rejected' && r.reject_reason && (
                             <div style={{ marginTop:10, padding:'11px 13px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, fontSize:13, color:'#991B1B', lineHeight:1.65 }}>
-                              <strong>환불 불가 사유</strong><br />{r.reject_reason}
+                              <strong>{w} 불가 사유</strong><br />{r.reject_reason}
                             </div>
                           )}
                         </div>
@@ -1283,26 +1318,40 @@ export default function MypageClient() {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
                           borderTop:'1px solid #f5f5f5', paddingTop:10, marginTop:4 }}>
                           <span style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(o.final_amount)}원</span>
-                          <div style={{ display:'flex', gap:6 }}>
-                            {o.status === 'delivered' && (
-                              <>
-                                <button onClick={() => showToastMsg('리뷰 작성 기능은 준비 중입니다.')}
-                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid var(--color-accent)',
-                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'var(--color-accent)', fontWeight:600, fontFamily:'inherit' }}>
-                                  리뷰쓰기
-                                </button>
-                                <button onClick={() => goPanel('cs')}
-                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9',
-                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
-                                  문의
-                                </button>
-                                <button onClick={() => showToastMsg('재구매 기능은 준비 중입니다.')}
-                                  style={{ fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9',
-                                    borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' }}>
-                                  재구매
-                                </button>
-                              </>
-                            )}
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                            {(() => {
+                              const active = activeReqByOrder.get(o.id);
+                              const btnGhost: React.CSSProperties = { fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9', borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' };
+                              const canCancel = ['pending','paid','preparing'].includes(o.status);
+                              const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
+                              return (
+                                <>
+                                  {active && (canCancel || canRefund) && (
+                                    <span style={{ fontSize:12, padding:'6px 14px', borderRadius:6, background:'#FFF3E0', color:'#C8841C', fontWeight:700 }}>
+                                      {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
+                                    </span>
+                                  )}
+                                  {!active && canCancel && (
+                                    <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }}
+                                      style={{ ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' }}>
+                                      주문취소
+                                    </button>
+                                  )}
+                                  {!active && canRefund && (
+                                    <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }}
+                                      style={{ ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' }}>
+                                      환불신청
+                                    </button>
+                                  )}
+                                  {o.status === 'delivered' && (
+                                    <>
+                                      <button onClick={() => goPanel('cs')} style={btnGhost}>문의</button>
+                                      <button onClick={() => showToastMsg('재구매 기능은 준비 중입니다.')} style={btnGhost}>재구매</button>
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -2966,6 +3015,48 @@ export default function MypageClient() {
           })()}
         </div>
       </div>
+
+      {/* ── 주문취소 / 환불 신청 모달 ── */}
+      {reqModal && (
+        <div onClick={() => setReqModal(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+              <span style={{ fontSize:17, fontWeight:800 }}>{reqModal.type === 'cancel' ? '주문취소 신청' : '환불 신청'}</span>
+              <button onClick={() => setReqModal(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#999', lineHeight:1 }}>✕</button>
+            </div>
+            <p style={{ fontSize:13, color:'#888', marginBottom:18 }}>주문 {reqModal.order.order_no} · {fmtPrice(reqModal.order.final_amount)}원</p>
+
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>{reqModal.type === 'cancel' ? '취소' : '환불/교환'} 사유 *</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:18 }}>
+              {(reqModal.type === 'cancel' ? CANCEL_REASONS : REFUND_REASONS).map(r => (
+                <label key={r} style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 13px', cursor:'pointer',
+                  border:`1.5px solid ${reqReason===r ? 'var(--color-accent)' : '#EBEBEB'}`, borderRadius:8,
+                  background:reqReason===r ? 'var(--color-accent-bg)' : '#fff',
+                  fontSize:14, fontWeight:reqReason===r ? 700 : 400, color:reqReason===r ? 'var(--color-accent)' : '#333' }}>
+                  <input type="radio" name="reqReason" checked={reqReason===r} onChange={() => setReqReason(r)} style={{ display:'none' }} />
+                  {r}
+                </label>
+              ))}
+            </div>
+
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>상세 내용 <span style={{ color:'#aaa', fontWeight:400 }}>(선택)</span></div>
+            <textarea value={reqDetail} onChange={e => setReqDetail(e.target.value)} rows={3}
+              placeholder="자세한 사유를 적어주시면 처리에 도움이 됩니다."
+              style={{ width:'100%', border:'1px solid #DDD', borderRadius:8, padding:'10px 12px', fontSize:14, fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:18 }} />
+
+            <p style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.
+            </p>
+            <button onClick={submitReq} disabled={reqSubmitting || !reqReason}
+              style={{ width:'100%', padding:'14px', background: reqReason ? 'var(--color-ink)' : '#CCC', color:'#fff',
+                border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor: reqReason ? 'pointer' : 'default' }}>
+              {reqSubmitting ? '접수 중…' : (reqModal.type === 'cancel' ? '주문취소 신청하기' : '환불 신청하기')}
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

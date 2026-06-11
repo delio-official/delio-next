@@ -238,6 +238,7 @@ interface AdminRefundReq {
   status: string; // pending | processing | completed | rejected | hold
   reject_reason?: string | null;
   created_at: string;
+  type?: string; // 'cancel' | 'refund'
   orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null } | null;
   profiles: { name: string | null; email: string | null } | null;
 }
@@ -2575,7 +2576,7 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('refund_requests')
       .select(`
-        id, order_id, reason, detail, status, reject_reason, created_at,
+        id, order_id, reason, detail, status, reject_reason, created_at, type,
         orders ( order_no, final_amount, status, portone_payment_id ),
         profiles:user_id ( name, email )
       `)
@@ -2612,14 +2613,17 @@ export default function AdminClient() {
     if (newStatus === 'rejected') updatePayload.reject_reason = rejectReason || null;
     const { error } = await supabase.from('refund_requests').update(updatePayload).eq('id', req.id);
     if (error) { alert('상태 변경 실패: ' + error.message); return; }
-    // 주문 상태 연동: 처리중→환불처리중, 완료→환불완료 (거절·보류는 주문 상태 변경 안 함)
-    if (req.order_id && (newStatus === 'processing' || newStatus === 'completed')) {
-      const orderStatus = newStatus === 'completed' ? 'refunded' : 'refunding';
-      await supabase.from('orders').update({ status: orderStatus }).eq('id', req.order_id);
+    // 주문 상태 연동 (취소/환불 구분). 거절·보류는 주문 상태 변경 안 함
+    const isCancel = req.type === 'cancel';
+    let nextOrderStatus: string | null = null;
+    if (newStatus === 'completed') nextOrderStatus = isCancel ? 'cancelled' : 'refunded';
+    else if (newStatus === 'processing' && !isCancel) nextOrderStatus = 'refunding';
+    if (req.order_id && nextOrderStatus) {
+      await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
     setRefundReqs(prev => prev.map(r => r.id === req.id
       ? { ...r, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : r.reject_reason,
-          orders: r.orders && (newStatus === 'processing' || newStatus === 'completed') ? { ...r.orders, status: newStatus === 'completed' ? 'refunded' : 'refunding' } : r.orders }
+          orders: r.orders && nextOrderStatus ? { ...r.orders, status: nextOrderStatus } : r.orders }
       : r));
     setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : prev.reject_reason } : prev);
   }
@@ -7937,7 +7941,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                             <>
                               {customerReqs.map(r => (
                                 <tr key={r.id}>
-                                  <td><span className="adm-badge badge-paid">고객신청</span></td>
+                                  <td><span className={`adm-badge ${r.type === 'cancel' ? 'badge-off' : 'badge-paid'}`}>{r.type === 'cancel' ? '취소신청' : '환불신청'}</span></td>
                                   <td>
                                     <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
                                     <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
@@ -7946,7 +7950,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                                   <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
                                   <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                   <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
-                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span></td>
+                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')}</span></td>
                                   <td>
                                     <button className="adm-row-btn" onClick={() => setRefundDetail(r)}>상세</button>
                                   </td>
