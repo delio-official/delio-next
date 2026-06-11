@@ -24,7 +24,7 @@ const InfoSectionEditor = dynamic(
 );
 
 /* ===== 타입 ===== */
-type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
+type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'homesections'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
 interface DashboardStats {
   monthRevenue: number;
@@ -288,7 +288,7 @@ interface CsInquiryAdmin {
 const TITLES: Record<PanelKey, string> = {
   dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', menu:'메뉴 관리', farms:'농가 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
-  lounge:'라운지 관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
+  lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
   refund:'환불 관리', settlement:'정산 관리', farmsettle:'농가 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
@@ -3901,6 +3901,7 @@ export default function AdminClient() {
       case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
+      case 'homesections': loadProducts(); loadFarms(); loadReviews(); loadLounge(); loadFilterTabs(); loadSettings(); break;
       case 'referral':     loadReferrals(); loadReferralCoupons(); break;
       case 'tasteprofile': loadSurveyResults(); loadSurveySettings(); break;
       case 'inquiry':   loadInquiries(); break;
@@ -5314,6 +5315,7 @@ export default function AdminClient() {
               <NavItem panel="banner" icon={<Icon.Banner />} label="배너 / 팝업" />
               <NavItem panel="events" icon={<Icon.Events />} label="이벤트" />
               <NavItem panel="lounge" icon={<Icon.Lounge />} label="라운지 관리" />
+              <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
             </div>
             <div className="adm-nav-group">
               <div className="adm-nav-label">회원</div>
@@ -5681,10 +5683,6 @@ export default function AdminClient() {
           {/* ===== 상품 관리 ===== */}
           {panel === 'products' && (
             <div className="adm-content">
-              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category }))} />
-              <SectionCuration sec="qg"
-                buckets={[...new Set(products.map(p => p.category))].map(c => ({ value: c, label: catOptions[c] || CAT_LABEL[c] || c }))}
-                items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category, bucket: p.category }))} />
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
                   { l:'전체 상품', v:products.length, st:'' as const, red:false },
@@ -6025,7 +6023,6 @@ export default function AdminClient() {
             const filteredFarms = farms.filter(f => !farmTypeFilter || f.farm_type === farmTypeFilter);
             return (
             <div className="adm-content">
-              <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
                   <div className="adm-btn-group">
@@ -6077,7 +6074,6 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
-              <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                 {[
                   { l:'전체 리뷰', v:`${reviews.length}건`, red:false },
@@ -7218,7 +7214,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 라운지 ===== */}
           {panel === 'lounge' && (
             <div className="adm-content">
-              <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <AdmSelect value={loungeFilter} onChange={setLoungeFilter}
@@ -7266,6 +7261,42 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ===== 메인페이지 섹션관리 ===== */}
+          {panel === 'homesections' && (
+            <div className="adm-content">
+              <div className="adm-card adm-card-settings" style={{ marginBottom: 16 }}>
+                <div className="adm-card-head"><span className="adm-card-title">메인 섹션 노출</span></div>
+                <div style={{ padding:'4px 0 8px', fontSize:12, color:'#94A3B8' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:'8px 12px' }}>
+                  {([
+                    ['sec_topbanner','상단 배너'],
+                    ['sec_quickguide','퀵가이드'],
+                    ['sec_pick','델리오 픽'],
+                    ['sec_brand','브랜드 직송관'],
+                    ['sec_midbanner','중간 배너'],
+                    ['sec_review','리뷰 하이라이트'],
+                    ['sec_lounge','델리오 라운지'],
+                    ['sec_survey','취향찾기 CTA'],
+                  ] as const).map(([key, label]) => (
+                    <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', border:'1px solid #EEF2F6', borderRadius:8, background:'#FAFBFC' }}>
+                      <span style={{ fontSize:13, fontWeight:600, color:'#334155' }}>{label}</span>
+                      <Toggle defaultOn={siteSettings[key] !== 'false'}
+                        onChange={v => { setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' })); createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' }); }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category }))} />
+              <SectionCuration sec="qg"
+                buckets={[...new Set(products.map(p => p.category))].map(c => ({ value: c, label: catOptions[c] || CAT_LABEL[c] || c }))}
+                items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category, bucket: p.category }))} />
+              <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
+              <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
+              <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
             </div>
           )}
 
@@ -8854,29 +8885,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
 
               <div className="adm-settings-cols">
-              <div className="adm-card adm-card-settings">
-                <div className="adm-card-head"><span className="adm-card-title">메인 섹션 노출</span></div>
-                <div style={{ padding:'4px 0 8px', fontSize:12, color:'#94A3B8' }}>끄면 해당 섹션이 메인 페이지에서 숨겨집니다.</div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:'8px 12px' }}>
-                  {([
-                    ['sec_topbanner','상단 배너'],
-                    ['sec_quickguide','퀵가이드'],
-                    ['sec_pick','델리오 픽'],
-                    ['sec_brand','브랜드 직송관'],
-                    ['sec_midbanner','중간 배너'],
-                    ['sec_review','리뷰 하이라이트'],
-                    ['sec_lounge','델리오 라운지'],
-                    ['sec_survey','취향찾기 CTA'],
-                  ] as const).map(([key, label]) => (
-                    <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', border:'1px solid #EEF2F6', borderRadius:8, background:'#FAFBFC' }}>
-                      <span style={{ fontSize:13, fontWeight:600, color:'#334155' }}>{label}</span>
-                      <Toggle defaultOn={siteSettings[key] !== 'false'}
-                        onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* 표시 · 배송 설정 */}
               <div className="adm-card adm-card-settings">
                 <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
