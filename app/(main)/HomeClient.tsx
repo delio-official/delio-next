@@ -179,7 +179,7 @@ function MainBanner() {
 
   const go = useCallback((next: number) => {
     if (transitioning.current || TOTAL === 0) return;
-    if (next >= TOTAL + CLONES) { snapTo(curRef.current - TOTAL); next = curRef.current + 1; }
+    /* 항상 (클론 포함) 목표로 애니메이션. 경계 스냅은 transitionend 에서 처리 */
     transitioning.current = true;
     curRef.current = next;
     setPos(next, true);
@@ -187,7 +187,7 @@ function MainBanner() {
     /* 안전장치: transitionend 가 안 터져도 잠금이 영구히 걸리지 않게 풀어줌 */
     if (transFallback.current) clearTimeout(transFallback.current);
     transFallback.current = setTimeout(() => { transitioning.current = false; }, 500);
-  }, [TOTAL, CLONES, snapTo, setPos, updateProgress]);
+  }, [TOTAL, setPos, updateProgress]);
 
   const stopTimer  = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
   const startTimer = useCallback(() => { stopTimer(); timerRef.current = setInterval(() => go(curRef.current + 1), 4500); }, [go, stopTimer]);
@@ -202,7 +202,9 @@ function MainBanner() {
     if (track) {
       const onEnd = (e: TransitionEvent) => {
         if (e.target !== track || e.propertyName !== 'transform') return;
-        if (curRef.current < CLONES) snapTo(curRef.current + TOTAL);
+        /* 클론 구간에 도착했으면 즉시(애니메이션 없이) 진짜 슬라이드로 스냅 → 무한루프 */
+        if (curRef.current >= TOTAL + CLONES) snapTo(curRef.current - TOTAL);
+        else if (curRef.current < CLONES) snapTo(curRef.current + TOTAL);
         if (transFallback.current) clearTimeout(transFallback.current);
         transitioning.current = false;
       };
@@ -227,13 +229,7 @@ function MainBanner() {
       {glowUrl && <div className="banner-img-glow" style={{ backgroundImage: `url(${glowUrl})` }} />}
       <div className="main-banner-inner" onMouseEnter={() => setBannerHovered(true)} onMouseLeave={() => setBannerHovered(false)}>
         <div className="main-banner-clip" ref={clipRef}
-          onTouchStart={e => {
-            touchStartX.current = e.touches[0].clientX;
-            stopTimer();
-            /* 새 제스처마다 잠금 해제 → 이전 전환이 멈춰도(이벤트 누락) 다음 스와이프가 무조건 먹힘 */
-            if (transFallback.current) clearTimeout(transFallback.current);
-            transitioning.current = false;
-          }}
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; stopTimer(); }}
           onTouchEnd={e => {
             const dx = e.changedTouches[0].clientX - touchStartX.current;
             if (Math.abs(dx) > 40) go(curRef.current + (dx < 0 ? 1 : -1));
