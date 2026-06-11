@@ -1596,6 +1596,7 @@ export default function AdminClient() {
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
+  const [refundTypeFilter, setRefundTypeFilter] = useState<'' | 'cancel' | 'refund'>('');
   const [refundStatusFilter, setRefundStatusFilter] = useState('');
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
@@ -7902,6 +7903,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                       <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
                     ))}
                   </div>
+                  <div className="adm-btn-group">
+                    {([['','유형 전체'],['cancel','취소'],['refund','환불']] as const).map(([id, label]) => (
+                      <button key={id} className={`adm-seg-btn${refundTypeFilter===id?' active':''}`} onClick={() => setRefundTypeFilter(id)}>{label}</button>
+                    ))}
+                  </div>
                   <AdmSelect value={refundStatusFilter} onChange={setRefundStatusFilter}
                     options={[
                       { value:'', label:'전체 상태' },
@@ -7945,11 +7951,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
                           const customerReqs = (refundFilter === 'admin' ? [] : refundReqs)
-                            .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at));
+                            .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at)
+                              && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter));
                           /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김 */
                           const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
+                          /* 관리자 직접취소: 주문상태 cancelled=취소, refunded/refunding=환불 */
                           const directCancels = (refundFilter === 'customer' || !adminStatusOk ? [] : orders).filter(o =>
                             ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
+                            && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
@@ -7975,7 +7984,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               ))}
                               {directCancels.map(o => (
                                 <tr key={o.id}>
-                                  <td><span className="adm-badge badge-off">관리자취소</span></td>
+                                  <td><span className="adm-badge badge-off">{o.status === 'cancelled' ? '관리자취소' : '관리자환불'}</span></td>
                                   <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
                                   <td className="adm-mono" style={{ fontSize:12 }}>{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
