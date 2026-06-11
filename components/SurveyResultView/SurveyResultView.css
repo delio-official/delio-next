@@ -46,7 +46,7 @@
 .srv-types { background: #fff; border: 1px solid #EEE; border-radius: 16px; padding: 18px; }
 .srv-types-head { font-size: 14px; font-weight: 800; color: #1A1A1A; }
 .srv-types-sub { font-size: 12px; color: #999; margin: 4px 0 14px; }
-.srv-types-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
+.srv-types-scroll { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 12px 18px 2px; justify-content: safe center; }
 .srv-types-scroll::-webkit-scrollbar { display: none; }
 .srv-type-chip {
   flex: 0 0 auto; position: relative; width: 80px; padding: 14px 8px;
