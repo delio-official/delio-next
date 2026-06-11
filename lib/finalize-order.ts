@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { notifyAlimtalk } from '@/lib/sms';
 
 export interface OrderData {
   userId: string;
@@ -151,6 +152,21 @@ export async function finalizeOrder(
         .update({ point_balance: Math.max(0, newBalance) }).eq('id', orderData.userId);
       if (earned > 0) await supabase.from('orders').update({ earned_point: earned }).eq('id', order.id);
     }
+  }
+
+  /* 주문 완료 알림톡 (실패해도 주문은 정상) */
+  if (orderData.phone) {
+    const first = orderData.items[0];
+    const productName = first ? first.name + (orderData.items.length > 1 ? ` 외 ${orderData.items.length - 1}건` : '') : '';
+    try {
+      await notifyAlimtalk('order_complete', orderData.phone, {
+        recipient: orderData.recipient,
+        orderNo: order.order_no,
+        orderDate: new Date().toLocaleDateString('ko-KR'),
+        productName,
+        amount: `${orderData.totalAmount.toLocaleString()}원`,
+      });
+    } catch { /* noop */ }
   }
 
   return { success: true, orderNo: order.order_no, earnedPoint: earned };

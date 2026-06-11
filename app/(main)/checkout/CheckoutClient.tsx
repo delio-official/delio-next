@@ -344,7 +344,7 @@ export default function CheckoutClient() {
         }
 
         clearCart(); clearOrderPrefs();
-        // 주문 완료 SMS 발송 (비동기, 실패해도 주문은 정상 처리)
+        // 주문 완료 알림톡 발송 (비동기, 실패해도 주문은 정상 처리)
         fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -353,7 +353,9 @@ export default function CheckoutClient() {
             phone: phone.trim(),
             recipient: recipient.trim(),
             orderNo: order.order_no,
-            amount: String(total),
+            orderDate: new Date().toLocaleDateString('ko-KR'),
+            productName: items[0].name + (items.length > 1 ? ` 외 ${items.length - 1}건` : ''),
+            amount: `${total.toLocaleString()}원`,
           }),
         }).catch(() => {});
         gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);

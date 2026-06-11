@@ -11,6 +11,7 @@ export async function signUp(
   password: string,
   name: string,
   refCode?: string,
+  phone?: string,
 ) {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -22,11 +23,12 @@ export async function signUp(
   if (!error && data.user) {
     const myCode = generateReferralCode(data.user.id);
 
-    // profiles 생성 (referral_code 포함)
+    // profiles 생성 (referral_code·연락처 포함)
     await supabase.from('profiles').upsert({
       id: data.user.id,
       email,
       name,
+      phone: phone?.trim() || null,
       grade: 'beginner',
       point_balance: 0,
       referral_code: myCode,
@@ -39,6 +41,14 @@ export async function signUp(
 
     // 회원가입 웰컴 쿠폰팩 자동 지급 (signup_grant 쿠폰들, 멱등)
     await supabase.rpc('grant_signup_coupons');
+
+    // 가입 환영 알림톡 (휴대폰 있으면, 실패해도 가입은 정상)
+    if (phone?.trim()) {
+      fetch('/api/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'signup_coupon', phone: phone.trim(), recipient: name }),
+      }).catch(() => {});
+    }
   }
 
   return { data, error };

@@ -808,6 +808,11 @@ export default function MypageClient() {
     if (!editName.trim()) { showToastMsg('이름을 입력해주세요.'); return; }
     setInfoSaving(true);
     const supabase = createClient();
+    /* 변경 항목 산출 (알림톡용) */
+    const changed: string[] = [];
+    if ((profile?.name || '') !== editName.trim()) changed.push('이름');
+    if ((profile?.phone || '') !== editPhone.trim()) changed.push('연락처');
+    if ((profile?.birth || '') !== editBirth.trim()) changed.push('생년월일');
     const payload = { name: editName.trim(), phone: editPhone.trim() || null, birth: editBirth.trim() || null };
     const { error } = await supabase.from('profiles').update(payload).eq('id', user!.id);
     setInfoSaving(false);
@@ -815,6 +820,16 @@ export default function MypageClient() {
     setProfile(prev => prev ? { ...prev, ...payload } : prev);
     setPhoneEditing(false);
     showToastMsg('회원정보가 저장되었습니다');
+    /* 회원정보 변경 알림톡 (변경 항목 있고 연락처 있을 때) */
+    if (changed.length > 0 && editPhone.trim()) {
+      fetch('/api/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'profile_changed', phone: editPhone.trim(), recipient: editName.trim(),
+          changedAt: new Date().toLocaleString('ko-KR'), changedFields: changed.join(', '),
+        }),
+      }).catch(() => {});
+    }
   }
   /* 마케팅 수신동의 저장 */
   async function saveMarketing() {

@@ -154,7 +154,7 @@ export default function SignupClient() {
     setFieldErrors({});
     setLoading(true);
     setError('');
-    const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined);
+    const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined, phone.trim() || undefined);
     if (err) {
       setLoading(false);
       if (err.message.includes('already')) setError('이미 가입된 이메일입니다.');

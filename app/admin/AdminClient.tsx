@@ -62,6 +62,13 @@ interface Order {
   order_items?: OrderItem[];
 }
 
+/** 주문 대표 상품명 — 알림톡 변수용 (첫 상품 + 외 N건) */
+function orderProductName(o: Order): string {
+  const items = o.order_items || [];
+  if (items.length === 0) return '주문상품';
+  return items[0].product_name + (items.length > 1 ? ` 외 ${items.length - 1}건` : '');
+}
+
 interface AdminProduct {
   id: string;
   name: string;
@@ -2634,6 +2641,20 @@ export default function AdminClient() {
     if (req.order_id && nextOrderStatus) {
       await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
+    /* 승인(완료) 시 취소/환불 알림톡 */
+    if (newStatus === 'completed' && req.order_id) {
+      const ord = orders.find(o => o.id === req.order_id);
+      if (ord?.phone) {
+        fetch('/api/notify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'order_cancelled', phone: ord.phone, recipient: ord.recipient,
+            orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
+            refundAmount: `${(ord.final_amount || 0).toLocaleString()}원`,
+          }),
+        }).catch(() => {});
+      }
+    }
     /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
     if (newStatus === 'completed' && req.order_id) {
       try {
@@ -3494,6 +3515,8 @@ export default function AdminClient() {
               phone: deliveredOrder.phone,
               recipient: deliveredOrder.recipient,
               orderNo: deliveredOrder.order_no,
+              productName: orderProductName(deliveredOrder),
+              completedAt: new Date().toLocaleString('ko-KR'),
             }),
           }).catch(() => {});
         }
@@ -3542,6 +3565,8 @@ export default function AdminClient() {
               type: 'shipping_started',
               phone: selectedOrder.phone,
               recipient: selectedOrder.recipient,
+              orderNo: selectedOrder.order_no,
+              productName: orderProductName(selectedOrder),
               courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
               trackingNumber: tno,
             }),

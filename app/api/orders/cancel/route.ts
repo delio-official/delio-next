@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { notifyAlimtalk } from '@/lib/sms';
 
 /* 고객 즉시 주문취소 — 결제완료(paid) 상태(=판매자가 상품준비중으로 바꾸기 전)에서만.
    포트원 결제취소 + 쿠폰·포인트 복원 + 주문 cancelled + 기록용 refund_requests(완료).
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin.from('orders')
-    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id')
+    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id, order_no, recipient, phone, final_amount')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
   if (order.user_id !== user.id) return NextResponse.json({ ok: false, error: '본인 주문이 아닙니다' }, { status: 403 });
@@ -76,6 +77,18 @@ export async function POST(req: Request) {
       order_id: orderId, user_id: user.id, reason: '고객 즉시취소', detail: '', type: 'cancel', status: 'completed',
     });
   } catch { /* 기록 실패는 무시 */ }
+
+  /* 주문 취소 알림톡 */
+  if (order.phone) {
+    try {
+      await notifyAlimtalk('order_cancelled', order.phone, {
+        recipient: order.recipient || '',
+        orderNo: order.order_no || '',
+        cancelledAt: new Date().toLocaleString('ko-KR'),
+        refundAmount: `${(order.final_amount || 0).toLocaleString()}원`,
+      });
+    } catch { /* noop */ }
+  }
 
   return NextResponse.json({ ok: true, cancelled: true });
 }

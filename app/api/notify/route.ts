@@ -1,51 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  sendSMS,
-  smsOrderComplete,
-  smsShippingStarted,
-  smsDeliveryComplete,
-} from '@/lib/sms';
+import { notifyAlimtalk, type AlimtalkKind } from '@/lib/sms';
 
-export type NotifyType = 'order_complete' | 'shipping_started' | 'delivery_complete';
-
+/* 자동 알림 = 카카오 알림톡 (실패 시 솔라피가 SMS 자동 대체).
+   직접/대량 발송은 /api/sms 사용. */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { type, phone, ...params } = body as { type: NotifyType; phone: string; [key: string]: string };
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: '잘못된 요청' }, { status: 400 });
+  const { type, phone, ...params } = body as { type: AlimtalkKind; phone: string; [key: string]: string };
 
   if (!type || !phone) {
     return NextResponse.json({ error: 'type, phone 필수' }, { status: 400 });
   }
 
-  let text = '';
-
-  switch (type) {
-    case 'order_complete':
-      text = smsOrderComplete({
-        recipient: params.recipient,
-        orderNo:   params.orderNo,
-        amount:    Number(params.amount),
-      });
-      break;
-
-    case 'shipping_started':
-      text = smsShippingStarted({
-        recipient:      params.recipient,
-        courierName:    params.courierName,
-        trackingNumber: params.trackingNumber,
-      });
-      break;
-
-    case 'delivery_complete':
-      text = smsDeliveryComplete({
-        recipient: params.recipient,
-        orderNo:   params.orderNo,
-      });
-      break;
-
-    default:
-      return NextResponse.json({ error: '알 수 없는 type' }, { status: 400 });
-  }
-
-  await sendSMS(phone, text);
+  await notifyAlimtalk(type, phone, params as Record<string, string>);
   return NextResponse.json({ ok: true });
 }
