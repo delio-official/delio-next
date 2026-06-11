@@ -74,7 +74,8 @@ export default function ProductDetailEditor({ productId, productName, onClose }:
   /* ── 이미지 업로드 ── */
   async function handleImage(file: File) {
     const supabase = createClient();
-    const path = `detail/${productId}/${Date.now()}_${file.name}`;
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `detail/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage.from('products').upload(path, file, { upsert: true });
     if (error) { alert('이미지 업로드 실패'); return; }
     const { data } = supabase.storage.from('products').getPublicUrl(path);

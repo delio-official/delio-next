@@ -47,9 +47,11 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
     const newUrls: string[] = [];
 
     for (const file of Array.from(files)) {
-      const path = `detail/${productId}/${Date.now()}_${file.name}`;
+      /* 한글·특수문자 파일명은 스토리지 키로 못 쓰므로(Invalid key) 확장자만 사용 */
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const path = `detail/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from('products').upload(path, file, { upsert: true });
-      if (error) { alert(`업로드 실패: ${file.name}`); continue; }
+      if (error) { alert(`업로드 실패: ${file.name} (${error.message})`); continue; }
       const { data } = supabase.storage.from('products').getPublicUrl(path);
       newUrls.push(data.publicUrl);
     }
