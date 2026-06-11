@@ -512,6 +512,7 @@ function MidBanner() {
   const curRef   = useRef(CLONES);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transitioning = useRef(false);
+  const transFallback = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartX = useRef(0);
   const [activeDot, setActiveDot] = useState(0);
 
@@ -546,10 +547,13 @@ function MidBanner() {
     curRef.current = next;
     setPos(next, true);
     setActiveDot((next - CLONES + TOTAL) % TOTAL);
+    /* 안전장치: transitionend 누락돼도 잠금이 영구히 걸리지 않게 */
+    if (transFallback.current) clearTimeout(transFallback.current);
+    transFallback.current = setTimeout(() => { transitioning.current = false; }, 650);
   }, [TOTAL, CLONES, snapTo, setPos]);
 
-  const startTimer = useCallback(() => { timerRef.current = setInterval(() => go(curRef.current + 1), 5000); }, [go]);
-  const stopTimer  = useCallback(() => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+  const stopTimer  = useCallback(() => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } }, []);
+  const startTimer = useCallback(() => { stopTimer(); timerRef.current = setInterval(() => go(curRef.current + 1), 5000); }, [go, stopTimer]);
 
   useEffect(() => {
     if (!ready || TOTAL === 0) return;
@@ -559,6 +563,7 @@ function MidBanner() {
       const onEnd = (e: TransitionEvent) => {
         if (e.target !== track || e.propertyName !== 'transform') return;
         if (curRef.current < CLONES) snapTo(curRef.current + TOTAL);
+        if (transFallback.current) clearTimeout(transFallback.current);
         transitioning.current = false;
       };
       track.addEventListener('transitionend', onEnd);
