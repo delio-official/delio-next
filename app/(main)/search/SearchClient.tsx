@@ -40,9 +40,9 @@ const SORT_OPTIONS = [
   { id: 'price_asc',  label: '가격 낮은순' },
   { id: 'price_desc', label: '가격 높은순' },
   { id: 'sweet_desc', label: '당도 높은순' },
-  { id: 'sweet_asc',  label: '🍯 당도 낮은순' },
+  { id: 'sweet_asc',  label: '당도 낮은순' },
   { id: 'sour_desc',  label: '산도 높은순' },
-  { id: 'sour_asc',   label: '🍋 산도 낮은순' },
+  { id: 'sour_asc',   label: '산도 낮은순' },
 ];
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
