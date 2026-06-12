@@ -39,7 +39,10 @@ const SORT_OPTIONS = [
   { id: 'rating',     label: '평점 높은순' },
   { id: 'price_asc',  label: '가격 낮은순' },
   { id: 'price_desc', label: '가격 높은순' },
-  { id: 'brix',       label: '🍯 당도 높은순' },
+  { id: 'sweet_desc', label: '🍯 당도 높은순' },
+  { id: 'sweet_asc',  label: '🍯 당도 낮은순' },
+  { id: 'sour_desc',  label: '🍋 산도 높은순' },
+  { id: 'sour_asc',   label: '🍋 산도 낮은순' },
 ];
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -214,7 +217,10 @@ export default function SearchClient() {
       case 'rating':     req = req.order('avg_rating',        { ascending: false }); break;
       case 'price_asc':  req = req.order('discounted_price',  { ascending: true  }); break;
       case 'price_desc': req = req.order('discounted_price',  { ascending: false }); break;
-      case 'brix':       req = req.order('brix',              { ascending: false }); break;
+      case 'sweet_desc': req = req.order('seller_score->>sweet', { ascending: false, nullsFirst: false }); break;
+      case 'sweet_asc':  req = req.order('seller_score->>sweet', { ascending: true,  nullsFirst: false }); break;
+      case 'sour_desc':  req = req.order('seller_score->>sour',  { ascending: false, nullsFirst: false }); break;
+      case 'sour_asc':   req = req.order('seller_score->>sour',  { ascending: true,  nullsFirst: false }); break;
       default:           req = req.order('sort_order');
     }
 
