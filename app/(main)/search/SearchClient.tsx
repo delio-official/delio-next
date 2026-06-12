@@ -205,7 +205,8 @@ export default function SearchClient() {
     if (f.best)       req = req.eq('is_best', true);
     if (f.discount)   req = req.gt('discount_rate', 0);
     if (f.highRating) req = req.gte('avg_rating', 4.8);
-    if (ff.brix > 0)  req = req.gte('brix', ff.brix);
+    if (ff.brix > 0)  req = req.gte('seller_score->>sweet', String(ff.brix)); // 당도 N단계 이상 (맛 프로파일)
+    if (ff.sour > 0)  req = req.lte('seller_score->>sour',  String(ff.sour)); // 신맛 N단계 이하
     if (ff.priceMin)  req = req.gte('discounted_price', parseInt(ff.priceMin));
     if (ff.priceMax)  req = req.lte('discounted_price', parseInt(ff.priceMax));
     if (ff.delivery === 'dawn')   req = req.eq('is_dawn', true);
@@ -497,16 +498,16 @@ export default function SearchClient() {
         <div className="sort-sheet-handle" />
         <h3 className="fruit-filter-title">🍊 과일 특화 필터</h3>
 
-        <p className="filter-section-title">🍯 당도 (Brix) 최솟값</p>
+        <p className="filter-section-title">🍯 당도 최소 단계 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(맛 프로파일)</span></p>
         <div className="filter-range">
           <span className="filter-range-mute">무관</span>
           <input
-            type="range" min="0" max="18" step="1"
+            type="range" min="0" max="5" step="1"
             value={pendingFruit.brix}
             onChange={e => setPendingFruit(prev => ({ ...prev, brix: parseInt(e.target.value) }))}
           />
           <span className="filter-range-val">
-            {pendingFruit.brix === 0 ? '무관' : `${pendingFruit.brix} Brix+`}
+            {pendingFruit.brix === 0 ? '무관' : `${pendingFruit.brix}단계 이상`}
           </span>
         </div>
 
