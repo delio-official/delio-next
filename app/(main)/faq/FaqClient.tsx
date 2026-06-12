@@ -171,10 +171,10 @@ export default function FaqClient() {
             </button>
             <button onClick={() => window.open('https://pf.kakao.com/_RxnrxbX/chat', '_blank')}
               style={{ padding:'11px 22px', background:'#FEE500', border:'none',
-                borderRadius:10, color:'#3C1E1E', fontSize:13, fontWeight:700,
+                borderRadius:10, color:'#1A1A1A', fontSize:13, fontWeight:700,
                 cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:6 }}>
               <svg viewBox="0 0 24 24" width="16" height="16">
-                <path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
+                <path fill="#1A1A1A" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
               </svg>
               카카오 채널
             </button>
