@@ -147,6 +147,7 @@ interface AdminReview {
   likes_count: number;
   image_urls: string[] | null;
   report_count?: number;
+  report_reasons?: string[];
   created_at: string;
   seller_reply?: string | null;
   seller_replied_at?: string | null;
@@ -2688,15 +2689,18 @@ export default function AdminClient() {
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
-        .select('review_id')
+        .select('review_id, reason, created_at')
+        .order('created_at', { ascending: false })
         .limit(1000),
     ]);
     const countMap: Record<string, number> = {};
-    (reportCounts || []).forEach((r: { review_id: string }) => {
+    const reasonMap: Record<string, string[]> = {};
+    (reportCounts || []).forEach((r: { review_id: string; reason: string | null }) => {
       countMap[r.review_id] = (countMap[r.review_id] || 0) + 1;
+      if (r.reason) { (reasonMap[r.review_id] ||= []).push(r.reason); }
     });
     const reviews = (data || []).map((r: Record<string, unknown>) => ({
-      ...r, report_count: countMap[r.id as string] || 0,
+      ...r, report_count: countMap[r.id as string] || 0, report_reasons: reasonMap[r.id as string] || [],
     }));
     setReviews(reviews as unknown as AdminReview[]);
     setReviewsLoading(false);
@@ -3614,7 +3618,8 @@ export default function AdminClient() {
   async function deleteReview(id: string) {
     if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
     const supabase = createClient();
-    await supabase.from('reviews').delete().eq('id', id);
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
     setReviews(prev => prev.filter(r => r.id !== id));
   }
 
@@ -9351,6 +9356,16 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>상품</span> <strong>{selectedReview.products?.name || '-'}</strong></div>
                 <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)} <span style={{ marginLeft:12, color:'#64748B' }}>👍</span> {selectedReview.likes_count || 0}</div>
               </div>
+
+              {/* 신고 사유 */}
+              {selectedReview.report_reasons && selectedReview.report_reasons.length > 0 && (
+                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, padding:'10px 14px' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#B91C1C', marginBottom:6 }}>🚨 신고 사유 ({selectedReview.report_reasons.length}건)</div>
+                  <ul style={{ margin:0, paddingLeft:18, fontSize:13, color:'#7F1D1D', lineHeight:1.7 }}>
+                    {selectedReview.report_reasons.map((rs, i) => <li key={i}>{rs}</li>)}
+                  </ul>
+                </div>
+              )}
 
               {/* 리뷰 내용 */}
               <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', whiteSpace:'pre-wrap' }}>

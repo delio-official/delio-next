@@ -123,6 +123,11 @@ export default function ProductClient() {
   const [reviewSort,       setReviewSort]       = useState<SortKey>('latest');
   const [reviewPage,       setReviewPage]       = useState(0);
   const [reviewModalOpen,  setReviewModalOpen]  = useState(false);
+  /* 후기 신고 모달 */
+  const [reportTarget,     setReportTarget]     = useState<string | null>(null); // 신고할 리뷰 id
+  const [reportReason,     setReportReason]     = useState('');
+  const [reportDetail,     setReportDetail]     = useState('');
+  const [reportSaving,     setReportSaving]     = useState(false);
   const [newRating,        setNewRating]        = useState(5);
   const [newContent,       setNewContent]       = useState('');
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
@@ -132,6 +137,21 @@ export default function ProductClient() {
   /* 리뷰 사진 드래그 재정렬 (PC 마우스 + 모바일 터치) */
   const reviewDragSrc = useRef<number | null>(null);
   const reviewDropTarget = useRef<number | null>(null);
+
+  /* 후기 신고 제출 */
+  const REPORT_REASONS = ['욕설·비방', '광고·홍보성', '허위·부적절한 내용', '음란·혐오', '기타'];
+  async function submitReport() {
+    if (!reportTarget || !user) return;
+    if (!reportReason) { showToast('신고 사유를 선택해 주세요.'); return; }
+    if (reportReason === '기타' && !reportDetail.trim()) { showToast('기타 사유를 입력해 주세요.'); return; }
+    setReportSaving(true);
+    const reason = reportReason === '기타' ? `기타: ${reportDetail.trim()}` : reportReason;
+    const { error } = await createClient().from('review_reports')
+      .insert({ review_id: reportTarget, reporter_id: user.id, reason });
+    setReportSaving(false);
+    setReportTarget(null);
+    showToast(error?.code === '23505' ? '이미 신고한 리뷰입니다.' : error ? '오류가 발생했습니다.' : '신고가 접수되었습니다.');
+  }
   function reorderReviewImages(to: number) {
     const from = reviewDragSrc.current;
     reviewDragSrc.current = null;
@@ -2080,11 +2100,9 @@ export default function ProductClient() {
                       </button>
                     </div>
                     <div style={{ display:'flex', gap:12 }}>
-                      <button onClick={async () => {
+                      <button onClick={() => {
                           if (!user) { router.push('/login'); return; }
-                          const supabase = createClient();
-                          const { error } = await supabase.from('review_reports').insert({ review_id: r.id, reporter_id: user.id });
-                          showToast(error?.code === '23505' ? '이미 신고한 리뷰입니다.' : error ? '오류가 발생했습니다.' : '신고가 접수되었습니다.');
+                          setReportReason(''); setReportDetail(''); setReportTarget(r.id);
                         }}
                         style={{ background:'none', border:'none', fontSize:12,
                           color:'var(--color-ink-mute)', cursor:'pointer' }}>신고</button>
@@ -2319,6 +2337,40 @@ export default function ProductClient() {
                 {inqSubmitting ? '등록 중...' : '문의 등록'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 후기 신고 모달 ── */}
+      {reportTarget && (
+        <div onClick={() => setReportTarget(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:380, padding:'22px 22px 20px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>후기 신고</span>
+              <button onClick={() => setReportTarget(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:18, color:'#999', lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ fontSize:12, color:'#888', marginBottom:12 }}>신고 사유를 선택해 주세요.</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
+              {REPORT_REASONS.map(rs => (
+                <button key={rs} type="button" onClick={() => setReportReason(rs)}
+                  style={{ textAlign:'left', padding:'11px 14px', borderRadius:9, cursor:'pointer', fontFamily:'inherit', fontSize:13.5,
+                    border:`1.5px solid ${reportReason === rs ? '#1A1A1A' : '#E5E5E5'}`,
+                    background: reportReason === rs ? '#1A1A1A' : '#fff', color: reportReason === rs ? '#fff' : '#444', fontWeight: reportReason === rs ? 700 : 500 }}>
+                  {rs}
+                </button>
+              ))}
+            </div>
+            {reportReason === '기타' && (
+              <textarea value={reportDetail} onChange={e => setReportDetail(e.target.value)} rows={3}
+                placeholder="신고 사유를 입력해 주세요."
+                style={{ width:'100%', padding:'10px 12px', fontSize:13, border:'1.5px solid #E0DFDB', borderRadius:8, resize:'none', outline:'none', fontFamily:'inherit', lineHeight:1.6, boxSizing:'border-box', marginBottom:14 }} />
+            )}
+            <button onClick={submitReport} disabled={reportSaving}
+              style={{ width:'100%', padding:'13px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:10, fontSize:14, fontWeight:700, cursor: reportSaving ? 'default' : 'pointer', opacity: reportSaving ? 0.6 : 1, fontFamily:'inherit' }}>
+              {reportSaving ? '접수 중...' : '신고 접수'}
+            </button>
           </div>
         </div>
       )}
