@@ -2045,17 +2045,17 @@ export default function MypageClient() {
                   </div>
 
                   {/* 쿠폰 카드 */}
-                  <div style={{ background:'#1A1A1A', borderRadius:16, padding:'40px 24px',
-                    maxWidth:300, margin:'0 auto 20px', position:'relative', overflow:'hidden', textAlign:'center' }}>
+                  <div style={{ background:'#1A1A1A', borderRadius:14, padding:'24px 24px',
+                    maxWidth:270, margin:'0 auto 20px', position:'relative', overflow:'hidden', textAlign:'center' }}>
                     {/* 좌우 삼각형 노치 */}
                     <div style={{ position:'absolute', left:0, top:'50%', transform:'translateY(-50%)',
-                      width:0, height:0, borderTop:'24px solid transparent', borderBottom:'24px solid transparent',
-                      borderLeft:'20px solid #fff' }} />
+                      width:0, height:0, borderTop:'16px solid transparent', borderBottom:'16px solid transparent',
+                      borderLeft:'14px solid #fff' }} />
                     <div style={{ position:'absolute', right:0, top:'50%', transform:'translateY(-50%)',
-                      width:0, height:0, borderTop:'24px solid transparent', borderBottom:'24px solid transparent',
-                      borderRight:'20px solid #fff' }} />
-                    <p style={{ fontSize:14, fontWeight:600, color:'#fff', letterSpacing:3, marginBottom:14 }}>COUPON</p>
-                    <p style={{ fontSize:52, fontWeight:800, color:'#fff', lineHeight:1, letterSpacing:-1 }}>5,000</p>
+                      width:0, height:0, borderTop:'16px solid transparent', borderBottom:'16px solid transparent',
+                      borderRight:'14px solid #fff' }} />
+                    <p style={{ fontSize:12, fontWeight:600, color:'#fff', letterSpacing:3, marginBottom:8 }}>COUPON</p>
+                    <p style={{ fontSize:38, fontWeight:700, color:'#fff', lineHeight:1, letterSpacing:-1 }}>5,000</p>
                   </div>
 
                   {/* 설명 */}
