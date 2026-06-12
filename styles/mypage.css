@@ -409,25 +409,25 @@ body { background: #fff; }
     .mp-cp-dl-btn:disabled { border-color: #E5E5E5; background: #F5F5F5; color: #BBB; cursor: default; }
 
     /* ===== 쿠폰 카드 (프레딧 티켓 스타일) ===== */
-    .mp-cp-list { display: flex; flex-direction: column; gap: 12px; }
+    .mp-cp-list { display: flex; flex-direction: column; gap: 10px; }
     .mp-cp-card {
       display: flex; align-items: stretch;
       border: 1px solid #ECECEC; border-radius: 12px; background: #fff; overflow: hidden;
     }
     .mp-cp-card.dim { opacity: 0.55; }
-    .mp-cp-main { flex: 1; min-width: 0; padding: 16px 18px; }
-    .mp-cp-toprow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .mp-cp-main { flex: 1; min-width: 0; padding: 13px 16px; }
+    .mp-cp-toprow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
     .mp-cp-badge {
-      font-size: 11px; font-weight: 700; color: #555;
-      background: #F2F2F2; padding: 3px 9px; border-radius: 5px;
+      font-size: 11px; font-weight: 600; color: #666;
+      background: #F4F4F4; padding: 2px 8px; border-radius: 5px;
     }
     .mp-cp-soon {
-      font-size: 11px; font-weight: 700; color: #CB1D11; margin-left: auto;
+      font-size: 11px; font-weight: 600; color: #CB1D11; margin-left: auto;
     }
     .mp-cp-soon.used { color: #999; }
-    .mp-cp-value { font-size: 26px; font-weight: 800; color: #1A1A1A; line-height: 1.05; }
-    .mp-cp-name { font-size: 14px; font-weight: 600; color: #333; margin-top: 6px; line-height: 1.4; }
-    .mp-cp-meta { margin-top: 12px; }
+    .mp-cp-value { font-size: 22px; font-weight: 700; color: #1A1A1A; line-height: 1.1; }
+    .mp-cp-name { font-size: 13px; font-weight: 500; color: #444; margin-top: 5px; line-height: 1.4; }
+    .mp-cp-meta { margin-top: 9px; }
     .mp-cp-meta > div { font-size: 12px; color: #AAA; line-height: 1.7; }
     /* 오른쪽 티켓(점선 + 노치) */
     .mp-cp-side {
@@ -447,10 +447,10 @@ body { background: #fff; }
     .mp-cp-side::before { top: -7px; }
     .mp-cp-side::after { bottom: -7px; }
     .mp-cp-side-use {
-      font-size: 13px; font-weight: 600; color: #888; text-decoration: none;
+      font-size: 13px; font-weight: 500; color: #888; text-decoration: none;
       text-align: center; line-height: 1.4; white-space: nowrap;
     }
-    .mp-cp-side-done { font-size: 13px; font-weight: 600; color: #BBB; }
+    .mp-cp-side-done { font-size: 13px; font-weight: 500; color: #BBB; }
 
     /* ===== 쿠폰 등록 ===== */
     .mp-cp-register { margin-top: 34px; }
