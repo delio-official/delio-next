@@ -73,7 +73,7 @@ export default function FarmsClient() {
             <div className="farms-grid">
               {[0,1,2,3].map(i => (
                 <div key={i} style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid #F0F0EE', opacity: 0.4 }}>
-                  <div style={{ aspectRatio: '3 / 4', background: '#E8E8E6' }} />
+                  <div style={{ aspectRatio: '4 / 5', background: '#E8E8E6' }} />
                   <div style={{ padding: 20 }}>
                     <div style={{ height: 18, background: '#E8E8E6', borderRadius: 4, marginBottom: 10, width: '60%' }} />
                     <div style={{ height: 13, background: '#E8E8E6', borderRadius: 4 }} />
@@ -102,7 +102,7 @@ export default function FarmsClient() {
                     onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
 
                     {/* 썸네일 — 세로형 (농부 얼굴 사진용) */}
-                    <div style={{ aspectRatio: '3 / 4', background: 'linear-gradient(135deg,#F4EFE6,#EDE8DC)',
+                    <div style={{ aspectRatio: '4 / 5', background: 'linear-gradient(135deg,#F4EFE6,#EDE8DC)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       position: 'relative', overflow: 'hidden' }}>
                       {farm.thumbnail_url
