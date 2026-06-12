@@ -3670,7 +3670,8 @@ export default function AdminClient() {
   /* ========== 입점문의 상세 + 수락/거절 ========== */
   async function updateInquiryStatus(id: string, status: 'answered' | 'rejected') {
     const supabase = createClient();
-    await supabase.from('farm_inquiries').update({ status }).eq('id', id);
+    const { error } = await supabase.from('farm_inquiries').update({ status }).eq('id', id);
+    if (error) { alert('처리 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
     setInquiries(prev => prev.map(i => i.id === id ? { ...i, status } : i));
     setSelectedInquiry(prev => prev?.id === id ? { ...prev, status } : prev);
   }
@@ -4193,7 +4194,7 @@ export default function AdminClient() {
 
   /* 문의 탭별 필터 */
   const pendingInquiries = inquiries.filter(i => i.status === 'pending' || i.status === 'new' || !i.status);
-  const doneInquiries = inquiries.filter(i => i.status === 'answered' || i.status === 'done');
+  const doneInquiries = inquiries.filter(i => ['answered', 'done', 'rejected'].includes(i.status));
 
   /* FAQ 필터 */
   const filteredFaq = faqItems.filter(f => {
@@ -7739,8 +7740,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inq.message}</td>
                               <td className="adm-muted">{fmtDate(inq.created_at)}</td>
                               <td>
-                                <span className={`adm-badge ${inq.status === 'answered' || inq.status === 'done' ? 'badge-done' : 'badge-wait'}`}>
-                                  {inq.status === 'answered' || inq.status === 'done' ? '답변완료' : '대기중'}
+                                <span className={`adm-badge ${inq.status === 'answered' || inq.status === 'done' ? 'badge-done' : inq.status === 'rejected' ? 'badge-off' : 'badge-wait'}`}>
+                                  {inq.status === 'answered' || inq.status === 'done' ? '수락' : inq.status === 'rejected' ? '거절' : '대기중'}
                                 </span>
                               </td>
                             </tr>
