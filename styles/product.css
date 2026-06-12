@@ -521,3 +521,7 @@
 .search-drop-title-mb { margin-bottom: 14px; }
 .btn-flex-1 { flex: 1; }
 .btn-flex-2 { flex: 2; }
+
+/* 모바일 리뷰 작성 바텀시트 — 아래에서 위로 슬라이드업 */
+@keyframes reviewSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.review-sheet-mobile { animation: reviewSheetUp .3s cubic-bezier(.4,0,.2,1); }

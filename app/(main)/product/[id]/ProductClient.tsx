@@ -2334,12 +2334,13 @@ export default function ProductClient() {
           onClick={() => setReviewModalOpen(false)}
         >
           <div
+            className={isMobile ? 'review-sheet-mobile' : undefined}
             style={{
               background:'#fff',
-              width: isMobile ? '100%' : '100%',
+              width:'100%',
               maxWidth: isMobile ? 600 : 540,
-              maxHeight: isMobile ? 'none' : '90vh',
-              overflowY: isMobile ? 'visible' : 'auto',
+              maxHeight: isMobile ? '88vh' : '90vh',
+              overflowY:'auto',
               borderRadius: isMobile ? '20px 20px 0 0' : 16,
               padding:'28px 24px 40px',
               boxShadow: isMobile ? '0 -8px 40px rgba(0,0,0,.15)' : '0 24px 64px rgba(0,0,0,0.28)',
