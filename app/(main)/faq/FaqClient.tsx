@@ -97,12 +97,12 @@ export default function FaqClient() {
               <button key={c.value} onClick={() => { setCat(c.value); setOpen(null); }}
                 style={{
                   flexShrink:0, padding:'8px 16px',
-                  borderRadius:999, border:'1.5px solid #E0E0E0',
+                  borderRadius:999, border: isActive ? '1.5px solid #1A1A1A' : '1.5px solid #E0E0E0',
                   background: isActive ? '#1A1A1A' : '#fff',
                   color: isActive ? '#fff' : '#444',
                   fontSize:13, fontWeight: isActive ? 700 : 500,
                   cursor:'pointer', transition:'all .15s', fontFamily:'inherit',
-                  whiteSpace:'nowrap',
+                  whiteSpace:'nowrap', outline:'none',
                 }}>
                 {c.label}
               </button>
