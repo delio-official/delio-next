@@ -261,7 +261,7 @@ body { background: #fff; }
     .mp-addr-card {
       border: 1px solid #E5E5E5; border-radius: 12px; padding: 18px; margin-bottom: 12px;
     }
-    .mp-addr-card.selected { border: 2px solid #1A1A1A; padding: 17px; }
+    .mp-addr-card.selected { border: 1.5px solid #1A1A1A; padding: 17.5px; }
     .mp-addr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
     .mp-addr-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .mp-addr-name .t { font-size: 15px; font-weight: 700; color: #1A1A1A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
