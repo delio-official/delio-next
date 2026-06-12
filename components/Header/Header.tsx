@@ -272,7 +272,7 @@ export default function Header() {
                     <div className="mega-inner">
                       {catTree.length > 0 ? catTree.map(({ major, subs }) => (
                         <div key={major.id} className="mega-col">
-                          <div className="mega-col-title"><Link href={`/category?cat=${major.tab_value}`}>{major.label}</Link></div>
+                          <div className="mega-col-title">{major.label}</div>
                           <Link href={`/category?cat=${major.tab_value}`} className="mega-link">전체보기</Link>
                           {subs.map(s => (
                             <Link key={s.id} href={`/category?cat=${s.tab_value}`} className="mega-link">{s.label}</Link>
@@ -281,18 +281,18 @@ export default function Header() {
                       )) : (
                         <>
                           <div className="mega-col">
-                            <div className="mega-col-title"><Link href="/domestic">국산과일</Link></div>
+                            <div className="mega-col-title">국산과일</div>
                             <Link href="/category?origin=domestic" className="mega-link">전체보기</Link>
                           </div>
                           <div className="mega-col">
-                            <div className="mega-col-title"><Link href="/import">수입과일</Link></div>
+                            <div className="mega-col-title">수입과일</div>
                             <Link href="/category?origin=import" className="mega-link">전체보기</Link>
                           </div>
                         </>
                       )}
                       {megaMenus.length > 0 ? megaMenus.map(({ group, links }, gi) => (
                         <div key={group.id} className={`mega-col${gi === megaMenus.length - 1 ? ' mega-col-last' : ''}`}>
-                          <div className="mega-col-title"><Link href={group.href}>{group.label}</Link></div>
+                          <div className="mega-col-title">{group.label}</div>
                           {links.map(l => (
                             <Link key={l.id} href={l.href} className="mega-link">{l.label}</Link>
                           ))}
@@ -300,12 +300,12 @@ export default function Header() {
                       )) : (
                         <>
                           <div className="mega-col">
-                            <div className="mega-col-title"><Link href="/brand-intro">브랜드 소개관</Link></div>
+                            <div className="mega-col-title">브랜드 소개관</div>
                             <Link href="/brand" className="mega-link">브랜드 소개</Link>
                             <Link href="/farms" className="mega-link">파트너 농가</Link>
                           </div>
                           <div className="mega-col mega-col-last">
-                            <div className="mega-col-title"><Link href="/service">서비스</Link></div>
+                            <div className="mega-col-title">서비스</div>
                             {showShipping && <Link href="/shipping" className="mega-link">배송안내</Link>}
                             <Link href="/inquiry" className="mega-link">입점/협업문의</Link>
                             <Link href="/faq" className="mega-link">고객센터</Link>
