@@ -58,8 +58,8 @@ export default function InquiryClient() {
     return (
       <div style={{ minHeight:'80vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#FAFAF8', padding:'40px 20px' }}>
         <div style={{ maxWidth:460, width:'100%', background:'#fff', borderRadius:20, padding:'48px 36px', textAlign:'center', boxShadow:'0 4px 32px rgba(0,0,0,0.07)' }}>
-          <div style={{ width:72, height:72, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px' }}>
-            <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <div style={{ width:56, height:56, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px' }}>
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
           </div>
