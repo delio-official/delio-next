@@ -12,7 +12,7 @@
     .filter-chip-sm svg{flex-shrink:0;}
 
     /* ── 정렬 드로어 ── */
-    .sort-sheet{position:fixed;bottom:-100%;left:0;right:0;background:var(--color-bg-white);border-radius:20px 20px 0 0;padding:var(--space-5) var(--space-4) var(--space-8);z-index:600;transition:bottom .3s cubic-bezier(.4,0,.2,1);max-width:480px;margin:0 auto;}
+    .sort-sheet{position:fixed;bottom:-100%;left:0;right:0;background:var(--color-bg-white);border-radius:20px 20px 0 0;padding:var(--space-5) var(--space-4) var(--space-8);z-index:1003;transition:bottom .3s cubic-bezier(.4,0,.2,1);max-width:480px;margin:0 auto;}
     .sort-sheet.open{bottom:0;}
     .sort-sheet-handle{width:36px;height:4px;background:var(--color-line);border-radius:2px;margin:0 auto var(--space-5);}
     .sort-option{display:flex;align-items:center;justify-content:space-between;padding:var(--space-4) 0;border-bottom:1px solid var(--color-line-soft);cursor:pointer;font-size:var(--fs-body-sm);}
@@ -21,7 +21,7 @@
     .sort-option.selected::after{content:'✓';font-size:16px;}
 
     /* ── 과일 특화 필터 드로어 ── */
-    .fruit-filter-sheet{position:fixed;bottom:-100%;left:0;right:0;background:var(--color-bg-white);border-radius:20px 20px 0 0;padding:var(--space-5) var(--space-4) var(--space-8);z-index:600;transition:bottom .3s cubic-bezier(.4,0,.2,1);max-width:480px;margin:0 auto;}
+    .fruit-filter-sheet{position:fixed;bottom:-100%;left:0;right:0;background:var(--color-bg-white);border-radius:20px 20px 0 0;padding:var(--space-5) var(--space-4) var(--space-8);z-index:1003;transition:bottom .3s cubic-bezier(.4,0,.2,1);max-width:480px;margin:0 auto;}
     .fruit-filter-sheet.open{bottom:0;}
     .filter-section-title{font-size:var(--fs-body-sm);font-weight:700;margin-bottom:var(--space-3);color:var(--color-ink);}
     .filter-range{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);}
@@ -41,7 +41,7 @@
     .no-result .icon{font-size:56px;margin-bottom:var(--space-4);}
     .no-result p{font-size:var(--fs-body-sm);color:var(--color-ink-mute);line-height:1.6;}
 
-    .overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:590;opacity:0;pointer-events:none;transition:opacity .3s;}
+    .overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1002;opacity:0;pointer-events:none;transition:opacity .3s;}
     .overlay-bg.show{opacity:1;pointer-events:all;}
 
     /* ── 검색 전 화면 ── */
