@@ -330,7 +330,6 @@ export default function FarmClient() {
         <section style={{
           background:'#F7F7F5', borderRadius:16, padding:'28px 24px', textAlign:'center',
         }}>
-          <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>이 농가에 관심이 있으신가요?</h3>
           <p style={{ fontSize:14, color:'#666', marginBottom:20 }}>
             파트너 농가 협업 및 입점 문의는 아래 버튼을 통해 접수해주세요.
           </p>
