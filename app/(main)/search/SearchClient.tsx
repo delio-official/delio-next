@@ -359,18 +359,15 @@ export default function SearchClient() {
               )}
             </div>
 
-            {/* 인기검색어 */}
+            {/* 인기검색어 — 헤더 드롭다운과 동일한 1~10위 순위 목록 */}
             <div className="search-popular-section">
               <div className="search-popular-label">인기검색어</div>
-              <div className="search-popular-pills">
+              <div className="search-popular-grid">
                 {popularKeywords.map((kw, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSearch(kw)}
-                    style={{ padding: '7px 18px', border: '1px solid #E0DEDB', borderRadius: 999, fontSize: 13, background: '#fff', cursor: 'pointer', color: 'var(--color-ink)', transition: 'all .15s' }}
-                    onMouseOver={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = 'var(--color-accent)'; b.style.color = 'var(--color-accent)'; }}
-                    onMouseOut={e => { const b = e.currentTarget as HTMLButtonElement; b.style.borderColor = '#E0DEDB'; b.style.color = 'var(--color-ink)'; }}
-                  >{kw}</button>
+                  <div key={i} className="search-popular-item" onClick={() => handleSearch(kw)}>
+                    <span className="search-popular-num" style={{ color: i < 3 ? 'var(--color-accent)' : '#1A1A1A', fontWeight: i < 3 ? 800 : 600 }}>{i + 1}</span>
+                    <span className="search-popular-text" style={{ color: '#1A1A1A' }}>{kw}</span>
+                  </div>
                 ))}
               </div>
             </div>
