@@ -1234,8 +1234,8 @@ export default function HomeClient() {
           {/* 하단: 정책 링크 + SNS */}
           <div className="footer-bottom-bar" style={{ borderTop:'1px solid #EBEBEB', paddingTop:26, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
             <div className="footer-policy-links" style={{ display:'flex', gap:28, fontSize:13.5, fontWeight:500, color:'#444' }}>
-              <a href="#" style={{ color:'#444', textDecoration:'none' }}>개인정보처리방침</a>
-              <a href="#" style={{ color:'#444', textDecoration:'none' }}>이용약관</a>
+              <Link href="/privacy" style={{ color:'#444', textDecoration:'none' }}>개인정보처리방침</Link>
+              <Link href="/terms" style={{ color:'#444', textDecoration:'none' }}>이용약관</Link>
               <Link href="/refund-policy" style={{ color:'#444', textDecoration:'none' }}>취소/환불정책</Link>
               <Link href="/faq" style={{ color:'#444', textDecoration:'none' }}>자주 묻는 질문</Link>
             </div>
