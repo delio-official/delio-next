@@ -9,6 +9,7 @@ import { DEFAULT_TIERS, GRADE_LABEL, GRADE_LABEL_EN, GRADE_COLOR, MEMBERSHIP_COU
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { shareKakaoFeed } from '@/lib/kakao';
+import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
 import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
@@ -44,6 +45,7 @@ interface WishItem {
 interface MyReview {
   id: string; rating: number; content: string; created_at: string;
   image_urls: string[] | null; video_url: string | null;
+  taste: ReviewTaste | null;
   products: { name: string; thumbnail_url: string | null; id: string } | null;
 }
 interface RecentProduct {
@@ -156,6 +158,7 @@ export default function MypageClient() {
   const [editVideo,      setEditVideo]      = useState<string | null>(null); // 유지할 기존 영상
   const [editNewImages,  setEditNewImages]  = useState<File[]>([]);     // 새로 추가한 이미지
   const [editNewVideo,   setEditNewVideo]   = useState<File | null>(null);
+  const [editTaste,      setEditTaste]      = useState<Record<string, number>>({}); // 맛 평가 수정
   const [reviewPhotoModal, setReviewPhotoModal] = useState<MyReview | null>(null);
   const [reviewPhotoIdx,   setReviewPhotoIdx]   = useState(0);
   const [recentPage,       setRecentPage]       = useState(0);
@@ -359,7 +362,7 @@ export default function MypageClient() {
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('reviews')
-          .select('id,rating,content,created_at,image_urls,video_url,products(id,name,thumbnail_url)')
+          .select('id,rating,content,created_at,image_urls,video_url,taste,products(id,name,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(30),
@@ -758,6 +761,7 @@ export default function MypageClient() {
     setEditVideo(r.video_url || null);
     setEditNewImages([]);
     setEditNewVideo(null);
+    setEditTaste((r.taste as Record<string, number>) || {});
   }
 
   /* ── 리뷰 수정 저장 (이미지/영상 편집 포함) ── */
@@ -785,17 +789,19 @@ export default function MypageClient() {
     }
     const finalImages = [...editImages, ...uploadedImgs];
 
+    const tasteVal = Object.keys(editTaste).length ? (editTaste as ReviewTaste) : null;
     const { error } = await supabase.from('reviews')
       .update({
         rating: editRating, content: editContent.trim(),
         image_urls: finalImages.length ? finalImages : null,
         video_url: finalVideo,
+        taste: tasteVal,
       })
       .eq('id', id);
     setEditSaving(false);
     if (error) { alert('수정 실패: ' + error.message); return; }
     setMyReviews(prev => prev.map(r => r.id === id
-      ? { ...r, rating: editRating, content: editContent.trim(), image_urls: finalImages.length ? finalImages : null, video_url: finalVideo }
+      ? { ...r, rating: editRating, content: editContent.trim(), image_urls: finalImages.length ? finalImages : null, video_url: finalVideo, taste: tasteVal }
       : r));
     setEditingId(null);
   }
@@ -1856,7 +1862,40 @@ export default function MypageClient() {
                                   )}
                                 </div>
 
-                                <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                                {/* 맛 평가 (5축) — 작성과 동일 */}
+                                <div style={{ marginTop:14 }}>
+                                  <div style={{ fontSize:12, fontWeight:600, marginBottom:8, color:'#555' }}>
+                                    맛 평가 <span style={{ fontSize:10, color:'#BBB', fontWeight:400 }}>선택 · 다른 구매자에게 도움돼요</span>
+                                  </div>
+                                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                                    {TASTE_AXES.map(axis => (
+                                      <div key={axis.key}>
+                                        <div style={{ fontSize:11, fontWeight:600, color:'#666', marginBottom:5 }}>
+                                          <span style={{ marginRight:3 }}>{axis.icon}</span>{axis.label}
+                                        </div>
+                                        <div style={{ display:'flex', gap:4 }}>
+                                          {axis.levels.map((lv, i) => {
+                                            const level = i + 1;
+                                            const on = editTaste[axis.key] === level;
+                                            return (
+                                              <button key={level} type="button"
+                                                onClick={() => setEditTaste(prev => ({ ...prev, [axis.key]: level }))}
+                                                style={{ flex:1, padding:'6px 2px', borderRadius:7, cursor:'pointer',
+                                                  border:`1px solid ${on ? axis.hex : '#E5E5E5'}`,
+                                                  background: on ? axis.hex : '#fff', color: on ? '#fff' : '#999',
+                                                  fontSize:10.5, fontWeight:on ? 700 : 500, fontFamily:'inherit',
+                                                  lineHeight:1.3, transition:'all .12s' }}>
+                                                {lv}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div style={{ display:'flex', gap:8, marginTop:12 }}>
                                   <button
                                     onClick={() => handleUpdateReview(r.id)}
                                     disabled={editSaving}
