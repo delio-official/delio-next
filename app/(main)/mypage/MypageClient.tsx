@@ -1209,15 +1209,15 @@ export default function MypageClient() {
 
               {/* 요약 통계 */}
               <div className="mp-stats">
-                <div className="mp-stat">
+                <button type="button" className="mp-stat mp-stat-btn" onClick={() => switchPanel('point')}>
                   <div className="mp-stat-icon" style={{ fontSize:15, fontWeight:800 }}>₩</div>
                   <div>
                     <div className="mp-stat-value">{fmtPrice(profile?.point_balance||0)}원</div>
                     <div className="mp-stat-label">총 포인트</div>
                   </div>
-                </div>
+                </button>
                 <div className="mp-stat-divider" />
-                <div className="mp-stat">
+                <button type="button" className="mp-stat mp-stat-btn" onClick={() => switchPanel('coupon')}>
                   <div className="mp-stat-icon">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
                       <rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><path d="M6 14h4"/>
@@ -1227,9 +1227,9 @@ export default function MypageClient() {
                     <div className="mp-stat-value">{availableCouponCount}개</div>
                     <div className="mp-stat-label">쿠폰</div>
                   </div>
-                </div>
+                </button>
                 <div className="mp-stat-divider" />
-                <div className="mp-stat">
+                <button type="button" className="mp-stat mp-stat-btn" onClick={() => { setOrderStatusFilter(null); setOrderSearch(''); orderListRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }); }}>
                   <div className="mp-stat-icon">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
@@ -1240,7 +1240,7 @@ export default function MypageClient() {
                     <div className="mp-stat-value">{fmtPrice(totalOrderAmount)}원</div>
                     <div className="mp-stat-label">총주문</div>
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* 주문처리 현황 */}
