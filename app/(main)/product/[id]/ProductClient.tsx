@@ -2618,11 +2618,12 @@ export default function ProductClient() {
               <div style={{ fontSize:13, fontWeight:600, marginBottom:8,
                 color:'var(--color-ink-soft)' }}>
                 리뷰 내용
+                <span style={{ fontSize:12, color:'var(--color-accent)', fontWeight:600, marginLeft:6 }}>* 최소 10자 이상 작성해 주세요</span>
               </div>
               <textarea
                 value={newContent}
                 onChange={e => setNewContent(e.target.value)}
-                placeholder="상품 품질, 맛, 배송 등 솔직한 후기를 남겨주세요. (최소 10자)"
+                placeholder="상품 품질, 맛, 배송 등 솔직한 후기를 남겨주세요. (최소 10자 이상 작성해야 등록할 수 있어요)"
                 rows={5}
                 style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
                   borderRadius:10, fontSize:14, lineHeight:1.7, resize:'none', outline:'none',
