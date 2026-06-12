@@ -434,7 +434,6 @@ export default function SearchClient() {
                 {sortLabel}
               </button>
               <button className={`filter-chip-sm${hasFruitFilter ? ' active' : ''}`} onClick={openFruitFilter}>🍊 과일 필터</button>
-              <button className={`filter-chip-sm${filters.delivery ? ' active' : ''}`} onClick={() => toggleFilter('delivery')}>새벽배송</button>
               <button className={`filter-chip-sm${filters.best ? ' active' : ''}`} onClick={() => toggleFilter('best')}>베스트</button>
               <button className={`filter-chip-sm${filters.discount ? ' active' : ''}`} onClick={() => toggleFilter('discount')}>할인중</button>
               <button className={`filter-chip-sm${filters.highRating ? ' active' : ''}`} onClick={() => toggleFilter('highRating')}>평점 4.8+</button>
