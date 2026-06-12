@@ -162,8 +162,8 @@ export default function EventClient() {
                       )}
                       {/* D-day 뱃지 */}
                       {dday && <span className="event-dday">{dday}</span>}
-                      {/* 종료 오버레이 */}
-                      {ended && <div className="event-ended-dim" />}
+                      {/* 종료 오버레이 + 멘트 */}
+                      {ended && <div className="event-ended-dim"><span className="event-ended-label">종료된 이벤트</span></div>}
                     </div>
 
                     {/* 텍스트 영역 */}

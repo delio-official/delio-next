@@ -103,7 +103,19 @@ body { background: #fff; }
 .event-ended-dim {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.30);
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.event-ended-label {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 18px;
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
 }
 .event-card-img-wrap.is-ended img,
 .event-card-img-wrap.is-ended .event-card-fallback {
