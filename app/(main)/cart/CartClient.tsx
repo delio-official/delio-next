@@ -365,8 +365,8 @@ export default function CartClient() {
                   <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                     <button onClick={() => setPointUsed(maxPoint)}
                       style={{ padding:'0 12px', height:36, border:'1px solid #1A1A1A', background:'#fff', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>전액 사용</button>
-                    <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
-                      onChange={e => setPointUsed(Math.max(0, Math.min(maxPoint, Number(e.target.value) || 0)))} placeholder="0"
+                    <input type="text" inputMode="numeric" value={pointUsed || ''}
+                      onChange={e => setPointUsed(Math.max(0, Math.min(maxPoint, Number(e.target.value.replace(/[^0-9]/g, '')) || 0)))} placeholder="0"
                       style={{ width:80, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none', textAlign:'right' }} />
                     <span style={{ fontSize:12, color:'#666' }}>원</span>
                   </div>
