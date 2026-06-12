@@ -53,9 +53,9 @@ const SORT_OPTS = [
   { value: 'price_desc', label: '높은 가격순' },
   { value: 'new',        label: '신상품순' },
   { value: 'review',     label: '리뷰 많은 순' },
-  { value: 'sweet_desc', label: '🍯 당도 높은순' },
+  { value: 'sweet_desc', label: '당도 높은순' },
   { value: 'sweet_asc',  label: '🍯 당도 낮은순' },
-  { value: 'sour_desc',  label: '🍋 산도 높은순' },
+  { value: 'sour_desc',  label: '산도 높은순' },
   { value: 'sour_asc',   label: '🍋 산도 낮은순' },
 ];
 

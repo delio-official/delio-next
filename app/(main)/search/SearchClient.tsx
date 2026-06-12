@@ -39,9 +39,9 @@ const SORT_OPTIONS = [
   { id: 'rating',     label: '평점 높은순' },
   { id: 'price_asc',  label: '가격 낮은순' },
   { id: 'price_desc', label: '가격 높은순' },
-  { id: 'sweet_desc', label: '🍯 당도 높은순' },
+  { id: 'sweet_desc', label: '당도 높은순' },
   { id: 'sweet_asc',  label: '🍯 당도 낮은순' },
-  { id: 'sour_desc',  label: '🍋 산도 높은순' },
+  { id: 'sour_desc',  label: '산도 높은순' },
   { id: 'sour_asc',   label: '🍋 산도 낮은순' },
 ];
 
