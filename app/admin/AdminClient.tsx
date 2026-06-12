@@ -3668,7 +3668,7 @@ export default function AdminClient() {
   }
 
   /* ========== 입점문의 상세 + 수락/거절 ========== */
-  async function updateInquiryStatus(id: string, status: 'answered' | 'rejected') {
+  async function updateInquiryStatus(id: string, status: 'done' | 'rejected') {
     const supabase = createClient();
     const { error } = await supabase.from('farm_inquiries').update({ status }).eq('id', id);
     if (error) { alert('처리 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
@@ -9650,7 +9650,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
               ) : (
                 <div style={{ display:'flex', gap:8 }}>
                   <button className="adm-btn adm-btn-primary" style={{ flex:1 }}
-                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'answered')}>✅ 수락으로 처리</button>
+                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'done')}>✅ 수락으로 처리</button>
                   <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#EF4444', borderColor:'#FECACA' }}
                     onClick={() => updateInquiryStatus(selectedInquiry.id, 'rejected')}>거절로 처리</button>
                 </div>
