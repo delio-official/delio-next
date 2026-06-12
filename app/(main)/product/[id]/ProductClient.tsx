@@ -129,6 +129,19 @@ export default function ProductClient() {
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
   const [mediaUploading,   setMediaUploading]   = useState(false);
+  /* 리뷰 사진 드래그 재정렬 */
+  const reviewDragSrc = useRef<number | null>(null);
+  function reorderReviewImages(to: number) {
+    const from = reviewDragSrc.current;
+    reviewDragSrc.current = null;
+    if (from === null || from === to) return;
+    setNewImages(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }
   const [submitting,       setSubmitting]       = useState(false);
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
@@ -2433,12 +2446,19 @@ export default function ProductClient() {
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                 {/* 이미지 프리뷰 */}
                 {newImages.map((file, i) => (
-                  <div key={i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                  <div key={i}
+                    draggable
+                    onDragStart={() => { reviewDragSrc.current = i; }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => reorderReviewImages(i)}
+                    onDragEnd={() => { reviewDragSrc.current = null; }}
+                    style={{ position:'relative', width:64, height:64, flexShrink:0, cursor:'grab' }}>
                     <img
                       src={URL.createObjectURL(file)}
                       alt=""
+                      draggable={false}
                       style={{ width:'100%', height:'100%', objectFit:'cover',
-                        borderRadius:8, border:'1px solid #E8E8E6' }}
+                        borderRadius:8, border:'1px solid #E8E8E6', pointerEvents:'none' }}
                     />
                     <button
                       onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))}
