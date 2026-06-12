@@ -40,12 +40,12 @@ export default function FarmsClient() {
   return (
     <main style={{ background: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
 
-      {/* 히어로 */}
-      <div style={{
-        background: 'linear-gradient(135deg,#F4EFE6 0%,#EDE8DC 100%)',
-        padding: '48px 0 36px', borderBottom: '1px solid #E8E2D8',
-      }}>
-        <div className="container">
+      {/* 히어로 — nav(카테고리~취향진단)와 동일 너비 박스 */}
+      <div className="container" style={{ paddingTop: 24 }}>
+        <div style={{
+          background: 'linear-gradient(135deg,#F4EFE6 0%,#EDE8DC 100%)',
+          padding: '40px 28px 32px', borderRadius: 16, border: '1px solid #E8E2D8',
+        }}>
           <p style={{ fontSize: 11, color: '#A08060', fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>
             PARTNER FARM
           </p>
