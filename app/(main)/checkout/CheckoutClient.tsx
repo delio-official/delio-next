@@ -341,6 +341,13 @@ export default function CheckoutClient() {
         if (prof) {
           const newBalance = (prof.point_balance || 0) - appliedPoint + earned;
           await supabase.from('profiles').update({ point_balance: Math.max(0, newBalance) }).eq('id', user.id);
+          /* 포인트 원장(point_logs) 기록 */
+          try {
+            const logs: { user_id: string; amount: number; description: string }[] = [];
+            if (appliedPoint > 0) logs.push({ user_id: user.id, amount: -appliedPoint, description: '주문 사용' });
+            if (earned > 0)       logs.push({ user_id: user.id, amount: earned,        description: '구매 적립' });
+            if (logs.length) await supabase.from('point_logs').insert(logs);
+          } catch { /* 원장 기록 실패는 무시 */ }
         }
 
         clearCart(); clearOrderPrefs();

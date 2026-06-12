@@ -151,6 +151,13 @@ export async function finalizeOrder(
       await supabase.from('profiles')
         .update({ point_balance: Math.max(0, newBalance) }).eq('id', orderData.userId);
       if (earned > 0) await supabase.from('orders').update({ earned_point: earned }).eq('id', order.id);
+      /* 포인트 원장(point_logs) 기록 — 사용분 차감 + 적립분 */
+      try {
+        const logs: { user_id: string; amount: number; description: string }[] = [];
+        if (pointUsed > 0) logs.push({ user_id: orderData.userId, amount: -pointUsed, description: '주문 사용' });
+        if (earned > 0)    logs.push({ user_id: orderData.userId, amount: earned,    description: '구매 적립' });
+        if (logs.length) await supabase.from('point_logs').insert(logs);
+      } catch { /* 원장 기록 실패는 무시 */ }
     }
   }
 
