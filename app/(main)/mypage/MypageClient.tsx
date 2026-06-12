@@ -1435,7 +1435,7 @@ export default function MypageClient() {
 
                         {/* 하단: 금액 + 버튼 */}
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                          borderTop:'1px solid #f5f5f5', paddingTop:10, marginTop:4 }}>
+                          paddingTop:10, marginTop:4 }}>
                           <span style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(o.final_amount)}원</span>
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
                             {(() => {
