@@ -274,6 +274,8 @@ export default function MypageClient() {
 
   /* 문의 — 상위 탭 (상품 Q&A / 1:1 문의) */
   const [csMainTab,   setCsMainTab]   = useState<'qna'|'inquiry'>('qna');
+  const [qnaFilter,   setQnaFilter]   = useState<'all'|'answered'|'waiting'>('all'); // 상품 Q&A 요약 클릭 필터
+  const [inqFilter,   setInqFilter]   = useState<'all'|'answered'|'waiting'>('all'); // 1:1 문의 요약 클릭 필터
   interface MyQna { id: string; category: string; content: string; answer: string | null; created_at: string; products: { name: string | null } | null; }
   const [myQna,       setMyQna]       = useState<MyQna[]>([]);
   const [qnaLoading,  setQnaLoading]  = useState(false);
@@ -2513,11 +2515,11 @@ export default function MypageClient() {
                 {/* ── 상품 Q&A ── */}
                 {csMainTab === 'qna' && (
                   <>
-                  {/* 상품 Q&A 요약 3열 */}
+                  {/* 상품 Q&A 요약 3열 (클릭 시 필터) */}
                   <div className="mp-cs-summary">
-                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">전체문의</span><span className="mp-cs-sum-num">{myQna.length}개</span></div>
-                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}개</span></div>
-                    <div className="mp-cs-sum-col"><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></div>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='all'?' active':''}`} onClick={() => setQnaFilter('all')}><span className="mp-cs-sum-label">전체문의</span><span className="mp-cs-sum-num">{myQna.length}개</span></button>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='answered'?' active':''}`} onClick={() => setQnaFilter(f => f==='answered'?'all':'answered')}><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}개</span></button>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='waiting'?' active':''}`} onClick={() => setQnaFilter(f => f==='waiting'?'all':'waiting')}><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></button>
                   </div>
                   <div style={{ marginTop:20, overflowX:'auto' }}>
                     <div style={{ minWidth:560 }}>
@@ -2532,10 +2534,11 @@ export default function MypageClient() {
                       </div>
                       {qnaLoading ? (
                         <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:13, borderBottom:'1px solid #EEE' }}>불러오는 중...</div>
-                      ) : myQna.length === 0 ? (
-                        <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>등록된 상품 Q&A가 없습니다.</div>
-                      ) : (
-                        myQna.map((q, i) => {
+                      ) : (() => {
+                        const view = qnaFilter === 'all' ? myQna : myQna.filter(q => qnaFilter === 'answered' ? !!q.answer : !q.answer);
+                        if (myQna.length === 0) return <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>등록된 상품 Q&A가 없습니다.</div>;
+                        if (view.length === 0) return <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>해당 상태의 문의가 없습니다.</div>;
+                        return view.map((q, i) => {
                           const isOpen = qnaOpenId === q.id;
                           return (
                           <div key={q.id} style={{ borderBottom:'1px solid #F0F0F0' }}>
@@ -2543,7 +2546,7 @@ export default function MypageClient() {
                               style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
                                 fontSize:13, alignItems:'center', cursor:'pointer',
                                 background: isOpen ? '#FAFAFA' : 'transparent' }}>
-                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#888' }}>{myQna.length - i}</div>
+                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#888' }}>{view.length - i}</div>
                               <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.products?.name ?? '-'}</div>
                               <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</div>
                               <div style={{ padding:'14px 8px', textAlign:'center', color:'#999' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</div>
@@ -2572,8 +2575,8 @@ export default function MypageClient() {
                             )}
                           </div>
                           );
-                        })
-                      )}
+                        });
+                      })()}
                     </div>
                   </div>
                   </>
@@ -2584,18 +2587,18 @@ export default function MypageClient() {
                 <>
                 {/* 문의 요약 3열 */}
                 <div className="mp-cs-summary">
-                  <div className="mp-cs-sum-col">
+                  <button type="button" className={`mp-cs-sum-col${inqFilter==='all'?' active':''}`} onClick={() => setInqFilter('all')}>
                     <span className="mp-cs-sum-label">전체문의</span>
                     <span className="mp-cs-sum-num">{csInquiries.length}개</span>
-                  </div>
-                  <div className="mp-cs-sum-col">
+                  </button>
+                  <button type="button" className={`mp-cs-sum-col${inqFilter==='answered'?' active':''}`} onClick={() => setInqFilter(f => f==='answered'?'all':'answered')}>
                     <span className="mp-cs-sum-label">답변완료</span>
                     <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status === 'answered').length}개</span>
-                  </div>
-                  <div className="mp-cs-sum-col">
+                  </button>
+                  <button type="button" className={`mp-cs-sum-col${inqFilter==='waiting'?' active':''}`} onClick={() => setInqFilter(f => f==='waiting'?'all':'waiting')}>
                     <span className="mp-cs-sum-label">답변대기</span>
                     <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status !== 'answered').length}개</span>
-                  </div>
+                  </button>
                 </div>
                 {/* 문의하기 토글 버튼 */}
                 <button className="mp-cs-ask"
@@ -2784,8 +2787,12 @@ export default function MypageClient() {
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13 }}>
                         아직 문의 내역이 없습니다.
                       </div>
-                    ) : (
-                      csInquiries.map(inq => {
+                    ) : (() => {
+                      const view = inqFilter === 'all' ? csInquiries : csInquiries.filter(q => inqFilter === 'answered' ? q.status === 'answered' : q.status !== 'answered');
+                      if (view.length === 0) return (
+                        <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13 }}>해당 상태의 문의가 없습니다.</div>
+                      );
+                      return view.map(inq => {
                         const cat = CS_CATEGORIES.find(c => c.value === inq.category);
                         const isOpen = csOpenId === inq.id;
                         return (
@@ -2857,8 +2864,8 @@ export default function MypageClient() {
                             )}
                           </div>
                         );
-                      })
-                    )}
+                      });
+                    })()}
                   </div>
 
                 {/* 운영 안내 */}

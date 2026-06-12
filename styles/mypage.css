@@ -374,7 +374,13 @@ body { background: #fff; }
     .mp-cs-sum-col {
       flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;
       position: relative;
+      background: none; border: none; font-family: inherit; cursor: pointer;
+      padding: 4px 0; border-radius: 8px; transition: background .15s;
     }
+    .mp-cs-sum-col:hover { background: #ECECEC; }
+    .mp-cs-sum-col.active { background: #E6E6E6; }
+    .mp-cs-sum-col.active .mp-cs-sum-num { color: var(--color-accent); }
+    .mp-cs-sum-col.active .mp-cs-sum-label { color: var(--color-accent); font-weight: 700; }
     .mp-cs-sum-col + .mp-cs-sum-col::before {
       content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
       width: 1px; height: 30px; background: #E2E2E2;
