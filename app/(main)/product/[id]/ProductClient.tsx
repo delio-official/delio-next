@@ -2074,8 +2074,13 @@ export default function ProductClient() {
                         }}
                         style={{ background:'none', border:'none', fontSize:12,
                           color:'var(--color-ink-mute)', cursor:'pointer' }}>신고</button>
-                      {isAdmin && (
-                        <button onClick={() => router.push('/admin?panel=members')}
+                      {isAdmin && r.user_id && (
+                        <button onClick={async () => {
+                            if (!confirm('이 회원을 차단하시겠습니까?')) return;
+                            const supabase = createClient();
+                            const { error } = await supabase.from('profiles').update({ is_blocked: true }).eq('id', r.user_id);
+                            showToast(error ? '차단 실패: ' + error.message : '해당 회원을 블랙리스트에 추가했습니다.');
+                          }}
                           style={{ background:'none', border:'none', fontSize:12,
                             color:'#DC2626', cursor:'pointer' }}>차단</button>
                       )}
