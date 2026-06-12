@@ -11,6 +11,12 @@ import '@/styles/cart.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 
+interface ProductOption {
+  id: string; label: string; add_price: number; group_name: string | null;
+  is_required: boolean | null; parent_label?: string | null; sort_order?: number;
+}
+interface OptProduct { id: string; name: string; price: number; discounted_price: number | null; thumbnail_url: string | null; is_dawn: boolean | null; }
+
 function QtyControl({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:0, border:'1px solid #EBEBEB', borderRadius:6, overflow:'hidden' }}>
@@ -39,6 +45,12 @@ export default function CartClient() {
   const [pointBalance, setPointBalance] = useState(0);
   const [pointUsed, setPointUsed] = useState(0);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  /* 옵션변경 모달 */
+  const [optItem, setOptItem] = useState<CartItem | null>(null);
+  const [optProduct, setOptProduct] = useState<OptProduct | null>(null);
+  const [optList, setOptList] = useState<ProductOption[]>([]);
+  const [optSel, setOptSel] = useState<Record<string, string>>({}); // group_name -> option id
+  const [optLoading, setOptLoading] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -96,6 +108,59 @@ export default function CartClient() {
       if (s.has(idx)) s.delete(idx); else s.add(idx);
       return s;
     });
+  }
+
+  /* ── 옵션변경 모달 ── */
+  async function openOptModal(item: CartItem) {
+    setOptItem(item); setOptLoading(true); setOptList([]); setOptSel({}); setOptProduct(null);
+    const supabase = createClient();
+    const [{ data: prod }, { data: opts }] = await Promise.all([
+      supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', item.id).single(),
+      supabase.from('product_options').select('id,label,add_price,group_name,is_required,parent_label,sort_order').eq('product_id', item.id).order('sort_order'),
+    ]);
+    setOptProduct(prod as OptProduct);
+    const list = (opts as ProductOption[]) || [];
+    setOptList(list);
+    // 현재 담긴 옵션 라벨로 초기 선택값 매칭
+    const curLabels = (item.options || '').split(' / ').map(s => s.trim());
+    const sel: Record<string, string> = {};
+    [...new Set(list.map(o => o.group_name || '옵션'))].forEach(g => {
+      const found = list.find(o => (o.group_name || '옵션') === g && curLabels.includes(o.label));
+      if (found) sel[g] = found.id;
+    });
+    setOptSel(sel);
+    setOptLoading(false);
+  }
+  function applyOpt(mode: 'change' | 'add') {
+    if (!optItem || !optProduct) return;
+    const groups = [...new Set(optList.map(o => o.group_name || '옵션'))];
+    const parentGroup = groups[0];
+    const parentLabel = optList.find(o => o.id === optSel[parentGroup])?.label || '';
+    const chosen: ProductOption[] = [];
+    for (const g of groups) {
+      const avail = optList.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
+      const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
+      const opt = avail.find(o => o.id === optSel[g]);
+      if (req && !opt) { alert('필수 옵션을 모두 선택해 주세요.'); return; }
+      if (opt) chosen.push(opt);
+    }
+    const base = optProduct.discounted_price ?? optProduct.price;
+    const addP = chosen.reduce((s, o) => s + (o.add_price || 0), 0);
+    const patch = {
+      price: base + addP,
+      originalPrice: optProduct.price + addP,
+      optionId: chosen.map(o => o.id).join(',') || undefined,
+      options: chosen.map(o => o.label).join(' / ') || undefined,
+    };
+    const cart = getCart();
+    if (mode === 'change') {
+      const it = cart.find(c => c.idx === optItem.idx);
+      if (it) Object.assign(it, patch);
+    } else {
+      cart.push({ ...optItem, ...patch, idx: Date.now() });
+    }
+    saveCart(cart);
+    setOptItem(null);
   }
   const allSelected = items.length > 0 && items.every(i => selected.has(i.idx));
   function toggleAll() {
@@ -252,7 +317,8 @@ export default function CartClient() {
                     {item.options && (
                       <div className="cart-item-option-row">
                         <span className="cart-item-option-text">{item.options}</span>
-                        <Link href={`/product/${item.id}`} className="cart-item-option-change">옵션변경</Link>
+                        <button type="button" className="cart-item-option-change" onClick={() => openOptModal(item)}
+                          style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0 }}>옵션변경</button>
                       </div>
                     )}
 
@@ -355,6 +421,71 @@ export default function CartClient() {
           </button>
         </div>
       </div>
+
+      {/* 옵션변경 모달 */}
+      {optItem && (
+        <div onClick={() => setOptItem(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:480, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <span style={{ fontSize:16, fontWeight:700 }}>옵션변경</span>
+              <button onClick={() => setOptItem(null)} style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
+              <div style={{ fontSize:13, color:'#888', paddingBottom:14, marginBottom:16, borderBottom:'1px solid #F2F2F2', lineHeight:1.5 }}>
+                {optItem.name}
+              </div>
+              {optLoading ? (
+                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:13 }}>불러오는 중...</div>
+              ) : optList.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:13 }}>변경 가능한 옵션이 없습니다.</div>
+              ) : (
+                <>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>상품옵션</div>
+                  {(() => {
+                    const groups = [...new Set(optList.map(o => o.group_name || '옵션'))];
+                    const parentGroup = groups[0];
+                    const parentLabel = optList.find(o => o.id === optSel[parentGroup])?.label || '';
+                    return groups.map(g => {
+                      const avail = optList.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
+                      const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
+                      return (
+                        <div key={g} style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
+                          <span style={{ fontSize:13, color:'#555', minWidth:60, flexShrink:0 }}>{g}</span>
+                          <select
+                            value={optSel[g] || ''}
+                            onChange={e => setOptSel(prev => ({ ...prev, [g]: e.target.value }))}
+                            style={{ flex:1, padding:'11px 12px', fontSize:13, border:'1px solid #DADADA', borderRadius:8, background:'#fff', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
+                            <option value="">- {req ? '[필수]' : '[선택]'} 옵션을 선택해 주세요 -</option>
+                            {avail.map(o => (
+                              <option key={o.id} value={o.id}>
+                                {o.label}{o.add_price ? ` (+${fmtPrice(o.add_price)}원)` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    });
+                  })()}
+                  <div style={{ display:'flex', gap:10, marginTop:22 }}>
+                    <button onClick={() => applyOpt('add')}
+                      style={{ flex:1, padding:'13px', border:'1.5px solid #1A1A1A', borderRadius:10, background:'#fff', color:'#1A1A1A', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                      추가
+                    </button>
+                    <button onClick={() => applyOpt('change')}
+                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                      변경
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 쿠폰 선택 모달 (체크아웃과 동일) */}
       {couponModal && (
