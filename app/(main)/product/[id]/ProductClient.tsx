@@ -2443,6 +2443,9 @@ export default function ProductClient() {
                   사진 최대 5장 + 영상 1개 (선택)
                 </span>
               </div>
+              {newImages.length > 1 && (
+                <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>↔ 사진을 드래그해 순서를 변경할 수 있어요</div>
+              )}
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                 {/* 이미지 프리뷰 */}
                 {newImages.map((file, i) => (
