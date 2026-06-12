@@ -537,7 +537,7 @@ export default function SearchClient() {
 
         <p className="filter-section-title">🚀 배송 방법</p>
         <div className="fruit-filter-chips fruit-filter-chips-mb">
-          {[{ v: 'all', l: '전체' }, { v: 'dawn', l: '새벽배송' }, { v: 'normal', l: '일반배송' }].map(({ v, l }) => (
+          {[{ v: 'all', l: '전체' }, { v: 'dawn', l: '산지직송' }, { v: 'normal', l: '자사배송' }].map(({ v, l }) => (
             <button
               key={v}
               className={`filter-chip-sm${pendingFruit.delivery === v ? ' active' : ''}`}
