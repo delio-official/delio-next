@@ -584,7 +584,11 @@ export default function CheckoutClient() {
           <div style={{ marginBottom:28 }}>
             <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:16 }}>배송 요청사항</h2>
             <select value={memo} onChange={e => setMemo(e.target.value)}
-              style={{ width:'100%', height:46, padding:'0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', background:'#fff', color: memo ? '#1A1A1A' : '#94A3B8' }}>
+              style={{ width:'100%', height:46, padding:'0 40px 0 12px', border:'1.5px solid #EBEBEB', borderRadius:8, fontSize:14, outline:'none', fontFamily:'inherit', color: memo ? '#1A1A1A' : '#94A3B8',
+                appearance:'none', WebkitAppearance:'none', MozAppearance:'none',
+                backgroundColor:'#fff',
+                backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                backgroundRepeat:'no-repeat', backgroundPosition:'right 16px center' }}>
               <option value="">배송 요청사항을 선택해주세요</option>
               <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
               <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
