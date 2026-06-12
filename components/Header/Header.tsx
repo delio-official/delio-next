@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCartCount } from '@/hooks/useCartCount';
 import { useAuth } from '@/hooks/useAuth';
 import { signOut } from '@/lib/auth';
@@ -26,6 +26,7 @@ function saveRecent(arr: string[]) {
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const cartCount = useCartCount();
   const { user } = useAuth();
 
@@ -34,6 +35,11 @@ export default function Header() {
   const [dropOpen, setDropOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
+  /* 경로 변화 시 검색창 동기화: 검색 페이지면 q 유지, 그 외(신상품 등)로 이동하면 비움 */
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    setQuery(pathname === '/search' ? (sp.get('q') || '') : '');
+  }, [pathname]);
   const [popular, setPopular] = useState<string[]>(POPULAR_FALLBACK);
   const [showShipping, setShowShipping] = useState(true); // 배송안내 탭 노출
   const [isAdmin, setIsAdmin] = useState(false);
