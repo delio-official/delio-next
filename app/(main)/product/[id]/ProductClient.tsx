@@ -2344,7 +2344,7 @@ export default function ProductClient() {
       {/* ── 후기 신고 모달 ── */}
       {reportTarget && (
         <div onClick={() => setReportTarget(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:380, padding:'22px 22px 20px' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
@@ -2378,7 +2378,7 @@ export default function ProductClient() {
       {/* ── 리뷰 작성 모달 ── */}
       {reviewModalOpen && (
         <div
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100,
             display:'flex',
             alignItems: isMobile ? 'flex-end' : 'center',
             justifyContent:'center',
