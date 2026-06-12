@@ -129,8 +129,9 @@ export default function ProductClient() {
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
   const [mediaUploading,   setMediaUploading]   = useState(false);
-  /* 리뷰 사진 드래그 재정렬 */
+  /* 리뷰 사진 드래그 재정렬 (PC 마우스 + 모바일 터치) */
   const reviewDragSrc = useRef<number | null>(null);
+  const reviewDropTarget = useRef<number | null>(null);
   function reorderReviewImages(to: number) {
     const from = reviewDragSrc.current;
     reviewDragSrc.current = null;
@@ -2451,12 +2452,20 @@ export default function ProductClient() {
                 {/* 이미지 프리뷰 */}
                 {newImages.map((file, i) => (
                   <div key={i}
+                    data-rimg={i}
                     draggable
                     onDragStart={() => { reviewDragSrc.current = i; }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={() => reorderReviewImages(i)}
                     onDragEnd={() => { reviewDragSrc.current = null; }}
-                    style={{ position:'relative', width:64, height:64, flexShrink:0, cursor:'grab' }}>
+                    onTouchStart={() => { reviewDragSrc.current = i; reviewDropTarget.current = i; }}
+                    onTouchMove={e => {
+                      const t = e.touches[0];
+                      const el = (document.elementFromPoint(t.clientX, t.clientY) as HTMLElement | null)?.closest('[data-rimg]');
+                      if (el) reviewDropTarget.current = Number(el.getAttribute('data-rimg'));
+                    }}
+                    onTouchEnd={() => { if (reviewDropTarget.current !== null) reorderReviewImages(reviewDropTarget.current); reviewDropTarget.current = null; }}
+                    style={{ position:'relative', width:64, height:64, flexShrink:0, cursor:'grab', touchAction:'none' }}>
                     <img
                       src={URL.createObjectURL(file)}
                       alt=""
