@@ -216,8 +216,8 @@ export default function Header() {
                       <div className="search-popular-grid">
                         {popular.map((kw, i) => (
                           <div key={i} className="search-popular-item" onClick={() => { router.push(`/search?q=${encodeURIComponent(kw)}`); setDropOpen(false); }}>
-                            <span className="search-popular-num" style={{ color: i < 3 ? 'var(--color-accent)' : '#1A1A1A' }}>{i + 1}</span>
-                            <span className="search-popular-text" style={{ color: i < 3 ? 'var(--color-accent)' : undefined }}>{kw}</span>
+                            <span className="search-popular-num" style={{ color: i < 3 ? 'var(--color-accent)' : '#1A1A1A', fontWeight: i < 3 ? 800 : 600 }}>{i + 1}</span>
+                            <span className="search-popular-text" style={{ color: '#1A1A1A' }}>{kw}</span>
                           </div>
                         ))}
                       </div>

@@ -279,7 +279,7 @@ input, select, textarea { font-family: inherit; }
 .search-recent-pill-x:hover { color: var(--color-ink); }
 .search-recent-empty { font-size: 13px; color: var(--color-ink-mute); }
 .search-popular-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px 16px;
 }
 .search-popular-item {
   display: flex; align-items: center; gap: 10px;
