@@ -25,7 +25,7 @@ interface OrderItem {
 }
 interface Order {
   id: string; order_no: string; status: string;
-  final_amount: number; created_at: string; delivered_at?: string | null; paid_at?: string | null;
+  final_amount: number; created_at: string; delivered_at?: string | null; paid_at?: string | null; shipped_at?: string | null;
   courier: string | null; tracking_number: string | null;
   recipient?: string | null; phone?: string | null; zipcode?: string | null;
   address1?: string | null; address2?: string | null; delivery_memo?: string | null;
@@ -363,7 +363,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url)')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1461,32 +1461,35 @@ export default function MypageClient() {
                           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                         </button>
 
-                        {/* 상품 목록 — 클릭 시 상품상세 (사진처럼 상태·가격·상품명) */}
+                        {/* 상품 목록 — 클릭 시 상품상세 (사진 레이아웃: 위쪽 정렬·큰 썸네일·상태 2색) */}
                         {displayItems?.map((item, i) => {
                           const statusColor = o.status==='delivered'?'#1A1A1A': o.status==='cancelled'?'#e00':'var(--color-accent)';
-                          const statusText = (STATUS_LABEL[o.status] || o.status)
-                            + (o.status==='delivered' && o.delivered_at
-                              ? ` · ${new Date(o.delivered_at).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' })} 도착`
-                              : '');
+                          const wd = (d: string) => new Date(d).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' });
+                          let statusSuffix = '';
+                          if (o.status==='shipped' && (o.shipped_at || o.created_at)) statusSuffix = ` · ${wd(o.shipped_at || o.created_at)} 배송 시작`;
+                          else if (o.status==='delivered' && o.delivered_at) statusSuffix = ` · ${wd(o.delivered_at)} 도착`;
                           const body = (
                             <>
-                              <div style={{ width:88, height:88, borderRadius:10, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              <div style={{ width:100, height:100, borderRadius:10, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                 {item.thumbnail_url
                                   ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                  : <span style={{ fontSize:30 }}>🍑</span>}
+                                  : <span style={{ fontSize:34 }}>🍑</span>}
                               </div>
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ fontSize:13, fontWeight:700, color:statusColor, marginBottom:4 }}>{statusText}</div>
-                                <div style={{ fontSize:16, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>{fmtPrice(item.unit_price)}원</div>
-                                <div style={{ fontSize:13, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
-                                <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{item.quantity}개</div>
+                              <div style={{ flex:1, minWidth:0, paddingTop:2 }}>
+                                <div style={{ fontSize:13.5, fontWeight:700, marginBottom:6 }}>
+                                  <span style={{ color:statusColor }}>{STATUS_LABEL[o.status] || o.status}</span>
+                                  {statusSuffix && <span style={{ color:'#555', fontWeight:600 }}>{statusSuffix}</span>}
+                                </div>
+                                <div style={{ fontSize:17, fontWeight:800, color:'#1A1A1A', marginBottom:6 }}>{fmtPrice(item.unit_price)}원</div>
+                                <div style={{ fontSize:13, color:'#444', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
+                                <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{item.quantity}개</div>
                               </div>
                             </>
                           );
                           return item.product_id ? (
-                            <Link key={i} href={`/product/${item.product_id}`} style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14, textDecoration:'none', color:'inherit' }}>{body}</Link>
+                            <Link key={i} href={`/product/${item.product_id}`} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom:18, textDecoration:'none', color:'inherit' }}>{body}</Link>
                           ) : (
-                            <div key={i} style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14 }}>{body}</div>
+                            <div key={i} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom:18 }}>{body}</div>
                           );
                         })}
 
