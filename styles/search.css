@@ -95,3 +95,9 @@
 .filter-action-wrap { display: flex; gap: var(--space-3); margin-top: var(--space-2); }
 .filter-reset-btn { flex: 1; padding: var(--space-4); border: 1.5px solid var(--color-line); border-radius: var(--radius-lg); font-size: var(--fs-body-sm); font-weight: 600; }
 .filter-apply-btn { flex: 2; padding: var(--space-4); background: var(--color-accent); color: #fff; border-radius: var(--radius-lg); font-size: var(--fs-body-sm); font-weight: 700; }
+
+/* 과일 특화 필터 드로어 — 강조색을 검정으로 (결과 칩과 분리) */
+.fruit-filter-sheet .filter-chip-sm.active { background: #1A1A1A; border-color: #1A1A1A; color: #fff; }
+.fruit-filter-sheet .filter-apply-btn { background: #1A1A1A; }
+.fruit-filter-sheet .filter-range input[type=range] { accent-color: #1A1A1A; }
+.fruit-filter-sheet .filter-range-val { color: #1A1A1A; }
