@@ -313,7 +313,7 @@ input, select, textarea { font-family: inherit; }
   align-items: center;
   transition: color .15s;
 }
-.header-search-btn:hover { color: var(--color-accent); }
+.header-search-btn:hover, .header-search-btn:active { color: var(--color-ink); }
 .header-delivery-btn {
   flex-shrink: 0;
   font-size: 13px;
@@ -360,7 +360,7 @@ input, select, textarea { font-family: inherit; }
   position: relative;
   text-decoration: none;
 }
-.header-icon-btn:hover { color: var(--color-accent); }
+.header-icon-btn:hover, .header-icon-btn:active { color: var(--color-ink); }
 .cart-badge {
   position: absolute;
   top: 2px;
@@ -465,7 +465,7 @@ input, select, textarea { font-family: inherit; }
     color: var(--color-ink-soft); background: none; border: none; cursor: pointer;
     flex-shrink: 0; transition: color var(--dur-fast) var(--ease);
   }
-  .mob-search-btn:hover { color: var(--color-accent); }
+  .mob-search-btn:hover, .mob-search-btn:active { color: var(--color-ink); }
   .mob-search-btn svg { width: 24px; height: 24px; }
 }
 
