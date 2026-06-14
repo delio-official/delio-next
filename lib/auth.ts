@@ -12,6 +12,8 @@ export async function signUp(
   name: string,
   refCode?: string,
   phone?: string,
+  marketingSms?: boolean,
+  marketingEmail?: boolean,
 ) {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -32,6 +34,8 @@ export async function signUp(
       grade: 'beginner',
       point_balance: 0,
       referral_code: myCode,
+      marketing_sms: !!marketingSms,
+      marketing_email: !!marketingEmail,
     }, { onConflict: 'id', ignoreDuplicates: true });
 
     // 추천인 코드 처리 — 서버 RPC로만 등록 (셀프/중복/잘못된 코드 차단, referred_id는 서버에서 auth.uid()로 확정)
