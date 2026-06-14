@@ -55,6 +55,7 @@ interface Review {
   seller_reply?: string | null;
   user_id?: string | null;
   taste?: ReviewTaste | null;
+  author_name?: string | null;
   profiles: { name: string | null } | null;
 }
 interface DetailSection {
@@ -652,7 +653,15 @@ export default function ProductClient() {
       setMediaUploading(false);
     }
 
-    const { data: inserted, error } = await supabase.from('reviews').insert({
+    /* 작성자 표시명(마스킹) — profiles RLS 무관하게 직접 저장해 모두에게 보이도록 */
+    let authorName: string | null = null;
+    {
+      const { data: me } = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle();
+      const nm = me?.name || (user.user_metadata as { name?: string } | undefined)?.name;
+      if (nm) authorName = nm.charAt(0) + '****';
+    }
+
+    const reviewPayload: Record<string, unknown> = {
       product_id: product!.id,
       user_id: user.id,
       rating: newRating,
@@ -660,8 +669,15 @@ export default function ProductClient() {
       image_urls: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
       video_url: uploadedVideoUrl,
       taste: Object.keys(newTaste).length > 0 ? newTaste : null,
+      author_name: authorName,
       is_best: false,
-    }).select('id').single();
+    };
+    let { data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single();
+    /* author_name 컬럼이 아직 없으면(SQL 미실행) 제외하고 재시도 */
+    if (error && /author_name|column/i.test(error.message)) {
+      delete reviewPayload.author_name;
+      ({ data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single());
+    }
     setSubmitting(false);
     if (error) { alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
 
@@ -1046,7 +1062,9 @@ export default function ProductClient() {
                               }}>BEST</span>
                             )}
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#222', flexShrink: 0 }}>
-                              {selItem.review.profiles?.name
+                              {selItem.review.author_name
+                                ? `${selItem.review.author_name.charAt(0)}**`
+                                : selItem.review.profiles?.name
                                 ? `${selItem.review.profiles.name.charAt(0)}**`
                                 : '익명'}
                             </span>
@@ -2048,7 +2066,9 @@ export default function ProductClient() {
                     </div>
                     <span style={{ fontSize:12, color:'var(--color-ink-mute)',
                       textAlign:'right', flexShrink:0, marginLeft:8 }}>
-                      {r.profiles?.name
+                      {r.author_name
+                        ? `${r.author_name} 님이 작성`
+                        : r.profiles?.name
                         ? `${r.profiles.name.charAt(0)}**** 님이 작성`
                         : '익명 님이 작성'
                       }{' '}|{' '}
