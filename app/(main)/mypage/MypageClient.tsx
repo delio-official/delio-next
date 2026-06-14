@@ -891,14 +891,21 @@ export default function MypageClient() {
     setProfile(prev => prev ? { ...prev, ...payload } : prev);
     showToastMsg('수신 설정이 변경되었습니다');
   }
-  /* 회원 탈퇴 → 소프트 탈퇴 처리 후 로그아웃 */
+  /* 회원 탈퇴 → 사유 선택 → 혜택소멸 안내·동의 → 소프트 탈퇴 처리 */
   const [withdrawing, setWithdrawing] = useState(false);
-  async function handleWithdraw() {
+  const [withdrawStep, setWithdrawStep] = useState<0 | 1 | 2>(0); // 0=닫힘 1=사유 2=동의
+  const [withdrawReason, setWithdrawReason] = useState('');
+  const [withdrawDetail, setWithdrawDetail] = useState('');
+  const [withdrawAgree, setWithdrawAgree] = useState(false);
+  async function submitWithdraw() {
     if (withdrawing) return;
-    if (!confirm('정말 탈퇴하시겠어요?\n\n· 보유 적립금·쿠폰이 모두 소멸됩니다.\n· 주문 내역 등 개인정보가 삭제됩니다.')) return;
     setWithdrawing(true);
     try {
-      const res = await fetch('/api/account/withdraw', { method: 'POST' });
+      const reason = withdrawReason === '기타' ? `기타: ${withdrawDetail.trim()}` : withdrawDetail.trim() ? `${withdrawReason} — ${withdrawDetail.trim()}` : withdrawReason;
+      const res = await fetch('/api/account/withdraw', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) { alert('탈퇴 처리 중 오류가 발생했습니다.\n' + (data.error || '')); setWithdrawing(false); return; }
       await signOut();
@@ -1116,6 +1123,80 @@ export default function MypageClient() {
                   <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:4 }}>적립 {fmtPrice(o.earned_point!)}P</div>
                 )}
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 회원 탈퇴 모달 (1.사유 → 2.혜택소멸·동의) */}
+      {withdrawStep > 0 && (() => {
+        const REASONS = ['앱 사용이 불편해요','상품 탐색이 어려워요','상품 배송이 느려요','구매할 만한 상품이 없어요','광고성 알림이 너무 많이 와요','상품의 질이 좋지 않아요','쓰지 않는 앱이에요','재가입할 거예요','기타'];
+        return (
+          <div onClick={() => setWithdrawStep(0)}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:440, maxHeight:'88vh', overflowY:'auto', padding:'24px 22px 22px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
+                <h3 style={{ fontSize:17, fontWeight:800, lineHeight:1.4 }}>
+                  {withdrawStep === 1 ? '탈퇴하는 이유를 알려주세요' : `${profile?.name || '회원'}님의 혜택이 모두 사라져요!`}
+                </h3>
+                <button onClick={() => setWithdrawStep(0)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:18, color:'#999', lineHeight:1 }}>✕</button>
+              </div>
+
+              {withdrawStep === 1 ? (
+                <>
+                  <div>
+                    {REASONS.map(rs => (
+                      <div key={rs} style={{ borderBottom:'1px solid #F2F2F2' }}>
+                        <button type="button" onClick={() => setWithdrawReason(rs)}
+                          style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'14px 2px', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
+                          <span style={{ width:18, height:18, borderRadius:'50%', border:`2px solid ${withdrawReason===rs ? 'var(--color-accent)' : '#CFCFCF'}`, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            {withdrawReason===rs && <span style={{ width:8, height:8, borderRadius:'50%', background:'var(--color-accent)' }} />}
+                          </span>
+                          <span style={{ fontSize:14, color:'#333', fontWeight: withdrawReason===rs ? 700 : 500 }}>{rs}</span>
+                        </button>
+                        {withdrawReason===rs && (
+                          <textarea value={withdrawDetail} onChange={e => setWithdrawDetail(e.target.value)} rows={3}
+                            placeholder="구체적으로 알려주시면 빠르게 개선해볼게요"
+                            style={{ width:'100%', padding:'10px 12px', margin:'0 0 12px', fontSize:13, border:'1.5px solid #E5E5E5', borderRadius:8, resize:'none', outline:'none', fontFamily:'inherit', lineHeight:1.6, boxSizing:'border-box' }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display:'flex', gap:10, marginTop:20 }}>
+                    <button onClick={() => setWithdrawStep(0)} style={{ flex:1, padding:'13px', border:'1.5px solid #E5E5E5', borderRadius:10, background:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>계속 사용하기</button>
+                    <button onClick={() => setWithdrawStep(2)} disabled={!withdrawReason}
+                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: withdrawReason ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: withdrawReason ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>다음 단계로</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ background:'#F7F7F5', borderRadius:10, padding:'4px 14px', marginBottom:18 }}>
+                    {[['잔여 포인트', `${fmtPrice(profile?.point_balance || 0)} P`], ['잔여 쿠폰', `${availableCouponCount} 개`]].map(([l, v]) => (
+                      <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'12px 0', fontSize:14, borderBottom:'1px solid #ECECEC' }}>
+                        <span style={{ color:'#555' }}>{l}</span><span style={{ fontWeight:800, color:'#5B7FE0' }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', fontSize:12.5, color:'#555', lineHeight:1.8, marginBottom:18 }}>
+                    <div style={{ fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>ⓘ 꼭 확인해주세요!</div>
+                    · 탈퇴 시 계정과 관련된 정보는 복구가 불가능합니다.<br />
+                    · 보유 중인 쿠폰·포인트는 모두 소멸되며 재가입 후에도 복구할 수 없습니다.<br />
+                    · 유·무상 포인트는 탈퇴 시 소멸되니 미리 사용하시기 바랍니다.
+                  </div>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:18, cursor:'pointer', userSelect:'none' }}>
+                    <input type="checkbox" checked={withdrawAgree} onChange={e => setWithdrawAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'var(--color-accent)' }} />
+                    <span style={{ fontSize:13, color:'#333' }}>위 안내사항을 확인했으며 탈퇴에 동의합니다.</span>
+                  </label>
+                  <div style={{ display:'flex', gap:10 }}>
+                    <button onClick={() => setWithdrawStep(0)} style={{ flex:1, padding:'13px', border:'1.5px solid #E5E5E5', borderRadius:10, background:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>계속 사용하기</button>
+                    <button onClick={submitWithdraw} disabled={!withdrawAgree || withdrawing}
+                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: (withdrawAgree && !withdrawing) ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: (withdrawAgree && !withdrawing) ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>
+                      {withdrawing ? '처리 중...' : '탈퇴하기'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         );
@@ -2308,7 +2389,7 @@ export default function MypageClient() {
 
                         {/* 탈퇴 / 저장 */}
                         <div className="mp-info-actions">
-                          <button className="mp-info-withdraw" onClick={handleWithdraw} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
+                          <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                           <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
                             {infoSaving ? '저장 중...' : '저장'}
                           </button>
