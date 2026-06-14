@@ -897,6 +897,23 @@ export default function MypageClient() {
   const [withdrawReason, setWithdrawReason] = useState('');
   const [withdrawDetail, setWithdrawDetail] = useState('');
   const [withdrawAgree, setWithdrawAgree] = useState(false);
+  /* 탈퇴 휴대폰 인증(OTP) */
+  const [otpToken, setOtpToken] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpPhoneMasked, setOtpPhoneMasked] = useState('');
+  async function sendWithdrawOtp() {
+    if (otpSending) return;
+    setOtpSending(true);
+    try {
+      const res = await fetch('/api/account/withdraw/send-otp', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { showToastMsg(data.error || '인증번호 발송 실패'); setOtpSending(false); return; }
+      setOtpToken(data.token); setOtpPhoneMasked(data.phoneMasked || ''); setOtpInput('');
+      showToastMsg('인증번호를 발송했어요 (5분 내 입력)');
+    } catch { showToastMsg('인증번호 발송 중 오류'); }
+    setOtpSending(false);
+  }
   async function submitWithdraw() {
     if (withdrawing) return;
     setWithdrawing(true);
@@ -904,7 +921,7 @@ export default function MypageClient() {
       const reason = withdrawReason === '기타' ? `기타: ${withdrawDetail.trim()}` : withdrawDetail.trim() ? `${withdrawReason} — ${withdrawDetail.trim()}` : withdrawReason;
       const res = await fetch('/api/account/withdraw', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, code: otpInput.trim(), token: otpToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) { alert('탈퇴 처리 중 오류가 발생했습니다.\n' + (data.error || '')); setWithdrawing(false); return; }
@@ -1184,17 +1201,41 @@ export default function MypageClient() {
                     · 보유 중인 쿠폰·포인트는 모두 소멸되며 재가입 후에도 복구할 수 없습니다.<br />
                     · 유·무상 포인트는 탈퇴 시 소멸되니 미리 사용하시기 바랍니다.
                   </div>
-                  <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:18, cursor:'pointer', userSelect:'none' }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, cursor:'pointer', userSelect:'none' }}>
                     <input type="checkbox" checked={withdrawAgree} onChange={e => setWithdrawAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'var(--color-accent)' }} />
                     <span style={{ fontSize:13, color:'#333' }}>위 안내사항을 확인했으며 탈퇴에 동의합니다.</span>
                   </label>
-                  <div style={{ display:'flex', gap:10 }}>
-                    <button onClick={() => setWithdrawStep(0)} style={{ flex:1, padding:'13px', border:'1.5px solid #E5E5E5', borderRadius:10, background:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>계속 사용하기</button>
-                    <button onClick={submitWithdraw} disabled={!withdrawAgree || withdrawing}
-                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: (withdrawAgree && !withdrawing) ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: (withdrawAgree && !withdrawing) ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>
-                      {withdrawing ? '처리 중...' : '탈퇴하기'}
-                    </button>
-                  </div>
+
+                  {/* 휴대폰 본인확인 (번호 등록된 경우) */}
+                  {editPhone.trim() && (
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>휴대폰 본인확인</div>
+                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>타인에 의한 계정 삭제를 방지하기 위해 본인인증이 필요합니다.</div>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <input value={otpInput} onChange={e => setOtpInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                          inputMode="numeric" placeholder={otpToken ? `${otpPhoneMasked} 로 발송된 인증번호` : '인증번호 6자리'}
+                          style={{ flex:1, height:42, padding:'0 12px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                        <button onClick={sendWithdrawOtp} disabled={otpSending}
+                          style={{ height:42, padding:'0 14px', borderRadius:8, border:'1.5px solid #1A1A1A', background:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
+                          {otpSending ? '발송 중' : otpToken ? '재발송' : '인증요청'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const phoneOk = !editPhone.trim() || (!!otpToken && otpInput.length === 6);
+                    const canSubmit = withdrawAgree && phoneOk && !withdrawing;
+                    return (
+                      <div style={{ display:'flex', gap:10 }}>
+                        <button onClick={() => setWithdrawStep(0)} style={{ flex:1, padding:'13px', border:'1.5px solid #E5E5E5', borderRadius:10, background:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>계속 사용하기</button>
+                        <button onClick={submitWithdraw} disabled={!canSubmit}
+                          style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: canSubmit ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: canSubmit ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>
+                          {withdrawing ? '처리 중...' : '탈퇴하기'}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </div>

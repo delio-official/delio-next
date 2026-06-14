@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
@@ -12,17 +13,30 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
 
   let reason: string | null = null;
-  try { reason = (await req.json())?.reason ?? null; } catch { /* body 없을 수 있음 */ }
+  let code = '', token = '';
+  try { const b = await req.json(); reason = b?.reason ?? null; code = b?.code ?? ''; token = b?.token ?? ''; } catch { /* body 없을 수 있음 */ }
 
   const admin = createAdminSupabaseClient();
+  const { data: pf } = await admin.from('profiles').select('phone').eq('id', user.id).maybeSingle();
+  const phone = (pf as { phone?: string | null } | null)?.phone?.trim();
+
+  // 휴대폰 번호가 있으면 SMS 인증번호 검증 (타인에 의한 삭제 방지)
+  if (phone) {
+    const [expStr, sig] = (token || '').split('.');
+    const exp = Number(expStr);
+    if (!code || !sig || !exp) return NextResponse.json({ ok: false, error: '휴대폰 인증이 필요합니다.' }, { status: 400 });
+    if (Date.now() > exp) return NextResponse.json({ ok: false, error: '인증번호가 만료되었습니다. 다시 요청해주세요.' }, { status: 400 });
+    const secret = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const expect = crypto.createHmac('sha256', secret).update(`${user.id}.${code}.${exp}`).digest('hex');
+    if (sig !== expect) return NextResponse.json({ ok: false, error: '인증번호가 올바르지 않습니다.' }, { status: 400 });
+  }
 
   // 탈퇴 이력 기록 (테이블/컬럼 없거나 실패해도 탈퇴 자체는 진행)
   try {
-    const { data: prof } = await admin.from('profiles').select('phone').eq('id', user.id).maybeSingle();
     const base = {
       user_id: user.id,
       email: user.email ?? null,
-      phone: (prof as { phone?: string | null } | null)?.phone ?? null,
+      phone: phone ?? null,
     };
     const { error: insErr } = await admin.from('withdrawn_users').insert({ ...base, reason });
     if (insErr) await admin.from('withdrawn_users').insert(base); // reason 컬럼 없으면 빼고 재시도
