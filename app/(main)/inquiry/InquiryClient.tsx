@@ -259,7 +259,7 @@ export default function InquiryClient() {
               </div>
               <div style={{ marginTop:14, padding:'12px 14px', background:'#F7F7F5', borderRadius:10, fontSize:12, color:'#888', lineHeight:1.7 }}>
                 📞 전화 문의: 070-8064-3601<br />
-                평일 09:00 ~ 18:00 (점심 12~13시 제외)
+                평일 09:00 ~ 18:00 (점심 12:00~13:00 제외)
               </div>
             </div>
 

@@ -2910,7 +2910,7 @@ export default function MypageClient() {
                 {/* 운영 안내 */}
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px',
                   fontSize:12, color:'#888', lineHeight:2 }}>
-                  평일 09:00~18:00 운영 (점심 12~13시 제외)<br/>
+                  평일 09:00~18:00 운영 (점심 12:00~13:00 제외)<br/>
                   주말·공휴일 휴무 · 영업일 기준 1~2일 이내 답변
                 </div>
                 </>
