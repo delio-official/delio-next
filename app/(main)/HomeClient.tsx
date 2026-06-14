@@ -828,14 +828,14 @@ export default function HomeClient() {
   }, []);
 
   /* 브랜드 직송관 — 농가 + 대표상품 실데이터 (없으면 섹션 숨김) */
-  const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number }[]>([]);
+  const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number; farmThumb: string | null; prodThumb: string | null; bannerImg: string | null }[]>([]);
   const [brandLoaded, setBrandLoaded] = useState(false);
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'brand');
-      const fcols = 'id, name, slug, created_at';
-      type FRow = { id: string; name: string; slug: string };
+      const fcols = 'id, name, slug, created_at, thumbnail_url, hero_image_url';
+      type FRow = { id: string; name: string; slug: string; thumbnail_url: string | null; hero_image_url: string | null };
       let farmsData: FRow[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         const { data } = await supabase.from('farms').select(fcols).in('id', cfg.ids);
@@ -853,13 +853,13 @@ export default function HomeClient() {
       }
       if (!farmsData || farmsData.length === 0) { setBrandCards([]); setBrandLoaded(true); return; }
       const { data: prods } = await supabase.from('products')
-        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order')
+        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order, thumbnail_url')
         .in('farm_id', farmsData.map(f => f.id))
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
       const SUF: Record<string, string> = { apple:'apple', citrus:'citrus', grape:'grape', berry:'berry', kiwi:'berry', melon:'citrus', mango:'citrus', gift:'citrus' };
-      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null };
+      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null; thumbnail_url: string | null };
       const byFarm: Record<string, PRow> = {};
       ((prods || []) as PRow[]).forEach(p => { if (p.farm_id && !byFarm[p.farm_id]) byFarm[p.farm_id] = p; });
       const cards = farmsData
@@ -873,6 +873,9 @@ export default function HomeClient() {
             banner: `bdc-banner-${suf}`, logo: `bdc-logo-${suf}`, emoji: EMOJI[p.category] || '🍑',
             brand: f.name, brandHref: `/farm/${f.slug}`, prodHref: `/product/${p.id}`,
             prodName: p.name, prodPrice: `${price.toLocaleString()}원`, discount: p.discount_rate || 0,
+            farmThumb: f.thumbnail_url || null,
+            prodThumb: p.thumbnail_url || null,
+            bannerImg: f.hero_image_url || p.thumbnail_url || f.thumbnail_url || null,
           };
         });
       setBrandCards(cards);
@@ -1037,20 +1040,30 @@ export default function HomeClient() {
             {brandCards.map((b, i) => (
               <div key={i} className="brand-direct-card">
                 <Link href={b.brandHref} className="bdc-banner-wrap" style={{ display:'block' }}>
-                  <div className={`bdc-banner ${b.banner}`}>
-                    <span className="bdc-emoji">{b.emoji}</span>
+                  <div className={`bdc-banner ${b.bannerImg ? '' : b.banner}`}>
+                    {b.bannerImg
+                      ? <img src={b.bannerImg} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                      : <span className="bdc-emoji">{b.emoji}</span>}
                   </div>
                 </Link>
                 <div className="bdc-body">
                   <Link href={b.brandHref} className="bdc-brand-row">
-                    <div className={`bdc-brand-logo ${b.logo}`}><span>{b.emoji}</span></div>
+                    <div className={`bdc-brand-logo ${b.farmThumb ? '' : b.logo}`} style={{ overflow:'hidden' }}>
+                      {b.farmThumb
+                        ? <img src={b.farmThumb} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        : <span>{b.emoji}</span>}
+                    </div>
                     <span className="bdc-brand-name">{b.brand}</span>
                     <svg className="bdc-arrow" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
                   </Link>
                   <Link href={b.prodHref} className="bdc-product-row">
-                    <div className={`bdc-product-thumb ${b.logo.replace('logo','thumb')}`}>{b.emoji}</div>
+                    <div className={`bdc-product-thumb ${b.prodThumb ? '' : b.logo.replace('logo','thumb')}`} style={{ overflow:'hidden' }}>
+                      {b.prodThumb
+                        ? <img src={b.prodThumb} alt={b.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        : b.emoji}
+                    </div>
                     <div className="bdc-product-info">
                       <div className="bdc-product-name">{b.prodName}</div>
                       <div className="bdc-product-price">{b.discount > 0 && <span className="bdc-discount">{b.discount}%</span>} {b.prodPrice}</div>
