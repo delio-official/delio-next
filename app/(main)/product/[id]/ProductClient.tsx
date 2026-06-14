@@ -678,8 +678,8 @@ export default function ProductClient() {
       delete reviewPayload.author_name;
       ({ data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single());
     }
-    setSubmitting(false);
-    if (error) { alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+    if (error) { setSubmitting(false); alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+    /* 성공: 모달 닫을 때까지 submitting 유지 → 중복 제출(다중 클릭) 방지 */
 
     /* 리뷰 작성 포인트 적립 (멱등) */
     let earnedPt = 0;
@@ -719,6 +719,7 @@ export default function ProductClient() {
     setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
+    setSubmitting(false);
   }
 
   /* ── 리뷰 도움됐어요 ── */
