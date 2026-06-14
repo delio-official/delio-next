@@ -38,6 +38,13 @@ export default function CheckoutClient() {
   const [memo, setMemo]           = useState('');
   const [payMethod, setPayMethod] = useState('card');
   const [loading, setLoading]     = useState(false);
+  const [isMobile, setIsMobile]   = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check, { passive: true });
+    return () => window.removeEventListener('resize', check);
+  }, []);
   interface Addr { id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean; created_at?:string; }
   const [savedAddresses, setSavedAddresses] = useState<Addr[]>([]);
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
@@ -800,9 +807,12 @@ export default function CheckoutClient() {
       {/* 쿠폰 선택 모달 */}
       {couponModal && (
         <div onClick={() => setCouponModal(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex',
+            alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:600, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            className={isMobile ? 'sheet-up' : undefined}
+            style={{ background:'#fff', borderRadius: isMobile ? '16px 16px 0 0' : 14, width:'100%', maxWidth:600,
+              maxHeight: isMobile ? '85vh' : '82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             {/* 헤더 */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
               <div style={{ display:'flex', alignItems:'center', gap:16 }}>

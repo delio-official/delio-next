@@ -1773,3 +1773,7 @@ input, select, textarea { font-family: inherit; }
 @media (max-width: 768px) {
   .mob-hidden { display: none !important; }
 }
+
+/* 바텀시트 슬라이드업 (모바일 모달 공용) */
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-up { animation: sheetUp .3s cubic-bezier(.4,0,.2,1); }
