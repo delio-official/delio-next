@@ -788,13 +788,13 @@ export default function HomeClient() {
   };
 
   /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
-  const [reviews, setReviews] = useState<{ id: string; image: string; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string }[]>([]);
+  const [reviews, setReviews] = useState<{ id: string; image: string; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null }[]>([]);
   const [reviewLoaded, setReviewLoaded] = useState(false);
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'reviewhl');
-      const sel = 'id, rating, content, image_urls, likes_count, products(id, name, category, avg_rating, review_count)';
+      const sel = 'id, rating, content, image_urls, likes_count, products(id, name, category, avg_rating, review_count, thumbnail_url)';
       let data;
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         ({ data } = await supabase.from('reviews').select(sel).in('id', cfg.ids));
@@ -806,7 +806,7 @@ export default function HomeClient() {
           .limit(Math.max(24, cfg.count * 4)));
       }
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
-      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null } | null };
+      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null; thumbnail_url: string | null } | null };
       let rows = ((data || []) as unknown as Row[])
         .filter(r => r.image_urls && r.image_urls.length > 0 && r.products);
       if (cfg.mode === 'manual' && cfg.ids.length > 0) rows = orderByIds(rows, cfg.ids);
@@ -821,6 +821,7 @@ export default function HomeClient() {
           prodName: r.products!.name,
           prodRating: `${(r.products!.avg_rating || 0).toFixed(1)} (${(r.products!.review_count || 0).toLocaleString()})`,
           emoji: EMOJI[r.products!.category] || '🍑',
+          prodThumb: r.products!.thumbnail_url || null,
         }));
       setReviews(cards);
       setReviewLoaded(true);
@@ -1118,7 +1119,11 @@ export default function HomeClient() {
                   </Link>
                   {/* 상품 정보 → 상품 상세 페이지 */}
                   <Link href={`/product/${r.prodId}`} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
-                    <div className="review-prod-icon">{r.emoji}</div>
+                    <div className="review-prod-icon" style={{ overflow:'hidden' }}>
+                      {r.prodThumb
+                        ? <img src={r.prodThumb} alt={r.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        : r.emoji}
+                    </div>
                     <div className="review-prod-info">
                       <div className="review-prod-name">{r.prodName}</div>
                       <div className="review-prod-rating"><SingleStar size={12} />{r.prodRating}</div>
