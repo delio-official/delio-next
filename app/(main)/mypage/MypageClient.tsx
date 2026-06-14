@@ -24,8 +24,12 @@ interface OrderItem {
 }
 interface Order {
   id: string; order_no: string; status: string;
-  final_amount: number; created_at: string; delivered_at?: string | null;
+  final_amount: number; created_at: string; delivered_at?: string | null; paid_at?: string | null;
   courier: string | null; tracking_number: string | null;
+  recipient?: string | null; phone?: string | null; zipcode?: string | null;
+  address1?: string | null; address2?: string | null; delivery_memo?: string | null;
+  payment_method?: string | null; total_amount?: number; discount_amount?: number;
+  coupon_discount?: number; point_used?: number; earned_point?: number;
   order_items: OrderItem[];
 }
 interface Profile {
@@ -142,6 +146,7 @@ export default function MypageClient() {
   const [orderSearch,    setOrderSearch]    = useState('');    // 주문내역 검색어
   const [orderStatusFilter, setOrderStatusFilter] = useState<string | null>(null); // 주문처리현황 단계 클릭 필터
   const orderListRef = useRef<HTMLDivElement>(null);          // 단계 클릭 시 목록으로 스크롤
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null); // 주문 상세보기 모달
   const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
   const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
@@ -357,7 +362,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,courier,tracking_number,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1031,6 +1036,84 @@ export default function MypageClient() {
         />
       )}
 
+      {/* 주문 상세보기 모달 */}
+      {detailOrder && (() => {
+        const o = detailOrder;
+        const PM: Record<string, string> = { card:'신용카드', kakao:'카카오페이', naver:'네이버페이', toss:'토스페이', vbank:'무통장입금', bank:'무통장입금', transfer:'계좌이체' };
+        const row = (label: string, value: React.ReactNode, accent = false) => (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'5px 0' }}>
+            <span style={{ color:'#888' }}>{label}</span>
+            <span style={{ fontWeight: accent ? 700 : 500, color: accent ? '#1A1A1A' : '#333' }}>{value}</span>
+          </div>
+        );
+        return (
+          <div onClick={() => setDetailOrder(null)}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'86vh', overflowY:'auto', padding:'22px 22px 24px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                <span style={{ fontSize:16, fontWeight:800 }}>주문 상세</span>
+                <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:18, color:'#999', lineHeight:1 }}>✕</button>
+              </div>
+
+              {/* 주문 정보 */}
+              <div style={{ background:'#F8F8F8', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+                {row('주문번호', o.order_no)}
+                {row('주문일시', new Date(o.created_at).toLocaleString('ko-KR'))}
+                {row('주문상태', STATUS_LABEL[o.status] || o.status)}
+                {o.tracking_number && (
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginTop:4 }}>
+                    <button onClick={() => setTrackingTarget({ carrierId: o.courier || 'kr.cjlogistics', trackingNumber: o.tracking_number! })}
+                      style={{ fontSize:12, color:'var(--color-accent)', background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>배송조회 ›</button>
+                  </div>
+                )}
+              </div>
+
+              {/* 배송지 */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>배송지</div>
+                {row('받는 분', o.recipient || '-')}
+                {row('연락처', o.phone || '-')}
+                {row('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
+                {o.delivery_memo && row('요청사항', o.delivery_memo)}
+              </div>
+
+              {/* 주문 상품 */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>주문 상품</div>
+                {o.order_items?.map((item, i) => (
+                  <div key={i} style={{ display:'flex', gap:10, alignItems:'center', marginBottom:8 }}>
+                    <div style={{ width:46, height:46, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:20 }}>🍑</span>}
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{item.product_name}</div>
+                      <div style={{ fontSize:12, color:'#999' }}>{item.quantity}개 · {fmtPrice(item.unit_price)}원</div>
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:700 }}>{fmtPrice(item.subtotal)}원</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 결제 내역 */}
+              <div style={{ borderTop:'1px solid #EEE', paddingTop:12 }}>
+                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>결제 내역</div>
+                {row('결제수단', PM[o.payment_method || ''] || o.payment_method || '-')}
+                {(o.total_amount ?? 0) > 0 && row('상품금액', `${fmtPrice(o.total_amount!)}원`)}
+                {(o.coupon_discount ?? 0) > 0 && row('쿠폰할인', `−${fmtPrice(o.coupon_discount!)}원`)}
+                {(o.point_used ?? 0) > 0 && row('적립금 사용', `−${fmtPrice(o.point_used!)}원`)}
+                <div style={{ borderTop:'1px solid #EEE', marginTop:6, paddingTop:6 }}>
+                  {row('최종 결제금액', `${fmtPrice(o.final_amount)}원`, true)}
+                </div>
+                {(o.earned_point ?? 0) > 0 && (
+                  <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:4 }}>적립 {fmtPrice(o.earned_point!)}P</div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Toast */}
       {toast && (
         <div style={{
@@ -1453,6 +1536,7 @@ export default function MypageClient() {
                               const accentBtn: React.CSSProperties = { ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' };
                               return (
                                 <>
+                                  <button onClick={() => setDetailOrder(o)} style={btnGhost}>주문상세</button>
                                   {active && (instantCancelable || requestCancelable || canRefund) && (
                                     <span style={{ fontSize:12, padding:'6px 14px', borderRadius:6, background:'#FFF3E0', color:'#C8841C', fontWeight:700 }}>
                                       {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
