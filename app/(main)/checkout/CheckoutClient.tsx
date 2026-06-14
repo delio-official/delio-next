@@ -411,7 +411,17 @@ export default function CheckoutClient() {
         });
 
         if (!response || (response as any).code !== undefined) {
-          alert((response as any)?.message || '결제가 취소되었습니다.');
+          const failMsg = (response as any)?.message || '';
+          alert(failMsg || '결제가 취소되었습니다.');
+          /* 결제 실패 알림톡 — 단순 사용자 취소는 제외 */
+          const isCancel = !failMsg || /취소|cancel/i.test(failMsg);
+          if (!isCancel && phone.trim()) {
+            fetch('/api/notify', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'payment_failed', phone: phone.trim(),
+                recipient: recipient.trim() || '고객', reason: failMsg, amount: `${total.toLocaleString()}원` }),
+            }).catch(() => {});
+          }
           setLoading(false);
           return;
         }

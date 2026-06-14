@@ -5358,6 +5358,25 @@ export default function AdminClient() {
                 </div>
               </div>
 
+              {/* 배송 지연 안내 발송 */}
+              <div className="adm-detail-group adm-detail-mt16">
+                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 지연 안내</div>
+                <button className="adm-btn adm-btn-outline" style={{ height:36, padding:'0 14px', fontSize:13 }}
+                  onClick={async () => {
+                    if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
+                    const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
+                    if (!reason || !reason.trim()) return;
+                    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
+                    if (!eta || !eta.trim()) return;
+                    await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify({ type:'delivery_delayed', phone: selectedOrder.phone, recipient: selectedOrder.recipient,
+                        orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() }) }).catch(()=>{});
+                    alert('배송 지연 안내를 발송했습니다.');
+                  }}>
+                  📦 배송 지연 안내 발송
+                </button>
+              </div>
+
               {/* 고객 취소/환불 요청 (진행중일 때) — 여기서 바로 승인/거절 */}
               {(() => {
                 const rq = pendingReqByOrder.get(selectedOrder.id);
