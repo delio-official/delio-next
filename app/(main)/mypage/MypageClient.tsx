@@ -902,6 +902,23 @@ export default function MypageClient() {
   const [otpInput, setOtpInput] = useState('');
   const [otpSending, setOtpSending] = useState(false);
   const [otpPhoneMasked, setOtpPhoneMasked] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  async function verifyWithdrawOtp() {
+    if (otpVerifying || otpInput.length !== 6) return;
+    setOtpVerifying(true);
+    try {
+      const res = await fetch('/api/account/withdraw/verify-otp', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: otpInput.trim(), token: otpToken }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) { showToastMsg(data.error || '인증 실패'); setOtpVerifying(false); return; }
+      setOtpVerified(true);
+      showToastMsg('휴대폰 인증이 완료되었습니다 ✓');
+    } catch { showToastMsg('인증 중 오류'); }
+    setOtpVerifying(false);
+  }
   async function sendWithdrawOtp() {
     if (otpSending) return;
     setOtpSending(true);
@@ -1212,19 +1229,32 @@ export default function MypageClient() {
                       <div style={{ fontSize:13, fontWeight:700, marginBottom:2 }}>휴대폰 본인확인</div>
                       <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>타인에 의한 계정 삭제를 방지하기 위해 본인인증이 필요합니다.</div>
                       <div style={{ display:'flex', gap:8 }}>
-                        <input value={otpInput} onChange={e => setOtpInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                        <input value={otpInput} disabled={otpVerified}
+                          onChange={e => setOtpInput(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                           inputMode="numeric" placeholder={otpToken ? `${otpPhoneMasked} 로 발송된 인증번호` : '인증번호 6자리'}
-                          style={{ flex:1, height:42, padding:'0 12px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
-                        <button onClick={sendWithdrawOtp} disabled={otpSending}
+                          style={{ flex:1, height:42, padding:'0 12px', border:`1.5px solid ${otpVerified ? '#2D7A4D' : '#E2E8F0'}`, borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none', background: otpVerified ? '#F1F8F4' : '#fff' }} />
+                        <button onClick={() => { setOtpVerified(false); sendWithdrawOtp(); }} disabled={otpSending}
                           style={{ height:42, padding:'0 14px', borderRadius:8, border:'1.5px solid #1A1A1A', background:'#fff', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                           {otpSending ? '발송 중' : otpToken ? '재발송' : '인증요청'}
                         </button>
                       </div>
+                      {otpToken && (
+                        otpVerified ? (
+                          <div style={{ fontSize:13, color:'#2D7A4D', fontWeight:700, marginTop:8 }}>✓ 인증이 완료되었습니다.</div>
+                        ) : (
+                          <button onClick={verifyWithdrawOtp} disabled={otpInput.length !== 6 || otpVerifying}
+                            style={{ width:'100%', marginTop:8, height:42, borderRadius:8, border:'none',
+                              background: otpInput.length === 6 ? '#1A1A1A' : '#E5E5E5', color:'#fff', fontSize:13, fontWeight:700,
+                              cursor: otpInput.length === 6 ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>
+                            {otpVerifying ? '확인 중...' : '인증확인'}
+                          </button>
+                        )
+                      )}
                     </div>
                   )}
 
                   {(() => {
-                    const phoneOk = !editPhone.trim() || (!!otpToken && otpInput.length === 6);
+                    const phoneOk = !editPhone.trim() || otpVerified;
                     const canSubmit = withdrawAgree && phoneOk && !withdrawing;
                     return (
                       <div style={{ display:'flex', gap:10 }}>
@@ -2430,7 +2460,7 @@ export default function MypageClient() {
 
                         {/* 탈퇴 / 저장 */}
                         <div className="mp-info-actions">
-                          <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
+                          <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setOtpToken(''); setOtpInput(''); setOtpVerified(false); setOtpPhoneMasked(''); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                           <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
                             {infoSaving ? '저장 중...' : '저장'}
                           </button>
