@@ -1146,7 +1146,7 @@
     .review-photo { flex-shrink: 0; width: 233px; height: 240px; display: flex; align-items: center; justify-content: center; font-size: 88px; overflow: hidden; border-radius: 8px 8px 0 0; }
     .review-body { flex: 1; padding: 14px 14px 10px; display: flex; flex-direction: column; }
     .review-stars { font-size: 13px; color: #FFB300; letter-spacing: 1px; margin-bottom: 8px; }
-    .review-text { font-size: 12px; color: var(--color-ink-soft); line-height: 1.65; flex: 1; display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+    .review-text { font-size: 12px; color: var(--color-ink-soft); line-height: 1.65; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .review-footer { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 10px 14px 13px; border-top: 1px solid #F0F0EE; margin-top: 10px; }
     .review-footer-link { cursor: pointer; transition: background .15s; border-radius: 0 0 12px 12px; }
     .review-footer-link:hover { background: #F7F7F5; }
