@@ -2,23 +2,28 @@ body { background: #fff; }
 
 /* ===== 라운지 페이지 ===== */
 .lounge-page {
-  padding: 48px 0 80px;
+  padding: 20px 0 80px;
 }
 
-/* ===== 필터 행 (중앙 정렬) ===== */
+/* ===== 필터 행 (1열 가로 스크롤) ===== */
 .lounge-filters-row {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;          /* Firefox */
 }
+.lounge-filters-row::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
-/* 필터 pills */
+/* 필터 pills — 줄바꿈 없이 한 줄 */
 .lounge-filters {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
 }
+.lounge-filter { flex: 0 0 auto; }
 
 /* ===== 뷰 토글 행 (우측 정렬) ===== */
 .lounge-view-row {
