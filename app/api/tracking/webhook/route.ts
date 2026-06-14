@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK } from '@/lib/tracker';
+import { notifyAlimtalk } from '@/lib/sms';
 
 /**
  * tracker.delivery 웹훅 수신.
@@ -24,7 +25,7 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
   const supabase = createAdminSupabaseClient();
   const { data: orders, error: qErr } = await supabase
     .from('orders')
-    .select('id, status')
+    .select('id, status, phone, recipient, order_no, order_items(product_name)')
     .eq('tracking_number', trackingNumber);
   if (qErr) {
     console.error('[tracking/webhook] orders 조회 에러(키 확인 필요):', qErr.message);
@@ -38,14 +39,26 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
   // 3. 취소/환불 제외 + 앞으로만 진행(역행 방지) → 갱신 (delivered 시 추천 보상 트리거 자동)
   const newRank = ORDER_STATUS_RANK[mapped] ?? 0;
   let updated = false;
-  for (const o of orders) {
-    const cur = o.status as string;
+  for (const o of orders as Array<{ id: string; status: string; phone: string | null; recipient: string | null; order_no: string | null; order_items?: { product_name: string | null }[] }>) {
+    const cur = o.status;
     if (['cancelled', 'refunding', 'refunded'].includes(cur)) continue;
     if ((ORDER_STATUS_RANK[cur] ?? 0) >= newRank) continue;
     await supabase.from('orders')
       .update({ status: mapped, ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
       .eq('id', o.id);
     updated = true;
+    /* 배송완료 자동 전환 시 배송완료 알림톡 발송 (어드민 수동 처리와 동일) */
+    if (mapped === 'delivered' && o.phone) {
+      const productName = o.order_items?.[0]?.product_name || '주문 상품';
+      try {
+        await notifyAlimtalk('delivery_complete', o.phone, {
+          recipient: o.recipient || '고객',
+          orderNo: o.order_no || '',
+          productName,
+          completedAt: new Date().toLocaleString('ko-KR'),
+        });
+      } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
+    }
   }
   return NextResponse.json({ ok: true, updated: updated ? mapped : null, code }, { status: 202 });
 }
