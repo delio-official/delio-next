@@ -15,11 +15,11 @@ export interface SectionMeta {
 }
 
 export const HOME_SECTIONS: Record<string, SectionMeta> = {
-  pick:     { key:'pick',     label:'델리오 픽',      modes:['popular','latest','views','manual'], defaultCount:6,  countKey:'pick_count' },
-  qg:       { key:'qg',       label:'퀵 가이드',      modes:['latest','popular','views','manual'], defaultCount:8,  countKey:'qg_count' },
-  brand:    { key:'brand',    label:'브랜드 직송관',  modes:['latest','popular','views','manual'], defaultCount:4, countKey:'brand_count' },
-  reviewhl: { key:'reviewhl', label:'리뷰 하이라이트', modes:['latest','popular','manual'],         defaultCount:6,  countKey:'reviewhl_count' },
-  lounge:   { key:'lounge',   label:'델리오 라운지',  modes:['manual','latest','views'],           defaultCount:3,  countKey:'lounge_count' },
+  pick:     { key:'pick',     label:'델리오 픽',      modes:['popular','latest','manual'], defaultCount:6,  countKey:'pick_count' },
+  qg:       { key:'qg',       label:'퀵 가이드',      modes:['latest','popular','manual'], defaultCount:8,  countKey:'qg_count' },
+  brand:    { key:'brand',    label:'브랜드 직송관',  modes:['latest','popular','manual'], defaultCount:4, countKey:'brand_count' },
+  reviewhl: { key:'reviewhl', label:'리뷰 하이라이트', modes:['latest','popular','manual'], defaultCount:6,  countKey:'reviewhl_count' },
+  lounge:   { key:'lounge',   label:'델리오 라운지',  modes:['manual','latest'],           defaultCount:3,  countKey:'lounge_count' },
 };
 
 export const MODE_LABEL: Record<SectionMode, string> = {

@@ -834,7 +834,7 @@ export default function HomeClient() {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'brand');
-      const fcols = 'id, name, slug, created_at, view_count';
+      const fcols = 'id, name, slug, created_at';
       type FRow = { id: string; name: string; slug: string };
       let farmsData: FRow[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
