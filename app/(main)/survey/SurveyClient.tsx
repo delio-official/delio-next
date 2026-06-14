@@ -999,11 +999,15 @@ export default function SurveyClient() {
           </div>
         </div>
 
-        {/* 다시 하기 */}
-        <div style={{ textAlign:'center' }}>
+        {/* 홈으로 가기 + 재검사 */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
+          <Link href="/"
+            style={{ width:'100%', maxWidth:320, textAlign:'center', padding:'13px 28px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', textDecoration:'none' }}>
+            홈으로 가기
+          </Link>
           <button onClick={() => { setPhase('intro'); setStep(0); setAnswers({}); setResult(null); setInfo({ gender:'', age:'', family:'' }); }}
             style={{ padding:'11px 28px', border:'1.5px solid #DDDDD8', borderRadius:10, background:'#fff', color:'#888', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-            처음부터 다시하기
+            재검사하기
           </button>
         </div>
       </div>
