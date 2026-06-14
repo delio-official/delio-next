@@ -22,7 +22,13 @@ interface OrderItem {
   product_name: string; quantity: number;
   unit_price: number; subtotal: number;
   thumbnail_url: string | null;
+  products?: { origin: string | null; category: string | null } | null;
 }
+const ORIGIN_LABEL: Record<string, string> = { domestic: '국산과일', import: '수입과일' };
+const CAT_LABEL: Record<string, string> = {
+  apple: '사과/배', citrus: '감귤류', berry: '베리류', melon: '멜론/참외',
+  kiwi: '키위', mango: '망고', grape: '포도', gift: '선물세트',
+};
 interface Order {
   id: string; order_no: string; status: string;
   final_amount: number; created_at: string; delivered_at?: string | null; paid_at?: string | null; shipped_at?: string | null;
@@ -363,7 +369,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url)')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,products(origin,category))')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -387,7 +393,7 @@ export default function MypageClient() {
         setMSms(!!pf.marketing_sms);
         setMPush(!!pf.push_enabled);
       }
-      setOrders((ords as Order[]) || []);
+      setOrders((ords as unknown as Order[]) || []);
       setMyReviews((revs as unknown as MyReview[]) || []);
 
       // 멤버십 등급 설정 로드 (없으면 기본값 유지)
@@ -1482,7 +1488,12 @@ export default function MypageClient() {
                                 </div>
                                 <div style={{ fontSize:17, fontWeight:800, color:'#1A1A1A', marginBottom:6 }}>{fmtPrice(item.unit_price)}원</div>
                                 <div style={{ fontSize:13, color:'#444', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
-                                <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{item.quantity}개</div>
+                                {(() => {
+                                  const major = item.products?.origin ? (ORIGIN_LABEL[item.products.origin] || item.products.origin) : '';
+                                  const minor = item.products?.category ? (CAT_LABEL[item.products.category] || item.products.category) : '';
+                                  const catText = [major, minor].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' | ');
+                                  return catText ? <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{catText}</div> : null;
+                                })()}
                               </div>
                             </>
                           );
