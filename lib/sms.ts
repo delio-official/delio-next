@@ -78,6 +78,7 @@ export const ALIMTALK_TEMPLATES = {
   payment_failed:    'KA01TP260609153605426xgTJ8SC568K', // 결제 실패          · #{고객명} #{실패사유} #{결제금액}
   delivery_delayed:  'KA01TP260609153428978wpREDvV4bQf', // 배송 지연          · #{고객명} #{주문번호} #{지연사유} #{변경도착일}
   review_request:    'KA01TP260609154123870EgfjTztWArd', // 후기 요청          · #{고객명} #{상품명}
+  coupon_expiry:     'KA01TP260609154437880XPpMJEIdQdK', // 쿠폰 소멸 임박       · #{고객명} #{쿠폰명} #{유효기간}
 } as const;
 
 export type AlimtalkKind = keyof typeof ALIMTALK_TEMPLATES;
@@ -125,6 +126,10 @@ export async function notifyAlimtalk(kind: AlimtalkKind, to: string, d: Record<s
     case 'review_request':
       variables = { '#{고객명}': name, '#{상품명}': d.productName || '' };
       fallback = `[델리오] ${name}님, 구매하신 ${d.productName}은 어떠셨나요? 소중한 후기를 남겨주세요!`;
+      break;
+    case 'coupon_expiry':
+      variables = { '#{고객명}': name, '#{쿠폰명}': d.couponName || '', '#{유효기간}': d.validUntil || '' };
+      fallback = `[델리오] ${name}님, 보유하신 쿠폰(${d.couponName})이 곧 만료될 예정입니다.\n유효기간: ${d.validUntil}\n[마이페이지 > 쿠폰]에서 확인해주세요.`;
       break;
   }
 
