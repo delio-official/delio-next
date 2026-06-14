@@ -244,6 +244,7 @@ export default function SurveyClient() {
   const [result,       setResult]       = useState<ReturnType<typeof calcResult> | null>(null);
   const [copied,       setCopied]       = useState(false);
   const [sharingInsta, setSharingInsta] = useState(false);
+  const [savingImg, setSavingImg] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
 
   /* 공유 링크(?r=key)로 들어오면 결과 화면을 바로 표시 (처음부터 다시 안 하게) */
@@ -412,6 +413,24 @@ export default function SurveyClient() {
       alert('공유 중 오류가 발생했어요. 다시 시도해 주세요.');
     } finally {
       setSharingInsta(false);
+    }
+  }
+
+  /* ── 결과 이미지 저장(다운로드) ── */
+  async function saveImage() {
+    if (!storyCardRef.current || savingImg) return;
+    setSavingImg(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(storyCardRef.current, { pixelRatio: 2, skipFonts: true, cacheBust: true });
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'delio-taste-result.png';
+      a.click();
+    } catch {
+      alert('이미지 저장 중 오류가 발생했어요. 다시 시도해 주세요.');
+    } finally {
+      setSavingImg(false);
     }
   }
 
@@ -895,6 +914,21 @@ export default function SurveyClient() {
                 </svg>
               </button>
               <span style={{ fontSize:11, color:'#888', fontWeight:600 }}>{sharingInsta ? '생성중' : '인스타'}</span>
+            </div>
+
+            {/* 이미지 저장 */}
+            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:7 }}>
+              <button onClick={saveImage} disabled={savingImg} title="이미지 저장"
+                style={{ width:54, height:54, borderRadius:'50%', border:'none',
+                  cursor: savingImg ? 'not-allowed' : 'pointer',
+                  background: savingImg ? '#ccc' : '#1A1A1A',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.12)' }}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
+              <span style={{ fontSize:11, color:'#888', fontWeight:600 }}>{savingImg ? '저장중' : '이미지 저장'}</span>
             </div>
           </div>
         </div>
