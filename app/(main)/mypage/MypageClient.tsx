@@ -18,6 +18,7 @@ import '@/styles/category.css';
 
 /* ─── Types ─── */
 interface OrderItem {
+  product_id?: string | null;
   product_name: string; quantity: number;
   unit_price: number; subtotal: number;
   thumbnail_url: string | null;
@@ -362,7 +363,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_name,quantity,unit_price,subtotal,thumbnail_url)')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1451,59 +1452,43 @@ export default function MypageClient() {
                     const hiddenCount = (o.order_items?.length ?? 0) - 2;
                     return (
                       <div key={o.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
-                        {/* 날짜 헤더 + 배송조회/주문상세 링크 */}
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                          <span style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>
+                        {/* 날짜 헤더 → 주문상세 */}
+                        <button onClick={() => setDetailOrder(o)}
+                          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%', marginBottom:12, background:'none', border:'none', cursor:'pointer', padding:0, fontFamily:'inherit' }}>
+                          <span style={{ fontSize:15, fontWeight:800, color:'#1A1A1A' }}>
                             {new Date(o.created_at).toLocaleDateString('ko-KR')}
                           </span>
-                          {o.tracking_number ? (
-                            <button
-                              onClick={() => setTrackingTarget({
-                                carrierId: o.courier || 'kr.cjlogistics',
-                                trackingNumber: o.tracking_number!,
-                              })}
-                              style={{ fontSize:13, color:'#888', background:'none', border:'none',
-                                cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:2 }}>
-                              배송조회 ›
-                            </button>
-                          ) : (
-                            <span style={{ fontSize:12, color:'#bbb' }}>{o.order_no}</span>
-                          )}
-                        </div>
-                        {/* 상태 라인 */}
-                        <div style={{ fontSize:13, fontWeight:700, marginBottom:10,
-                          color: o.status==='delivered'?'#1A1A1A': o.status==='cancelled'?'#e00':'var(--color-accent)' }}>
-                          {STATUS_LABEL[o.status] || o.status}
-                          {o.status==='delivered' && o.delivered_at
-                            ? ` · ${new Date(o.delivered_at).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' })} 도착 완료`
-                            : ''}
-                        </div>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
 
-                        {/* 상품 목록 */}
-                        {displayItems?.map((item, i) => (
-                          <div key={i} style={{ display:'flex', gap:12, alignItems:'center', marginBottom:8 }}>
-                            <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5',
-                              display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
-                              {item.thumbnail_url
-                                ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                : <span style={{ fontSize:22 }}>🍑</span>}
-                            </div>
-                            <div style={{ flex:1 }}>
-                              <div style={{ fontSize:13, fontWeight:600 }}>{item.product_name}</div>
-                              <div style={{ fontSize:12, color:'#999' }}>
-                                {item.quantity}개
-                                {item.unit_price > 0 && (
-                                  <span style={{ marginLeft:6 }}>· {fmtPrice(item.unit_price)}원</span>
-                                )}
+                        {/* 상품 목록 — 클릭 시 상품상세 (사진처럼 상태·가격·상품명) */}
+                        {displayItems?.map((item, i) => {
+                          const statusColor = o.status==='delivered'?'#1A1A1A': o.status==='cancelled'?'#e00':'var(--color-accent)';
+                          const statusText = (STATUS_LABEL[o.status] || o.status)
+                            + (o.status==='delivered' && o.delivered_at
+                              ? ` · ${new Date(o.delivered_at).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' })} 도착`
+                              : '');
+                          const body = (
+                            <>
+                              <div style={{ width:88, height:88, borderRadius:10, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                {item.thumbnail_url
+                                  ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                  : <span style={{ fontSize:30 }}>🍑</span>}
                               </div>
-                            </div>
-                            {item.subtotal > 0 && (
-                              <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A', flexShrink:0 }}>
-                                {fmtPrice(item.subtotal)}원
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ fontSize:13, fontWeight:700, color:statusColor, marginBottom:4 }}>{statusText}</div>
+                                <div style={{ fontSize:16, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>{fmtPrice(item.unit_price)}원</div>
+                                <div style={{ fontSize:13, color:'#555', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
+                                <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{item.quantity}개</div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+                            </>
+                          );
+                          return item.product_id ? (
+                            <Link key={i} href={`/product/${item.product_id}`} style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14, textDecoration:'none', color:'inherit' }}>{body}</Link>
+                          ) : (
+                            <div key={i} style={{ display:'flex', gap:14, alignItems:'center', marginBottom:14 }}>{body}</div>
+                          );
+                        })}
 
                         {/* 더보기 / 접기 버튼 */}
                         {(o.order_items?.length ?? 0) > 2 && (
