@@ -2309,7 +2309,7 @@ export default function ProductClient() {
 
       {/* ── 상품 문의 모달 ── */}
       {inqModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100,
           display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center',
           padding: isMobile ? 0 : 16 }}
           onClick={() => setInqModal(false)}>
