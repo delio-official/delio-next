@@ -512,7 +512,7 @@ export default function CheckoutClient() {
                 </label>
               </div>
               <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
-                {coupon ? `${coupon.name} · −${fmtPrice(couponDisc)}원` : `${coupons.length}장 보유`}
+                {coupon ? `−${fmtPrice(couponDisc)}원 할인` : `${coupons.length}장 보유`}
               </span>
             </div>
             {/* 적립금 */}
