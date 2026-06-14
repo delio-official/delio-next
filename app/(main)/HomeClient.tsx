@@ -876,7 +876,7 @@ export default function HomeClient() {
             prodName: p.name, prodPrice: `${price.toLocaleString()}원`, discount: p.discount_rate || 0,
             farmThumb: f.thumbnail_url || null,
             prodThumb: p.thumbnail_url || null,
-            bannerImg: f.hero_image_url || p.thumbnail_url || f.thumbnail_url || null,
+            bannerImg: f.thumbnail_url || f.hero_image_url || p.thumbnail_url || null,
           };
         });
       setBrandCards(cards);
