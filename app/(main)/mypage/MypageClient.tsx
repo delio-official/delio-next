@@ -1881,8 +1881,8 @@ export default function MypageClient() {
                                               <button key={level} type="button"
                                                 onClick={() => setEditTaste(prev => ({ ...prev, [axis.key]: level }))}
                                                 style={{ flex:1, padding:'6px 2px', borderRadius:7, cursor:'pointer',
-                                                  border:`1px solid ${on ? axis.hex : '#E5E5E5'}`,
-                                                  background: on ? axis.hex : '#fff', color: on ? '#fff' : '#999',
+                                                  border:`1.5px solid ${on ? '#1A1A1A' : '#E5E5E5'}`,
+                                                  background: '#fff', color: on ? '#1A1A1A' : '#999',
                                                   fontSize:10.5, fontWeight:on ? 700 : 500, fontFamily:'inherit',
                                                   lineHeight:1.3, transition:'all .12s' }}>
                                                 {lv}
