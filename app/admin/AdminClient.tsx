@@ -136,6 +136,7 @@ interface AdminProfile {
   is_blocked: boolean;
   memo: string | null;
   provider?: string | null;
+  marketing_sms?: boolean | null;
 }
 
 interface AdminReview {
@@ -593,6 +594,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     if (targetMode === 'all')    filtered = members;
     if (targetMode === 'grade')  filtered = members.filter(m => gradeFilter === 'high' ? ['buyer','master'].includes(m.grade) : m.grade === gradeFilter);
     if (targetMode === 'select') filtered = members.filter(m => selectedIds.has(m.id));
+    /* 광고성 단체발송은 마케팅 SMS 수신 동의 회원에게만 (법적 필수) */
+    filtered = filtered.filter(m => m.marketing_sms === true);
     return filtered.map(m => m.phone || '').filter(Boolean).map(p => p.replace(/-/g, ''));
   }
 
@@ -647,6 +650,12 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   </button>
                 ))}
               </div>
+
+              {targetMode !== 'custom' && (
+                <div className="adm-muted" style={{ fontSize:12 }}>
+                  ※ 광고성 발송은 <strong>마케팅 SMS 수신 동의 회원</strong>에게만 발송됩니다.
+                </div>
+              )}
 
               {/* 등급별 선택 */}
               {targetMode === 'grade' && (
@@ -2422,7 +2431,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('profiles')
-      .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo, provider')
+      .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo, provider, marketing_sms')
       .order('created_at', { ascending: false })
       .limit(300);
     setMembers((data as AdminProfile[]) || []);
