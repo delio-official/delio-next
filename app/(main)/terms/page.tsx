@@ -213,7 +213,7 @@ export default function TermsPage() {
 
         <div style={{ background: '#F8F8F8', borderRadius: 10, padding: '16px 18px', marginBottom: 36, fontSize: 13.5, color: '#555', lineHeight: 1.9 }}>
           상호명 : 델리오 &nbsp;|&nbsp; 대표 : 송민창<br />
-          주소 : 경기도 고양시 덕양구 용현로3, 714호<br />
+          주소 : 경기도 고양시 덕양구 용현로3, 7층 14호<br />
           사업자등록번호 : 288-12-02921 &nbsp;|&nbsp; 통신판매업신고 : 신청 중<br />
           개인정보관리책임자 : 송민창<br />
           고객센터 : 070-8064-3601 &nbsp;|&nbsp; 이메일 : deli_o@naver.com
