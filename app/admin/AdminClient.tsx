@@ -7170,11 +7170,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                                 options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }, { value:'cat_promo', label:'카테고리 배너 (모바일 카테고리 상단)' }]} />
                               {hint && (
                                 <div style={{ marginTop:6, display:'flex', gap:12, fontSize:12 }}>
-                                  <span style={{ background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
-                                    💻 PC {hint.pc}
-                                  </span>
+                                  {bnForm.type !== 'cat_promo' && (
+                                    <span style={{ background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
+                                      💻 PC {hint.pc}
+                                    </span>
+                                  )}
                                   <span style={{ background:'#F0FDF4', color:'#15803D', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
-                                    📱 모바일 {hint.mobile}
+                                    {bnForm.type === 'cat_promo' ? `🖼️ ${hint.mobile}` : `📱 모바일 ${hint.mobile}`}
                                   </span>
                                 </div>
                               )}
@@ -7182,9 +7184,9 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           );
                         })()}
 
-                        {/* PC 이미지 드래그앤드롭 업로드 */}
+                        {/* 이미지 드래그앤드롭 업로드 (cat_promo는 단일 '이미지', 그 외 'PC 이미지') */}
                         <div>
-                          <label className="adm-label">💻 PC 이미지 *</label>
+                          <label className="adm-label">{bnForm.type === 'cat_promo' ? '🖼️ 이미지 *' : '💻 PC 이미지 *'}</label>
                           <input ref={bnImgRef} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -7234,7 +7236,8 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           </div>
                         </div>
 
-                        {/* 모바일 이미지 드래그앤드롭 업로드 (선택) */}
+                        {/* 모바일 이미지 드래그앤드롭 업로드 (선택) — 카테고리 배너는 모바일 전용이라 단일 이미지만 사용, 이 칸 숨김 */}
+                        {bnForm.type !== 'cat_promo' && (
                         <div>
                           <label className="adm-label">📱 모바일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 없으면 PC 이미지 공용)</span></label>
                           <input ref={bnImgRefMobile} type="file" accept="image/*" style={{ display:'none' }}
@@ -7283,6 +7286,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                             )}
                           </div>
                         </div>
+                        )}
 
                         {/* 링크 URL */}
                         <div>
