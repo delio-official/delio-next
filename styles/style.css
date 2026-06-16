@@ -563,6 +563,13 @@ input, select, textarea { font-family: inherit; }
   display: block;
   object-fit: cover;
 }
+.cd-promo-empty {
+  margin: 12px 12px 0;
+  border-radius: 8px;
+  background: #F7F7F5;
+  border: 1px solid #EBEBE8;
+}
+.cd-promo-empty > div { padding: 28px 16px !important; }
 /* 드로어 내 바로가기 — pill 칩 */
 .cd-sc-grid {
   display: flex; flex-wrap: wrap; gap: 8px;

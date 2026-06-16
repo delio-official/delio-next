@@ -8,6 +8,7 @@ import { Menu, Truck, Home, Heart, User } from 'lucide-react';
 import { loadTabsFor, loadCategoryTabs, tabHref, type FilterTab } from '@/lib/filterTabs';
 import { loadMenuItems, megaColumns } from '@/lib/menu';
 import { createClient } from '@/lib/supabase';
+import ComingSoon from '@/components/ComingSoon/ComingSoon';
 
 type AccItem = { icon: string; bg: string; name: string; subs: { label: string; href: string }[] };
 
@@ -204,19 +205,14 @@ function BottomNavInner() {
           </div>
 
           <div className="cat-drawer-body">
-            {/* 프로모 배너 — 관리자 등록 이미지(cat_promo) 우선, 없으면 기본 CSS 배너 */}
+            {/* 프로모 배너 — 관리자 등록 이미지(cat_promo) 우선, 없으면 준비중 플레이스홀더 */}
             {catPromo ? (
               <div className="cd-promo-img" onClick={() => goAndClose(catPromo.link)}>
                 <img src={catPromo.image} alt="" />
               </div>
             ) : (
-              <div className="cd-promo" onClick={() => goAndClose('/category?sort=brix')}>
-                <div className="cd-promo-text">
-                  <span className="cd-promo-tag">TODAY&apos;S BRIX</span>
-                  <div className="cd-promo-title">오늘의 당도 TOP 6 공개!</div>
-                  <div className="cd-promo-sub">매일 오전 6시 기준 직접 측정</div>
-                </div>
-                <div className="cd-promo-icon">🍬</div>
+              <div className="cd-promo-empty">
+                <ComingSoon compact title="배너 준비중입니다." desc={['곧 새로운 소식으로 찾아뵙겠습니다.']} />
               </div>
             )}
 
