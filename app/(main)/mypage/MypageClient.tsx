@@ -2663,6 +2663,10 @@ export default function MypageClient() {
 
                   return (
                     <>
+                      {/* 타이틀 + 등급헤더4열: 멤버십 이미지 상단(막대그래프)과 중복되어 비활성화.
+                          나중에 부활하려면 아래 false 를 true 로만 바꾸면 됨. */}
+                      {false && (
+                      <>
                       {/* 타이틀 */}
                       <div style={{ textAlign:'center', padding:'24px 0 18px' }}>
                         <div style={{ fontSize:20, fontWeight:700, color:'#111', marginBottom:8, fontFamily:'Georgia, serif' }}>
@@ -2698,6 +2702,8 @@ export default function MypageClient() {
                           );
                         })}
                       </div>
+                      </>
+                      )}
 
                       {/* 진행 바 */}
                       <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px', marginBottom:22 }}>
