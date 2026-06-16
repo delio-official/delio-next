@@ -6680,16 +6680,18 @@ export default function AdminClient() {
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
                 <TabBtns active={bannerTab} setActive={setBannerTab}
                   tabs={[
-                    { id:'tab-banner', label:'메인 배너' },
-                    { id:'tab-mid',    label:'중간 배너' },
-                    { id:'tab-popup',  label:'팝업' },
+                    { id:'tab-banner',   label:'메인 배너' },
+                    { id:'tab-mid',      label:'중간 배너' },
+                    { id:'tab-catpromo', label:'카테고리 배너' },
+                    { id:'tab-popup',    label:'팝업' },
                   ]} />
                 <button className="adm-btn adm-btn-outline" onClick={openMediaHistory}>📜 변경 이력</button>
               </div>
 
-              {/* ── 배너 탭 (메인 / 중간) ── */}
-              {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid') && (() => {
-                const list = banners.filter(b => bannerTab === 'tab-banner' ? b.type === 'main' : b.type === 'mid');
+              {/* ── 배너 탭 (메인 / 중간 / 카테고리) ── */}
+              {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid' || bannerTab === 'tab-catpromo') && (() => {
+                const bannerType = bannerTab === 'tab-banner' ? 'main' : bannerTab === 'tab-mid' ? 'mid' : 'cat_promo';
+                const list = banners.filter(b => b.type === bannerType);
                 const totView = list.reduce((s, b) => s + (b.view_count || 0), 0);
                 const totClick = list.reduce((s, b) => s + (b.click_count || 0), 0);
                 const avgCtr = totView > 0 ? (totClick / totView * 100) : 0;
@@ -6709,7 +6711,7 @@ export default function AdminClient() {
                     <div className="adm-toolbar-right">
                       <button className="adm-btn adm-btn-outline" onClick={loadBanners}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                       <button className="adm-btn adm-btn-primary" onClick={() => {
-                        setBnForm({ type: bannerTab === 'tab-banner' ? 'main' : 'mid', link_url: '/', is_active: true });
+                        setBnForm({ type: bannerType, link_url: '/', is_active: true });
                         openBannerModal();
                       }}>+ 배너 등록</button>
                     </div>
@@ -7157,6 +7159,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
                             main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
                             mid:  { pc: '1060×350px (@2x)', mobile: '1200×480px · 5:2 비율 · 가로 전체(풀폭) 권장' },
+                            cat_promo: { pc: '모바일 전용', mobile: '1000×280px 내외 · 가로 긴 카드형 · 모바일 카테고리 상단' },
                           };
                           const hint = SIZE_HINT[bnForm.type];
                           return (
@@ -7164,7 +7167,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                               <label className="adm-label">배너 종류</label>
                               <AdmSelect className="adm-cs-full" value={bnForm.type}
                                 onChange={v => setBnForm(f => ({ ...f, type: v }))}
-                                options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }]} />
+                                options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }, { value:'cat_promo', label:'카테고리 배너 (모바일 카테고리 상단)' }]} />
                               {hint && (
                                 <div style={{ marginTop:6, display:'flex', gap:12, fontSize:12 }}>
                                   <span style={{ background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>

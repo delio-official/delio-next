@@ -550,6 +550,19 @@ input, select, textarea { font-family: inherit; }
 .cd-promo-title { font-size: 16px; font-weight: 700; color: var(--color-ink); line-height: 1.4; }
 .cd-promo-sub { font-size: 13px; color: var(--color-ink-soft); margin-top: 2px; }
 .cd-promo-icon { font-size: 44px; opacity: 0.9; }
+.cd-promo-img {
+  margin: 12px 12px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  line-height: 0;
+}
+.cd-promo-img img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
 /* 드로어 내 바로가기 — pill 칩 */
 .cd-sc-grid {
   display: flex; flex-wrap: wrap; gap: 8px;

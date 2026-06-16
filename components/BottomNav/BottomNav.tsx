@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Menu, Truck, Home, Heart, User } from 'lucide-react';
 import { loadTabsFor, loadCategoryTabs, tabHref, type FilterTab } from '@/lib/filterTabs';
 import { loadMenuItems, megaColumns } from '@/lib/menu';
+import { createClient } from '@/lib/supabase';
 
 type AccItem = { icon: string; bg: string; name: string; subs: { label: string; href: string }[] };
 
@@ -90,6 +91,21 @@ function BottomNavInner() {
             .map(s => ({ label: s.label, href: `/category?cat=${s.tab_value}` }))],
       })));
     });
+  }, []);
+
+  /* 카테고리 프로모 배너(cat_promo) 로드 — 등록·활성 시 이미지로 교체, 없으면 기본 CSS 배너 */
+  const [catPromo, setCatPromo] = useState<{ image: string; link: string } | null>(null);
+  useEffect(() => {
+    createClient()
+      .from('banners')
+      .select('image_url, image_url_mobile, link_url, sort_order')
+      .eq('type', 'cat_promo').eq('is_active', true)
+      .order('sort_order').limit(1)
+      .then(({ data }) => {
+        const b = data?.[0] as { image_url: string | null; image_url_mobile: string | null; link_url: string } | undefined;
+        const img = b?.image_url_mobile || b?.image_url;
+        if (img) setCatPromo({ image: img, link: b!.link_url || '/' });
+      });
   }, []);
 
   const [menuAccItems, setMenuAccItems] = useState<AccItem[]>([]);
@@ -188,15 +204,21 @@ function BottomNavInner() {
           </div>
 
           <div className="cat-drawer-body">
-            {/* 프로모 배너 */}
-            <div className="cd-promo" onClick={() => goAndClose('/category?sort=brix')}>
-              <div className="cd-promo-text">
-                <span className="cd-promo-tag">TODAY&apos;S BRIX</span>
-                <div className="cd-promo-title">오늘의 당도 TOP 6 공개!</div>
-                <div className="cd-promo-sub">매일 오전 6시 기준 직접 측정</div>
+            {/* 프로모 배너 — 관리자 등록 이미지(cat_promo) 우선, 없으면 기본 CSS 배너 */}
+            {catPromo ? (
+              <div className="cd-promo-img" onClick={() => goAndClose(catPromo.link)}>
+                <img src={catPromo.image} alt="" />
               </div>
-              <div className="cd-promo-icon">🍬</div>
-            </div>
+            ) : (
+              <div className="cd-promo" onClick={() => goAndClose('/category?sort=brix')}>
+                <div className="cd-promo-text">
+                  <span className="cd-promo-tag">TODAY&apos;S BRIX</span>
+                  <div className="cd-promo-title">오늘의 당도 TOP 6 공개!</div>
+                  <div className="cd-promo-sub">매일 오전 6시 기준 직접 측정</div>
+                </div>
+                <div className="cd-promo-icon">🍬</div>
+              </div>
+            )}
 
             {/* 바로가기 그리드 */}
             <div className="cd-sc-grid">
