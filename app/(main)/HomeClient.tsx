@@ -1219,7 +1219,7 @@ export default function HomeClient() {
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
                 <div>주소 : 경기도 고양시 덕양구 용현로3, 7층 14호</div>
-                <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 신청 중</div>
+                <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 2026-고양덕양구-1612</div>
                 <div>개인정보보호책임자 : 송민창 (deli_o@naver.com)</div>
                 <div>모든 거래에 대한 책임과 환불·민원 처리는 델리오가 진행합니다. &nbsp;|&nbsp; 민원담당자 : 송민창 (070-8064-3601)</div>
               </div>
