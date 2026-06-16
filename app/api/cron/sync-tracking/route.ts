@@ -23,13 +23,16 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminSupabaseClient();
 
-  // 운송장이 있고 아직 배송완료/취소 전인 주문만 (paid/preparing/shipped)
+  // 운송장이 있고 아직 배송완료/취소 전인 주문만 (paid/preparing/shipped).
+  // 최근 30일 이내 주문으로 한정 — 영영 미완료인 오래된/테스트 건 무한 폴링 방지(Rate Limit 절약).
+  const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const { data: orders, error } = await admin
     .from('orders')
     .select('id, status, courier, tracking_number, phone, recipient, order_no, order_items(product_name)')
     .in('status', ['paid', 'preparing', 'shipped'])
     .not('courier', 'is', null)
     .not('tracking_number', 'is', null)
+    .gte('created_at', since)
     .order('created_at', { ascending: true })
     .limit(300);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
