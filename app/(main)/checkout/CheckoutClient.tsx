@@ -12,14 +12,18 @@ import '@/styles/checkout.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 
-/* ── 결제 수단 목록 ── */
+/* ── 결제 수단 목록 ──
+   enabled:false 인 수단은 주문서에 노출하지 않음.
+   간편결제(카카오/네이버/토스)는 각 PG 심사·승인 완료 시 true 로 전환.
+   (미승인 수단을 임의 노출하면 PG 입점 심사에서 반려됨) */
 const PAYMENT_METHODS = [
-  { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined },
-  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY' },
-  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY' },
-  { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY'  },
-  { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined },
+  { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined,  enabled: true  },
+  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: false },
+  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: false },
+  { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY',  enabled: false },
+  { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined, enabled: true  },
 ] as const;
+const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter(m => m.enabled);
 
 /* 채널 키 — 현재는 단일 채널 사용 (결제 수단별 계약 후 분리 가능) */
 function getChannelKey(): string {
@@ -620,7 +624,7 @@ export default function CheckoutClient() {
           <div style={{ marginBottom:28 }}>
             <h2 style={{ fontSize:18, fontWeight:800, paddingBottom:12, borderBottom:'2px solid #1A1A1A', marginBottom:18 }}>결제수단</h2>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
-              {PAYMENT_METHODS.map(m => (
+              {VISIBLE_PAYMENT_METHODS.map(m => (
                 <button type="button" key={m.value} onClick={() => setPayMethod(m.value)}
                   style={{ padding:'18px 8px', borderRadius:8, cursor:'pointer', fontSize:14, fontFamily:'inherit',
                     border:`1.5px solid ${payMethod===m.value?'#1A1A1A':'#E2E2E2'}`,
