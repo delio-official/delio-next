@@ -867,6 +867,22 @@ export default function ProductClient() {
     swipeImage(dx < 0 ? 1 : -1); // 왼쪽으로 밀면 다음, 오른쪽이면 이전
   }
 
+  /* 모바일 상단 신뢰 pill: 만족도·재구매율·구매자수 중 가장 좋은(인상적인) 값 1개 */
+  const bestStat: { text: string } | null = (() => {
+    const satRate = product.review_count > 0
+      ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
+    const cands: { score: number; text: string }[] = [];
+    // 만족도·재구매율(둘 다 %)은 충분한 표본일 때만 후보로
+    if (product.review_count >= TASTE_REVEAL_MIN && satRate > 0)
+      cands.push({ score: satRate, text: `구매 고객 ${satRate}%가 만족했어요` });
+    if (buyerStats.buyers >= 5 && buyerStats.repurchase > 0)
+      cands.push({ score: buyerStats.repurchase, text: `구매 고객 ${buyerStats.repurchase}%가 재구매했어요` });
+    if (cands.length) return cands.sort((a, b) => b.score - a.score)[0]; // 더 좋은 값 우선
+    // %지표 표본 부족 시 구매자수로 폴백
+    if (buyerStats.buyers > 0) return { text: `지금까지 ${buyerStats.buyers.toLocaleString()}명이 구매했어요` };
+    return null;
+  })();
+
   /* 포토리뷰 수 (실제 이미지 있는 리뷰) */
   const photoReviewCount = reviews.filter(r => r.image_urls && r.image_urls.length > 0).length;
   const photoColors = [bg, '#E8F0E8', '#FFF3E0', '#F0E8FF', '#E8F4FF', '#FFE8E8', '#F0F8E8', bg];
@@ -1271,6 +1287,16 @@ export default function ProductClient() {
 
             {/* ────────────────── pd-right ────────────────── */}
             <div className="pd-right">
+
+              {/* 모바일 신뢰 pill (만족도·재구매율·구매자수 중 최고값) */}
+              {bestStat && (
+                <div className="pd-beststat">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  <span>{bestStat.text}</span>
+                </div>
+              )}
 
               {/* 브레드크럼 */}
               <h1 className="product-name">{product.name}</h1>
