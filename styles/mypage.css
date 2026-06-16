@@ -479,6 +479,53 @@ body { background: #fff; }
       content: '·'; position: absolute; left: 2px; color: #BBB;
     }
 
+    /* ===== 쿠폰 섹션 헤더 (내 쿠폰 / 다운로드 가능한 쿠폰) ===== */
+    .mp-cp-sec-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .mp-cp-sec-title { font-size: 16px; font-weight: 800; color: #1A1A1A; }
+    .mp-cp-claimall {
+      background: none; border: none; padding: 0; cursor: pointer;
+      font-family: inherit; font-size: 13px; font-weight: 700; color: #1A1A1A;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .mp-cp-claimall:disabled { color: #BBB; cursor: default; text-decoration: none; }
+
+    /* 내 쿠폰 빈 상태 (아이콘 + 문구) */
+    .mp-cp-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 44px 0; color: #B5B5B5; font-size: 13.5px;
+    }
+
+    /* ===== 다운로드 가능 쿠폰 카드 ===== */
+    .mp-dlcp-card {
+      border: 1px solid #ECECEC; border-radius: 12px;
+      padding: 16px 16px 0; background: #fff;
+    }
+    .mp-dlcp-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px; min-height: 24px;
+    }
+    .mp-dlcp-days { font-size: 12px; font-weight: 600; color: #999; }
+    .mp-dlcp-dl {
+      width: 34px; height: 34px; border-radius: 50%;
+      border: 1.5px solid #1A1A1A; background: #fff; color: #1A1A1A;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; transition: background .15s, color .15s;
+    }
+    .mp-dlcp-dl:hover { background: #1A1A1A; color: #fff; }
+    .mp-dlcp-dl:disabled { border-color: #D5D5D5; color: #C8C8C8; cursor: default; background: #fff; }
+    .mp-dlcp-value { font-size: 22px; font-weight: 800; color: #1A1A1A; line-height: 1.1; }
+    .mp-dlcp-name { font-size: 14px; font-weight: 600; color: #333; margin-top: 6px; }
+    .mp-dlcp-meta { margin-top: 10px; display: flex; flex-direction: column; gap: 3px; }
+    .mp-dlcp-meta div { font-size: 12px; color: #999; }
+    .mp-dlcp-link {
+      display: block; text-align: center; text-decoration: none;
+      margin-top: 14px; padding: 13px 0; border-top: 1px solid #F0F0F0;
+      font-size: 13px; font-weight: 700; color: #1A1A1A;
+    }
+
     /* ===== 주문 내역 빈 상태 ===== */
     .mp-empty {
       text-align: center;

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode } from '@/lib/coupons';
+import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode, type PublicCoupon } from '@/lib/coupons';
 import { DEFAULT_TIERS, GRADE_LABEL, GRADE_LABEL_EN, GRADE_COLOR, MEMBERSHIP_COUPON, normalizeGrade, effectiveRate, type MembershipTier } from '@/lib/membership';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
@@ -611,6 +611,7 @@ export default function MypageClient() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [availableCouponCount, setAvailableCouponCount] = useState(0);
   const [dlCount, setDlCount] = useState(0);          // 다운가능 쿠폰 수
+  const [downloadables, setDownloadables] = useState<PublicCoupon[]>([]); // 다운가능 쿠폰 목록
   const [claimingCoupon, setClaimingCoupon] = useState(false);
   const [couponCode, setCouponCode] = useState('');   // 쿠폰 등록 코드
   const [redeemingCode, setRedeemingCode] = useState(false);
@@ -641,8 +642,9 @@ export default function MypageClient() {
     setCouponLoading(false);
   }
   async function refreshDownloadable() {
-    if (!user) { setDlCount(0); return; }
+    if (!user) { setDlCount(0); setDownloadables([]); return; }
     const list = await getDownloadableCoupons(user.id);
+    setDownloadables(list);
     setDlCount(list.length);
   }
   async function handleClaimCoupons() {
@@ -653,6 +655,20 @@ export default function MypageClient() {
     await refreshDownloadable();
     setClaimingCoupon(false);
     alert(n > 0 ? `${n}장의 쿠폰을 받았습니다.` : '받을 수 있는 쿠폰이 없습니다.');
+  }
+  /* 다운가능 쿠폰 1장만 받기 */
+  async function claimOneCoupon(c: PublicCoupon) {
+    if (!user || claimingCoupon) return;
+    setClaimingCoupon(true);
+    const supabase = createClient();
+    const expires_at = c.valid_days != null
+      ? new Date(Date.now() + c.valid_days * 86400000).toISOString()
+      : c.expires_at;
+    const { error } = await supabase.from('user_coupons').insert({ user_id: user.id, coupon_id: c.id, expires_at });
+    showToastMsg(error ? '쿠폰 받기 실패: ' + error.message : '쿠폰을 받았습니다.');
+    await loadUserCoupons();
+    await refreshDownloadable();
+    setClaimingCoupon(false);
   }
 
   /* 내 취소/환불 신청 내역 로드 */
@@ -1850,57 +1866,90 @@ export default function MypageClient() {
                       </div>
                     );
                   };
+                  const renderDownloadCard = (c: PublicCoupon) => {
+                    const isPercent = c.discount_type === 'percent';
+                    const daysLeft = c.expires_at ? Math.ceil((new Date(c.expires_at).getTime() - now.getTime()) / 86400000) : null;
+                    return (
+                      <div key={c.id} className="mp-dlcp-card">
+                        <div className="mp-dlcp-top">
+                          {daysLeft !== null && daysLeft >= 0
+                            ? <span className="mp-dlcp-days">{daysLeft === 0 ? '오늘까지' : `${daysLeft}일 남음`}</span>
+                            : <span />}
+                          <button className="mp-dlcp-dl" onClick={() => claimOneCoupon(c)} disabled={claimingCoupon} aria-label="쿠폰 받기">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 3v12" /><polyline points="7 11 12 16 17 11" /><path d="M5 20h14" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="mp-dlcp-value">{isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}</div>
+                        <div className="mp-dlcp-name">{c.name}</div>
+                        <div className="mp-dlcp-meta">
+                          {c.min_order_amount > 0 && <div>- {c.min_order_amount.toLocaleString()}원 이상 구매 시</div>}
+                          {(c.starts_at || c.expires_at) && (
+                            <div>- {c.starts_at ? fmtDate(c.starts_at) : ''}{c.expires_at ? `~${fmtDate(c.expires_at)}` : ''}</div>
+                          )}
+                        </div>
+                        <Link href="/category" className="mp-dlcp-link">할인 상품 보기 ›</Link>
+                      </div>
+                    );
+                  };
                   return (
                     <>
-                      {/* 다운받기 헤더 */}
-                      <div className="mp-cp-dl">
-                        <div className="mp-cp-dl-counts">
-                          <div className="mp-cp-dl-count">사용가능 쿠폰 <b>{available.length}</b>장</div>
-                          <div className="mp-cp-dl-sep" />
-                          <div className="mp-cp-dl-count">다운가능 쿠폰 <b>{dlCount}</b>장</div>
-                        </div>
-                        <button className="mp-cp-dl-btn" onClick={handleClaimCoupons}
-                          disabled={claimingCoupon || dlCount === 0}>
-                          {claimingCoupon ? '받는 중...' : '쿠폰 다운받기'}
-                        </button>
-                      </div>
-
-                      {/* 쿠폰 등록 */}
-                      <div className="mp-cp-register">
-                        <div className="mp-cp-register-title">쿠폰 등록</div>
+                      {/* 쿠폰등록 (상단) */}
+                      <div className="mp-cp-register" style={{ marginTop: 0 }}>
+                        <div className="mp-cp-register-title">쿠폰등록</div>
                         <div className="mp-cp-register-row">
                           <input
                             value={couponCode}
                             onChange={e => setCouponCode(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') handleRedeemCode(); }}
-                            placeholder="쿠폰코드를 입력해주세요." />
+                            placeholder="'-'제외한 쿠폰번호" />
                           <button onClick={handleRedeemCode} disabled={redeemingCode || !couponCode.trim()}>
-                            {redeemingCode ? '등록 중...' : '쿠폰등록'}
+                            {redeemingCode ? '등록 중...' : '등록'}
                           </button>
                         </div>
-                        <ul className="mp-cp-register-help">
-                          <li>메일, 모바일, 인쇄물 등에서 받은 쿠폰 코드를 입력해 주세요.</li>
-                          <li>쿠폰 코드는 한글, 영문, 숫자 혼합으로 이루어져 있습니다.</li>
-                          <li>쿠폰 코드는 영문 대/소문자를 구분합니다.</li>
-                          <li>쿠폰은 유효 기간이 있으며, 쿠폰에 따라 최소 구매 금액이나 최대 할인 금액 제한이 있을 수 있습니다.</li>
-                          <li>타 쿠폰 사용 시 중복 사용 불가할 수 있으며, 일부 브랜드/품목은 쿠폰 사용에 제한이 있을 수 있습니다.</li>
-                        </ul>
                       </div>
 
-                      {/* 사용 가능 쿠폰 */}
-                      <div style={{ fontSize:16, fontWeight:800, marginTop:28, marginBottom:14 }}>사용 가능 쿠폰</div>
+                      {/* 내 쿠폰 (N) */}
+                      <div className="mp-cp-sec-head" style={{ marginTop: 28 }}>
+                        <span className="mp-cp-sec-title">내 쿠폰 ({available.length})</span>
+                      </div>
                       {available.length === 0 ? (
-                        <div className="mp-empty">사용 가능한 쿠폰이 없습니다.</div>
+                        <div className="mp-cp-empty">
+                          <svg viewBox="0 0 48 48" width="56" height="56" fill="none" stroke="#DADADA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="13" width="38" height="22" rx="4" />
+                            <path d="M5 21a3 3 0 0 0 0 6M43 21a3 3 0 0 1 0 6" />
+                            <line x1="19" y1="20" x2="29" y2="28" /><circle cx="19.5" cy="20.5" r="0.6" /><circle cx="28.5" cy="27.5" r="0.6" />
+                          </svg>
+                          <div>사용 가능한 쿠폰이 없습니다.</div>
+                        </div>
                       ) : (
                         <div className="mp-cp-list">
                           {available.map(uc => renderCard(uc, false))}
                         </div>
                       )}
 
+                      {/* 다운로드 가능한 쿠폰 (N) */}
+                      {downloadables.length > 0 && (
+                        <>
+                          <div className="mp-cp-sec-head" style={{ marginTop: 32 }}>
+                            <span className="mp-cp-sec-title">다운로드 가능한 쿠폰 ({downloadables.length})</span>
+                            <button className="mp-cp-claimall" onClick={handleClaimCoupons} disabled={claimingCoupon}>
+                              {claimingCoupon ? '받는 중...' : '전체 받기'}
+                            </button>
+                          </div>
+                          <div className="mp-cp-list">
+                            {downloadables.map(renderDownloadCard)}
+                          </div>
+                        </>
+                      )}
+
                       {/* 사용 완료 쿠폰 */}
                       {used.length > 0 && (
                         <>
-                          <div style={{ fontSize:16, fontWeight:800, marginTop:32, marginBottom:14, color:'#888' }}>사용 완료 쿠폰</div>
+                          <div className="mp-cp-sec-head" style={{ marginTop: 32 }}>
+                            <span className="mp-cp-sec-title" style={{ color:'#888' }}>사용 완료 쿠폰</span>
+                          </div>
                           <div className="mp-cp-list">
                             {used.map(uc => renderCard(uc, true))}
                           </div>
