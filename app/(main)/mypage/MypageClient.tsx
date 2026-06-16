@@ -2736,28 +2736,13 @@ export default function MypageClient() {
                         </div>
                       </div>
 
-                      {/* 전체 등급 혜택 비교 */}
-                      <div style={{ fontSize:12, color:'#aaa', textAlign:'center', marginBottom:10 }}>전체 등급 혜택</div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                        {sorted.map((t) => {
-                          const isActive = t.grade === cur;
-                          const color = GRADE_COLOR[t.grade];
-                          return (
-                            <div key={t.grade} style={{ display:'flex', gap:10, padding:'12px 14px', borderRadius:10, border:`1px solid ${isActive ? color + '55' : '#EEE'}`, background: isActive ? color + '08' : '#fff' }}>
-                              <div style={{ flexShrink:0, width:52, textAlign:'center' }}>
-                                <div style={{ fontSize:12.5, fontWeight:800, color: isActive ? color : '#999' }}>{t.label}</div>
-                                <div style={{ fontSize:9.5, color:'#bbb', marginTop:2 }}>{t.min_amount === 0 ? '기본' : `${(t.min_amount / 10000).toLocaleString()}만↑`}</div>
-                              </div>
-                              <div style={{ flex:1, fontSize:11.5, color: isActive ? '#333' : '#999', lineHeight:1.7 }}>
-                                포인트 {t.point_rate}% 적립
-                                {t.coupon_codes.length > 0 && <> · 매월 {t.coupon_codes.map(couponLabel).join(' · ')}</>}
-                                {' · 생일쿠폰 5천원'}
-                                {t.grade === 'master' && ' · 선물세트(연 2회)'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {/* 등급별 혜택 안내 (디자인 이미지) — 혜택01 표 · 혜택02 생일쿠폰 · 유의사항 */}
+                      <img
+                        src="/membership-benefits.png"
+                        alt="델리오 멤버십 등급별 혜택 안내"
+                        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        style={{ width:'100%', height:'auto', display:'block', borderRadius:12, marginTop:4 }}
+                      />
                     </>
                   );
                 })()}
