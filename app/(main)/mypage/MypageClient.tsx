@@ -1373,7 +1373,7 @@ export default function MypageClient() {
                 <IconArrowRight />
               </div>
             </button>
-            <button className="mp-menu-item" onClick={() => showToastMsg('회원 등급 정보를 불러옵니다')}>
+            <button className="mp-menu-item" onClick={() => goPanel('grade')}>
               <span>회원 등급</span><IconArrowRight />
             </button>
           </div>
@@ -1386,9 +1386,6 @@ export default function MypageClient() {
             </button>
             <button className="mp-menu-item" onClick={() => goPanel('address')}>
               <span>배송지 관리</span><IconArrowRight />
-            </button>
-            <button className="mp-menu-item" onClick={() => goPanel('grade')}>
-              <span>회원 등급</span><IconArrowRight />
             </button>
             <button className="mp-menu-item mp-menu-item-logout" onClick={handleLogout}>
               <span>로그아웃</span><IconArrowRight />
