@@ -3024,9 +3024,9 @@ export default function AdminClient() {
   async function uploadPopupImage(file: File): Promise<string | null> {
     setPpUploading(true);
     const supabase = createClient();
-    const ext = file.name.split('.').pop();
+    const { blob, ext, type } = await compressImage(file, 1600);
     const path = `popup_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from('banners').upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from('banners').upload(path, blob, { upsert: true, contentType: type });
     if (error) { alert('업로드 실패: ' + error.message); setPpUploading(false); return null; }
     const { data } = supabase.storage.from('banners').getPublicUrl(path);
     setPpUploading(false);
@@ -3140,9 +3140,9 @@ export default function AdminClient() {
   async function uploadBannerImage(file: File): Promise<string | null> {
     setBnUploading(true);
     const supabase = createClient();
-    const ext = file.name.split('.').pop();
+    const { blob, ext, type } = await compressImage(file, 1600);
     const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from('banners').upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from('banners').upload(path, blob, { upsert: true, contentType: type });
     if (error) { alert('업로드 실패: ' + error.message); setBnUploading(false); return null; }
     const { data } = supabase.storage.from('banners').getPublicUrl(path);
     setBnUploading(false);
@@ -3779,9 +3779,9 @@ export default function AdminClient() {
     const setLoading = type === 'thumb' ? setLoungeThumbUploading : setLoungeImgUploading;
     setLoading(true);
     const supabase = createClient();
-    const ext  = file.name.split('.').pop();
+    const { blob, ext, type: ctype } = await compressImage(file);
     const path = `${type}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('lounge').upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from('lounge').upload(path, blob, { upsert: true, contentType: ctype });
     if (error) { alert('업로드 실패: ' + error.message); setLoading(false); return null; }
     const { data } = supabase.storage.from('lounge').getPublicUrl(path);
     setLoading(false);
@@ -4062,9 +4062,9 @@ export default function AdminClient() {
     const setLoading = type === 'thumb' ? setEvThumbUploading : setEvImgUploading;
     setLoading(true);
     const supabase = createClient();
-    const ext  = file.name.split('.').pop();
+    const { blob, ext, type: ctype } = await compressImage(file);
     const path = `${type}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('events').upload(path, file, { upsert: true });
+    const { error } = await supabase.storage.from('events').upload(path, blob, { upsert: true, contentType: ctype });
     if (error) { alert('업로드 실패: ' + error.message); setLoading(false); return null; }
     const { data } = supabase.storage.from('events').getPublicUrl(path);
     setLoading(false);
