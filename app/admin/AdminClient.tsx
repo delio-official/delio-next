@@ -1102,8 +1102,9 @@ function OptionTreeEditor({ options, setOptions }: {
   const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
 
   /* ── 2단계(종속) helpers ── */
-  const supName = groups[0] || '분류';
-  const subName = groups.find(g => g !== supName) || '옵션';
+  // 폴백(|| '분류') 쓰면 그룹명을 비웠을 때 실제값('')과 어긋나 입력/구조가 깨짐 → 실제 그룹값 그대로 사용
+  const supName = groups[0] ?? '';
+  const subName = groups.find(g => g !== supName) ?? '';
   const supReq = options.find(o => o.group === supName)?.required !== false;
   const subReq = options.find(o => o.group === subName)?.required !== false;
   const supOpts = idx.filter(o => o.group === supName);
