@@ -67,6 +67,7 @@ export default function OptionDrawer() {
   const requiredGroups = groupNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
   /* 2단(종속) 옵션: 첫 그룹=상위, 이후 하위는 parent_label로 필터 */
   const parentGroup = groupNames[0];
+  const isCascade = options.some(o => !!(o.parent_label && o.parent_label.trim()));
   const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
   const optsForGroup = (g: string): Option[] => {
     const inGroup = options.filter(o => (o.group_name || '옵션') === g);
@@ -160,11 +161,15 @@ export default function OptionDrawer() {
                     }}
                     style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background: locked ? '#F4F4F4' : '#fff', cursor: locked ? 'not-allowed' : 'pointer' }}>
                     <option value="">{locked ? '상위 옵션을 먼저 선택' : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}</option>
-                    {optsForGroup(g).map(o => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}
-                      </option>
-                    ))}
+                    {optsForGroup(g).map(o => {
+                      // 분류(상위 품종)는 재고 개념 없음 → 하위 옵션만 품절 판정
+                      const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
+                      return (
+                        <option key={o.id} value={o.id} disabled={soldout}>
+                          {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{soldout ? ' (품절)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
                 );

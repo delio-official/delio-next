@@ -1440,13 +1440,18 @@ export default function ProductClient() {
                                 <>
                                   <div className="opt-dd-backdrop" onClick={() => setOpenOptGroup(null)} />
                                   <div className="opt-dd-list">
-                                    {groupOpts.map(o => (
-                                      <button type="button" key={o.id}
-                                        className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}
-                                        onClick={() => choose(o.id)}>
-                                        {o.label}{o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}
-                                      </button>
-                                    ))}
+                                    {groupOpts.map(o => {
+                                      // 분류(상위 품종)는 재고 개념 없음 → 하위 옵션만 품절 판정
+                                      const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
+                                      return (
+                                        <button type="button" key={o.id} disabled={soldout}
+                                          className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}
+                                          style={soldout ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
+                                          onClick={() => { if (!soldout) choose(o.id); }}>
+                                          {o.label}{o.add_price > 0 ? ` (+${fmtPrice(o.add_price)}원)` : ''}{soldout ? ' (품절)' : ''}
+                                        </button>
+                                      );
+                                    })}
                                     {groupOpts.length === 0 && <div className="opt-dd-empty">선택 가능한 옵션이 없습니다</div>}
                                   </div>
                                 </>
