@@ -1107,13 +1107,24 @@ function OptionTreeEditor({ options, setOptions }: {
   const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
   const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { id: newOptId(), group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
 
-  /* ── 2단계(종속) helpers — 1번째 그룹=상위(분류), 2번째=하위(값). 위치로 식별(파생값엔 폴백 없음 → 리셋·desync 방지) ── */
-  const supName = groups[0] ?? '';
-  const subName = groups[1] ?? '';
-  const supReq = options.find(o => o.group === supName)?.required !== false;
-  const subReq = options.find(o => o.group === subName)?.required !== false;
-  const supOpts = idx.filter(o => o.group === supName);
-  const subOpts = idx.filter(o => o.group === subName);
+  /* ── 2단계(종속) helpers — 상위/하위를 "이름"이 아니라 "역할(parent_id 유무)"로 구분.
+       하위는 parent_id가 있음 → 상위/하위 그룹명이 같아도 안 섞임 ── */
+  const supOpts = idx.filter(o => !o.parent_id);     // 상위(분류)
+  const subOpts = idx.filter(o => !!o.parent_id);    // 하위(값)
+  const supName = supOpts[0]?.group ?? '';
+  const subName = subOpts[0]?.group ?? '';
+  const supReq = supOpts[0]?.required !== false;
+  const subReq = subOpts[0]?.required !== false;
+  const renameSupGroup = (nv: string) => setOptions(prev => prev.map(o => !o.parent_id ? { ...o, group: nv } : o));
+  const renameSubGroup = (nv: string) => setOptions(prev => prev.map(o => o.parent_id ? { ...o, group: nv } : o));
+  const setSupReq = (req: boolean) => setOptions(prev => prev.map(o => !o.parent_id ? { ...o, required: req } : o));
+  const setSubReq = (req: boolean) => setOptions(prev => prev.map(o => o.parent_id ? { ...o, required: req } : o));
+  const roleReqToggle = (req: boolean, setReq: (r: boolean) => void) => (
+    <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
+      <button type="button" onClick={() => setReq(true)} style={{ fontSize:11, padding:'4px 9px', border:'none', cursor:'pointer', fontWeight:600, background: req ? '#1A1A1A':'#fff', color: req ? '#fff':'#64748B' }}>필수</button>
+      <button type="button" onClick={() => setReq(false)} style={{ fontSize:11, padding:'4px 9px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600, background: !req ? '#1A1A1A':'#fff', color: !req ? '#fff':'#64748B' }}>선택</button>
+    </div>
+  );
   // 연결은 id로 하므로 상위 라벨 변경 시 자식 재연결 불필요(라벨만 바꿈)
   const renameSup = (_i: number, _oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, label: nv } : o));
   const addSup = () => setOptions(prev => [...prev, { id: newOptId(), group: supName || '분류', required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
@@ -1127,11 +1138,10 @@ function OptionTreeEditor({ options, setOptions }: {
     userTouchedMode.current = true;
     lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷 (다시 2단계 누르면 복원)
     setOptions(prev => {
-      const names = [...new Set(prev.map(o => o.group))];
       const isCasc = prev.some(o => !!o.parent_id || (o.parent_label || '').trim());
-      // 종속이면 하위(값) 그룹을, 아니면 첫 그룹을 단일 옵션으로 유지
-      const keep = (isCasc && names[1]) ? names[1] : names[0];
-      return prev.filter(o => o.group === keep).map(o => ({ ...o, parent_label:'', parent_id: undefined }));
+      // 종속이면 하위(값=parent_id 있는 것)만 단일 옵션으로 유지, 상위(분류)는 버림
+      const kept = isCasc ? prev.filter(o => !!o.parent_id) : prev;
+      return kept.map(o => ({ ...o, parent_label:'', parent_id: undefined }));
     });
     setMode('indep');
   };
@@ -1181,13 +1191,13 @@ function OptionTreeEditor({ options, setOptions }: {
         {modeBar}
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           <span style={{ fontSize:11, color:'#1A8A4C', fontWeight:800 }}>상위(분류)</span>
-          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameGroup(supName, e.target.value)} />
-          {reqToggle(supName, supReq)}
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameSupGroup(e.target.value)} />
+          {roleReqToggle(supReq, setSupReq)}
           <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800, marginLeft:6 }}>하위(옵션)</span>
           <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }}
             value={subOpts.length ? subName : subNameDraft} placeholder="예: 중량"
-            onChange={e => subOpts.length ? renameGroup(subName, e.target.value) : setSubNameDraft(e.target.value)} />
-          {reqToggle(subName, subReq)}
+            onChange={e => subOpts.length ? renameSubGroup(e.target.value) : setSubNameDraft(e.target.value)} />
+          {roleReqToggle(subReq, setSubReq)}
         </div>
         <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
