@@ -1259,6 +1259,16 @@ export default function AdminClient() {
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('rate');
+  const [pDiscAmount, setPDiscAmount] = useState(''); // '원 할인' 모드 입력값(원)
+  // 금액 입력 → 가격 기준으로 할인율(%) 환산 (가격 입력 순서 무관)
+  useEffect(() => {
+    if (pDiscMode !== 'amount' || pDiscAmount === '') return;
+    setPForm(f => {
+      if (!(f.price > 0)) return f;
+      const r = Math.min(99, Math.max(0, Math.round(Number(pDiscAmount) / f.price * 100)));
+      return f.discount_rate === r ? f : { ...f, discount_rate: r };
+    });
+  }, [pDiscAmount, pDiscMode]);
   /* 상품 옵션 (label / add_price / stock) */
   const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number; parent_label?: string }[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
@@ -4511,11 +4521,16 @@ export default function AdminClient() {
                           onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율" />
                       ) : (
                         <input className="adm-input-text" style={{ flex:1, minWidth:0 }} type="number" min="0"
-                          value={pForm.price > 0 ? Math.round(pForm.price * pForm.discount_rate / 100) || '' : ''}
-                          onChange={e => setPForm(f => ({ ...f, discount_rate: f.price > 0 ? Math.min(99, Math.round(Number(e.target.value) / f.price * 100)) : 0 }))}
-                          placeholder="할인액" />
+                          value={pDiscAmount}
+                          onChange={e => setPDiscAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder={pForm.price > 0 ? '할인액(원)' : '먼저 판매가를 입력하세요'} />
                       )}
-                      <AdmSelect style={{ flex:'0 0 90px' }} value={pDiscMode} onChange={v => setPDiscMode(v as 'rate'|'amount')}
+                      <AdmSelect style={{ flex:'0 0 90px' }} value={pDiscMode}
+                        onChange={v => {
+                          const mode = v as 'rate'|'amount';
+                          setPDiscMode(mode);
+                          if (mode === 'amount') setPDiscAmount(pForm.price > 0 && pForm.discount_rate > 0 ? String(Math.round(pForm.price * pForm.discount_rate / 100)) : '');
+                        }}
                         options={[{ value:'rate', label:'% 할인' }, { value:'amount', label:'원 할인' }]} />
                     </div>
                   </div>
