@@ -1101,21 +1101,24 @@ function OptionTreeEditor({ options, setOptions }: {
   const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
   const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
 
-  /* ── 2단계(종속) helpers ── */
-  // 폴백(|| '분류') 쓰면 그룹명을 비웠을 때 실제값('')과 어긋나 입력/구조가 깨짐 → 실제 그룹값 그대로 사용
-  const supName = groups[0] ?? '';
-  const subName = groups.find(g => g !== supName) ?? '';
-  const supReq = options.find(o => o.group === supName)?.required !== false;
-  const subReq = options.find(o => o.group === subName)?.required !== false;
-  const supOpts = idx.filter(o => o.group === supName);
-  const subOpts = idx.filter(o => o.group === subName);
+  /* ── 2단계(종속) helpers — 그룹을 "이름 문자열"이 아니라 "역할(상위 분류 / 하위 값)"로 식별.
+       이름을 비우거나 같아져도 충돌·리셋 안 됨. 하위(값)는 parent_label 로 상위에 연결됨. ── */
+  const isSubRole = (o: { parent_label?: string }) => (o.parent_label || '').trim() !== '';
+  const supOpts = idx.filter(o => !isSubRole(o));   // 상위(분류)
+  const subOpts = idx.filter(o => isSubRole(o));     // 하위(값)
+  const supName = supOpts[0]?.group ?? '';
+  const subName = subOpts[0]?.group ?? '';
+  const supReq = supOpts[0]?.required !== false;
+  const subReq = subOpts[0]?.required !== false;
+  const renameSupGroup = (nv: string) => setOptions(prev => prev.map(o => !isSubRole(o) ? { ...o, group: nv } : o));
+  const renameSubGroup = (nv: string) => setOptions(prev => prev.map(o => isSubRole(o) ? { ...o, group: nv } : o));
   const renameSup = (_i: number, oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => {
     if (i === _i) return { ...o, label: nv };
-    if (o.group === subName && (o.parent_label || '') === (oldLabel || '')) return { ...o, parent_label: nv };
+    if (isSubRole(o) && (o.parent_label || '') === (oldLabel || '')) return { ...o, parent_label: nv };
     return o;
   }));
-  const addSup = () => setOptions(prev => [...prev, { group: supName, required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
-  const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName, required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
+  const addSup = () => setOptions(prev => [...prev, { group: supName || '분류', required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
+  const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
 
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
@@ -1168,10 +1171,10 @@ function OptionTreeEditor({ options, setOptions }: {
         {modeBar}
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           <span style={{ fontSize:11, color:'#1A8A4C', fontWeight:800 }}>상위(분류)</span>
-          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameGroup(supName, e.target.value)} />
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameSupGroup(e.target.value)} />
           {reqToggle(supName, supReq)}
           <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800, marginLeft:6 }}>하위(옵션)</span>
-          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameGroup(subName, e.target.value)} />
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameSubGroup(e.target.value)} />
           {reqToggle(subName, subReq)}
         </div>
         <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
