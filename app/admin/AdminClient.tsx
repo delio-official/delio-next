@@ -1620,11 +1620,12 @@ export default function AdminClient() {
   const [refCouponsLoading, setRefCouponsLoading] = useState(false);
 
   /* 쿠폰 지급 내역 (회원별) */
-  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; status: '미사용'|'사용완료'|'만료'; source: string; }
+  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
   const [couponLogs, setCouponLogs] = useState<CouponLog[]>([]);
   const [couponLogsLoading, setCouponLogsLoading] = useState(false);
   const [clSearch, setClSearch] = useState('');
   const [clStatus, setClStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
+  const [clCategory, setClCategory] = useState<'all'|'signup'|'membership'|'general'>('all');
   const [clPage, setClPage] = useState(1); const [clSize, setClSize] = useState(20);
   const [refcPage, setRefcPage] = useState(1); const [refcSize, setRefcSize] = useState(10);
 
@@ -2622,6 +2623,11 @@ export default function AdminClient() {
       if (c?.is_public) return '다운로드/이벤트';
       return '수동/기타';
     };
+    const categoryOf = (gp: string | null, c: { signup_grant?: boolean; is_membership?: boolean } | undefined): 'signup'|'membership'|'general' => {
+      if (c?.signup_grant) return 'signup';
+      if (c?.is_membership || (gp && (/^\d{4}-\d{2}$/.test(gp) || gp.startsWith('bday')))) return 'membership';
+      return 'general';
+    };
     const rows: CouponLog[] = (ucs || []).map((u: { id: string; user_id: string; coupon_id: string; is_used: boolean; issued_at: string; expires_at: string | null; grant_period: string | null }) => {
       const p = profMap.get(u.user_id) as { name: string | null; email: string } | undefined;
       const c = cpMap.get(u.coupon_id) as { name: string; discount_type: 'percent'|'fixed'; discount_value: number; signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined;
@@ -2635,6 +2641,7 @@ export default function AdminClient() {
         issued_at: u.issued_at,
         status: u.is_used ? '사용완료' : expired ? '만료' : '미사용',
         source: sourceOf(u.grant_period, c),
+        category: categoryOf(u.grant_period, c),
       };
     });
     setCouponLogs(rows);
@@ -4274,6 +4281,7 @@ export default function AdminClient() {
     if (clStatus === 'unused' && l.status !== '미사용') return false;
     if (clStatus === 'used' && l.status !== '사용완료') return false;
     if (clStatus === 'expired' && l.status !== '만료') return false;
+    if (clCategory !== 'all' && l.category !== clCategory) return false;
     const q = clSearch.trim().toLowerCase();
     if (q && !(`${l.name} ${l.email} ${l.couponName}`.toLowerCase().includes(q))) return false;
     return true;
@@ -6529,6 +6537,8 @@ export default function AdminClient() {
                       <div className="adm-toolbar-left">
                         <AdmSelect value={clStatus} onChange={v => { setClStatus(v as 'all'|'unused'|'used'|'expired'); setClPage(1); }}
                           options={[{ value:'all', label:'전체 상태' }, { value:'unused', label:'미사용' }, { value:'used', label:'사용완료' }, { value:'expired', label:'만료' }]} />
+                        <AdmSelect value={clCategory} onChange={v => { setClCategory(v as 'all'|'signup'|'membership'|'general'); setClPage(1); }}
+                          options={[{ value:'all', label:'전체 종류' }, { value:'signup', label:'신규회원' }, { value:'general', label:'일반쿠폰' }, { value:'membership', label:'멤버십쿠폰' }]} />
                         <input type="text" className="adm-input-text" placeholder="회원 이름·이메일·쿠폰명 검색"
                           value={clSearch} onChange={e => { setClSearch(e.target.value); setClPage(1); }} />
                       </div>
