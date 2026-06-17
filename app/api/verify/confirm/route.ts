@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   if (wd) return NextResponse.json({ ok: false, code: 'REJOIN', error: '탈퇴 후 30일 이내에는 재가입(본인인증)이 제한됩니다.' }, { status: 409 });
 
   // 4) profiles 저장 (CI/DI/성별/생일/번호/인증시각)
-  const gender = vc.gender === 'MALE' ? 'M' : vc.gender === 'FEMALE' ? 'F' : null;
+  const gender = vc.gender === 'MALE' ? 'male' : vc.gender === 'FEMALE' ? 'female' : null;
   const update: Record<string, unknown> = { ci, di: vc.di ?? null, gender, verified_at: new Date().toISOString() };
   if (vc.birthDate) update.birth = vc.birthDate;       // YYYY-MM-DD
   if (vc.phoneNumber) update.phone = vc.phoneNumber;   // 인증된 번호로 갱신
