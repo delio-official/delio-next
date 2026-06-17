@@ -1055,14 +1055,18 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
 
 /* ===== 옵션 트리 에디터 (단품 / 1단계 / 2단계 상위→하위) =====
  *  A안: 가격·재고는 하위(잎)에만. 상위는 분류 선택지(가격·재고 없음). */
-type POpt = { group: string; required: boolean; label: string; add_price: number; stock: number; parent_label?: string };
+let _optSeq = 0;
+const newOptId = () => `o${Date.now().toString(36)}${(_optSeq++).toString(36)}`;
+// 편집 중 상위-하위 연결은 라벨(이름)이 아니라 고정 id(parent_id)로 함 → 이름이 비거나 같아도 분류별 독립.
+// 저장 시 parent_id → 해당 상위의 라벨(parent_label)로 변환해 DB에 기록(스토어프론트는 parent_label 사용).
+type POpt = { id: string; group: string; required: boolean; label: string; add_price: number; stock: number; parent_label?: string; parent_id?: string };
 function OptionTreeEditor({ options, setOptions }: {
   options: POpt[];
   setOptions: React.Dispatch<React.SetStateAction<POpt[]>>;
 }) {
   const groups = [...new Set(options.map(o => o.group))];
   const idx = options.map((o, i) => ({ ...o, _i: i }));
-  const dataCascade = options.some(o => (o.parent_label || '').trim() !== '');
+  const dataCascade = options.some(o => !!o.parent_id || (o.parent_label || '').trim() !== '');
   const [mode, setMode] = useState<'indep' | 'cascade'>(dataCascade ? 'cascade' : 'indep');
   // 옵션이 늦게 로드돼도, parent_label이 있으면 자동으로 2단계 모드로 (사용자가 직접 토글하면 그 뒤론 유지)
   const userTouchedMode = useRef(false);
@@ -1098,9 +1102,9 @@ function OptionTreeEditor({ options, setOptions }: {
   );
 
   /* ── 독립 모드 helpers ── */
-  const addValue = (g: string) => { const req = options.find(o => o.group === g)?.required !== false; setOptions(prev => [...prev, { group: g, required: req, label:'', add_price:0, stock:0, parent_label:'' }]); };
+  const addValue = (g: string) => { const req = options.find(o => o.group === g)?.required !== false; setOptions(prev => [...prev, { id: newOptId(), group: g, required: req, label:'', add_price:0, stock:0, parent_label:'' }]); };
   const removeGroup = (g: string) => setOptions(prev => prev.filter(o => o.group !== g));
-  const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
+  const addGroup = () => setOptions(prev => { const gs = [...new Set(prev.map(o => o.group))]; let n = gs.length + 1, name = `옵션${n}`; while (gs.includes(name)) { n++; name = `옵션${n}`; } return [...prev, { id: newOptId(), group: name, required:true, label:'', add_price:0, stock:0, parent_label:'' }]; });
 
   /* ── 2단계(종속) helpers — 1번째 그룹=상위(분류), 2번째=하위(값). 위치로 식별(파생값엔 폴백 없음 → 리셋·desync 방지) ── */
   const supName = groups[0] ?? '';
@@ -1109,26 +1113,24 @@ function OptionTreeEditor({ options, setOptions }: {
   const subReq = options.find(o => o.group === subName)?.required !== false;
   const supOpts = idx.filter(o => o.group === supName);
   const subOpts = idx.filter(o => o.group === subName);
-  const renameSup = (_i: number, oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => {
-    if (i === _i) return { ...o, label: nv };
-    if (o.group === subName && (o.parent_label || '') === (oldLabel || '')) return { ...o, parent_label: nv };
-    return o;
-  }));
-  const addSup = () => setOptions(prev => [...prev, { group: supName || '분류', required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
-  const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
+  // 연결은 id로 하므로 상위 라벨 변경 시 자식 재연결 불필요(라벨만 바꿈)
+  const renameSup = (_i: number, _oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, label: nv } : o));
+  const addSup = () => setOptions(prev => [...prev, { id: newOptId(), group: supName || '분류', required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
+  const addSubUnder = (parentId: string) => setOptions(prev => [...prev, { id: newOptId(), group: subName || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label:'', parent_id: parentId }]);
 
   /* ── 시작 / 모드 전환 ── */
-  const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
-  const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
+  const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
+  const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
     const hasCascade = options.some(o => (o.parent_label || '').trim());
     userTouchedMode.current = true;
     lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷 (다시 2단계 누르면 복원)
     setOptions(prev => {
       const names = [...new Set(prev.map(o => o.group))];
+      const isCasc = prev.some(o => !!o.parent_id || (o.parent_label || '').trim());
       // 종속이면 하위(값) 그룹을, 아니면 첫 그룹을 단일 옵션으로 유지
-      const keep = (prev.some(o => (o.parent_label || '').trim()) && names[1]) ? names[1] : names[0];
-      return prev.filter(o => o.group === keep).map(o => ({ ...o, parent_label:'' }));
+      const keep = (isCasc && names[1]) ? names[1] : names[0];
+      return prev.filter(o => o.group === keep).map(o => ({ ...o, parent_label:'', parent_id: undefined }));
     });
     setMode('indep');
   };
@@ -1143,7 +1145,9 @@ function OptionTreeEditor({ options, setOptions }: {
     setOptions(prev => {
       const gs = [...new Set(prev.map(o => o.group))];
       if (gs.length >= 2) return prev.map(o => ({ ...o, parent_label:'' }));
-      return [{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }, ...prev.map(o => ({ ...o, parent_label:'' }))];
+      // 평면 → 2단계: 빈 상위 분류 하나 만들고, 기존 옵션들을 그 분류(parent_id)에 연결
+      const sup: POpt = { id: newOptId(), group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' };
+      return [sup, ...prev.map(o => ({ ...o, parent_label:'', parent_id: sup.id }))];
     });
     setMode('cascade');
   };
@@ -1191,8 +1195,8 @@ function OptionTreeEditor({ options, setOptions }: {
                 <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 무농약 방울토마토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
                 <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
               </div>
-              {subOpts.filter(s => (s.parent_label || '') === (sup.label || '')).map(s => valueRow(s))}
-              {addBtn(`+ ${sup.label || '이 분류'}의 옵션 추가`, () => addSubUnder(sup.label))}
+              {subOpts.filter(s => s.parent_id === sup.id).map(s => valueRow(s))}
+              {addBtn(`+ ${sup.label || '이 분류'}의 옵션 추가`, () => addSubUnder(sup.id))}
             </div>
           ))}
         </div>
@@ -1279,7 +1283,7 @@ export default function AdminClient() {
     });
   }, [pDiscAmount, pDiscMode]);
   /* 상품 옵션 (label / add_price / stock) */
-  const [pOptions, setPOptions] = useState<{ group: string; required: boolean; label: string; add_price: number; stock: number; parent_label?: string }[]>([]);
+  const [pOptions, setPOptions] = useState<POpt[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
@@ -2338,14 +2342,20 @@ export default function AdminClient() {
       supabase.from('product_options').select('label, add_price, stock, group_name, is_required, parent_label')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          setPOptions(((data || []) as { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
-            ({ group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0, parent_label: o.parent_label || '' })));
+          const rows: POpt[] = ((data || []) as { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
+            ({ id: newOptId(), group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0, parent_label: o.parent_label || '' }));
+          // 저장된 parent_label(상위 라벨) → 편집용 parent_id 로 연결
+          for (const r of rows) {
+            const pl = (r.parent_label || '').trim();
+            if (pl) { const sup = rows.find(s => !(s.parent_label || '').trim() && s.label === pl); if (sup) r.parent_id = sup.id; }
+          }
+          setPOptions(rows);
         });
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
       setPForm({ ...PRODUCT_EMPTY });
-      setPOptions([{ group: '옵션', required: true, label: '기본', add_price: 0, stock: 999 }]);  // 단품 기본 옵션
+      setPOptions([{ id: newOptId(), group: '옵션', required: true, label: '기본', add_price: 0, stock: 999, parent_label: '' }]);  // 단품 기본 옵션
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
       generateSku(PRODUCT_EMPTY.category).then(sku => setPForm(f => ({ ...f, sku })));
@@ -2406,6 +2416,8 @@ export default function AdminClient() {
     if (productId) {
       await supabase.from('product_options').delete().eq('product_id', productId);
       const validOpts = pOptions.filter(o => o.label.trim());
+      // parent_id(편집용 연결) → 상위 라벨(parent_label)로 변환해 저장 (스토어프론트는 parent_label 사용)
+      const labelById = new Map(pOptions.map(o => [o.id, o.label?.trim() || '']));
       if (validOpts.length > 0) {
         await supabase.from('product_options').insert(
           validOpts.map((o, i) => ({
@@ -2415,7 +2427,7 @@ export default function AdminClient() {
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
             stock: Number(o.stock) || 0,
-            parent_label: o.parent_label?.trim() || null,
+            parent_label: o.parent_id ? (labelById.get(o.parent_id) || null) : (o.parent_label?.trim() || null),
             is_default: i === 0,
             sort_order: i + 1,
           }))
