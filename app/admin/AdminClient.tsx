@@ -1618,6 +1618,14 @@ export default function AdminClient() {
   interface RefCoupon { key: string; referral_id: string | null; reward_type: string; created_at: string; recipient_name: string; recipient_email: string; discount_value: number; is_used: boolean; used_at: string | null; expires_at: string | null; }
   const [refCoupons, setRefCoupons] = useState<RefCoupon[]>([]);
   const [refCouponsLoading, setRefCouponsLoading] = useState(false);
+
+  /* 쿠폰 지급 내역 (회원별) */
+  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; status: '미사용'|'사용완료'|'만료'; source: string; }
+  const [couponLogs, setCouponLogs] = useState<CouponLog[]>([]);
+  const [couponLogsLoading, setCouponLogsLoading] = useState(false);
+  const [clSearch, setClSearch] = useState('');
+  const [clStatus, setClStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
+  const [clPage, setClPage] = useState(1); const [clSize, setClSize] = useState(20);
   const [refcPage, setRefcPage] = useState(1); const [refcSize, setRefcSize] = useState(10);
 
   /* ── 환불 관리 ── */
@@ -2588,6 +2596,49 @@ export default function AdminClient() {
     });
     setRefCoupons(rows);
     setRefCouponsLoading(false);
+  }
+
+  /* 쿠폰 지급 내역 로드 (user_coupons → profiles/coupons JS 조인) */
+  async function loadCouponLogs() {
+    setCouponLogsLoading(true);
+    const supabase = createClient();
+    const { data: ucs } = await supabase.from('user_coupons')
+      .select('id, user_id, coupon_id, is_used, issued_at, expires_at, grant_period')
+      .order('issued_at', { ascending: false }).limit(2000);
+    const userIds = [...new Set((ucs || []).map((u: { user_id: string }) => u.user_id))];
+    const couponIds = [...new Set((ucs || []).map((u: { coupon_id: string }) => u.coupon_id))];
+    const [{ data: profs }, { data: cps }] = await Promise.all([
+      supabase.from('profiles').select('id, name, email').in('id', userIds.length ? userIds : ['_']),
+      supabase.from('coupons').select('id, name, discount_type, discount_value, signup_grant, is_membership, is_public').in('id', couponIds.length ? couponIds : ['_']),
+    ]);
+    const profMap = new Map((profs || []).map((p: { id: string }) => [p.id, p]));
+    const cpMap = new Map((cps || []).map((c: { id: string }) => [c.id, c]));
+    const now = Date.now();
+    const sourceOf = (gp: string | null, c: { signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined) => {
+      if (gp && /^\d{4}-\d{2}$/.test(gp)) return `멤버십 월발급 (${gp})`;
+      if (gp && gp.startsWith('bday')) return '생일쿠폰';
+      if (c?.signup_grant) return '신규회원 웰컴';
+      if (c?.is_membership) return '멤버십';
+      if (c?.is_public) return '다운로드/이벤트';
+      return '수동/기타';
+    };
+    const rows: CouponLog[] = (ucs || []).map((u: { id: string; user_id: string; coupon_id: string; is_used: boolean; issued_at: string; expires_at: string | null; grant_period: string | null }) => {
+      const p = profMap.get(u.user_id) as { name: string | null; email: string } | undefined;
+      const c = cpMap.get(u.coupon_id) as { name: string; discount_type: 'percent'|'fixed'; discount_value: number; signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined;
+      const expired = !u.is_used && !!u.expires_at && new Date(u.expires_at).getTime() < now;
+      return {
+        id: u.id,
+        name: p?.name || '(탈퇴)',
+        email: p?.email || '',
+        couponName: c?.name || '(삭제된 쿠폰)',
+        discountLabel: c ? (c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`) : '-',
+        issued_at: u.issued_at,
+        status: u.is_used ? '사용완료' : expired ? '만료' : '미사용',
+        source: sourceOf(u.grant_period, c),
+      };
+    });
+    setCouponLogs(rows);
+    setCouponLogsLoading(false);
   }
 
   async function revokeReferralReward(r: AdminReferral) {
@@ -4007,7 +4058,7 @@ export default function AdminClient() {
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
       case 'reviews':   loadReviews(); break;
-      case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); break;
+      case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); loadCouponLogs(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
       case 'homesections': loadProducts(); loadFarms(); loadReviews(); loadLounge(); loadFilterTabs(); loadSettings(); break;
@@ -4218,6 +4269,17 @@ export default function AdminClient() {
   const pagedCoupons = coupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
   /* 멤버십 관리 탭 월발급 체크박스용 — 활성 멤버십 쿠폰 목록 */
   const membershipCoupons = coupons.filter(c => c.is_membership && c.is_active);
+  /* 쿠폰 지급 내역 필터/페이징 */
+  const clFiltered = couponLogs.filter(l => {
+    if (clStatus === 'unused' && l.status !== '미사용') return false;
+    if (clStatus === 'used' && l.status !== '사용완료') return false;
+    if (clStatus === 'expired' && l.status !== '만료') return false;
+    const q = clSearch.trim().toLowerCase();
+    if (q && !(`${l.name} ${l.email} ${l.couponName}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const clCur = Math.min(Math.max(1, clPage), Math.max(1, Math.ceil(clFiltered.length / clSize)));
+  const pagedCouponLogs = clFiltered.slice((clCur - 1) * clSize, clCur * clSize);
 
   /* 필터된 라운지 */
   const filteredLounge = loungeFilter
@@ -6455,6 +6517,47 @@ export default function AdminClient() {
                     )}
                   </div>
                   <Pager page={cpCur} pageSize={cpSize} total={coupons.length} onPage={setCpPage} onPageSize={setCpSize} />
+
+                  {/* 쿠폰 지급 내역 (회원별) */}
+                  <div className="adm-card" style={{ marginTop:24 }}>
+                    <div className="adm-card-head" style={{ alignItems:'center' }}>
+                      <span className="adm-card-title">쿠폰 지급 내역</span>
+                      <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {clFiltered.length.toLocaleString()}건</span>
+                      <button className="adm-btn adm-btn-outline" style={{ marginLeft:'auto' }} onClick={loadCouponLogs}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                    </div>
+                    <div className="adm-toolbar" style={{ marginTop:4 }}>
+                      <div className="adm-toolbar-left">
+                        <AdmSelect value={clStatus} onChange={v => { setClStatus(v as 'all'|'unused'|'used'|'expired'); setClPage(1); }}
+                          options={[{ value:'all', label:'전체 상태' }, { value:'unused', label:'미사용' }, { value:'used', label:'사용완료' }, { value:'expired', label:'만료' }]} />
+                        <input type="text" className="adm-input-text" placeholder="회원 이름·이메일·쿠폰명 검색"
+                          value={clSearch} onChange={e => { setClSearch(e.target.value); setClPage(1); }} />
+                      </div>
+                    </div>
+                    {couponLogsLoading ? <PanelLoading /> : (
+                      <div className="adm-table-wrap">
+                        <table className="adm-table">
+                          <thead><tr><th>회원</th><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>상태</th></tr></thead>
+                          <tbody>
+                            {pagedCouponLogs.length === 0 ? (
+                              <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>지급 내역이 없습니다</td></tr>
+                            ) : pagedCouponLogs.map(l => (
+                              <tr key={l.id}>
+                                <td>{l.name} <span className="adm-muted" style={{ fontSize:11 }}>{l.email}</span></td>
+                                <td style={{ fontWeight:600 }}>{l.couponName}</td>
+                                <td><strong>{l.discountLabel}</strong></td>
+                                <td className="adm-muted" style={{ fontSize:12 }}>{l.source}</td>
+                                <td className="adm-muted" style={{ fontSize:12 }}>{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
+                                <td>
+                                  <span className={`adm-badge ${l.status === '사용완료' ? 'badge-off' : l.status === '만료' ? 'badge-off' : 'badge-on'}`}>{l.status}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <Pager page={clCur} pageSize={clSize} total={clFiltered.length} onPage={setClPage} onPageSize={setClSize} />
+                  </div>
                 </>
               ) : (
                 <>
