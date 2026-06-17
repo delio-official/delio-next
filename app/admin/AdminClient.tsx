@@ -6331,7 +6331,7 @@ export default function AdminClient() {
           {panel === 'coupon' && (
             <div className="adm-content">
               <TabBtns active={couponTab} setActive={setCouponTab}
-                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'}]} />
+                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'}]} />
               {couponTab === 'tab-coupon' ? (
                 <>
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
@@ -6440,6 +6440,7 @@ export default function AdminClient() {
                 </>
               ) : (
                 <>
+                  {couponTab === 'tab-point' && (<>
                   {/* 포인트 적립 설정 */}
                   <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
                     <div className="adm-card-head" style={{ paddingBottom:16, marginBottom:18, borderBottom:'1px solid #EEF2F6' }}>
@@ -6458,10 +6459,12 @@ export default function AdminClient() {
                     </div>
                     {/* 적립률은 등급별 설정으로 이전 */}
                     <div style={{ padding:'12px 14px', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E', lineHeight:1.6 }}>
-                      포인트 <b>적립률은 회원 등급별</b>로 적용됩니다. 아래 <b>멤버십 등급 설정</b>에서 등급마다 적립률·적용일을 관리하세요.
+                      포인트 <b>적립률은 회원 등급별</b>로 적용됩니다. <b>멤버십 관리</b> 탭에서 등급마다 적립률·적용일을 관리하세요.
                     </div>
                   </div>
+                  </>)}
 
+                  {couponTab === 'tab-membership' && (<>
                   {/* ===== 멤버십 등급 설정 ===== */}
                   <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
                     <div className="adm-card-head" style={{ paddingBottom:16, marginBottom:18, borderBottom:'1px solid #EEF2F6', alignItems:'flex-start' }}>
@@ -6562,7 +6565,9 @@ export default function AdminClient() {
                       <button className="adm-btn adm-btn-primary" disabled={mSaving} onClick={saveMTiers}>{mSaving ? '저장 중...' : '등급 설정 저장'}</button>
                     </div>
                   </div>
+                  </>)}
 
+                  {couponTab === 'tab-point' && (<>
                   {/* KPI */}
                   <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                     {[
@@ -6669,6 +6674,7 @@ export default function AdminClient() {
                     </div>
                   </div>
                   <Pager page={plCur} pageSize={plSize} total={pointLogs.length} onPage={setPlPage} onPageSize={setPlSize} />
+                  </>)}
                 </>
               )}
             </div>
