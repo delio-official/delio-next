@@ -1122,9 +1122,8 @@ function OptionTreeEditor({ options, setOptions }: {
   const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
     const hasCascade = options.some(o => (o.parent_label || '').trim());
-    if (hasCascade && !confirm('단일 옵션으로 바꾸면 상위 분류(품종 등) 구성이 사라집니다. 계속할까요?\n(다시 2단계로 누르면 복원됩니다.)')) return;
     userTouchedMode.current = true;
-    lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷
+    lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷 (다시 2단계 누르면 복원)
     setOptions(prev => {
       const names = [...new Set(prev.map(o => o.group))];
       // 종속이면 하위(값) 그룹을, 아니면 첫 그룹을 단일 옵션으로 유지
