@@ -161,8 +161,8 @@ export default function OptionDrawer() {
                     style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background: locked ? '#F4F4F4' : '#fff', cursor: locked ? 'not-allowed' : 'pointer' }}>
                     <option value="">{locked ? '상위 옵션을 먼저 선택' : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}</option>
                     {optsForGroup(g).map(o => (
-                      <option key={o.id} value={o.id} disabled={o.stock === 0}>
-                        {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{o.stock === 0 ? ' (품절)' : ''}
+                      <option key={o.id} value={o.id}>
+                        {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}
                       </option>
                     ))}
                   </select>
