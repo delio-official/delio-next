@@ -6417,56 +6417,6 @@ export default function AdminClient() {
                     );
                   })()}
 
-                  {/* 멤버십 월발급 쿠폰팩 (is_membership) */}
-                  {(() => {
-                    const pack = coupons.filter(c => c.is_membership);
-                    const today = new Date().toISOString().slice(0,10);
-                    return (
-                      <div className="adm-card" style={{ marginBottom:16 }}>
-                        <div className="adm-card-head" style={{ alignItems:'center' }}>
-                          <span className="adm-card-title">멤버십 월발급 쿠폰팩</span>
-                          <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
-                        </div>
-                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
-                          여기에 등록한 쿠폰을 <strong>멤버십 관리 탭</strong>에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
-                        </div>
-                        {pack.length === 0 ? (
-                          <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 멤버십 쿠폰이 없습니다. 우측 “+ 멤버십 쿠폰 추가”로 만드세요.</div>
-                        ) : (
-                          <div className="adm-table-wrap">
-                            <table className="adm-table">
-                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
-                              <tbody>
-                                {pack.map(c => {
-                                  const relative = c.valid_days != null;
-                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
-                                  return (
-                                    <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
-                                      <td style={{ fontWeight:700 }}>{c.name}</td>
-                                      <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
-                                      <td className="adm-muted" style={{ fontSize:12 }}>
-                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
-                                        {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
-                                      </td>
-                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
-                                      <td>
-                                        <div style={{ display:'flex', gap:6 }}>
-                                          <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
-                                          <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
-                                          <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
@@ -6631,6 +6581,56 @@ export default function AdminClient() {
                       <button className="adm-btn adm-btn-primary" disabled={mSaving} onClick={saveMTiers}>{mSaving ? '저장 중...' : '등급 설정 저장'}</button>
                     </div>
                   </div>
+
+                  {/* 멤버십 월발급 쿠폰팩 (is_membership) */}
+                  {(() => {
+                    const pack = coupons.filter(c => c.is_membership);
+                    const today = new Date().toISOString().slice(0,10);
+                    return (
+                      <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
+                        <div className="adm-card-head" style={{ alignItems:'center' }}>
+                          <span className="adm-card-title">멤버십 월발급 쿠폰팩</span>
+                          <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
+                        </div>
+                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
+                          여기에 등록한 쿠폰을 <strong>위 등급 설정</strong>의 ‘월 발급 쿠폰’에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
+                        </div>
+                        {pack.length === 0 ? (
+                          <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 멤버십 쿠폰이 없습니다. 우측 “+ 멤버십 쿠폰 추가”로 만드세요.</div>
+                        ) : (
+                          <div className="adm-table-wrap">
+                            <table className="adm-table">
+                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
+                              <tbody>
+                                {pack.map(c => {
+                                  const relative = c.valid_days != null;
+                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                                  return (
+                                    <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
+                                      <td style={{ fontWeight:700 }}>{c.name}</td>
+                                      <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
+                                      <td className="adm-muted" style={{ fontSize:12 }}>
+                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
+                                      </td>
+                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
+                                      <td>
+                                        <div style={{ display:'flex', gap:6 }}>
+                                          <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                          <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                          <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   </>)}
 
                   {couponTab === 'tab-point' && (<>
