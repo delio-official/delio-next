@@ -9,7 +9,7 @@ import { StarRating } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
-import { DEFAULT_TIERS, MEMBERSHIP_COUPON, type MembershipTier } from '@/lib/membership';
+import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 import { SELLER_AXES } from '@/lib/taste';
 import SectionCuration from '@/components/admin/SectionCuration';
 import dynamic from 'next/dynamic';
@@ -279,7 +279,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; description?: string | null; valid_days?: number | null; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; is_membership?: boolean; description?: string | null; valid_days?: number | null; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -1513,7 +1513,7 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -3779,10 +3779,10 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
     }
     setCouponModal(true);
   }
@@ -3790,7 +3790,14 @@ export default function AdminClient() {
   /* 신규회원 쿠폰 추가 — signup_grant·정액·유효기간 30일 프리셋 */
   function openSignupCouponModal() {
     setEditingCoupon(null);
-    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true });
+    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false });
+    setCouponModal(true);
+  }
+
+  /* 멤버십 월발급 쿠폰 추가 — is_membership·유효기간 30일 프리셋 (등급별 월 발급 대상) */
+  function openMembershipCouponModal() {
+    setEditingCoupon(null);
+    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true });
     setCouponModal(true);
   }
 
@@ -3806,6 +3813,10 @@ export default function AdminClient() {
     if (!couponForm.name.trim()) { alert('쿠폰명을 입력해주세요.'); return; }
     if (couponForm.signup_grant && !couponForm.valid_days.trim()) {
       alert('신규회원 쿠폰은 유효기간(발급일로부터 N일)을 반드시 입력해주세요.\n(고정 만료일이 아니라 가입일 기준으로 만료되어야 합니다.)');
+      return;
+    }
+    if (couponForm.is_membership && !couponForm.valid_days.trim()) {
+      alert('멤버십 월발급 쿠폰은 유효기간(발급일로부터 N일)을 반드시 입력해주세요.\n(매월 발급되며 발급일 기준으로 만료됩니다.)');
       return;
     }
     setCouponSaving(true);
@@ -3824,13 +3835,18 @@ export default function AdminClient() {
       is_active: couponForm.is_active,
       is_public: couponForm.is_public,
       signup_grant: couponForm.signup_grant,
+      is_membership: couponForm.is_membership,
     };
+    // is_membership 컬럼이 아직 없으면(SQL 미실행) 그 필드 빼고 재시도
+    const stripMembership = (p: typeof payload) => { const { is_membership, ...rest } = p; void is_membership; return rest; };
     if (editingCoupon) {
-      const { error } = await supabase.from('coupons').update(payload).eq('id', editingCoupon.id);
+      let { error } = await supabase.from('coupons').update(payload).eq('id', editingCoupon.id);
+      if (error && /is_membership|column/i.test(error.message)) ({ error } = await supabase.from('coupons').update(stripMembership(payload)).eq('id', editingCoupon.id));
       if (!error) setCoupons(prev => prev.map(c => c.id === editingCoupon.id ? { ...c, ...payload } as AdminCoupon : c));
       else { alert('수정 실패: ' + error.message); setCouponSaving(false); return; }
     } else {
-      const { data, error } = await supabase.from('coupons').insert(payload).select().single();
+      let { data, error } = await supabase.from('coupons').insert(payload).select().single();
+      if (error && /is_membership|column/i.test(error.message)) ({ data, error } = await supabase.from('coupons').insert(stripMembership(payload)).select().single());
       if (!error && data) setCoupons(prev => [data as AdminCoupon, ...prev]);
       else { alert('생성 실패: ' + (error?.message || '')); setCouponSaving(false); return; }
     }
@@ -4200,6 +4216,8 @@ export default function AdminClient() {
   const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
   const cpCur = Math.min(Math.max(1, cpPage), Math.max(1, Math.ceil(coupons.length / cpSize)));
   const pagedCoupons = coupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
+  /* 멤버십 관리 탭 월발급 체크박스용 — 활성 멤버십 쿠폰 목록 */
+  const membershipCoupons = coupons.filter(c => c.is_membership && c.is_active);
 
   /* 필터된 라운지 */
   const filteredLounge = loungeFilter
@@ -6399,6 +6417,56 @@ export default function AdminClient() {
                     );
                   })()}
 
+                  {/* 멤버십 월발급 쿠폰팩 (is_membership) */}
+                  {(() => {
+                    const pack = coupons.filter(c => c.is_membership);
+                    const today = new Date().toISOString().slice(0,10);
+                    return (
+                      <div className="adm-card" style={{ marginBottom:16 }}>
+                        <div className="adm-card-head" style={{ alignItems:'center' }}>
+                          <span className="adm-card-title">멤버십 월발급 쿠폰팩</span>
+                          <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
+                        </div>
+                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
+                          여기에 등록한 쿠폰을 <strong>멤버십 관리 탭</strong>에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
+                        </div>
+                        {pack.length === 0 ? (
+                          <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 멤버십 쿠폰이 없습니다. 우측 “+ 멤버십 쿠폰 추가”로 만드세요.</div>
+                        ) : (
+                          <div className="adm-table-wrap">
+                            <table className="adm-table">
+                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
+                              <tbody>
+                                {pack.map(c => {
+                                  const relative = c.valid_days != null;
+                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                                  return (
+                                    <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
+                                      <td style={{ fontWeight:700 }}>{c.name}</td>
+                                      <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
+                                      <td className="adm-muted" style={{ fontSize:12 }}>
+                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
+                                      </td>
+                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
+                                      <td>
+                                        <div style={{ display:'flex', gap:6 }}>
+                                          <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
+                                          <button className="adm-row-btn" onClick={() => openCouponModal(c)}>수정</button>
+                                          <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteCoupon(c.id)}>삭제</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
@@ -6537,14 +6605,12 @@ export default function AdminClient() {
                               </td>
                               <td>
                                 <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                                  {([
-                                    [MEMBERSHIP_COUPON.THOUSAND, '1,000원 (1만↑)'],
-                                    [MEMBERSHIP_COUPON.PERCENT10, '10% (최대 3천)'],
-                                    [MEMBERSHIP_COUPON.FIVE, '5,000원 (3만↑)'],
-                                  ] as const).map(([code, lbl]) => (
-                                    <label key={code} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, cursor:'pointer' }}>
-                                      <input type="checkbox" checked={t.coupon_codes.includes(code)} onChange={() => toggleTierCoupon(t.grade, code)} />
-                                      {lbl}
+                                  {membershipCoupons.length === 0 ? (
+                                    <span className="adm-muted" style={{ fontSize:11 }}>쿠폰 관리 탭에서 멤버십 쿠폰을 먼저 등록하세요.</span>
+                                  ) : membershipCoupons.map(c => (
+                                    <label key={c.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, cursor:'pointer' }}>
+                                      <input type="checkbox" checked={!!c.code && t.coupon_codes.includes(c.code)} disabled={!c.code} onChange={() => c.code && toggleTierCoupon(t.grade, c.code)} />
+                                      {c.name} <span className="adm-muted">({c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`})</span>
                                     </label>
                                   ))}
                                 </div>
@@ -9948,6 +10014,13 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
                   <Toggle defaultOn={couponForm.signup_grant} onChange={v => setCouponForm(p => ({ ...p, signup_grant: v }))} />
                   <span style={{ fontSize:11, color:'#94A3B8' }}>켜면 신규 회원가입 시 이 쿠폰이 자동으로 지급됩니다(웰컴 쿠폰팩). 여러 개 켜면 모두 지급됩니다.</span>
+                </div>
+              </div>
+              <div className="adm-form-row">
+                <label className="adm-label">멤버십 월발급용</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:4, flex:1 }}>
+                  <Toggle defaultOn={couponForm.is_membership} onChange={v => setCouponForm(p => ({ ...p, is_membership: v }))} />
+                  <span style={{ fontSize:11, color:'#94A3B8' }}>켜면 <strong>멤버십 관리 탭</strong>의 등급별 월 발급 쿠폰 목록에 나타납니다. (유효기간 일수 필수 · 등급마다 선택해 매월 발급)</span>
                 </div>
               </div>
               <div className="adm-form-actions">
