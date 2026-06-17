@@ -1066,13 +1066,14 @@ function OptionTreeEditor({ options, setOptions }: {
   const [mode, setMode] = useState<'indep' | 'cascade'>(dataCascade ? 'cascade' : 'indep');
   // 옵션이 늦게 로드돼도, parent_label이 있으면 자동으로 2단계 모드로 (사용자가 직접 토글하면 그 뒤론 유지)
   const userTouchedMode = useRef(false);
+  const lastCascade = useRef<POpt[] | null>(null); // 단일 전환 직전 2단계 구성 스냅샷 → 다시 2단계로 오면 복원
   useEffect(() => { if (!userTouchedMode.current) setMode(dataCascade ? 'cascade' : 'indep'); }, [dataCascade]);
 
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
   const setGroupReq = (g: string, req: boolean) => setOptions(prev => prev.map(o => o.group === g ? { ...o, required: req } : o));
-  const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) setOptions([]); };
+  const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) { lastCascade.current = null; setOptions([]); } };
 
   const reqToggle = (g: string, req: boolean) => (
     <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
@@ -1117,12 +1118,13 @@ function OptionTreeEditor({ options, setOptions }: {
   const addSubUnder = (parentLabel: string) => setOptions(prev => [...prev, { group: subName || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label: parentLabel }]);
 
   /* ── 시작 / 모드 전환 ── */
-  const startOne = () => { userTouchedMode.current = true; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
-  const startTwo = () => { userTouchedMode.current = true; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
+  const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
+  const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ group:'분류', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
     const hasCascade = options.some(o => (o.parent_label || '').trim());
-    if (hasCascade && !confirm('단일 옵션으로 바꾸면 상위 분류(품종 등) 구성이 사라집니다. 계속할까요?')) return;
+    if (hasCascade && !confirm('단일 옵션으로 바꾸면 상위 분류(품종 등) 구성이 사라집니다. 계속할까요?\n(다시 2단계로 누르면 복원됩니다.)')) return;
     userTouchedMode.current = true;
+    lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷
     setOptions(prev => {
       const names = [...new Set(prev.map(o => o.group))];
       // 종속이면 하위(값) 그룹을, 아니면 첫 그룹을 단일 옵션으로 유지
@@ -1133,6 +1135,12 @@ function OptionTreeEditor({ options, setOptions }: {
   };
   const toCascade = () => {
     userTouchedMode.current = true;
+    if (lastCascade.current && lastCascade.current.length) {
+      setOptions(lastCascade.current);   // 단일 전환 직전 2단계 구성 복원
+      lastCascade.current = null;
+      setMode('cascade');
+      return;
+    }
     setOptions(prev => {
       const gs = [...new Set(prev.map(o => o.group))];
       if (gs.length >= 2) return prev.map(o => ({ ...o, parent_label:'' }));
@@ -4570,7 +4578,7 @@ export default function AdminClient() {
               {/* 옵션 */}
               <div className="adm-formsec">
                 <div className="adm-formsec-title">🧩 판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
-                <OptionTreeEditor options={pOptions} setOptions={setPOptions} />
+                <OptionTreeEditor key={editingProduct?.id || 'new'} options={pOptions} setOptions={setPOptions} />
               </div>
 
               {/* 상품 이미지 */}
