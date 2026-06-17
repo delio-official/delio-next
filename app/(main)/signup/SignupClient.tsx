@@ -425,7 +425,7 @@ export default function SignupClient() {
                   <CircleCheck on={t1} onClick={() => { setT1(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">이용약관 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
-                <a href="#" className="su-terms-view" onClick={e => e.preventDefault()}>약관보기 ›</a>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
               </div>
 
               <div className="su-terms-item">
@@ -433,7 +433,7 @@ export default function SignupClient() {
                   <CircleCheck on={t2} onClick={() => { setT2(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">개인정보 수집·이용 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
-                <a href="#" className="su-terms-view" onClick={e => e.preventDefault()}>약관보기 ›</a>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
               </div>
 
               <div className="su-terms-item">
@@ -441,7 +441,7 @@ export default function SignupClient() {
                   <CircleCheck on={t3} onClick={() => setT3(v => !v)} />
                   <span className="su-terms-txt">마케팅 광고 활용을 위한 수집 및 이용 동의 <span className="su-terms-badge">(선택)</span></span>
                 </div>
-                <a href="#" className="su-terms-view" onClick={e => e.preventDefault()}>약관보기 ›</a>
+                <a href="/terms/marketing" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
               </div>
 
               <div className="su-terms-item su-terms-item-wrap">
