@@ -17,8 +17,9 @@ export async function POST(req: Request) {
   try { const b = await req.json(); reason = b?.reason ?? null; code = b?.code ?? ''; token = b?.token ?? ''; } catch { /* body 없을 수 있음 */ }
 
   const admin = createAdminSupabaseClient();
-  const { data: pf } = await admin.from('profiles').select('phone').eq('id', user.id).maybeSingle();
+  const { data: pf } = await admin.from('profiles').select('phone, ci').eq('id', user.id).maybeSingle();
   const phone = (pf as { phone?: string | null } | null)?.phone?.trim();
+  const ci = (pf as { ci?: string | null } | null)?.ci ?? null;
 
   // 휴대폰 번호가 있으면 SMS 인증번호 검증 (타인에 의한 삭제 방지)
   if (phone) {
@@ -37,9 +38,13 @@ export async function POST(req: Request) {
       user_id: user.id,
       email: user.email ?? null,
       phone: phone ?? null,
+      ci, // 재가입(30일/쿠폰) 차단용
     };
     const { error: insErr } = await admin.from('withdrawn_users').insert({ ...base, reason });
-    if (insErr) await admin.from('withdrawn_users').insert(base); // reason 컬럼 없으면 빼고 재시도
+    if (insErr) { // reason/ci 컬럼 없으면 빼고 재시도
+      const { error: e2 } = await admin.from('withdrawn_users').insert(base);
+      if (e2) await admin.from('withdrawn_users').insert({ user_id: user.id, email: user.email ?? null, phone: phone ?? null });
+    }
   } catch { /* 기록 실패는 무시 */ }
 
   // 하드 삭제 (재로그인·동일 이메일 재가입 모두 깔끔히 정리)
