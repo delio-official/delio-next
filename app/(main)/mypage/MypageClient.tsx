@@ -196,7 +196,6 @@ export default function MypageClient() {
   /* 아르르 레이아웃 — 추가 필드 */
   const [editPhone,     setEditPhone]     = useState('');
   const [editBirth,     setEditBirth]     = useState('');
-  const [phoneEditing,  setPhoneEditing]  = useState(false);
   const [mEmail,        setMEmail]        = useState(false);
   const [mSms,          setMSms]          = useState(false);
   const [mPush,         setMPush]         = useState(false);
@@ -883,7 +882,6 @@ export default function MypageClient() {
     setInfoSaving(false);
     if (error) { showToastMsg('저장 실패: ' + error.message); return; }
     setProfile(prev => prev ? { ...prev, ...payload } : prev);
-    setPhoneEditing(false);
     showToastMsg('회원정보가 저장되었습니다');
     /* 회원정보 변경 알림톡 (변경 항목 있고 연락처 있을 때) */
     if (changed.length > 0 && editPhone.trim()) {
@@ -2484,15 +2482,13 @@ export default function MypageClient() {
                           <div className="mp-info-row">
                             <div className="mp-info-label"><span className="req">*</span> 휴대폰번호</div>
                             <div className="mp-info-value">
-                              {phoneEditing ? (
-                                <input className="mp-info-input" value={editPhone} autoFocus
-                                  onChange={e => setEditPhone(e.target.value)} placeholder="010-0000-0000" />
-                              ) : (
-                                <div className="mp-info-phone">
-                                  <span>{profile?.phone || editPhone || '미등록'}</span>
-                                  <button className="mp-info-btn" onClick={() => setPhoneEditing(true)}>휴대폰변경</button>
-                                </div>
-                              )}
+                              <div className="mp-info-phone">
+                                <span>{profile?.phone || '미등록'}</span>
+                                <button className="mp-info-btn"
+                                  onClick={() => router.push('/verify?next=' + encodeURIComponent('/mypage'))}>
+                                  {profile?.phone ? '변경하기' : '인증하기'}
+                                </button>
+                              </div>
                             </div>
                           </div>
                           <div className="mp-info-row">
