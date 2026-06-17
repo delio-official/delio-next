@@ -6419,7 +6419,7 @@ export default function AdminClient() {
           {panel === 'coupon' && (
             <div className="adm-content">
               <TabBtns active={couponTab} setActive={setCouponTab}
-                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'}]} />
+                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'},{id:'tab-couponlog',label:'지급 내역'}]} />
               {couponTab === 'tab-coupon' ? (
                 <>
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
@@ -6525,9 +6525,11 @@ export default function AdminClient() {
                     )}
                   </div>
                   <Pager page={cpCur} pageSize={cpSize} total={coupons.length} onPage={setCpPage} onPageSize={setCpSize} />
-
-                  {/* 쿠폰 지급 내역 (회원별) */}
-                  <div className="adm-card" style={{ marginTop:24 }}>
+                </>
+              ) : (
+                <>
+                  {couponTab === 'tab-couponlog' && (
+                  <div className="adm-card">
                     <div className="adm-card-head" style={{ alignItems:'center' }}>
                       <span className="adm-card-title">쿠폰 지급 내역</span>
                       <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {clFiltered.length.toLocaleString()}건</span>
@@ -6568,9 +6570,8 @@ export default function AdminClient() {
                     )}
                     <Pager page={clCur} pageSize={clSize} total={clFiltered.length} onPage={setClPage} onPageSize={setClSize} />
                   </div>
-                </>
-              ) : (
-                <>
+                  )}
+
                   {couponTab === 'tab-point' && (<>
                   {/* 포인트 적립 설정 */}
                   <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
