@@ -1086,8 +1086,8 @@ function OptionTreeEditor({ options, setOptions }: {
       <button type="button" onClick={() => setGroupReq(g, false)} style={{ fontSize:11, padding:'4px 9px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600, background: !req ? '#1A1A1A':'#fff', color: !req ? '#fff':'#64748B' }}>선택</button>
     </div>
   );
-  const valueRow = (o: { _i:number; label:string; add_price:number; stock:number }) => (
-    <div key={o._i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft:16 }}>
+  const valueRow = (o: { _i:number; id:string; label:string; add_price:number; stock:number }) => (
+    <div key={o.id} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft:16 }}>
       <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
       <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
       <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
@@ -1202,7 +1202,7 @@ function OptionTreeEditor({ options, setOptions }: {
         <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {supOpts.map(sup => (
-            <div key={sup._i} style={{ border:'1px solid #EEF2F6', borderRadius:8, padding:'10px', background:'#fff' }}>
+            <div key={sup.id} style={{ border:'1px solid #EEF2F6', borderRadius:8, padding:'10px', background:'#fff' }}>
               <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
                 <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
                 <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 무농약 방울토마토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
