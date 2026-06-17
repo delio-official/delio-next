@@ -423,6 +423,29 @@ const CAT_SKU_CODE: Record<string, string> = {
 // CHART_DATA는 실데이터로 대체됨
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
+
+/* 업로드 전 이미지 리사이즈·압축 (iOS 이미지 메모리 한계로 큰 원본이 모바일에서 안 보이는 문제 방지).
+   최대 1200px·JPEG 품질 0.82 로 줄임. 실패 시 원본 그대로 업로드. */
+async function compressImage(file: File, maxDim = 1200, quality = 0.82): Promise<{ blob: Blob; ext: string; type: string }> {
+  const fallback = { blob: file, ext: (file.name.split('.').pop() || 'jpg').toLowerCase(), type: file.type || 'application/octet-stream' };
+  if (!file.type.startsWith('image/')) return fallback;
+  try {
+    const dataUrl: string = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result as string); fr.onerror = rej; fr.readAsDataURL(file); });
+    const img: HTMLImageElement = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl; });
+    let w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return fallback;
+    const scale = Math.min(1, maxDim / Math.max(w, h));
+    w = Math.round(w * scale); h = Math.round(h * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return fallback;
+    ctx.drawImage(img, 0, 0, w, h);
+    const blob: Blob | null = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+    if (!blob) return fallback;
+    return { blob, ext: 'jpg', type: 'image/jpeg' };
+  } catch { return fallback; }
+}
 function fmtDate(iso: string) {
   const d = new Date(iso);
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -1306,10 +1329,10 @@ export default function AdminClient() {
   async function uploadProductImage(file: File): Promise<string | null> {
     setPImgUploading(true);
     const supabase = createClient();
-    const ext = file.name.split('.').pop();
+    const { blob, ext, type } = await compressImage(file);   // 리사이즈·압축 (모바일 표시 문제 방지)
     const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    console.log('[업로드] 시작 →', path);
-    const { error } = await supabase.storage.from('products').upload(path, file, { upsert: true });
+    console.log('[업로드] 시작 →', path, `(${Math.round(blob.size/1024)}KB)`);
+    const { error } = await supabase.storage.from('products').upload(path, blob, { upsert: true, contentType: type });
     if (error) {
       console.error('[업로드] 실패:', error.message);
       alert('업로드 실패: ' + error.message);
