@@ -1071,6 +1071,7 @@ function OptionTreeEditor({ options, setOptions }: {
   // 옵션이 늦게 로드돼도, parent_label이 있으면 자동으로 2단계 모드로 (사용자가 직접 토글하면 그 뒤론 유지)
   const userTouchedMode = useRef(false);
   const lastCascade = useRef<POpt[] | null>(null); // 단일 전환 직전 2단계 구성 스냅샷 → 다시 2단계로 오면 복원
+  const [subNameDraft, setSubNameDraft] = useState(''); // 하위 옵션이 아직 없을 때 하위 그룹명 미리 입력용
   useEffect(() => { if (!userTouchedMode.current) setMode(dataCascade ? 'cascade' : 'indep'); }, [dataCascade]);
 
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
@@ -1116,7 +1117,7 @@ function OptionTreeEditor({ options, setOptions }: {
   // 연결은 id로 하므로 상위 라벨 변경 시 자식 재연결 불필요(라벨만 바꿈)
   const renameSup = (_i: number, _oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, label: nv } : o));
   const addSup = () => setOptions(prev => [...prev, { id: newOptId(), group: supName || '분류', required: supReq, label:'', add_price:0, stock:0, parent_label:'' }]);
-  const addSubUnder = (parentId: string) => setOptions(prev => [...prev, { id: newOptId(), group: subName || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label:'', parent_id: parentId }]);
+  const addSubUnder = (parentId: string) => setOptions(prev => [...prev, { id: newOptId(), group: subName || subNameDraft.trim() || '옵션', required: subReq, label:'', add_price:0, stock:0, parent_label:'', parent_id: parentId }]);
 
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'', add_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
@@ -1183,7 +1184,9 @@ function OptionTreeEditor({ options, setOptions }: {
           <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameGroup(supName, e.target.value)} />
           {reqToggle(supName, supReq)}
           <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800, marginLeft:6 }}>하위(옵션)</span>
-          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={subName} placeholder="예: 중량" onChange={e => renameGroup(subName, e.target.value)} />
+          <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }}
+            value={subOpts.length ? subName : subNameDraft} placeholder="예: 중량"
+            onChange={e => subOpts.length ? renameGroup(subName, e.target.value) : setSubNameDraft(e.target.value)} />
           {reqToggle(subName, subReq)}
         </div>
         <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
