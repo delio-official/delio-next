@@ -2289,8 +2289,9 @@ export default function AdminClient() {
   async function generateSku(category: string): Promise<string> {
     const code = CAT_SKU_CODE[category] || 'PRD';
     const supabase = createClient();
+    // SKU 는 전역 유니크라 카테고리로 거르지 않고 같은 코드(prefix) 전체에서 최대번호 계산 (코드 공유 카테고리 충돌 방지)
     const { data } = await supabase.from('products')
-      .select('sku').eq('category', category).like('sku', `${code}-%`);
+      .select('sku').like('sku', `${code}-%`);
     let max = 0;
     (data || []).forEach((r: { sku: string | null }) => {
       const m = r.sku?.match(new RegExp(`^${code}-(\\d+)$`));
@@ -2407,7 +2408,12 @@ export default function AdminClient() {
       const { error } = await supabase.from('products').update(payload).eq('id', editingProduct.id);
       if (error) { console.error('상품 저장 오류:', error); alert(`저장 실패: ${error.message}`); setPSaving(false); return; }
     } else {
-      const { data, error } = await supabase.from('products').insert(payload).select('id').single();
+      let { data, error } = await supabase.from('products').insert(payload).select('id').single();
+      // SKU 중복(전역 유니크) 시 재생성 후 1회 재시도
+      if (error && /sku/i.test(error.message)) {
+        payload.sku = await generateSku(pForm.category);
+        ({ data, error } = await supabase.from('products').insert(payload).select('id').single());
+      }
       if (error || !data) { console.error('상품 저장 오류:', error); alert(`저장 실패: ${error?.message || ''}`); setPSaving(false); return; }
       productId = data.id;
     }
