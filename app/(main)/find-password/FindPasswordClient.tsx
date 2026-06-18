@@ -20,6 +20,19 @@ export default function FindPasswordClient() {
   async function handleSend() {
     if (!email.trim()) { setError('가입하신 이메일을 입력해주세요.'); return; }
     setLoading(true); setError('');
+    // SNS 간편로그인 계정이면 메일 발송 대신 안내
+    try {
+      const c = await fetch('/api/find-password/check', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const cj = await c.json();
+      if (cj.isSns) {
+        setLoading(false);
+        setError(`${cj.label} 간편로그인으로 가입한 계정입니다.\n델리오 비밀번호가 없으니 ${cj.label} 로그인을 이용해주세요.`);
+        return;
+      }
+    } catch { /* 확인 실패 시 그대로 진행 */ }
     const { error: err } = await sendPasswordReset(email.trim());
     setLoading(false);
     if (err) { setError('메일 발송에 실패했습니다. 이메일을 확인해주세요.'); return; }
@@ -110,7 +123,7 @@ export default function FindPasswordClient() {
               <input type="email" className="login-input" placeholder="가입 이메일을 입력해주세요"
                 value={email} onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()} autoComplete="email" />
-              {error && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2 }}>{error}</p>}
+              {error && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2, whiteSpace:'pre-line' }}>{error}</p>}
               <button className="login-btn login-btn-solid" onClick={handleSend} disabled={loading}>
                 {loading ? '발송 중...' : '재설정 링크 받기'}
               </button>

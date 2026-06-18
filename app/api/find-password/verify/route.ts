@@ -34,10 +34,18 @@ export async function POST(req: Request) {
 
   // 2) CI로 가입 계정 조회
   const { data: prof } = await admin
-    .from('profiles').select('email').eq('ci', ci).limit(1).maybeSingle();
+    .from('profiles').select('email, provider').eq('ci', ci).limit(1).maybeSingle();
   if (!prof?.email) {
     return NextResponse.json({ ok: false, code: 'NOT_FOUND',
       error: '본인인증 정보로 가입된 계정을 찾을 수 없습니다.\n(가입 시 본인인증을 하지 않은 계정은 이메일 링크로 찾아주세요.)' }, { status: 404 });
+  }
+
+  // SNS 간편로그인 계정은 델리오 비밀번호가 없음 → 재설정 불가 안내
+  const SNS_LABEL: Record<string, string> = { kakao: '카카오', naver: '네이버' };
+  const snsLabel = SNS_LABEL[(prof.provider || '') as string];
+  if (snsLabel) {
+    return NextResponse.json({ ok: false, code: 'SNS',
+      error: `${snsLabel} 간편로그인으로 가입한 계정입니다.\n델리오 비밀번호가 없으니 ${snsLabel} 로그인을 이용해주세요.` }, { status: 409 });
   }
 
   // 3) 복구(recovery) 토큰 발급 → 클라이언트가 복구 세션 생성에 사용
