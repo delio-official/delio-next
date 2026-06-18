@@ -9,7 +9,7 @@ export default function FindIdClient() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [results, setResults] = useState<string[] | null>(null);
+  const [results, setResults] = useState<{ email: string; snsLabel: string | null }[] | null>(null);
 
   async function handleFind() {
     if (!name.trim() || !phone.trim()) { setError('이름과 휴대폰 번호를 입력해주세요.'); return; }
@@ -22,7 +22,7 @@ export default function FindIdClient() {
       });
       const j = await r.json();
       if (j.ok) {
-        setResults(j.emails as string[]);
+        setResults(j.results as { email: string; snsLabel: string | null }[]);
       } else {
         setError(j.error || '일치하는 가입 정보가 없습니다.');
       }
@@ -46,8 +46,15 @@ export default function FindIdClient() {
             </div>
             <p style={{ fontSize:14, color:'#888', marginBottom:14 }}>입력하신 정보로 가입된 아이디입니다.</p>
             <div style={{ background:'#F6F7F6', borderRadius:10, padding:'16px', marginBottom:24 }}>
-              {results.map(e => (
-                <div key={e} style={{ fontSize:16, fontWeight:700, color:'#1A1A1A', padding:'4px 0' }}>{e}</div>
+              {results.map(r => (
+                <div key={r.email} style={{ padding:'4px 0' }}>
+                  <span style={{ fontSize:16, fontWeight:700, color:'#1A1A1A' }}>{r.email}</span>
+                  {r.snsLabel && (
+                    <span style={{ display:'block', fontSize:12, color:'#E5793A', fontWeight:600, marginTop:2 }}>
+                      {r.snsLabel} 간편로그인 계정 (비밀번호 없음 · {r.snsLabel} 로그인 이용)
+                    </span>
+                  )}
+                </div>
               ))}
             </div>
             <Link href="/login" className="login-btn login-btn-solid">

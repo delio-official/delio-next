@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from('profiles')
-    .select('email, phone')
+    .select('email, phone, provider')
     .eq('name', name)
     .limit(50);
 
@@ -47,17 +47,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: '조회 중 오류가 발생했습니다.' }, { status: 500 });
   }
 
+  const SNS_LABEL: Record<string, string> = { kakao: '카카오', naver: '네이버' };
+
   // 저장된 번호 형식이 제각각일 수 있어 숫자 정규화 후 비교
-  const matched = (data || [])
+  const seen = new Set<string>();
+  const results = (data || [])
     .filter(r => r.email && normPhone(r.phone || '') === target)
-    .map(r => maskEmail(r.email as string));
+    .filter(r => { const e = r.email as string; if (seen.has(e)) return false; seen.add(e); return true; })
+    .map(r => ({
+      email: maskEmail(r.email as string),
+      snsLabel: SNS_LABEL[(r.provider || '') as string] || null,
+    }));
 
-  // 중복 제거
-  const emails = Array.from(new Set(matched));
-
-  if (emails.length === 0) {
+  if (results.length === 0) {
     return NextResponse.json({ ok: false, code: 'NOT_FOUND', error: '일치하는 가입 정보가 없습니다.' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, emails });
+  return NextResponse.json({ ok: true, results });
 }
