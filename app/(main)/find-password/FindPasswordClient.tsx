@@ -22,7 +22,7 @@ export default function FindPasswordClient() {
   }
 
   return (
-    <div className="login-wrap">
+    <div className="login-wrap" style={{ justifyContent:'flex-start', paddingTop:'10vh' }}>
       <div className="login-box">
         <h1 className="login-title">비밀번호 찾기</h1>
 
