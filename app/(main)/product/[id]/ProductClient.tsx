@@ -223,6 +223,20 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
+  /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
+  const didJumpReviewRef = useRef(false);
+  useEffect(() => {
+    if (didJumpReviewRef.current || !product) return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('tab') === 'review') {
+      didJumpReviewRef.current = true;
+      setActiveTab(2);
+      setTimeout(() => {
+        document.getElementById('productTabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
+    }
+  }, [product]);
+
   /* 어드민 여부 */
   useEffect(() => {
     if (!user) return;

@@ -80,10 +80,17 @@ function ProductCard({ p }: { p: Product }) {
   const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
   const requireLogin = useLoginGuard();
+  const router = useRouter();
 
   useEffect(() => {
     isWishlisted(p.id).then(setWished);
   }, [p.id]);
+
+  function handleReviewClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/product/${p.id}?tab=review`);
+  }
 
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
@@ -149,7 +156,8 @@ function ProductCard({ p }: { p: Product }) {
         </div>
         <div className="product-rating-row">
           {p.review_count > 0 && (
-            <div className="rating-stars">
+            <div className="rating-stars" onClick={handleReviewClick}
+              role="link" title="후기 보기" style={{ cursor:'pointer' }}>
               <SingleStar size={13} />
               <span>{p.avg_rating.toFixed(1)}</span>
               <span style={{ color:'#bbb' }}>({reviewCount})</span>

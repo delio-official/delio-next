@@ -48,7 +48,14 @@ function FarmProductCard({ p }: { p: Product }) {
   const deliveryLabel = p.is_dawn ? '산지직송' : '자사배송';
   const [wished, setWished] = useState(false);
   const requireLogin = useLoginGuard();
+  const router = useRouter();
   useEffect(() => { isWishlisted(p.id).then(setWished); }, [p.id]);
+
+  function handleReviewClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    router.push(`/product/${p.id}?tab=review`);
+  }
 
   const reviewCount = p.review_count > 9999
     ? (p.review_count / 10000).toFixed(1) + '만'
@@ -90,7 +97,8 @@ function FarmProductCard({ p }: { p: Product }) {
         </div>
         {p.review_count > 0 && (
           <div className="product-rating-row">
-            <div className="rating-stars">
+            <div className="rating-stars" onClick={handleReviewClick}
+              role="link" title="후기 보기" style={{ cursor:'pointer' }}>
               <SingleStar size={13} />
               <span>{p.avg_rating.toFixed(1)}</span>
               <span style={{ color:'#bbb' }}>({reviewCount})</span>
