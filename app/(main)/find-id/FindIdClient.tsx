@@ -75,7 +75,7 @@ export default function FindIdClient() {
             </button>
             <p style={{ fontSize:12, color:'#bbb', lineHeight:1.6, marginTop:14, textAlign:'center' }}>
               아이디·비밀번호 확인이 안 될 경우<br />
-              고객센터(1877-3228)로 문의해 주세요.
+              고객센터(070-8064-3601)로 문의해 주세요.
             </p>
           </>
         )}
