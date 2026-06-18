@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { sendPasswordReset } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
+import FindHelp from '@/components/FindHelp/FindHelp';
 import '@/styles/login.css';
 
 export default function FindPasswordClient() {
@@ -124,35 +125,26 @@ export default function FindPasswordClient() {
                 value={email} onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()} autoComplete="email" />
               {error && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2, whiteSpace:'pre-line' }}>{error}</p>}
-              <button className="login-btn login-btn-solid" onClick={handleSend} disabled={loading}>
+              <FindHelp title="비밀번호 찾기" />
+              <button className="login-btn login-btn-solid" style={{ marginTop:16 }} onClick={handleSend} disabled={loading}>
                 {loading ? '발송 중...' : '재설정 링크 받기'}
               </button>
             </>
           )
         ) : (
           /* 휴대폰 본인인증으로 재설정 */
-          <div style={{ padding:'4px 0' }}>
+          <>
             <p style={{ fontSize:13, color:'#888', lineHeight:1.6, marginBottom:14 }}>
-              가입 시 등록한 휴대폰으로 본인인증을 진행하면<br />
-              바로 새 비밀번호를 설정할 수 있습니다.
+              가입 시 등록한 휴대폰으로 본인인증을 진행하면 바로 새 비밀번호를 설정할 수 있습니다.<br />
+              <span style={{ color:'#bbb' }}>가입 시 본인인증을 하지 않은 계정은 이메일로 찾기를 이용해주세요.</span>
             </p>
             {phoneError && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, whiteSpace:'pre-line' }}>{phoneError}</p>}
-            <button className="login-btn login-btn-solid" onClick={startPhoneVerify} disabled={phoneLoading}>
+            <FindHelp title="비밀번호 찾기" />
+            <button className="login-btn login-btn-solid" style={{ marginTop:16 }} onClick={startPhoneVerify} disabled={phoneLoading}>
               {phoneLoading ? '인증 진행 중...' : '휴대폰 본인인증으로 재설정'}
             </button>
-            <p style={{ fontSize:12, color:'#bbb', lineHeight:1.6, marginTop:14 }}>
-              가입 시 본인인증을 하지 않은 계정은<br />
-              이메일로 찾기를 이용해주세요.
-            </p>
-          </div>
+          </>
         )}
-
-        {/* SNS 간편로그인 계정 안내 */}
-        <div style={{ marginTop:20, padding:'14px 16px', background:'#F6F7F6', borderRadius:8,
-          fontSize:12, color:'#888', lineHeight:1.7 }}>
-          <div>· 카카오 · 네이버 등 SNS 간편로그인으로 가입하신 경우, 별도 비밀번호가 없으니 <strong style={{ color:'#555' }}>SNS 로그인</strong>을 이용해주세요.</div>
-          <div style={{ marginTop:6 }}>· 해당 SNS 계정의 아이디 · 비밀번호를 잊으신 경우, 카카오 · 네이버 등 <strong style={{ color:'#555' }}>해당 서비스</strong>에서 찾아주세요.</div>
-        </div>
 
         <div className="login-find-row" style={{ marginTop:16 }}>
           <Link href="/login">로그인</Link>
