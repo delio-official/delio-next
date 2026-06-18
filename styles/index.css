@@ -1314,7 +1314,8 @@
     }
     .banner-slide-glow { display: none; }
     @media(max-width:640px) {
-      .banner-slide-wrap { flex: 0 0 100vw; height: 368px; }
+      /* 모바일 배너: 고정높이 대신 이미지 비율(1080:740)로 고정 → 폭이 달라도 동일 비율로 표시(잘림 없음·일관) */
+      .banner-slide-wrap { flex: 0 0 100vw; height: auto; aspect-ratio: 1080 / 740; }
       .banner-slide-glow {
         display: block;
         position: absolute;
