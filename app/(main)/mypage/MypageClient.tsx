@@ -905,6 +905,33 @@ export default function MypageClient() {
     setProfile(prev => prev ? { ...prev, ...payload } : prev);
     showToastMsg('수신 설정이 변경되었습니다');
   }
+
+  /* 휴대폰 본인인증 (등록/변경) — 버튼 클릭에서 바로 다날 인증창 호출 (팝업차단 회피) */
+  async function startPhoneVerify() {
+    if (!user) { showToastMsg('로그인이 필요합니다.'); return; }
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+    if (!storeId || !channelKey) { showToastMsg('본인인증 설정이 없습니다. 관리자에게 문의해주세요.'); return; }
+    try {
+      const PortOne = await import('@portone/browser-sdk/v2');
+      const id = `verify-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const response = await PortOne.requestIdentityVerification({ storeId, channelKey, identityVerificationId: id });
+      if (!response || (response as { code?: string }).code !== undefined) {
+        showToastMsg((response as { message?: string })?.message || '본인인증이 취소되었습니다.');
+        return;
+      }
+      const r = await fetch('/api/verify/confirm', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityVerificationId: id }),
+      });
+      const j = await r.json();
+      if (!j.ok) { showToastMsg(j.error || '본인인증에 실패했습니다.'); return; }
+      // 갱신된 번호 반영
+      const { data: prof } = await createClient().from('profiles').select('phone, birth, gender').eq('id', user.id).maybeSingle();
+      if (prof) { setProfile(prev => prev ? { ...prev, ...(prof as Partial<Profile>) } : prev); setEditPhone((prof as { phone?: string | null }).phone || ''); }
+      showToastMsg('본인인증이 완료되었습니다.');
+    } catch { showToastMsg('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'); }
+  }
   /* 회원 탈퇴 → 사유 선택 → 혜택소멸 안내·동의 → 소프트 탈퇴 처리 */
   const [withdrawing, setWithdrawing] = useState(false);
   const [withdrawStep, setWithdrawStep] = useState<0 | 1 | 2>(0); // 0=닫힘 1=사유 2=동의
@@ -2485,7 +2512,7 @@ export default function MypageClient() {
                               <div className="mp-info-phone">
                                 <span>{profile?.phone || '미등록'}</span>
                                 <button className="mp-info-btn"
-                                  onClick={() => router.push('/verify?next=' + encodeURIComponent('/mypage'))}>
+                                  onClick={startPhoneVerify}>
                                   {profile?.phone ? '변경하기' : '인증하기'}
                                 </button>
                               </div>
