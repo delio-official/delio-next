@@ -2,15 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { sendPasswordReset } from '@/lib/auth';
+import { createClient } from '@/lib/supabase';
 import '@/styles/login.css';
 
 export default function FindPasswordClient() {
+  const router = useRouter();
   const [method, setMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   async function handleSend() {
     if (!email.trim()) { setError('가입하신 이메일을 입력해주세요.'); return; }
@@ -19,6 +24,49 @@ export default function FindPasswordClient() {
     setLoading(false);
     if (err) { setError('메일 발송에 실패했습니다. 이메일을 확인해주세요.'); return; }
     setSent(true);
+  }
+
+  /* 휴대폰 본인인증으로 비밀번호 재설정 */
+  async function startPhoneVerify() {
+    if (phoneLoading) return;
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+    if (!storeId || !channelKey) { setPhoneError('본인인증 설정이 없습니다. 관리자에게 문의해주세요.'); return; }
+    setPhoneLoading(true); setPhoneError('');
+    try {
+      const PortOne = await import('@portone/browser-sdk/v2');
+      const id = `pwreset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const response = await PortOne.requestIdentityVerification({ storeId, channelKey, identityVerificationId: id });
+      if (!response || (response as { code?: string }).code !== undefined) {
+        setPhoneError((response as { message?: string })?.message || '본인인증이 취소되었습니다.');
+        setPhoneLoading(false);
+        return;
+      }
+      // 1) 서버에서 본인인증 결과 확인 + 계정 조회 + 복구 토큰 발급
+      const r = await fetch('/api/find-password/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityVerificationId: id }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setPhoneError(j.error || '본인인증에 실패했습니다.');
+        setPhoneLoading(false);
+        return;
+      }
+      // 2) 복구 토큰으로 복구 세션 생성
+      const { error: otpErr } = await createClient().auth.verifyOtp({ type: 'recovery', token_hash: j.tokenHash });
+      if (otpErr) {
+        setPhoneError('재설정 세션 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setPhoneLoading(false);
+        return;
+      }
+      // 3) 비밀번호 재설정 화면으로 이동 (복구 세션 보유 → 새 비번 설정)
+      router.push('/reset-password');
+    } catch {
+      setPhoneError('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setPhoneLoading(false);
+    }
   }
 
   return (
@@ -69,12 +117,19 @@ export default function FindPasswordClient() {
             </>
           )
         ) : (
-          /* 휴대폰 본인인증 — 준비중 */
-          <div style={{ textAlign:'center', padding:'24px 0 8px' }}>
-            <p style={{ fontSize:14, color:'#888', lineHeight:1.8 }}>
-              휴대폰 본인인증을 통한 비밀번호 찾기는<br />
-              <strong style={{ color:'#1A1A1A' }}>준비 중</strong>입니다.<br />
-              현재는 이메일로 찾기를 이용해주세요.
+          /* 휴대폰 본인인증으로 재설정 */
+          <div style={{ padding:'4px 0' }}>
+            <p style={{ fontSize:13, color:'#888', lineHeight:1.6, marginBottom:14 }}>
+              가입 시 등록한 휴대폰으로 본인인증을 진행하면<br />
+              바로 새 비밀번호를 설정할 수 있습니다.
+            </p>
+            {phoneError && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, whiteSpace:'pre-line' }}>{phoneError}</p>}
+            <button className="login-btn login-btn-solid" onClick={startPhoneVerify} disabled={phoneLoading}>
+              {phoneLoading ? '인증 진행 중...' : '휴대폰 본인인증으로 재설정'}
+            </button>
+            <p style={{ fontSize:12, color:'#bbb', lineHeight:1.6, marginTop:14 }}>
+              가입 시 본인인증을 하지 않은 계정은<br />
+              이메일로 찾기를 이용해주세요.
             </p>
           </div>
         )}
