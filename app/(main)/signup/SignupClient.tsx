@@ -326,61 +326,12 @@ export default function SignupClient() {
             </div>
           </div>
 
-          {/* 휴대폰 */}
+          {/* 휴대폰·성별·생년월일은 가입 직후 휴대폰 본인인증에서 한 번에 등록 */}
           <div className="su-row">
-            <div className="su-lbl">휴대폰</div>
-            <div className="su-ctrl">
-              <input type="tel" className="su-input" placeholder="숫자만 입력해주세요"
-                value={phone}
-                onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} />
-            </div>
-          </div>
-
-          {/* 성별 */}
-          <div className="su-row">
-            <div className="su-lbl">성별</div>
-            <div className="su-ctrl">
-              <div className="su-gender-row">
-                <label className="su-radio-lbl">
-                  <input type="radio" name="gender" checked={gender === 'male'} onChange={() => setGender('male')} />
-                  <span>남자</span>
-                </label>
-                <label className="su-radio-lbl">
-                  <input type="radio" name="gender" checked={gender === 'female'} onChange={() => setGender('female')} />
-                  <span>여자</span>
-                </label>
-                <label className="su-radio-lbl">
-                  <input type="radio" name="gender" checked={gender === 'other'} onChange={() => setGender('other')} />
-                  <span>선택안함</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* 생년월일 */}
-          <div className="su-row">
-            <div className="su-lbl">생년월일</div>
-            <div className="su-ctrl">
-              <div className="su-birth-row">
-                <input type="text" className="su-birth-in su-birth-yyyy" maxLength={4} placeholder="YYYY"
-                  value={birthY}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '');
-                    setBirthY(v);
-                    if (v.length === 4) fBmRef.current?.focus();
-                  }} />
-                <span className="su-birth-sep">/</span>
-                <input ref={fBmRef} type="text" className="su-birth-in su-birth-mm" maxLength={2} placeholder="MM"
-                  value={birthM}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g, '');
-                    setBirthM(v);
-                    if (v.length === 2) fBdRef.current?.focus();
-                  }} />
-                <span className="su-birth-sep">/</span>
-                <input ref={fBdRef} type="text" className="su-birth-in su-birth-dd" maxLength={2} placeholder="DD"
-                  value={birthD}
-                  onChange={e => setBirthD(e.target.value.replace(/\D/g, ''))} />
+            <div className="su-lbl">본인인증</div>
+            <div className="su-ctrl su-ctrl-pt16">
+              <div style={{ fontSize:13, color:'#888', lineHeight:1.6 }}>
+                휴대폰번호·생년월일·성별은 가입 직후 <strong style={{ color:'#1A1A1A' }}>휴대폰 본인인증</strong>에서 한 번에 등록됩니다.
               </div>
             </div>
           </div>
