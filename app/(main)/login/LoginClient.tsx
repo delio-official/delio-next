@@ -91,7 +91,7 @@ export default function LoginClient() {
         )}
 
         <div className="login-find-row">
-          <a href="#" onClick={e => { e.preventDefault(); alert('아이디(이메일) 찾기는 휴대폰 본인인증 도입 후 제공될 예정입니다.'); }}>아이디 찾기</a>
+          <Link href="/find-id">아이디 찾기</Link>
           <span className="login-find-sep">|</span>
           <Link href="/find-password">비밀번호 찾기</Link>
         </div>
