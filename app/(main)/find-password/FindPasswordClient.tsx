@@ -90,15 +90,15 @@ export default function FindPasswordClient() {
         {method === 'email' ? (
           sent ? (
             <div style={{ textAlign:'center', padding:'12px 0 4px' }}>
-              <div style={{ width:64, height:64, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div style={{ width:48, height:48, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <p style={{ fontSize:14, color:'#444', lineHeight:1.7, marginBottom:24 }}>
                 <strong>{email}</strong>으로<br />
                 비밀번호 재설정 링크를 보냈습니다.<br />
                 메일함을 확인해주세요.
               </p>
-              <Link href="/login" className="login-btn login-btn-solid" style={{ textDecoration:'none', display:'block', textAlign:'center' }}>
+              <Link href="/login" className="login-btn login-btn-solid">
                 로그인으로 돌아가기
               </Link>
             </div>

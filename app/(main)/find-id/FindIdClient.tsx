@@ -41,8 +41,8 @@ export default function FindIdClient() {
         {results ? (
           /* 결과 화면 */
           <div style={{ textAlign:'center', padding:'8px 0 4px' }}>
-            <div style={{ width:64, height:64, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
-              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div style={{ width:48, height:48, borderRadius:'50%', background:'#22C55E', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             <p style={{ fontSize:14, color:'#888', marginBottom:14 }}>입력하신 정보로 가입된 아이디입니다.</p>
             <div style={{ background:'#F6F7F6', borderRadius:10, padding:'16px', marginBottom:24 }}>
@@ -50,10 +50,10 @@ export default function FindIdClient() {
                 <div key={e} style={{ fontSize:16, fontWeight:700, color:'#1A1A1A', padding:'4px 0' }}>{e}</div>
               ))}
             </div>
-            <Link href="/login" className="login-btn login-btn-solid" style={{ textDecoration:'none', display:'block', textAlign:'center', marginBottom:10 }}>
+            <Link href="/login" className="login-btn login-btn-solid">
               로그인하기
             </Link>
-            <Link href="/find-password" className="login-btn" style={{ textDecoration:'none', display:'block', textAlign:'center', border:'1px solid #E5E5E5', background:'#fff', color:'#555' }}>
+            <Link href="/find-password" className="login-btn" style={{ border:'1px solid #E5E5E5', background:'#fff', color:'#555' }}>
               비밀번호 찾기
             </Link>
           </div>
