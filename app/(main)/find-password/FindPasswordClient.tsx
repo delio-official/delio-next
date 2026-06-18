@@ -134,6 +134,13 @@ export default function FindPasswordClient() {
           </div>
         )}
 
+        {/* SNS 간편로그인 계정 안내 */}
+        <div style={{ marginTop:20, padding:'14px 16px', background:'#F6F7F6', borderRadius:8,
+          fontSize:12, color:'#888', lineHeight:1.7 }}>
+          <div>· 카카오 · 네이버 등 SNS 간편로그인으로 가입하신 경우, 별도 비밀번호가 없으니 <strong style={{ color:'#555' }}>SNS 로그인</strong>을 이용해주세요.</div>
+          <div style={{ marginTop:6 }}>· 해당 SNS 계정의 아이디 · 비밀번호를 잊으신 경우, 카카오 · 네이버 등 <strong style={{ color:'#555' }}>해당 서비스</strong>에서 찾아주세요.</div>
+        </div>
+
         <div className="login-find-row" style={{ marginTop:16 }}>
           <Link href="/login">로그인</Link>
           <span className="login-find-sep">|</span>
