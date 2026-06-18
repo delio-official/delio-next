@@ -552,6 +552,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   membersLoading: boolean;
 }) {
   const [smsText,      setSmsText]      = useState('');
+  const [smsKind,      setSmsKind]      = useState<'ad'|'notice'>('ad'); // 광고성(동의자만) / 안내성(전원)
   const [targetMode,   setTargetMode]   = useState<'all'|'grade'|'select'|'custom'>('all');
   const [gradeFilter,  setGradeFilter]  = useState('high');
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
@@ -617,8 +618,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     if (targetMode === 'all')    filtered = members;
     if (targetMode === 'grade')  filtered = members.filter(m => gradeFilter === 'high' ? ['buyer','master'].includes(m.grade) : m.grade === gradeFilter);
     if (targetMode === 'select') filtered = members.filter(m => selectedIds.has(m.id));
-    /* 광고성 단체발송은 마케팅 SMS 수신 동의 회원에게만 (법적 필수) */
-    filtered = filtered.filter(m => m.marketing_sms === true);
+    /* 광고성 단체발송은 마케팅 SMS 수신 동의 회원에게만 (법적 필수). 안내성(공지)은 전원 발송 가능. */
+    if (smsKind === 'ad') filtered = filtered.filter(m => m.marketing_sms === true);
     return filtered.map(m => m.phone || '').filter(Boolean).map(p => p.replace(/-/g, ''));
   }
 
@@ -659,6 +660,27 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
           <div className="adm-card-head"><span className="adm-card-title">SMS 작성</span></div>
           <div className="adm-form">
 
+            {/* 발송 종류 (광고성/안내성) */}
+            <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:10 }}>
+              <label className="adm-label">발송 종류</label>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {([['ad','광고성'],['notice','안내성(공지)']] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setSmsKind(v)}
+                    style={{ padding:'6px 14px', borderRadius:99, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer',
+                      borderColor: smsKind === v ? '#1A1A1A' : '#E2E8F0',
+                      background: smsKind === v ? '#1A1A1A' : '#fff',
+                      color: smsKind === v ? '#fff' : '#64748B' }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div className="adm-muted" style={{ fontSize:12 }}>
+                {smsKind === 'ad'
+                  ? <>※ <strong>광고성</strong>은 법적으로 <strong>마케팅 SMS 수신 동의 회원</strong>에게만 발송됩니다.</>
+                  : <>※ <strong>안내성(공지)</strong>은 서비스 변경·본인인증 안내 등 비광고 목적이라 <strong>수신동의 무관 전원 발송</strong>됩니다. 광고 문구는 넣지 마세요.</>}
+              </div>
+            </div>
+
             {/* 발송 대상 탭 */}
             <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:10 }}>
               <label className="adm-label">발송 대상</label>
@@ -673,12 +695,6 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   </button>
                 ))}
               </div>
-
-              {targetMode !== 'custom' && (
-                <div className="adm-muted" style={{ fontSize:12 }}>
-                  ※ 광고성 발송은 <strong>마케팅 SMS 수신 동의 회원</strong>에게만 발송됩니다.
-                </div>
-              )}
 
               {/* 등급별 선택 */}
               {targetMode === 'grade' && (
