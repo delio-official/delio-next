@@ -369,3 +369,18 @@ body { background: #fff; }
 .su-terms-badge { color: var(--color-ink-mute); }
 .su-terms-required { color: var(--color-ink-mute); }
 .su-terms-item-wrap { flex-wrap: wrap; }
+
+/* ── 모바일: 약관동의 영역 정리 (좁은 우측열로 밀려 글자 깨지는 문제 해결) ── */
+@media (max-width: 768px) {
+  /* 라벨(이용약관동의)을 위로, 약관 내용은 그 아래 전체폭으로 스택 */
+  .su-row-terms { flex-direction: column; align-items: stretch; }
+  .su-lbl-terms { width: 100%; padding: 18px 0 6px; }
+  .su-ctrl-terms { width: 100%; padding-top: 0; }
+  /* 한글이 한 글자씩 깨지지 않게 어절 단위 줄바꿈 */
+  .su-terms-txt { word-break: keep-all; }
+  .su-terms-left { min-width: 0; }
+  .su-terms-view { flex-shrink: 0; white-space: nowrap; align-self: flex-start; padding-top: 1px; }
+  /* 혜택수신 행: 문자/이메일 체크는 라벨 아래 줄로 내려 정렬 유지 */
+  .su-terms-item-wrap .su-terms-left { flex: 1 1 100%; }
+  .su-terms-item-wrap .su-terms-sub-row { flex: 1 1 100%; padding-left: 32px; }
+}
