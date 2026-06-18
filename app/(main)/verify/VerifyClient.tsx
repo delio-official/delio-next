@@ -52,6 +52,11 @@ export default function VerifyClient() {
         alert('본인인증이 완료되었습니다.');
         setStatus('verified');
         router.replace(next);
+      } else if (j.code === 'DUP' || j.code === 'REJOIN') {
+        // 중복가입/재가입 차단 → 이 계정은 사용 불가 → 로그아웃 후 로그인 화면으로
+        alert(j.error || '이미 가입된 본인인증 정보입니다.');
+        await createClient().auth.signOut();
+        router.replace('/login');
       } else {
         alert(j.error || '본인인증에 실패했습니다.');
       }

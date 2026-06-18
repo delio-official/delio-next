@@ -925,6 +925,12 @@ export default function MypageClient() {
         body: JSON.stringify({ identityVerificationId: id }),
       });
       const j = await r.json();
+      if (j.code === 'DUP' || j.code === 'REJOIN') {
+        alert(j.error || '이미 가입된 본인인증 정보입니다.');
+        await createClient().auth.signOut();
+        router.replace('/login');
+        return;
+      }
       if (!j.ok) { showToastMsg(j.error || '본인인증에 실패했습니다.'); return; }
       // 갱신된 번호 반영
       const { data: prof } = await createClient().from('profiles').select('phone, birth, gender').eq('id', user.id).maybeSingle();
