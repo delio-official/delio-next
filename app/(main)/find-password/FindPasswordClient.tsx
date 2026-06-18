@@ -88,14 +88,14 @@ export default function FindPasswordClient() {
       <div className="login-box">
         <h1 className="login-title">비밀번호 찾기</h1>
 
-        {/* 방식 선택 탭 */}
-        <div style={{ display:'flex', border:'1px solid #E5E5E5', borderRadius:10, overflow:'hidden', marginBottom:20 }}>
+        {/* 방식 선택 탭 (밑줄형) */}
+        <div style={{ display:'flex', borderBottom:'1px solid #E5E5E5', marginBottom:20 }}>
           {([['email','이메일로 찾기'],['phone','휴대폰 본인인증']] as const).map(([k, label]) => (
             <button key={k} onClick={() => setMethod(k)}
-              style={{ flex:1, padding:'12px 0', border:'none', cursor:'pointer', fontFamily:'inherit',
-                fontSize:13, fontWeight:700,
-                background: method===k ? '#1A1A1A' : '#fff',
-                color: method===k ? '#fff' : '#999' }}>
+              style={{ flex:1, padding:'14px 0', border:'none', background:'none', cursor:'pointer',
+                fontFamily:'inherit', fontSize:14, fontWeight:700, marginBottom:'-1px',
+                color: method===k ? '#1A1A1A' : '#bbb',
+                borderBottom: method===k ? '2px solid #1A1A1A' : '2px solid transparent' }}>
               {label}
             </button>
           ))}
