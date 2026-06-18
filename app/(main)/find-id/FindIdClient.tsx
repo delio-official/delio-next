@@ -58,7 +58,7 @@ export default function FindIdClient() {
                 </div>
               ))}
             </div>
-            <Link href="/login" className="login-btn login-btn-solid">
+            <Link href="/login" className="login-btn" style={{ background:'#1A1A1A', color:'#fff' }}>
               로그인하기
             </Link>
             <Link href="/find-password" className="login-btn" style={{ border:'1px solid #E5E5E5', background:'#fff', color:'#555' }}>
@@ -79,7 +79,8 @@ export default function FindIdClient() {
               onKeyDown={e => e.key === 'Enter' && handleFind()} autoComplete="tel" inputMode="numeric" maxLength={11} />
             {error && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2 }}>{error}</p>}
             <FindHelp title="아이디 찾기" />
-            <button className="login-btn login-btn-solid" style={{ marginTop:16 }} onClick={handleFind} disabled={loading}>
+            <button className="login-btn" onClick={handleFind} disabled={loading || !name.trim() || !phone.trim()}
+              style={{ marginTop:16, background: name.trim() && phone.trim() && !loading ? '#1A1A1A' : '#D5D7DA', color:'#fff' }}>
               {loading ? '조회 중...' : '아이디 찾기'}
             </button>
           </>

@@ -112,7 +112,7 @@ export default function FindPasswordClient() {
                 비밀번호 재설정 링크를 보냈습니다.<br />
                 메일함을 확인해주세요.
               </p>
-              <Link href="/login" className="login-btn login-btn-solid">
+              <Link href="/login" className="login-btn" style={{ background:'#1A1A1A', color:'#fff' }}>
                 로그인으로 돌아가기
               </Link>
             </div>
@@ -126,7 +126,8 @@ export default function FindPasswordClient() {
                 onKeyDown={e => e.key === 'Enter' && handleSend()} autoComplete="email" />
               {error && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, marginTop:-2, whiteSpace:'pre-line' }}>{error}</p>}
               <FindHelp title="비밀번호 찾기" />
-              <button className="login-btn login-btn-solid" style={{ marginTop:16 }} onClick={handleSend} disabled={loading}>
+              <button className="login-btn" onClick={handleSend} disabled={loading || !email.trim()}
+                style={{ marginTop:16, background: email.trim() && !loading ? '#1A1A1A' : '#D5D7DA', color:'#fff' }}>
                 {loading ? '발송 중...' : '재설정 링크 받기'}
               </button>
             </>
@@ -140,7 +141,8 @@ export default function FindPasswordClient() {
             </p>
             {phoneError && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, whiteSpace:'pre-line' }}>{phoneError}</p>}
             <FindHelp title="비밀번호 찾기" />
-            <button className="login-btn login-btn-solid" style={{ marginTop:16 }} onClick={startPhoneVerify} disabled={phoneLoading}>
+            <button className="login-btn" onClick={startPhoneVerify} disabled={phoneLoading}
+              style={{ marginTop:16, background: phoneLoading ? '#D5D7DA' : '#1A1A1A', color:'#fff' }}>
               {phoneLoading ? '인증 진행 중...' : '휴대폰 본인인증으로 재설정'}
             </button>
           </>
