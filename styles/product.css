@@ -88,6 +88,13 @@
     /* 모바일: 인라인 옵션선택·총금액·결제 영역 숨김 (하단 CTA→슬라이드업 드로어로 대체) */
     @media (max-width: 768px) { .pd-mob-hide { display: none; } }
 
+    /* 상품고시정보: PC 4열 / 모바일 2열(항목|값) */
+    .info-gosi-mob { display: none; }
+    @media (max-width: 768px) {
+      .info-gosi-pc { display: none; }
+      .info-gosi-mob { display: table; }
+    }
+
     /* PC: 이미지 위 오버레이 pill (좌하단) */
     .pd-beststat-pc {
       position: absolute; left: 14px; bottom: 14px; z-index: 2;

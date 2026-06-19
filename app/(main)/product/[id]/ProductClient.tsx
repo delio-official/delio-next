@@ -1866,8 +1866,13 @@ export default function ProductClient() {
                         }),
                         ...(infoData.tableExtra ?? []),
                       ];
+                /* 모바일용: 4열 → 2열(항목|값) 1개씩 평탄화 */
+                const flat: { k: string; v: string }[] = [];
+                rows.forEach(r => { if (r.k1) flat.push({ k: r.k1, v: r.v1 }); if (r.k2) flat.push({ k: r.k2, v: r.v2 }); });
                 return (
-                  <table style={{ width:'100%', borderCollapse:'collapse',
+                  <>
+                  {/* PC: 4열 */}
+                  <table className="info-gosi-pc" style={{ width:'100%', borderCollapse:'collapse',
                     fontSize:13, tableLayout:'fixed', border:'1px solid #E4E2DE' }}>
                     <tbody>
                       {rows.map((row, i) => (
@@ -1888,6 +1893,19 @@ export default function ProductClient() {
                       ))}
                     </tbody>
                   </table>
+                  {/* 모바일: 2열(항목 | 값) */}
+                  <table className="info-gosi-mob" style={{ width:'100%', borderCollapse:'collapse', fontSize:13.5 }}>
+                    <tbody>
+                      {flat.map((r, i) => (
+                        <tr key={i} style={{ borderBottom:'1px solid #EFEFEC' }}>
+                          <th style={{ textAlign:'left', fontWeight:600, color:'#8A8A8A',
+                            padding:'13px 14px 13px 0', width:'42%', verticalAlign:'top', lineHeight:1.6 }}>{r.k}</th>
+                          <td style={{ padding:'13px 0', color:'#333', verticalAlign:'top', lineHeight:1.6 }}>{r.v || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </>
                 );
               })()}
             </div>
