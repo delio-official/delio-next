@@ -1281,33 +1281,41 @@ export default function ProductClient() {
                 </div>
               )}
 
-              {/* 농가 카드 */}
+              {/* 농가 카드 (파트너 농가) */}
               {farm && (
-                <Link href={`/farm/${farm.slug}`} className="brand-card">
-                  <div className="brand-card-logo">
-                    {farm.thumbnail_url
-                      ? <img src={farm.thumbnail_url} alt={farm.name} />
-                      : emoji}
-                  </div>
-                  <div className="brand-card-body">
-                    <div className="brand-card-name">
-                      {farm.name}
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6"/>
-                      </svg>
+                <div className="brand-section">
+                  <div className="brand-section-title">파트너 농가</div>
+                  <Link href={`/farm/${farm.slug}`} className="brand-card">
+                    <div className="brand-card-logo">
+                      {farm.thumbnail_url
+                        ? <img src={farm.thumbnail_url} alt={farm.name} />
+                        : emoji}
                     </div>
-                    <div className="brand-card-desc">{farm.region} · {farm.farm_type}</div>
-                    {farm.intro && <div className="brand-card-sub">{farm.intro}</div>}
-                  </div>
-                  <div className="brand-card-wish">
-                    <button className="brand-card-wish-btn"
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFarmWish(); }}
-                      style={{ color: farmWished ? '#E55A4B' : undefined }}>
-                      {farmWished ? '♥' : '♡'}
-                    </button>
-                    <span className="brand-card-wish-count">{farmWishCount.toLocaleString()}</span>
-                  </div>
-                </Link>
+                    <div className="brand-card-body">
+                      <div className="brand-card-name">
+                        {farm.name}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </div>
+                      {farm.intro && <div className="brand-card-desc">{farm.intro}</div>}
+                      <div className="brand-card-sub">{farm.region} · {farm.farm_type}</div>
+                    </div>
+                    <div className="brand-card-wish">
+                      <button className="brand-card-wish-btn"
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); toggleFarmWish(); }}
+                        aria-label="농가 찜">
+                        <svg viewBox="0 0 24 24" width="22" height="22"
+                          fill={farmWished ? '#E55A4B' : 'none'}
+                          stroke={farmWished ? '#E55A4B' : '#B5B5B5'} strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                      </button>
+                      <span className="brand-card-wish-count">{farmWishCount.toLocaleString()}</span>
+                    </div>
+                  </Link>
+                </div>
               )}
             </div>
 
