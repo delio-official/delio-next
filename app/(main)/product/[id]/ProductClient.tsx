@@ -2169,7 +2169,11 @@ export default function ProductClient() {
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
                       {(r.image_urls ?? []).map((url, ii) => (
                         <img key={ii} src={url} alt="" loading="lazy"
-                          onClick={() => { setPhotoGalleryOpen(true); }}
+                          onClick={() => {
+                            const gIdx = allPhotoItems.findIndex(p => p.review?.id === r.id && p.photoIdx === ii);
+                            setSelectedGalleryIdx(gIdx >= 0 ? gIdx : null);
+                            setPhotoGalleryOpen(true);
+                          }}
                           style={{ width:92, height:92, objectFit:'cover', borderRadius:8,
                             border:'1px solid #EEE', cursor:'pointer' }} />
                       ))}
