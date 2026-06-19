@@ -1740,7 +1740,7 @@ export default function ProductClient() {
                   <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: '#F4F4F4' }}>
                     <div className="taste5-top">
                       <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
-                      <span className="taste5-claim" style={{ color: '#5F0080' }}>{axisLevelLabel(axis, sLevel)}</span>
+                      <span className="taste5-claim" style={{ color: '#7B3FF2' }}>{axisLevelLabel(axis, sLevel)}</span>
                     </div>
                     <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${fillPct}%`, background: '#CB1D11' }} /></div>
                     {tasteRevealed
