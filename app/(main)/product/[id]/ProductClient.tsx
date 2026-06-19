@@ -1246,6 +1246,17 @@ export default function ProductClient() {
                   {product.is_dawn && <span className="trust-pill">🌙 새벽배송</span>}
                   {product.is_best && <span className="trust-pill">⭐ 베스트</span>}
                 </div>
+                {/* 이미지 카운터 (현재 | 전체) */}
+                {validImgIdx.length >= 1 && (
+                  <div style={{ position:'absolute', right:12, bottom:12, zIndex:2,
+                    background:'rgba(0,0,0,0.5)', color:'#fff', fontSize:12, fontWeight:600,
+                    padding:'4px 11px', borderRadius:20, letterSpacing:'0.5px',
+                    fontVariantNumeric:'tabular-nums' }}>
+                    {String(Math.max(0, validImgIdx.indexOf(selThumb)) + 1).padStart(2, '0')}
+                    <span style={{ opacity:0.45, margin:'0 5px' }}>|</span>
+                    {String(validImgIdx.length).padStart(2, '0')}
+                  </div>
+                )}
               </div>
 
               {/* 썸네일 행: 추가 사진(image_urls)이 있을 때만 노출 */}
