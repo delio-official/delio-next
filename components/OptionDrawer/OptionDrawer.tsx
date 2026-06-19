@@ -26,6 +26,7 @@ export default function OptionDrawer() {
   const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
   const [qty, setQty]         = useState(1);
   const [loading, setLoading] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   useEffect(() => {
     async function handler(e: Event) {
@@ -35,6 +36,7 @@ export default function OptionDrawer() {
       setLoading(true);
       setSelByGroup({});
       setQty(1);
+      setOpenGroup(null);
       const supabase = createClient();
       const [{ data: prod }, { data: opts }] = await Promise.all([
         supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', productId).single(),
@@ -153,24 +155,48 @@ export default function OptionDrawer() {
                 return (
                 <div key={g} style={{ marginBottom:14 }}>
                   <label style={{ fontSize:13, fontWeight:600, color:'#555', display:'block', marginBottom:8 }}>{g === '옵션' ? '선택' : g}{gReq ? '' : ' (선택)'}</label>
-                  <select value={selByGroup[g] || ''} disabled={locked}
-                    onChange={e => {
-                      const val = e.target.value;
+                  {(() => {
+                    const groupOpts = optsForGroup(g);
+                    const selOpt = groupOpts.find(o => o.id === selByGroup[g]);
+                    const isOpen = openGroup === g;
+                    const choose = (val: string) => {
                       setSelByGroup(prev => { const next = { ...prev, [g]: val }; if (g === parentGroup) groupNames.slice(1).forEach(sub => { delete next[sub]; }); return next; });
                       setQty(1);
-                    }}
-                    style={{ width:'100%', height:46, padding:'0 14px', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', background: locked ? '#F4F4F4' : '#fff', cursor: locked ? 'not-allowed' : 'pointer' }}>
-                    <option value="">{locked ? '상위 옵션을 먼저 선택' : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}</option>
-                    {optsForGroup(g).map(o => {
-                      // 분류(상위 품종)는 재고 개념 없음 → 하위 옵션만 품절 판정
-                      const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
-                      return (
-                        <option key={o.id} value={o.id} disabled={soldout}>
-                          {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{soldout ? ' (품절)' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+                      setOpenGroup(null);
+                    };
+                    return (
+                      <div className="opt-dd">
+                        <button type="button" className={`opt-dd-btn${isOpen ? ' open' : ''}`} disabled={locked}
+                          onClick={() => setOpenGroup(isOpen ? null : g)}>
+                          <span className={selOpt ? '' : 'ph'}>
+                            {locked ? '상위 옵션을 먼저 선택'
+                              : selOpt ? `${selOpt.label}${selOpt.add_price > 0 ? ` (+${selOpt.add_price.toLocaleString()}원)` : ''}`
+                              : `${gReq ? '[필수]' : '[선택]'} 옵션 선택`}
+                          </span>
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        {isOpen && !locked && (
+                          <>
+                            <div className="opt-dd-backdrop" onClick={() => setOpenGroup(null)} />
+                            <div className="opt-dd-list">
+                              {groupOpts.map(o => {
+                                const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
+                                return (
+                                  <button type="button" key={o.id} disabled={soldout}
+                                    className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}
+                                    style={soldout ? { opacity:0.45, cursor:'not-allowed' } : undefined}
+                                    onClick={() => { if (!soldout) choose(o.id); }}>
+                                    {o.label}{o.add_price > 0 ? ` (+${o.add_price.toLocaleString()}원)` : ''}{soldout ? ' (품절)' : ''}
+                                  </button>
+                                );
+                              })}
+                              {groupOpts.length === 0 && <div className="opt-dd-empty">선택 가능한 옵션이 없습니다</div>}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 );
               })}
@@ -217,6 +243,37 @@ export default function OptionDrawer() {
       </div>
 
       <style jsx>{`
+        /* 커스텀 옵션 드롭다운 (상품 상세페이지와 통일) */
+        .opt-dd { position: relative; }
+        .opt-dd-btn {
+          width: 100%; padding: 12px 14px 12px 16px;
+          display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          border-radius: 8px; border: 1.5px solid #DDDDD9; background: #fff;
+          font-size: 14px; color: #1A1A1A; cursor: pointer; font-family: inherit; text-align: left;
+        }
+        .opt-dd-btn:disabled { background: #F4F4F4; color: #AAA; cursor: not-allowed; }
+        .opt-dd-btn.open { border-color: #1A1A1A; }
+        .opt-dd-btn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .opt-dd-btn .ph { color: #9A9A9A; }
+        .opt-dd-btn svg { color: #8B9389; flex-shrink: 0; transition: transform .15s; }
+        .opt-dd-btn.open svg { transform: rotate(180deg); }
+        .opt-dd-backdrop { position: fixed; inset: 0; z-index: 4002; }
+        .opt-dd-list {
+          position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 4003;
+          background: #fff; border: 1px solid #E2E2E2; border-radius: 10px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; max-height: 240px; overflow-y: auto;
+        }
+        .opt-dd-item {
+          display: block; width: 100%; text-align: left;
+          padding: 13px 16px; background: #fff; border: none; cursor: pointer;
+          font-size: 14px; color: #1A1A1A; font-family: inherit;
+          border-bottom: 1px solid #F2F2F2;
+        }
+        .opt-dd-item:last-child { border-bottom: none; }
+        .opt-dd-item:hover { background: #F7F7F5; }
+        .opt-dd-item.sel { background: #F2F2F0; font-weight: 700; }
+        .opt-dd-empty { padding: 16px; text-align: center; font-size: 13px; color: #AAA; }
+
         .option-drawer {
           position: fixed;
           z-index: 4001;
