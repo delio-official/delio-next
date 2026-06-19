@@ -1258,16 +1258,6 @@ export default function ProductClient() {
                     <span style={{ color:'#888' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
                   </div>
                 )}
-                {/* 만족/재구매 pill (이미지 위 오버레이) — 모바일 전용 */}
-                {bestStat && (
-                  <div className="pd-beststat">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    <span>{bestStat.text}</span>
-                  </div>
-                )}
               </div>
 
               {/* 썸네일 행: 추가 사진(image_urls)이 있을 때만 노출 */}
@@ -2735,6 +2725,17 @@ export default function ProductClient() {
       )}
 
       {/* ── 모바일 고정 CTA ── */}
+      {/* 만족/재구매 플로팅 필 (하단 구매바 위) — 모바일 전용 */}
+      {bestStat && (
+        <div className="pd-beststat">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span>{bestStat.text}</span>
+        </div>
+      )}
+
       <div className="mobile-cta-bar">
         <button onClick={toggleWishlist} aria-label="찜하기"
           style={{ flexShrink:0, width:46, border:'1.5px solid #DDDDD9',
