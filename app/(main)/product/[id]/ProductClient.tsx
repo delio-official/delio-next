@@ -1258,6 +1258,16 @@ export default function ProductClient() {
                     <span style={{ color:'#888' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
                   </div>
                 )}
+                {/* 만족/재구매 pill (이미지 위 오버레이) — 모바일 전용 */}
+                {bestStat && (
+                  <div className="pd-beststat">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    <span>{bestStat.text}</span>
+                  </div>
+                )}
               </div>
 
               {/* 썸네일 행: 추가 사진(image_urls)이 있을 때만 노출 */}
@@ -1321,16 +1331,6 @@ export default function ProductClient() {
 
             {/* ────────────────── pd-right ────────────────── */}
             <div className="pd-right">
-
-              {/* 모바일 신뢰 pill (만족도·재구매율·구매자수 중 최고값) */}
-              {bestStat && (
-                <div className="pd-beststat">
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                  <span>{bestStat.text}</span>
-                </div>
-              )}
 
               {/* 브레드크럼 */}
               <h1 className="product-name">{product.name}</h1>
