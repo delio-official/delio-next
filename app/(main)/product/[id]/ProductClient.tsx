@@ -2109,7 +2109,7 @@ export default function ProductClient() {
               justifyContent:'space-between', padding:'12px 0',
               borderBottom:'1px solid #EBEBEB',
               marginBottom:4 }}>
-              <span style={{ fontSize:14, fontWeight:700 }}>
+              <span style={{ fontSize:17, fontWeight:700 }}>
                 리뷰 {product.review_count.toLocaleString()}건
               </span>
               <label style={{ display:'flex', alignItems:'center', gap:6,
