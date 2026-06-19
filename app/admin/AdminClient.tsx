@@ -435,7 +435,10 @@ async function compressImage(file: File, maxDim = 1200, quality = 0.82): Promise
     const img: HTMLImageElement = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl; });
     let w = img.naturalWidth, h = img.naturalHeight;
     if (!w || !h) return fallback;
-    const scale = Math.min(1, maxDim / Math.max(w, h));
+    // 가로폭 기준 축소(세로로 긴 상세이미지가 가로 뭉개지는 문제 방지). 단, 캔버스 한계 방지로 높이도 안전 상한 적용.
+    let scale = Math.min(1, maxDim / w);
+    const MAX_H = 12000;
+    if (h * scale > MAX_H) scale = Math.min(scale, MAX_H / h);
     w = Math.round(w * scale); h = Math.round(h * scale);
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
