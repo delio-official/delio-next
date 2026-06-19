@@ -2819,7 +2819,7 @@ export default function MypageClient() {
 
                       {/* 등급별 혜택 안내 (디자인 이미지) — 혜택01 표 · 혜택02 생일쿠폰 · 유의사항 */}
                       <img
-                        src="/membership-benefits.png"
+                        src="/delio_membership_v2.png"
                         alt="델리오 멤버십 등급별 혜택 안내"
                         onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         style={{ width:'100%', height:'auto', display:'block', borderRadius:12, marginTop:4 }}
