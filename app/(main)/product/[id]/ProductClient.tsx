@@ -1708,12 +1708,12 @@ export default function ProductClient() {
                     <div className="tp-summary-metrics">
                       <div className="tp-metric">
                         <span className="tp-metric-label">만족도</span>
-                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#3E9B5F' }} /></div>
+                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#1A1A1A' }} /></div>
                         <span className="tp-metric-val">{satisfiedPct}%</span>
                       </div>
                       <div className="tp-metric">
                         <span className="tp-metric-label">재구매율</span>
-                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#E8632B' }} /></div>
+                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#1A1A1A' }} /></div>
                         <span className="tp-metric-val">{buyerStats.repurchase}%</span>
                       </div>
                       <div className="tp-metric tp-metric-badge">

@@ -521,7 +521,7 @@
     .tp-metric-val { flex-shrink: 0; width: 40px; text-align: right; font-size: 12px; font-weight: 800; color: var(--color-ink); }
     .tp-metric-badge { justify-content: flex-start; }
     .tp-buyer-badge {
-      font-size: 12px; font-weight: 700; color: #B45309; background: #FEF3C7;
+      font-size: 12px; font-weight: 700; color: #E0322B; background: #FDE8E8;
       padding: 3px 10px; border-radius: 999px;
     }
     .tp-axis-head { font-size: 15px; font-weight: 800; color: var(--color-ink); margin-bottom: 12px; }
