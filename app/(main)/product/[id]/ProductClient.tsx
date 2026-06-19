@@ -1366,11 +1366,9 @@ export default function ProductClient() {
               {/* 가격 */}
               <div className="price-block">
                 <div className="price-line" style={{ marginBottom:4, alignItems:'center' }}>
-                  {product.discount_rate > 0
-                    ? <span className="price-discount-rate">{product.discount_rate}%</span>
-                    : (bestCoupon && bestCoupon !== 'loading')
-                      ? <span className="price-discount-rate" aria-hidden="true" />
-                      : null}
+                  {product.discount_rate > 0 && (
+                    <span className="price-discount-rate">{product.discount_rate}%</span>
+                  )}
                   <span className="price-discount-val">
                     {fmtPrice(basePrice)}<span className="price-won-suffix">원</span>
                   </span>

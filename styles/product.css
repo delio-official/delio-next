@@ -123,9 +123,9 @@
     .price-label { font-size: 12px; color: var(--color-ink-mute); width: 64px; flex-shrink: 0; }
     .price-original-text { font-size: 15px; color: var(--color-ink-mute); text-decoration: line-through; }
     .price-discount-val { font-size: 26px; font-weight: 800; color: #1A1A1A; letter-spacing: -0.5px; }
-    .price-discount-rate { font-size: 26px; font-weight: 800; color: #CB1D11; letter-spacing: -0.5px; min-width: 54px; text-align: right; flex-shrink: 0; }
+    .price-discount-rate { font-size: 26px; font-weight: 800; color: #CB1D11; letter-spacing: -0.5px; flex-shrink: 0; }
     .price-coupon-val { font-size: 26px; font-weight: 800; color: #7B3FF2; letter-spacing: -0.5px; }
-    .price-coupon-rate { font-size: 26px; font-weight: 800; color: #7B3FF2; letter-spacing: -0.5px; min-width: 54px; text-align: right; flex-shrink: 0; }
+    .price-coupon-rate { font-size: 26px; font-weight: 800; color: #7B3FF2; letter-spacing: -0.5px; flex-shrink: 0; }
     .price-won-suffix { font-size: 15px; font-weight: 700; margin-left: 1px; }
     .price-coupon-tag { align-self: center; font-size: 11px; font-weight: 700; background: #EDE7F6; color: #7B3FF2; border-radius: 5px; padding: 3px 7px; margin-left: 2px; }
 
