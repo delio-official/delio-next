@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -1440,6 +1440,8 @@ export default function ProductClient() {
 
               {/* 옵션 & 수량 & 출발안내 & 총금액 & CTA */}
               <div className="option-section">
+                {/* 모바일: 옵션/수량·총금액·결제는 하단 CTA → 슬라이드업 드로어로 처리 (여기선 숨김) */}
+                <div className="pd-mob-hide">
                 {options.length > 0 && (
                   <>
                     {/* ── 그룹별 옵션 드롭다운 (덧셈식) ── */}
@@ -1583,6 +1585,7 @@ export default function ProductClient() {
                     </div>
                   </>
                 )}
+                </div>{/* /pd-mob-hide (옵션·수량) */}
 
                 {/* 출발 안내 — 상품별 설정 우선, 없으면 전체 설정, 둘 다 없으면 숨김 */}
                 {(product.dispatch_cutoff || siteDispatchCutoff) && (
@@ -1605,6 +1608,7 @@ export default function ProductClient() {
                   </div>
                 )}
 
+                <div className="pd-mob-hide">
                 {/* 총 상품금액 */}
                 <div className="total-row">
                   <span style={{ fontSize:14, color:'var(--color-ink-soft)' }}>총 상품금액</span>
@@ -1677,6 +1681,7 @@ export default function ProductClient() {
                     </span>
                   </div>
                 </div>
+                </div>{/* /pd-mob-hide (총금액·결제) */}
               </div>
             </div>
           </div>
@@ -2776,10 +2781,10 @@ export default function ProductClient() {
             <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 3 12 7 12 7z"/>
           </svg>
         </button>
-        <button className="btn btn-secondary btn-flex-1" onClick={handleAddCart}>
+        <button className="btn btn-secondary btn-flex-1" onClick={() => openOptionDrawer(product.id)}>
           장바구니
         </button>
-        <button className="btn btn-primary btn-flex-2" onClick={handleBuyNow}>
+        <button className="btn btn-primary btn-flex-2" onClick={() => openOptionDrawer(product.id)}>
           바로 구매하기
         </button>
       </div>

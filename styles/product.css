@@ -85,6 +85,9 @@
       .pd-beststat svg { flex-shrink: 0; }
     }
 
+    /* 모바일: 인라인 옵션선택·총금액·결제 영역 숨김 (하단 CTA→슬라이드업 드로어로 대체) */
+    @media (max-width: 768px) { .pd-mob-hide { display: none; } }
+
     /* PC: 이미지 위 오버레이 pill (좌하단) */
     .pd-beststat-pc {
       position: absolute; left: 14px; bottom: 14px; z-index: 2;
