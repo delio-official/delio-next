@@ -1388,12 +1388,21 @@ export default function ProductClient() {
                     </span>
                     <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
                   </div>
-                ) : !user ? (
-                  <div style={{ fontSize:12, color:'var(--color-ink-mute)', marginTop:2 }}>
-                    🎟 <span style={{ textDecoration:'underline', cursor:'pointer' }}
-                      onClick={() => router.push('/login')}>로그인</span> 시 쿠폰 혜택 확인
-                  </div>
-                ) : null}
+                ) : (!user && signupCoupon > 0) ? (() => {
+                  /* 비로그인/비회원: 신규가입 쿠폰 기준 최대할인가 (로그인 사용자와 동일 표기) */
+                  const disc = Math.min(signupCoupon, basePrice);
+                  const fin  = basePrice - disc;
+                  const rate = Math.round((1 - fin / product.price) * 100);
+                  return (
+                    <div className="price-line" style={{ alignItems:'center' }}>
+                      <span className="price-coupon-rate">{rate}%</span>
+                      <span className="price-coupon-val">
+                        {fmtPrice(fin)}<span className="price-won-suffix">원</span>
+                      </span>
+                      <span className="price-coupon-tag">신규가입 시 최대할인가</span>
+                    </div>
+                  );
+                })() : null}
               </div>
 
               {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
