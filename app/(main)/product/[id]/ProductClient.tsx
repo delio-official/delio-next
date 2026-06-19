@@ -1249,11 +1249,11 @@ export default function ProductClient() {
                 {/* 이미지 카운터 (현재 | 전체) */}
                 {validImgIdx.length >= 1 && (
                   <div style={{ position:'absolute', right:12, bottom:12, zIndex:2,
-                    background:'rgba(0,0,0,0.5)', color:'#fff', fontSize:12, fontWeight:600,
-                    padding:'4px 11px', borderRadius:20, letterSpacing:'0.5px',
+                    background:'rgba(238,238,238,0.92)', color:'#333', fontSize:12, fontWeight:700,
+                    padding:'4px 12px', borderRadius:20, letterSpacing:'0.5px',
                     fontVariantNumeric:'tabular-nums' }}>
                     {String(Math.max(0, validImgIdx.indexOf(selThumb)) + 1).padStart(2, '0')}
-                    <span style={{ opacity:0.45, margin:'0 5px' }}>|</span>
+                    <span style={{ color:'#c4c4c4', margin:'0 6px' }}>|</span>
                     {String(validImgIdx.length).padStart(2, '0')}
                   </div>
                 )}
