@@ -1737,14 +1737,14 @@ export default function ProductClient() {
                 const pct = agreePct(sLevel, buyerLevelsOf(axis.key));
                 const fillPct = tasteRevealed ? pct : sLevel / 5 * 100;
                 return (
-                  <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: axis.bg }}>
+                  <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: '#F4F4F4' }}>
                     <div className="taste5-top">
                       <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
-                      <span className="taste5-claim" style={{ color: axis.hex }}>{axisLevelLabel(axis, sLevel)}</span>
+                      <span className="taste5-claim" style={{ color: '#5F0080' }}>{axisLevelLabel(axis, sLevel)}</span>
                     </div>
-                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${fillPct}%`, background: axis.hex }} /></div>
+                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${fillPct}%`, background: '#CB1D11' }} /></div>
                     {tasteRevealed
-                      ? <div className="taste5-agree">구매자 <b style={{ color: axis.hex }}>{pct}%</b> 동의</div>
+                      ? <div className="taste5-agree">구매자 <b style={{ color: '#1A1A1A', fontWeight: 800 }}>{pct}%</b> 동의</div>
                       : <div className="taste5-agree taste5-agree-wait">판매자 제공 · 구매자 동의율은 리뷰 {TASTE_REVEAL_MIN}개 이상 공개</div>}
                   </div>
                 );
@@ -1754,12 +1754,12 @@ export default function ProductClient() {
                 const fresh = TASTE_AXES.find(a => a.key === 'fresh')!;
                 const pct = avgPct(buyerLevelsOf('fresh'));
                 return (
-                  <div className="taste5-card taste5-fresh taste5-extra" style={{ background: fresh.bg }}>
+                  <div className="taste5-card taste5-fresh taste5-extra" style={{ background: '#F4F4F4' }}>
                     <div className="taste5-top">
                       <span className="taste5-name"><span className="taste5-icon">{fresh.icon}</span>{fresh.label}<span className="taste5-only">구매자 전용</span></span>
-                      <span className="taste5-claim" style={{ color: fresh.hex }}>{pct}%</span>
+                      <span className="taste5-claim" style={{ color: '#1A1A1A', fontWeight: 800 }}>{pct}%</span>
                     </div>
-                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: fresh.hex }} /></div>
+                    <div className="taste5-bar"><div className="taste5-fill" style={{ width:`${pct}%`, background: '#CB1D11' }} /></div>
                   </div>
                 );
               })()}
