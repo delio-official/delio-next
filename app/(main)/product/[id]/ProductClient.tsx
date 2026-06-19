@@ -2014,8 +2014,8 @@ export default function ProductClient() {
                           {product.avg_rating.toFixed(1)}
                         </span>
                       </div>
-                      <p style={{ fontSize:11, color:'var(--color-ink-mute)', textAlign:'center', lineHeight:1.5, margin:0 }}>
-                        <strong style={{ color:'var(--color-ink)', fontSize:12 }}>{satisfiedPct}%</strong>의 구매자가<br />만족했어요
+                      <p style={{ fontSize:11, color:'var(--color-ink-mute)', textAlign:'center', lineHeight:1.5, margin:0, wordBreak:'keep-all' }}>
+                        구매자의 <strong style={{ color:'var(--color-ink)', fontSize:12 }}>{satisfiedPct}%</strong>가<br />만족했어요
                       </p>
                     </div>
                   );
