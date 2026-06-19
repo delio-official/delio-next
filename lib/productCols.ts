@@ -5,4 +5,4 @@ export const PRODUCT_PUBLIC_COLS =
   'id, name, category, price, discount_rate, discounted_price, is_active, farm_id, ' +
   'sort_order, created_at, sku, origin, origin_region, short_desc, ' +
   'thumbnail_url, image_urls, dispatch_cutoff, brix, badge, badge_color, ' +
-  'is_new, is_best, is_dawn, avg_rating, review_count, seller_score';
+  'is_new, is_best, is_dawn, avg_rating, review_count, seller_score, show_stat_pill';

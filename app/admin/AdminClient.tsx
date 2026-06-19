@@ -98,6 +98,7 @@ interface AdminProductFull extends AdminProduct {
   is_new: boolean;
   is_best: boolean;
   is_dawn: boolean;
+  show_stat_pill: boolean;
   seller_score: Record<string, number> | null;
 }
 
@@ -1318,7 +1319,7 @@ export default function AdminClient() {
     sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
-    is_best: false, is_dawn: false, is_active: true, farm_id: null, sort_order: 0,
+    is_best: false, is_dawn: false, is_active: true, show_stat_pill: true, farm_id: null, sort_order: 0,
     seller_score: null,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
@@ -2385,6 +2386,7 @@ export default function AdminClient() {
             dispatch_cutoff: data.dispatch_cutoff || '',
             brix: data.brix, badge: data.badge || '', badge_color: data.badge_color || BADGE_DEFAULT_COLOR, is_new: data.is_new,
             is_best: data.is_best, is_dawn: data.is_dawn, is_active: data.is_active,
+            show_stat_pill: data.show_stat_pill !== false,
             farm_id: data.farm_id, sort_order: data.sort_order || 0,
             seller_score: data.seller_score || null,
           });
@@ -2451,6 +2453,7 @@ export default function AdminClient() {
       is_best:        Boolean(pForm.is_best),
       is_dawn:        Boolean(pForm.is_dawn),
       is_active:      Boolean(pForm.is_active),
+      show_stat_pill: Boolean(pForm.show_stat_pill),
       farm_id:        pForm.farm_id               || null,
       sort_order:     Number(pForm.sort_order)    || 0,
       seller_score:   pForm.seller_score && Object.keys(pForm.seller_score).length > 0 ? pForm.seller_score : null,
@@ -4839,6 +4842,7 @@ export default function AdminClient() {
                   ['is_new',  'NEW 태그'],
                   ['is_best', '인기 태그'],
                   ['is_active', '판매중'],
+                  ['show_stat_pill', '만족/재구매 필 표시'],
                 ] as const).map(([key, label]) => (
                   <label key={key} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14 }}>
                     <input type="checkbox" checked={!!pForm[key]}

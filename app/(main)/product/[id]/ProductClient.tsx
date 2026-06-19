@@ -883,6 +883,8 @@ export default function ProductClient() {
 
   /* 모바일 상단 신뢰 pill: 만족도·재구매율·구매자수 중 가장 좋은(인상적인) 값 1개 */
   const bestStat: { text: string } | null = (() => {
+    // 어드민에서 끈 상품은 pill 숨김
+    if ((product as { show_stat_pill?: boolean }).show_stat_pill === false) return null;
     const satRate = product.review_count > 0
       ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
     const cands: { score: number; text: string }[] = [];
