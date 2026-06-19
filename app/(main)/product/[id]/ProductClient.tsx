@@ -1268,9 +1268,9 @@ export default function ProductClient() {
                       className={`thumb${selThumb === i ? ' active' : ''}`}
                       onClick={() => { if (imgUrl) setSelThumb(i); }}
                       style={{
-                        background: imgUrl ? '#fff' : `linear-gradient(135deg,${bg},#fff)`,
+                        background: '#fff',
                         cursor: imgUrl ? 'pointer' : 'default',
-                        opacity: imgUrl ? 1 : 0.35,
+                        opacity: 1,
                       }}>
                       {imgUrl
                         ? <img src={imgUrl} alt=""
