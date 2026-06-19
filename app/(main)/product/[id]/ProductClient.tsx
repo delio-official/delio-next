@@ -1254,8 +1254,8 @@ export default function ProductClient() {
                     fontVariantNumeric:'tabular-nums',
                     backdropFilter:'blur(3px)', WebkitBackdropFilter:'blur(3px)' }}>
                     <span style={{ color:'#111' }}>{String(Math.max(0, validImgIdx.indexOf(selThumb)) + 1).padStart(2, '0')}</span>
-                    <span style={{ color:'#c4c4c4', margin:'0 6px' }}>|</span>
-                    <span style={{ color:'#bbb' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
+                    <span style={{ color:'#999', margin:'0 6px' }}>|</span>
+                    <span style={{ color:'#888' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
                   </div>
                 )}
               </div>
