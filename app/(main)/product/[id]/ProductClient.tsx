@@ -1407,7 +1407,7 @@ export default function ProductClient() {
 
               {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
               {!user && (
-                <Link href="/signup" className="signup-coupon-banner">
+                <Link href="/login" className="signup-coupon-banner">
                   <div className="signup-coupon-banner-left">
                     <span className="signup-coupon-icon">🎁</span>
                     <span className="signup-coupon-text">
