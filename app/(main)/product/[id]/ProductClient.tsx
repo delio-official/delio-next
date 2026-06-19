@@ -2073,57 +2073,33 @@ export default function ProductClient() {
             {/* ✅ 포토/영상 리뷰 그리드 (원본 구조 그대로) */}
             {product.review_count > 0 && (
               <div style={{ marginBottom:20 }}>
-                <div style={{ display:'flex', alignItems:'center',
-                  justifyContent:'space-between', marginBottom:12 }}>
+                <div style={{ marginBottom:12 }}>
                   <span style={{ fontSize:13, fontWeight:700 }}>
                     포토/영상리뷰 ({photoReviewCount.toLocaleString()})
                   </span>
-                  <span
-                    onClick={() => setPhotoGalleryOpen(true)}
-                    style={{ fontSize:12, color:'var(--color-ink-mute)',
-                      display:'flex', alignItems:'center', gap:2, cursor:'pointer' }}>
-                    전체보기
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                  </span>
                 </div>
-                <div style={{ display:'flex', gap:8, flexWrap:'nowrap' }}>
-                  {allPhotoItems.slice(0, 7).map((item, i) => (
-                    <div key={i}
-                      onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(i); }}
-                      style={{ width:80, height:80, flexShrink:0, borderRadius:6, cursor:'pointer',
-                        background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:28,
-                        border:'1px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
-                      {item.url
-                        ? <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                        : emoji}
-                    </div>
-                  ))}
-                  {allPhotoItems.length > 7 && (
-                    <div
-                      onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(null); }}
-                      style={{ width:80, height:80, flexShrink:0, position:'relative',
-                        borderRadius:6, overflow:'hidden', cursor:'pointer' }}>
-                      <div style={{ width:'100%', height:'100%',
-                        background: allPhotoItems[7]?.url ? '#F0F0F0' : `linear-gradient(135deg,${bg},#fff)`,
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:'clamp(18px,3vw,28px)' }}>
-                        {allPhotoItems[7]?.url
-                          ? <img src={allPhotoItems[7].url!} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:8 }}>
+                  {allPhotoItems.slice(0, 4).map((item, i) => {
+                    const isLastMore = allPhotoItems.length > 4 && i === 3;
+                    return (
+                      <div key={i}
+                        onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(isLastMore ? null : i); }}
+                        style={{ aspectRatio:'1', position:'relative', borderRadius:6, cursor:'pointer',
+                          background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
+                          display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
+                          border:'1px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
+                        {item.url
+                          ? <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : emoji}
+                        {isLastMore && (
+                          <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)',
+                            display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:'#fff' }}>+더보기</span>
+                          </div>
+                        )}
                       </div>
-                      <div style={{ position:'absolute', inset:0,
-                        background:'rgba(0,0,0,0.45)',
-                        display:'flex', flexDirection:'column',
-                        alignItems:'center', justifyContent:'center', gap:3 }}>
-                        <span style={{ fontSize:'clamp(13px,2vw,18px)',
-                          fontWeight:700, color:'#fff' }}>+더보기</span>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             )}
