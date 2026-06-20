@@ -435,7 +435,7 @@ export default function CartClient() {
               </button>
             </div>
             <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
-              <div style={{ fontSize:13, color:'#888', paddingBottom:14, marginBottom:16, borderBottom:'1px solid #F2F2F2', lineHeight:1.5 }}>
+              <div style={{ fontSize:14, color:'#888', paddingBottom:14, marginBottom:16, borderBottom:'1px solid #F2F2F2', lineHeight:1.5 }}>
                 {optItem.name}
               </div>
               {optLoading ? (
@@ -444,7 +444,7 @@ export default function CartClient() {
                 <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:13 }}>변경 가능한 옵션이 없습니다.</div>
               ) : (
                 <>
-                  <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>상품옵션</div>
+                  <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>상품옵션</div>
                   {(() => {
                     const groups = [...new Set(optList.map(o => o.group_name || '옵션'))];
                     const parentGroup = groups[0];
@@ -454,11 +454,11 @@ export default function CartClient() {
                       const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
                       return (
                         <div key={g} style={{ display:'flex', alignItems:'center', gap:14, marginBottom:12 }}>
-                          <span style={{ fontSize:13, color:'#555', minWidth:60, flexShrink:0 }}>{g}</span>
+                          <span style={{ fontSize:14, color:'#555', minWidth:60, flexShrink:0 }}>{g}</span>
                           <select
                             value={optSel[g] || ''}
                             onChange={e => setOptSel(prev => ({ ...prev, [g]: e.target.value }))}
-                            style={{ flex:1, padding:'11px 12px', fontSize:13, border:'1px solid #DADADA', borderRadius:8, background:'#fff', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
+                            style={{ flex:1, padding:'11px 12px', fontSize:14, border:'1px solid #DADADA', borderRadius:8, background:'#fff', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
                             <option value="">- {req ? '[필수]' : '[선택]'} 옵션을 선택해 주세요 -</option>
                             {avail.map(o => (
                               <option key={o.id} value={o.id}>
@@ -472,11 +472,11 @@ export default function CartClient() {
                   })()}
                   <div style={{ display:'flex', gap:10, marginTop:22 }}>
                     <button onClick={() => applyOpt('add')}
-                      style={{ flex:1, padding:'13px', border:'1.5px solid #1A1A1A', borderRadius:10, background:'#fff', color:'#1A1A1A', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                      style={{ flex:1, padding:'13px', border:'1.5px solid #1A1A1A', borderRadius:10, background:'#fff', color:'#1A1A1A', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
                       추가
                     </button>
                     <button onClick={() => applyOpt('change')}
-                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
                       변경
                     </button>
                   </div>
