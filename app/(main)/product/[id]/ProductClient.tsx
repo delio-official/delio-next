@@ -2427,7 +2427,7 @@ export default function ProductClient() {
               <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>카테고리</label>
               <select value={inqCategory} onChange={e => setInqCategory(e.target.value)}
                 style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }}>
-                {['문의','배송관련','취소/교환/반품','상품','기타'].map(c => <option key={c} value={c}>{c}</option>)}
+                {([['문의','문의 유형 선택하기'],['배송관련','배송관련'],['취소/교환/반품','취소/교환/반품'],['상품','상품 문의'],['기타','기타']] as const).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:14 }}>
@@ -2451,16 +2451,10 @@ export default function ProductClient() {
                 </div>
               )}
             </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setInqModal(false)}
-                style={{ flex:1, height:44, border:'1.5px solid #E2E8F0', borderRadius:8, background:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                취소
-              </button>
-              <button onClick={submitInquiry} disabled={inqSubmitting}
-                style={{ flex:2, height:44, border:'none', borderRadius:8, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
-                {inqSubmitting ? '등록 중...' : '문의 등록'}
-              </button>
-            </div>
+            <button onClick={submitInquiry} disabled={inqSubmitting}
+              style={{ width:'100%', height:46, border:'none', borderRadius:8, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
+              {inqSubmitting ? '등록 중...' : '등록하기'}
+            </button>
           </div>
         </div>
       )}
