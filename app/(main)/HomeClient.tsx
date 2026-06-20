@@ -1043,7 +1043,7 @@ export default function HomeClient() {
               <small>믿을 수 있는 농가에서 직접 보냅니다</small>
               <div className="g-title-main">
                 <Link href="/brand-intro" style={{ textDecoration:'none', color:'inherit' }}>브랜드 직송관</Link>
-                <Link href="/brand-intro" className="g-section-link">전체보기</Link>
+                <Link href="/farms" className="g-section-link">전체보기</Link>
               </div>
             </h2>
           </div>
