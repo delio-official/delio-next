@@ -1231,7 +1231,7 @@
       flex-shrink: 0;
       overflow: hidden;
     }
-    .bdc-brand-name { font-size: 13px; font-weight: 700; color: var(--color-ink); flex: 1; }
+    .bdc-brand-name { font-size: 15px; font-weight: 700; color: var(--color-ink); flex: 1; }
     .bdc-arrow { color: var(--color-ink-mute); flex-shrink: 0; }
 
     /* 상품 행 — 클릭 가능 */
