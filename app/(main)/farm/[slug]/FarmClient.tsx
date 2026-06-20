@@ -155,6 +155,8 @@ export default function FarmClient() {
   const [loading, setLoading] = useState(true);
   const [prodPage, setProdPage] = useState(0);
   const [farmSort, setFarmSort] = useState('');
+  const [sortOpen, setSortOpen] = useState(false);
+  const farmSortLabel = FARM_SORT_OPTS.find(o => o.value === farmSort)?.label || '정렬';
 
   /* 농가 상품 정렬 (클라이언트, 동점 시 추천 진열순) */
   const sortedProducts = useMemo(() => {
@@ -361,13 +363,23 @@ export default function FarmClient() {
               <h2 style={{ fontSize:20, fontWeight:700, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
                 {farm.name} 상품
               </h2>
-              <select value={farmSort} onChange={e => { setFarmSort(e.target.value); setProdPage(0); }}
-                style={{ height:38, padding:'0 34px 0 12px', border:'1.5px solid #E2E2E2', borderRadius:8, fontSize:14, fontFamily:'inherit', color:'#1A1A1A', cursor:'pointer',
-                  appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
-                  backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                  backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center' }}>
-                {FARM_SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <div className={`custom-select${sortOpen ? ' open' : ''}`}>
+                <button className="custom-select-btn" onClick={() => setSortOpen(v => !v)}>
+                  <span>{farmSortLabel}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <ul className="custom-select-list">
+                  {FARM_SORT_OPTS.map(o => (
+                    <li key={o.value}
+                      className={`custom-select-item${farmSort === o.value ? ' selected' : ''}`}
+                      onClick={() => { setFarmSort(o.value); setProdPage(0); setSortOpen(false); }}>
+                      {o.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
             <div className="product-grid">
               {sortedProducts.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
