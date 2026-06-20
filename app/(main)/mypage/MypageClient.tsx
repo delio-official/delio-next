@@ -334,6 +334,23 @@ export default function MypageClient() {
     setTimeout(() => setToast(''), 2500);
   }
 
+  /* 본인이 쓴 상품 Q&A 삭제 */
+  async function deleteMyQna(id: string) {
+    if (!confirm('이 문의를 삭제하시겠습니까?')) return;
+    const { error } = await createClient().from('product_inquiries').delete().eq('id', id);
+    if (error) { showToastMsg('삭제 실패: ' + error.message); return; }
+    setMyQna(prev => prev.filter(x => x.id !== id));
+    showToastMsg('문의가 삭제되었습니다.');
+  }
+  /* 본인이 쓴 1:1 문의 삭제 */
+  async function deleteMyCs(id: string) {
+    if (!confirm('이 문의를 삭제하시겠습니까?')) return;
+    const { error } = await createClient().from('cs_inquiries').delete().eq('id', id);
+    if (error) { showToastMsg('삭제 실패: ' + error.message); return; }
+    setCsInquiries(prev => prev.filter(x => x.id !== id));
+    showToastMsg('문의가 삭제되었습니다.');
+  }
+
   /* 프로필 이미지 업로드 (cs-attachments 버킷 재사용) */
   const [avatarUploading, setAvatarUploading] = useState(false);
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -2911,6 +2928,12 @@ export default function MypageClient() {
                                     {q.answer || '아직 답변이 등록되지 않았습니다.'}
                                   </div>
                                 </div>
+                                <div style={{ display:'flex', justifyContent:'flex-end', paddingRight:16, marginTop:12 }}>
+                                  <button onClick={() => deleteMyQna(q.id)}
+                                    style={{ fontSize:12, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                    삭제
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -3200,6 +3223,12 @@ export default function MypageClient() {
                                     <p style={{ margin:0, whiteSpace:'pre-wrap' }}>{inq.answer}</p>
                                   </>
                                 )}
+                                <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
+                                  <button onClick={e => { e.stopPropagation(); deleteMyCs(inq.id); }}
+                                    style={{ fontSize:12, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                    삭제
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>

@@ -778,6 +778,17 @@ export default function ProductClient() {
     alert('문의가 등록되었습니다.');
   }
 
+  /* ── 본인 문의 삭제 ── */
+  async function deleteInquiry(id: string) {
+    if (!confirm('이 문의를 삭제하시겠습니까?')) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('product_inquiries').delete().eq('id', id);
+    if (error) { showToast('삭제 실패: ' + error.message); return; }
+    setInquiries(prev => prev.filter(x => x.id !== id));
+    setExpandedInq(null);
+    showToast('문의가 삭제되었습니다.');
+  }
+
   if (loading) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
@@ -2294,7 +2305,7 @@ export default function ProductClient() {
                     const isLocked = q.is_private;
                     const isExpanded = expandedInq === q.id;
                     const isUnlocked = unlockedInq.has(q.id);
-                    const canView = !q.is_private || isUnlocked || isAdmin || (q.is_private && !q.password);
+                    const canView = !q.is_private || isUnlocked || isAdmin || isMe || (q.is_private && !q.password);
                     return (
                       <div key={q.id}>
                         <div className="qna-row" style={{ cursor: 'pointer' }}
@@ -2365,6 +2376,16 @@ export default function ProductClient() {
                                 <div style={{ fontSize:13, color:'#444', lineHeight:1.8, whiteSpace:'pre-wrap' }}>
                                   {q.answer}
                                 </div>
+                              </div>
+                            )}
+                            {/* 본인 문의 삭제 */}
+                            {isMe && (
+                              <div style={{ marginTop:14, textAlign:'right' }}>
+                                <button onClick={() => deleteInquiry(q.id)}
+                                  style={{ fontSize:12, color:'#DC2626', background:'#fff',
+                                    border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                  삭제
+                                </button>
                               </div>
                             )}
                           </div>
