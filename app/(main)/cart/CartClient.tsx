@@ -434,7 +434,7 @@ export default function CartClient() {
       {/* 옵션변경 모달 */}
       {optItem && (
         <div onClick={() => setOptItem(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:480, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
@@ -499,7 +499,7 @@ export default function CartClient() {
       {/* 쿠폰 선택 모달 (체크아웃과 동일) */}
       {couponModal && (
         <div onClick={() => setCouponModal(false)}
-          style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.45)', zIndex:1000,
+          style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.45)', zIndex:3100,
             display:'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', width:'100%',
