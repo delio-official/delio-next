@@ -846,8 +846,8 @@ export default function HomeClient() {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'brand');
-      const fcols = 'id, name, slug, created_at, thumbnail_url, hero_image_url';
-      type FRow = { id: string; name: string; slug: string; thumbnail_url: string | null; hero_image_url: string | null };
+      const fcols = 'id, name, slug, created_at, thumbnail_url, hero_image_url, logo_url';
+      type FRow = { id: string; name: string; slug: string; thumbnail_url: string | null; hero_image_url: string | null; logo_url: string | null };
       let farmsData: FRow[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         const { data } = await supabase.from('farms').select(fcols).in('id', cfg.ids);
@@ -885,7 +885,7 @@ export default function HomeClient() {
             banner: `bdc-banner-${suf}`, logo: `bdc-logo-${suf}`, emoji: EMOJI[p.category] || '🍑',
             brand: f.name, brandHref: `/farm/${f.slug}`, prodHref: `/product/${p.id}`,
             prodName: p.name, prodPrice: `${price.toLocaleString()}원`, discount: p.discount_rate || 0,
-            farmThumb: f.thumbnail_url || null,
+            farmThumb: f.logo_url || f.thumbnail_url || null,
             prodThumb: p.thumbnail_url || null,
             bannerImg: f.thumbnail_url || f.hero_image_url || p.thumbnail_url || null,
           };

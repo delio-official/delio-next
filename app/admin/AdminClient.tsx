@@ -117,6 +117,7 @@ interface AdminFarm {
   intro: string | null;
   carrier: string | null;
   thumbnail_url: string | null;
+  logo_url: string | null;
   landing_images: string[] | null;
   created_at: string;
   wish_count?: number;
@@ -1303,7 +1304,7 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', landing_images: [] as string[] });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
   const [farmImgUploading, setFarmImgUploading] = useState(false);
   const [farmTypeFilter, setFarmTypeFilter] = useState('');
 
@@ -2232,7 +2233,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, thumbnail_url, landing_images, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, thumbnail_url, logo_url, landing_images, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -2297,10 +2298,10 @@ export default function AdminClient() {
   function openFarmModal(farm?: AdminFarm) {
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', landing_images: farm.landing_images || [] });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', landing_images: [] });
+      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] });
     }
     setFarmModal(true);
   }
@@ -2311,7 +2312,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
     if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
-    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
+    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
     if (editingFarm) {
       // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
       const editPayload = editingFarm.slug ? payload : { ...payload, slug };
@@ -5406,6 +5407,24 @@ export default function AdminClient() {
                       <label style={{ width:130, height:96, border:'1px dashed #CBD5E1', borderRadius:8, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:12, gap:4 }}>
                         {farmImgUploading ? '업로드 중...' : '+ 썸네일'}
                         <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); e.target.value=''; }} />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* 농가 로고 (원형 — 메인 브랜드 직송관 카드 농가명 좌측 동그라미) */}
+                <div className="adm-form-row adm-form-row-full">
+                  <label className="adm-label">농가 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(메인 브랜드 직송관 카드 · 동그라미 · 정사각 권장 400×400)</span></label>
+                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                    {farmForm.logo_url ? (
+                      <div style={{ position:'relative', width:80, height:80 }}>
+                        <img src={farmForm.logo_url} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:'50%', border:'1px solid #E2E8F0' }} />
+                        <button type="button" onClick={() => setFarmForm(p => ({ ...p, logo_url:'' }))} style={{ position:'absolute', top:-7, right:-7, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,.6)', color:'#fff', border:'none', cursor:'pointer', fontSize:12, lineHeight:1 }}>✕</button>
+                      </div>
+                    ) : (
+                      <label style={{ width:80, height:80, border:'1px dashed #CBD5E1', borderRadius:'50%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:11, gap:3, textAlign:'center' }}>
+                        {farmImgUploading ? '업로드중' : '+ 로고'}
+                        <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); e.target.value=''; }} />
                       </label>
                     )}
                   </div>
