@@ -93,6 +93,7 @@ export default function CheckoutClient() {
   const [addrEditing, setAddrEditing] = useState<Addr | null>(null);
   const [addrForm, setAddrForm] = useState({ ...EMPTY_ADDR });
   const [addrSort, setAddrSort] = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
+  const [addrSortOpen, setAddrSortOpen] = useState(false);
 
   /* 쿠폰 / 적립금 */
   interface UserCoupon { ucId: string; couponId: string; name: string; discount_type: 'percent'|'fixed'; discount_value: number; min_order_amount: number; max_discount_amount: number | null; starts_at: string | null; expires_at: string | null; }
@@ -669,27 +670,46 @@ export default function CheckoutClient() {
 
       {/* 배송지 목록 모달 */}
       {addrListModal && (
-        <div onClick={() => setAddrListModal(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div onClick={() => { setAddrListModal(false); setAddrSortOpen(false); }}
+          style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.45)', zIndex:3200, display:'flex',
+            alignItems: isMobile ? 'stretch' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:560, maxHeight:'82vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            style={{ background:'#fff', width:'100%',
+              maxWidth: isMobile ? '100%' : 560,
+              height: isMobile ? '100%' : 'auto',
+              maxHeight: isMobile ? '100%' : '82vh',
+              borderRadius: isMobile ? 0 : 14, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            {/* 헤더 */}
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
               <span style={{ fontSize:16, fontWeight:700 }}>배송지 목록</span>
-              <button onClick={() => setAddrListModal(false)} style={{ position:'absolute', right:18, background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
+              <button onClick={() => { setAddrListModal(false); setAddrSortOpen(false); }} style={{ position:'absolute', right:18, background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-                <span style={{ fontSize:14, color:'#333' }}>전체 <b style={{ fontWeight:700 }}>{savedAddresses.length}</b>건</span>
-                <div style={{ display:'flex', gap:14, fontSize:13 }}>
-                  {([['recent_use','최근 사용순'],['recent_reg','최근 등록순'],['name','가나다순']] as const).map(([k, l]) => (
-                    <span key={k} onClick={() => setAddrSort(k)} style={{ cursor:'pointer', fontWeight: addrSort===k?700:400, color: addrSort===k?'#111':'#bbb' }}>{l}</span>
-                  ))}
-                </div>
+            {/* 전체 N건 + 정렬 드롭다운 */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px 22px 12px' }}>
+              <span style={{ fontSize:14, color:'#333' }}>전체 <b style={{ fontWeight:700 }}>{savedAddresses.length}</b>건</span>
+              <div style={{ position:'relative' }}>
+                <button onClick={() => setAddrSortOpen(v => !v)}
+                  style={{ display:'flex', alignItems:'center', gap:5, background:'none', border:'none', fontSize:13, color:'#888', cursor:'pointer', fontFamily:'inherit' }}>
+                  {({ recent_use:'최근 사용순', recent_reg:'최근 등록순', name:'가나다순' } as const)[addrSort]}
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: addrSortOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {addrSortOpen && (
+                  <ul style={{ position:'absolute', right:0, top:'100%', marginTop:6, background:'#fff', border:'1px solid #E5E5E5', borderRadius:8, boxShadow:'0 6px 20px rgba(0,0,0,0.12)', zIndex:10, minWidth:120, listStyle:'none', padding:4, margin:0 }}>
+                    {([['recent_use','최근 사용순'],['recent_reg','최근 등록순'],['name','가나다순']] as const).map(([k, l]) => (
+                      <li key={k} onClick={() => { setAddrSort(k); setAddrSortOpen(false); }}
+                        style={{ padding:'10px 12px', fontSize:13, cursor:'pointer', borderRadius:6, fontWeight: addrSort===k?700:400, color: addrSort===k?'#111':'#666' }}>{l}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
+            </div>
+            {/* 목록 (스크롤) */}
+            <div style={{ flex:1, overflowY:'auto', padding:'0 22px 20px' }}>
               {savedAddresses.length === 0 ? (
-                <div style={{ textAlign:'center', color:'#aaa', fontSize:13, padding:'30px 0' }}>저장된 배송지가 없습니다.</div>
+                <div style={{ textAlign:'center', color:'#aaa', fontSize:13, padding:'40px 0' }}>저장된 배송지가 없습니다.</div>
               ) : (
                 [...savedAddresses].sort((a, b) => {
                   if (addrSort === 'name') return (a.label || '').localeCompare(b.label || '', 'ko');
@@ -727,12 +747,13 @@ export default function CheckoutClient() {
                   );
                 })
               )}
-              <div style={{ display:'flex', justifyContent:'center', marginTop:8 }}>
-                <button onClick={() => { setAddrListModal(false); openAddAddr(); }}
-                  style={{ padding:'14px 40px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                  + 배송지 추가
-                </button>
-              </div>
+            </div>
+            {/* 하단 고정: 배송지 추가 */}
+            <div style={{ padding:'14px 22px calc(14px + env(safe-area-inset-bottom))', borderTop:'1px solid #F0F0F0', display:'flex', justifyContent:'center' }}>
+              <button onClick={() => { setAddrListModal(false); openAddAddr(); }}
+                style={{ padding:'14px 40px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                + 배송지 추가
+              </button>
             </div>
           </div>
         </div>
