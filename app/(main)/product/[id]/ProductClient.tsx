@@ -1251,13 +1251,13 @@ export default function ProductClient() {
                 {/* 이미지 카운터 (현재 | 전체) */}
                 {validImgIdx.length >= 1 && (
                   <div style={{ position:'absolute', right:12, bottom:12, zIndex:2,
-                    background:'rgba(235,235,235,0.55)', fontSize:14, fontWeight:500,
+                    background:'rgba(60,60,60,0.5)', fontSize:14, fontWeight:500,
                     padding:'4px 13px', borderRadius:20, letterSpacing:'0.5px',
                     fontVariantNumeric:'tabular-nums',
                     backdropFilter:'blur(3px)', WebkitBackdropFilter:'blur(3px)' }}>
-                    <span style={{ color:'#111' }}>{String(Math.max(0, validImgIdx.indexOf(selThumb)) + 1).padStart(2, '0')}</span>
-                    <span style={{ color:'#999', margin:'0 6px' }}>|</span>
-                    <span style={{ color:'#888' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
+                    <span style={{ color:'#fff' }}>{String(Math.max(0, validImgIdx.indexOf(selThumb)) + 1).padStart(2, '0')}</span>
+                    <span style={{ color:'rgba(255,255,255,0.5)', margin:'0 6px' }}>|</span>
+                    <span style={{ color:'rgba(255,255,255,0.65)' }}>{String(validImgIdx.length).padStart(2, '0')}</span>
                   </div>
                 )}
                 {/* PC: 이미지 위 오버레이 pill (모바일은 하단 플로팅) */}
