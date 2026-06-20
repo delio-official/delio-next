@@ -264,7 +264,7 @@
     .g-section-title small {
       display: block;
       font-family: 'Noto Sans KR', sans-serif;
-      font-size: 21px;
+      font-size: 24px;
       font-weight: 400;
       color: #999;
       margin-bottom: 5px;
@@ -278,9 +278,10 @@
       gap: 10px;
     }
 
-    .g-title-main > span {
+    .g-title-main > span,
+    .g-title-main > a:not(.g-section-link) {
       font-family: 'Pretendard', sans-serif;
-      font-size: 32px;
+      font-size: 36px;
       font-weight: 600;
       color: var(--color-ink);
       line-height: 1.2;
@@ -310,8 +311,9 @@
     }
 
     @media(max-width: 640px) {
-      .g-section-title small { font-size: 12px; margin-bottom: 3px; }
-      .g-title-main > span { font-size: 22px; }
+      .g-section-title small { font-size: 14px; margin-bottom: 3px; }
+      .g-title-main > span,
+      .g-title-main > a:not(.g-section-link) { font-size: 25px; }
       .g-title-main { width: 100%; justify-content: space-between; align-items: flex-end; }
       .g-section-link::after { display: none; }
       .g-section-link::before { content: '더보기 ›'; font-size: 13px; color: var(--color-ink); font-weight: 500; font-family: 'Pretendard', sans-serif; }
