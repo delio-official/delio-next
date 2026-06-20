@@ -32,7 +32,7 @@ export default function ComingSoon({
       <h3 style={{
         fontSize: compact ? 17 : 20,
         fontWeight: 800,
-        color: '#2B3A55',
+        color: '#1A1A1A',
         margin: 0,
         letterSpacing: '-0.01em',
       }}>
