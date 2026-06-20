@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -27,7 +27,19 @@ interface Product {
   discounted_price: number; thumbnail_url: string | null; badge: string | null;
   avg_rating: number; review_count: number; category: string;
   is_dawn: boolean; is_new: boolean; is_best: boolean; short_desc: string | null;
+  sort_order: number | null; created_at: string | null;
+  sales_count: number | null; sweet_sort: number | null; sour_sort: number | null;
 }
+
+const FARM_SORT_OPTS = [
+  { value: '',           label: '추천순' },
+  { value: 'popular',    label: '인기순' },
+  { value: 'new',        label: '신상품순' },
+  { value: 'price_asc',  label: '낮은 가격순' },
+  { value: 'price_desc', label: '높은 가격순' },
+  { value: 'sweet_desc', label: '당도 높은순' },
+  { value: 'sour_desc',  label: '산도 높은순' },
+];
 
 const EMOJI_MAP: Record<string, string> = {
   apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
@@ -142,6 +154,29 @@ export default function FarmClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [prodPage, setProdPage] = useState(0);
+  const [farmSort, setFarmSort] = useState('');
+
+  /* 농가 상품 정렬 (클라이언트, 동점 시 추천 진열순) */
+  const sortedProducts = useMemo(() => {
+    const byOrder = (a: Product, b: Product) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    const descNullsLast = (av: number | null, bv: number | null) => {
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av;
+    };
+    const arr = [...products];
+    switch (farmSort) {
+      case 'popular':    arr.sort((a, b) => descNullsLast(a.sales_count, b.sales_count) || byOrder(a, b)); break;
+      case 'new':        arr.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '') || byOrder(a, b)); break;
+      case 'price_asc':  arr.sort((a, b) => (a.discounted_price - b.discounted_price) || byOrder(a, b)); break;
+      case 'price_desc': arr.sort((a, b) => (b.discounted_price - a.discounted_price) || byOrder(a, b)); break;
+      case 'sweet_desc': arr.sort((a, b) => descNullsLast(a.sweet_sort, b.sweet_sort) || byOrder(a, b)); break;
+      case 'sour_desc':  arr.sort((a, b) => descNullsLast(a.sour_sort, b.sour_sort) || byOrder(a, b)); break;
+      default:           arr.sort(byOrder);
+    }
+    return arr;
+  }, [products, farmSort]);
   const PROD_PER_PAGE = 8;
 
   useEffect(() => {
@@ -163,7 +198,7 @@ export default function FarmClient() {
       const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
         supabase.from('farm_gallery').select('*').eq('farm_id', farmData.id).order('sort_order'),
-        supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('farm_id', farmData.id).eq('is_active', true).limit(60),
+        supabase.from('products').select(PRODUCT_PUBLIC_COLS + ', sort_order, created_at, sales_count, sweet_sort, sour_sort').eq('farm_id', farmData.id).eq('is_active', true).order('sort_order').limit(60),
       ]);
 
       setCerts((certData as Certification[]) || []);
@@ -322,15 +357,24 @@ export default function FarmClient() {
         {/* ── 농가 상품 ── */}
         {products.length > 0 && (
           <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
-              {farm.name} 상품
-            </h2>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+              <h2 style={{ fontSize:20, fontWeight:700, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
+                {farm.name} 상품
+              </h2>
+              <select value={farmSort} onChange={e => { setFarmSort(e.target.value); setProdPage(0); }}
+                style={{ height:38, padding:'0 34px 0 12px', border:'1.5px solid #E2E2E2', borderRadius:8, fontSize:14, fontFamily:'inherit', color:'#1A1A1A', cursor:'pointer',
+                  appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
+                  backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center' }}>
+                {FARM_SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
             <div className="product-grid">
-              {products.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
+              {sortedProducts.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
                 <FarmProductCard key={p.id} p={p} />
               ))}
             </div>
-            <Pagination total={products.length} perPage={PROD_PER_PAGE} page={prodPage} onChange={setProdPage} />
+            <Pagination total={sortedProducts.length} perPage={PROD_PER_PAGE} page={prodPage} onChange={setProdPage} />
           </section>
         )}
 

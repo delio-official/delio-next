@@ -48,15 +48,12 @@ const CAT_TABS_FALLBACK = [
 
 const SORT_OPTS = [
   { value: '',           label: '추천순' },
-  { value: 'best',       label: '베스트순' },
+  { value: 'popular',    label: '인기순' },
+  { value: 'new',        label: '신상품순' },
   { value: 'price_asc',  label: '낮은 가격순' },
   { value: 'price_desc', label: '높은 가격순' },
-  { value: 'new',        label: '신상품순' },
-  { value: 'review',     label: '리뷰 많은 순' },
   { value: 'sweet_desc', label: '당도 높은순' },
-  { value: 'sweet_asc',  label: '당도 낮은순' },
   { value: 'sour_desc',  label: '산도 높은순' },
-  { value: 'sour_asc',   label: '산도 낮은순' },
 ];
 
 const ITEMS_PER_PAGE = 12;
@@ -251,15 +248,12 @@ export default function CategoryClient() {
     if (newParam)    q = q.eq('is_new', true);
 
     switch (sortParam) {
-      case 'best':       q = q.order('is_best', { ascending: false }).order('sort_order'); break;
-      case 'price_asc':  q = q.order('discounted_price', { ascending: true }); break;
-      case 'price_desc': q = q.order('discounted_price', { ascending: false }); break;
-      case 'new':        q = q.order('created_at', { ascending: false }); break;
-      case 'review':     q = q.order('review_count', { ascending: false }); break;
-      case 'sweet_desc': q = q.order('seller_score->>sweet', { ascending: false, nullsFirst: false }); break;
-      case 'sweet_asc':  q = q.order('seller_score->>sweet', { ascending: true,  nullsFirst: false }); break;
-      case 'sour_desc':  q = q.order('seller_score->>sour',  { ascending: false, nullsFirst: false }); break;
-      case 'sour_asc':   q = q.order('seller_score->>sour',  { ascending: true,  nullsFirst: false }); break;
+      case 'popular':    q = q.order('sales_count', { ascending: false }).order('sort_order'); break;
+      case 'new':        q = q.order('created_at', { ascending: false }).order('sort_order'); break;
+      case 'price_asc':  q = q.order('discounted_price', { ascending: true }).order('sort_order'); break;
+      case 'price_desc': q = q.order('discounted_price', { ascending: false }).order('sort_order'); break;
+      case 'sweet_desc': q = q.order('sweet_sort', { ascending: false, nullsFirst: false }).order('sort_order'); break;
+      case 'sour_desc':  q = q.order('sour_sort',  { ascending: false, nullsFirst: false }).order('sort_order'); break;
       default:           q = q.order('sort_order');
     }
 

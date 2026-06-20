@@ -34,15 +34,12 @@ const RECENT_KEY = 'delio_recent_searches';
 
 const SORT_OPTIONS = [
   { id: '',           label: '추천순' },
-  { id: 'sales',      label: '판매량순' },
+  { id: 'popular',    label: '인기순' },
   { id: 'new',        label: '신상품순' },
-  { id: 'rating',     label: '평점 높은순' },
-  { id: 'price_asc',  label: '가격 낮은순' },
-  { id: 'price_desc', label: '가격 높은순' },
+  { id: 'price_asc',  label: '낮은 가격순' },
+  { id: 'price_desc', label: '높은 가격순' },
   { id: 'sweet_desc', label: '당도 높은순' },
-  { id: 'sweet_asc',  label: '당도 낮은순' },
   { id: 'sour_desc',  label: '산도 높은순' },
-  { id: 'sour_asc',   label: '산도 낮은순' },
 ];
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -221,15 +218,12 @@ export default function SearchClient() {
     if (ff.delivery === 'normal') req = req.eq('is_dawn', false);
 
     switch (sort) {
-      case 'sales':      req = req.order('review_count',      { ascending: false }); break;
-      case 'new':        req = req.order('created_at',        { ascending: false }); break;
-      case 'rating':     req = req.order('avg_rating',        { ascending: false }); break;
-      case 'price_asc':  req = req.order('discounted_price',  { ascending: true  }); break;
-      case 'price_desc': req = req.order('discounted_price',  { ascending: false }); break;
-      case 'sweet_desc': req = req.order('seller_score->>sweet', { ascending: false, nullsFirst: false }); break;
-      case 'sweet_asc':  req = req.order('seller_score->>sweet', { ascending: true,  nullsFirst: false }); break;
-      case 'sour_desc':  req = req.order('seller_score->>sour',  { ascending: false, nullsFirst: false }); break;
-      case 'sour_asc':   req = req.order('seller_score->>sour',  { ascending: true,  nullsFirst: false }); break;
+      case 'popular':    req = req.order('sales_count',       { ascending: false }).order('sort_order'); break;
+      case 'new':        req = req.order('created_at',        { ascending: false }).order('sort_order'); break;
+      case 'price_asc':  req = req.order('discounted_price',  { ascending: true  }).order('sort_order'); break;
+      case 'price_desc': req = req.order('discounted_price',  { ascending: false }).order('sort_order'); break;
+      case 'sweet_desc': req = req.order('sweet_sort', { ascending: false, nullsFirst: false }).order('sort_order'); break;
+      case 'sour_desc':  req = req.order('sour_sort',  { ascending: false, nullsFirst: false }).order('sort_order'); break;
       default:           req = req.order('sort_order');
     }
 
