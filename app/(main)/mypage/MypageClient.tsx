@@ -3179,25 +3179,17 @@ export default function MypageClient() {
                           <div key={inq.id}
                             onClick={() => setCsOpenId(isOpen ? null : inq.id)}
                             style={{ padding:'14px 0', borderBottom:'1px solid #F4F4F4', cursor:'pointer' }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:5 }}>
-                              <div style={{ display:'flex', alignItems:'center', gap:6, flex:1, minWidth:0 }}>
-                                <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:999,
-                                  background:'#F0F0F0', color:'#666', flexShrink:0 }}>{cat?.name ?? inq.category}</span>
-                                <span style={{ fontSize:13, fontWeight:600, overflow:'hidden',
-                                  textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inq.title}</span>
-                              </div>
-                              <span style={{ fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:999, flexShrink:0, marginLeft:6,
+                            <div style={{ fontSize:14, fontWeight:600, color:'#222', lineHeight:1.45, marginBottom:7,
+                              display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{inq.title}</div>
+                            <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', columnGap:8, rowGap:6 }}>
+                              <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999, flexShrink:0,
                                 background: inq.status==='answered'?'#E8F5E9':'#FFF3E0',
                                 color: inq.status==='answered'?'#2D7A4D':'#C8841C' }}>
                                 {inq.status==='answered'?'답변완료':'답변대기'}
                               </span>
-                            </div>
-                            <div style={{ display:'flex', justifyContent:'space-between' }}>
-                              <span style={{ fontSize:11, color:'#aaa' }}>
+                              <span style={{ fontSize:12, color:'#888' }}>{cat?.name ?? inq.category}</span>
+                              <span style={{ fontSize:12, color:'#aaa', marginLeft:'auto' }}>
                                 {new Date(inq.created_at).toLocaleDateString('ko-KR')}
-                              </span>
-                              <span style={{ fontSize:11, color:'#aaa' }}>
-                                {inq.message.slice(0,30)}{inq.message.length>30?'...':''}
                               </span>
                             </div>
                             {isOpen && (
