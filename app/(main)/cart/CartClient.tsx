@@ -370,7 +370,7 @@ export default function CartClient() {
             {user && (
               <div className="summary-row" style={{ borderBottom:'none' }}>
                 <span>쿠폰 예상 할인금액</span>
-                <span style={{ color: bestCouponDisc > 0 ? 'var(--color-accent)' : '#999' }}>
+                <span style={{ color:'var(--color-accent)', fontWeight:600 }}>
                   {bestCouponDisc > 0 ? `-${fmtPrice(bestCouponDisc)}원` : '0원'}
                 </span>
               </div>
@@ -378,7 +378,7 @@ export default function CartClient() {
             {user && (
               <div className="summary-row" style={{ borderBottom:'none' }}>
                 <span>사용 가능한 포인트</span>
-                <span style={{ color:'#888' }}>{fmtPrice(pointBalance)}P</span>
+                <span style={{ color:'var(--color-accent)', fontWeight:600 }}>{fmtPrice(pointBalance)}P</span>
               </div>
             )}
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
