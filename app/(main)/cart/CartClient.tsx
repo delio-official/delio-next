@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getCart, saveCart, removeFromCart, updateQty, type CartItem } from '@/lib/cart';
+import { getCart, saveCart, removeFromCart, updateQty, freshIdx, type CartItem } from '@/lib/cart';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getOrderPrefs, setOrderPrefs } from '@/lib/orderPrefs';
@@ -70,6 +70,29 @@ export default function CartClient() {
     load();
     window.addEventListener('cartUpdated', load);
     return () => window.removeEventListener('cartUpdated', load);
+  }, []);
+
+  /* 담을 때 저장된 썸네일/상품명 스냅샷을 라이브 상품정보로 갱신 (사진 교체 반영) */
+  useEffect(() => {
+    (async () => {
+      const cart = getCart();
+      if (cart.length === 0) return;
+      const ids = [...new Set(cart.map(i => i.id))];
+      const { data } = await createClient().from('products').select('id,thumbnail_url,name').in('id', ids);
+      if (!data) return;
+      const map = new Map((data as { id: string; thumbnail_url: string | null; name: string }[]).map(p => [p.id, p]));
+      let changed = false;
+      const next = cart.map(it => {
+        const p = map.get(it.id);
+        if (!p) return it;
+        const patch: Partial<CartItem> = {};
+        if (p.thumbnail_url && p.thumbnail_url !== it.thumbnail) patch.thumbnail = p.thumbnail_url;
+        if (p.name && p.name !== it.name) patch.name = p.name;
+        if (Object.keys(patch).length) { changed = true; return { ...it, ...patch }; }
+        return it;
+      });
+      if (changed) { saveCart(next); setItems(next); }
+    })();
   }, []);
 
   /* 보유 쿠폰 + 적립금 로드 + 저장된 선택(prefs) 복원 */
@@ -166,7 +189,7 @@ export default function CartClient() {
       const it = cart.find(c => c.idx === optItem.idx);
       if (it) Object.assign(it, patch);
     } else {
-      cart.push({ ...optItem, ...patch, idx: Date.now() });
+      cart.push({ ...optItem, ...patch, idx: freshIdx(cart) });
     }
     saveCart(cart);
     setOptItem(null);

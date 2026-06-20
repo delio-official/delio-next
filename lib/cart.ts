@@ -16,15 +16,35 @@ export interface CartItem {
 
 const CART_KEY = 'delio_cart';
 
+/** 현재 장바구니에 없는 유니크한 idx 생성 (Date.now() 충돌 방지) */
+let _idxSeq = 0;
+function uniqueIdx(taken: Set<number>): number {
+  let id = Date.now() * 1000 + (_idxSeq = (_idxSeq + 1) % 1000);
+  while (taken.has(id)) id++;
+  taken.add(id);
+  return id;
+}
+
+/** 장바구니 배열에 대해 새 유니크 idx 발급 */
+export function freshIdx(cart: CartItem[]): number {
+  return uniqueIdx(new Set(cart.map(c => c.idx)));
+}
+
 export function getCart(): CartItem[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
-    // qty -> quantity 마이그레이션
-    return raw.map((item: CartItem) => ({
-      ...item,
-      quantity: item.quantity ?? item.qty ?? 1,
-    }));
+    const taken = new Set<number>();
+    let changed = false;
+    // qty -> quantity 마이그레이션 + idx 누락/충돌 보정 (깨진 장바구니 복구)
+    const items: CartItem[] = raw.map((item: CartItem) => {
+      let idx = item.idx;
+      if (typeof idx !== 'number' || taken.has(idx)) { idx = uniqueIdx(taken); changed = true; }
+      else taken.add(idx);
+      return { ...item, idx, quantity: item.quantity ?? item.qty ?? 1 };
+    });
+    if (changed) localStorage.setItem(CART_KEY, JSON.stringify(items)); // 보정 결과 영구 저장(이벤트 미발생)
+    return items;
   } catch {
     return [];
   }
@@ -43,7 +63,7 @@ export function addToCart(item: Omit<CartItem, 'idx'>): void {
   if (existing) {
     existing.quantity = (existing.quantity ?? 1) + (item.quantity ?? 1);
   } else {
-    cart.push({ ...item, idx: Date.now() });
+    cart.push({ ...item, idx: freshIdx(cart) });
   }
   saveCart(cart);
 }
