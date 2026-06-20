@@ -958,12 +958,12 @@ export default function ProductClient() {
             position: 'fixed', inset: 0, zIndex: 3000,
             background: 'rgba(0,0,0,0.55)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16,
+            padding: isMobile ? 0 : 16,
           }}>
             <div onClick={e => e.stopPropagation()} style={{
-              background: '#fff', borderRadius: isMobile ? 10 : 12,
-              width: '100%', maxWidth: 760,
-              height: isMobile ? '78vh' : '88vh',
+              background: '#fff', borderRadius: isMobile ? 0 : 12,
+              width: '100%', maxWidth: isMobile ? '100%' : 760,
+              height: isMobile ? '100%' : '88vh',
               boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden',
@@ -972,12 +972,22 @@ export default function ProductClient() {
               {/* ── 공통 헤더 ── */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 20px', borderBottom: '1px solid #EBEBEB', flexShrink: 0,
+                padding: '14px 16px', borderBottom: '1px solid #EBEBEB', flexShrink: 0,
               }}>
-                <span style={{ fontSize: 16, fontWeight: 700 }}>
-                  {selItem ? '사진 후기' : '사진 후기 전체보기'}
-                </span>
-                <button onClick={closeAll} style={{
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {selItem && (
+                    <button onClick={() => setSelectedGalleryIdx(null)} aria-label="뒤로가기" style={{
+                      background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                      display: 'flex', alignItems: 'center', color: '#1A1A1A', lineHeight: 0,
+                    }}>
+                      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                  )}
+                  <span style={{ fontSize: 16, fontWeight: 700 }}>
+                    {selItem ? '사진 후기' : '사진 후기 전체보기'}
+                  </span>
+                </div>
+                <button onClick={closeAll} aria-label="닫기" style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   fontSize: 22, color: '#888', lineHeight: 1, padding: '0 4px',
                 }}>✕</button>
@@ -987,30 +997,23 @@ export default function ProductClient() {
                 /* ────── 상세 뷰 ────── */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-                  {/* 본문: 모바일=세로, 데스크탑=좌우 */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
+                  {/* 본문: 세로 스크롤 */}
+                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
-                    {/* ── 좌(데스크탑)/상(모바일): 큰 사진 + 썸네일 ── */}
-                    <div style={{
-                      width: isMobile ? '100%' : '46%',
-                      height: isMobile ? '55%' : 'auto',
-                      flexShrink: 0,
-                      display: 'flex', flexDirection: 'column',
-                      borderRight: isMobile ? 'none' : '1px solid #EBEBEB',
-                      borderBottom: isMobile ? '1px solid #EBEBEB' : 'none',
-                    }}>
-                      {/* 큰 사진 */}
+                    {/* ── 큰 사진 + 썸네일 ── */}
+                    <div style={{ width: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                      {/* 큰 사진 (정사각 — 사진 크기 통일) */}
                       <div style={{
-                        flex: 1, position: 'relative', background: '#F4F4F2',
+                        position: 'relative', width: '100%', aspectRatio: '1', background: '#F4F4F2',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         overflow: 'hidden',
                       }}>
                         {selItem.isVideo && selItem.videoUrl ? (
                           <video src={selItem.videoUrl} controls
-                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                            style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
                         ) : selItem.url ? (
                           <img src={selItem.url} alt=""
-                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{
                             width: '100%', height: '100%',
@@ -1075,11 +1078,8 @@ export default function ProductClient() {
                       </div>
                     </div>
 
-                    {/* ── 우: 리뷰 정보 ── */}
-                    <div style={{
-                      flex: 1, minWidth: 0,
-                      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-                    }}>
+                    {/* ── 리뷰 정보 ── */}
+                    <div style={{ minWidth: 0 }}>
                       {selItem.review ? (
                         <>
                           {/* ① 상단 배지 행: BEST | 이름 | 평점텍스트 */}
@@ -1117,7 +1117,7 @@ export default function ProductClient() {
                           </div>
 
                           {/* ③ 리뷰 내용 */}
-                          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>
+                          <div style={{ padding: '14px 16px' }}>
                             <p style={{
                               fontSize: 13, color: '#333', lineHeight: 1.85,
                               whiteSpace: 'pre-wrap', margin: 0,
@@ -1156,24 +1156,23 @@ export default function ProductClient() {
                     </div>
                   </div>
 
-                  {/* ── 사진 목록 보기 (모달 하단 전체 너비) ── */}
+                  {/* ── 하단 구매하기 CTA (상품 상세 하단바와 동일) ── */}
                   <div style={{
-                    flexShrink: 0, padding: '12px 20px',
-                    borderTop: '1px solid #EBEBEB', textAlign: 'center',
+                    flexShrink: 0, display: 'flex', gap: 8,
+                    padding: '10px 16px', borderTop: '1px solid #EBEBEB', background: '#fff',
                   }}>
-                    <button onClick={() => setSelectedGalleryIdx(null)} style={{
-                      padding: '10px 32px', border: '1.5px solid #D0D0D0',
-                      borderRadius: 8, background: '#fff', cursor: 'pointer',
-                      fontSize: 13, fontWeight: 600, color: '#555',
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                    <button onClick={toggleWishlist} aria-label="찜하기" style={{
+                      flexShrink: 0, width: 46, border: '1.5px solid #DDDDD9', background: '#fff',
+                      borderRadius: 8, cursor: 'pointer', color: wishlisted ? '#E53935' : '#1A1A1A',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="3" width="7" height="7" rx="1"/>
-                        <rect x="14" y="3" width="7" height="7" rx="1"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        <rect x="14" y="14" width="7" height="7" rx="1"/>
-                      </svg>
-                      사진 목록 보기
+                      <Heart size={20} strokeWidth={1.8} fill={wishlisted ? '#E53935' : 'none'} />
+                    </button>
+                    <button onClick={() => { closeAll(); openOptionDrawer(product.id); }} style={{
+                      flex: 1, height: 48, border: 'none', borderRadius: 8,
+                      background: '#1A1A1A', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                    }}>
+                      구매하기
                     </button>
                   </div>
                 </div>
