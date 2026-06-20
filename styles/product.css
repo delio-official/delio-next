@@ -88,6 +88,10 @@
     /* 모바일: 인라인 옵션선택·총금액·결제 영역 숨김 (하단 CTA→슬라이드업 드로어로 대체) */
     @media (max-width: 768px) { .pd-mob-hide { display: none; } }
 
+    /* 리뷰 사진 가로 스크롤(드래그) — 스크롤바 숨김 */
+    .review-photo-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .review-photo-scroll::-webkit-scrollbar { display: none; }
+
     /* 상품고시정보: PC 4열 / 모바일 2열(항목|값) */
     .info-gosi-mob { display: none; }
     @media (max-width: 768px) {

@@ -2166,7 +2166,8 @@ export default function ProductClient() {
                   </p>
                   {/* 리뷰 첨부 사진/영상 */}
                   {((r.image_urls && r.image_urls.length > 0) || r.video_url) && (
-                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                    <div className="review-photo-scroll" style={{ display:'flex', gap:8, flexWrap:'nowrap',
+                      marginBottom:12, overflowX:'auto', WebkitOverflowScrolling:'touch', paddingBottom:2 }}>
                       {(r.image_urls ?? []).map((url, ii) => (
                         <img key={ii} src={url} alt="" loading="lazy"
                           onClick={() => {
@@ -2174,12 +2175,12 @@ export default function ProductClient() {
                             setSelectedGalleryIdx(gIdx >= 0 ? gIdx : null);
                             setPhotoGalleryOpen(true);
                           }}
-                          style={{ width:92, height:92, objectFit:'cover', borderRadius:8,
+                          style={{ width:92, height:92, flexShrink:0, objectFit:'cover', borderRadius:8,
                             border:'1px solid #EEE', cursor:'pointer' }} />
                       ))}
                       {r.video_url && (
                         <video src={r.video_url} controls preload="metadata"
-                          style={{ width:92, height:92, objectFit:'cover', borderRadius:8,
+                          style={{ width:92, height:92, flexShrink:0, objectFit:'cover', borderRadius:8,
                             border:'1px solid #EEE', background:'#000' }} />
                       )}
                     </div>
