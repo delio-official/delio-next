@@ -138,6 +138,8 @@ export default function ProductClient() {
   const [reportSaving,     setReportSaving]     = useState(false);
   const [newRating,        setNewRating]        = useState(5);
   const [newContent,       setNewContent]       = useState('');
+  const [reviewPolicyAgree, setReviewPolicyAgree] = useState(false);
+  const [reviewPolicyOpen,  setReviewPolicyOpen]  = useState(false);
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
@@ -2002,6 +2004,7 @@ export default function ProductClient() {
                 onClick={() => {
                   if (!user) { router.push('/login'); return; }
                   if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+                  setReviewPolicyAgree(false); setReviewPolicyOpen(false);
                   setReviewModalOpen(true);
                 }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
@@ -2794,6 +2797,36 @@ export default function ProductClient() {
               </div>
             </div>
 
+            {/* 리뷰 정책 동의 */}
+            <div style={{ borderTop:'1px solid #F0F0F0', paddingTop:14 }}>
+              <button type="button" onClick={() => setReviewPolicyOpen(o => !o)}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
+                  background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0 }}>
+                <span style={{ fontSize:14, fontWeight:600, color:'#333' }}>델리오 리뷰 정책</span>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#999" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  style={{ transform: reviewPolicyOpen ? 'rotate(90deg)' : 'none', transition:'transform .2s' }}>
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+              <p style={{ fontSize:12, color:'#999', lineHeight:1.6, margin:'8px 0 0' }}>
+                상품과 관련 없는 사진이나 내용, 동일 문자 반복 등 부적합한 내용은 삭제될 수 있습니다.
+              </p>
+              {reviewPolicyOpen && (
+                <ul style={{ fontSize:12, color:'#888', lineHeight:1.8, margin:'8px 0 0', paddingLeft:16 }}>
+                  <li>상품과 무관한 내용·사진, 광고/홍보성 후기는 삭제될 수 있어요.</li>
+                  <li>욕설·비방, 동일 문구 반복 등은 삭제될 수 있어요.</li>
+                  <li>타인의 개인정보가 포함된 후기는 삭제될 수 있어요.</li>
+                </ul>
+              )}
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer',
+                fontSize:13.5, color:'#333', marginTop:14 }}>
+                <input type="checkbox" checked={reviewPolicyAgree}
+                  onChange={e => setReviewPolicyAgree(e.target.checked)} />
+                델리오 리뷰 정책에 동의합니다
+              </label>
+            </div>
+
             </div>{/* /스크롤 본문 */}
 
             {/* 하단: 받을 수 있는 포인트 + 등록하기 */}
@@ -2807,16 +2840,19 @@ export default function ProductClient() {
                   </span>
                 </div>
               )}
-              <button
-                onClick={handleSubmitReview}
-                disabled={submitting || mediaUploading || newContent.trim().length < 10}
-                style={{ width:'100%', height:50, background:'#1A1A1A',
-                  color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-                  cursor: (submitting || mediaUploading || newContent.trim().length < 10) ? 'not-allowed' : 'pointer',
-                  opacity: (submitting || mediaUploading || newContent.trim().length < 10) ? 0.5 : 1,
-                  transition:'opacity .15s' }}>
-                {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '등록하기'}
-              </button>
+              {(() => {
+                const blocked = submitting || mediaUploading || newContent.trim().length < 10 || !reviewPolicyAgree;
+                return (
+                  <button onClick={handleSubmitReview} disabled={blocked}
+                    style={{ width:'100%', height:50, background:'#1A1A1A',
+                      color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
+                      cursor: blocked ? 'not-allowed' : 'pointer',
+                      opacity: blocked ? 0.5 : 1, transition:'opacity .15s' }}>
+                    {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...'
+                      : !reviewPolicyAgree ? '리뷰 정책에 동의해 주세요' : '등록하기'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
