@@ -2879,7 +2879,8 @@ export default function MypageClient() {
                     <button type="button" className={`mp-cs-sum-col${qnaFilter==='waiting'?' active':''}`} onClick={() => setQnaFilter(f => f==='waiting'?'all':'waiting')}><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></button>
                   </div>
                   <div style={{ marginTop:20, overflowX:'auto' }}>
-                    <div style={{ minWidth:560 }}>
+                    <div style={{ minWidth: isMobileView ? 'auto' : 560 }}>
+                      {!isMobileView && (
                       <div style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
                         background:'#F5F5F5', borderTop:'1px solid #E5E5E5', borderBottom:'1px solid #E5E5E5',
                         fontSize:13, fontWeight:600, color:'#555' }}>
@@ -2889,6 +2890,7 @@ export default function MypageClient() {
                         <div style={{ padding:'14px 8px', textAlign:'center' }}>등록일</div>
                         <div style={{ padding:'14px 8px', textAlign:'center' }}>처리여부</div>
                       </div>
+                      )}
                       {qnaLoading ? (
                         <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:13, borderBottom:'1px solid #EEE' }}>불러오는 중...</div>
                       ) : (() => {
