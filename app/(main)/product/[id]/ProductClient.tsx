@@ -103,6 +103,7 @@ export default function ProductClient() {
   const [inqModal,   setInqModal]   = useState(false);
   const [inqContent, setInqContent] = useState('');
   const [inqCategory, setInqCategory] = useState('문의');
+  const [inqCatOpen, setInqCatOpen] = useState(false);
   const [inqPrivate, setInqPrivate] = useState(false);
   const [inqSubmitting, setInqSubmitting] = useState(false);
   const [inqPassword, setInqPassword] = useState('');
@@ -2425,10 +2426,31 @@ export default function ProductClient() {
             </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>카테고리</label>
-              <select value={inqCategory} onChange={e => setInqCategory(e.target.value)}
-                style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }}>
-                {([['문의','문의 유형 선택하기'],['배송관련','배송관련'],['취소/교환/반품','취소/교환/반품'],['상품','상품 문의'],['기타','기타']] as const).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              {(() => {
+                const CATS = [['문의','문의 유형 선택하기'],['배송관련','배송관련'],['취소/교환/반품','취소/교환/반품'],['상품','상품 문의'],['기타','기타']] as const;
+                const curLabel = CATS.find(([v]) => v === inqCategory)?.[1] ?? '문의 유형 선택하기';
+                return (
+                  <div className="opt-dd">
+                    <button type="button" className={`opt-dd-btn${inqCatOpen ? ' open' : ''}`}
+                      onClick={() => setInqCatOpen(o => !o)}>
+                      <span className={inqCategory === '문의' ? 'ph' : ''}>{curLabel}</span>
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    {inqCatOpen && (
+                      <>
+                        <div className="opt-dd-backdrop" style={{ zIndex: 3101 }} onClick={() => setInqCatOpen(false)} />
+                        <div className="opt-dd-list" style={{ zIndex: 3102 }}>
+                          {CATS.map(([v, l]) => (
+                            <button type="button" key={v}
+                              className={`opt-dd-item${inqCategory === v ? ' sel' : ''}`}
+                              onClick={() => { setInqCategory(v); setInqCatOpen(false); }}>{l}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>문의 내용 *</label>
