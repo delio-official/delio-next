@@ -2460,7 +2460,7 @@ export default function ProductClient() {
                 <button key={rs} type="button" onClick={() => setReportReason(rs)}
                   style={{ textAlign:'left', padding:'11px 14px', borderRadius:9, cursor:'pointer', fontFamily:'inherit', fontSize:13.5,
                     border:`1.5px solid ${reportReason === rs ? '#1A1A1A' : '#E5E5E5'}`,
-                    background: reportReason === rs ? '#1A1A1A' : '#fff', color: reportReason === rs ? '#fff' : '#444', fontWeight: reportReason === rs ? 700 : 500 }}>
+                    background: '#fff', color: reportReason === rs ? '#1A1A1A' : '#444', fontWeight: reportReason === rs ? 700 : 500 }}>
                   {rs}
                 </button>
               ))}
