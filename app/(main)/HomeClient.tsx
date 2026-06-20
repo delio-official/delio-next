@@ -53,6 +53,7 @@ interface QGProduct {
   discount_rate: number; brix: number | null; is_dawn: boolean;
   is_new: boolean; is_best: boolean;
   thumbnail_url: string | null; category: string;
+  short_desc: string | null; avg_rating: number; review_count: number;
 }
 
 const CAT_ICONS: Record<string, string> = { apple: '🍎', citrus: '🍊', berry: '🫐', melon: '🍈', kiwi: '🥝', mango: '🥭', grape: '🍇', gift: '🎁', best: '🌟', dawn: '🚚' };
@@ -339,7 +340,7 @@ function QuickGuide() {
       setLoading(true);
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'qg');
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category,short_desc,avg_rating,review_count';
 
       /* 직접 선택: 카테고리별 지정 상품 (플래그 탭/미지정 카테고리는 자동 정렬로 폴백) */
       if (cfg.mode === 'manual') {
@@ -459,6 +460,7 @@ function QuickGuide() {
                         ) : (
                           <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
                         )}
+                        {p.short_desc && <div className="qg-card-desc">{p.short_desc}</div>}
                         <div className="qg-card-name">{p.name}</div>
                         {p.discount_rate > 0
                           ? <div className="qg-card-original">{p.price.toLocaleString()}원</div>
@@ -468,6 +470,12 @@ function QuickGuide() {
                           {p.discount_rate > 0 && <span className="qg-card-discount">{p.discount_rate}%</span>}
                           <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
                         </div>
+                        {p.avg_rating > 0 && (
+                          <div className="qg-card-rating" onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
+                            <StarRating rating={p.avg_rating} size={12} />
+                            <span>{p.avg_rating.toFixed(1)} ({p.review_count.toLocaleString()})</span>
+                          </div>
+                        )}
                         <div className="qg-body-actions">
                           <button className="qg-body-wish" onClick={e => handleQGWish(e, p.id)}>
                             <span style={{ color: wishedIds.has(p.id) ? '#E53935' : undefined }}>{wishedIds.has(p.id) ? '♥' : '♡'}</span> 찜

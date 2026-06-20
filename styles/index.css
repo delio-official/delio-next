@@ -1473,11 +1473,24 @@
       .qg-card-discount { font-size: 13px !important; font-weight: 700 !important; color: var(--color-accent) !important; display: inline !important; }
       .qg-card-price { font-size: 13px !important; font-weight: 700 !important; color: var(--color-ink) !important; }
       .qg-card-img-r { display: none !important; }
-      /* 담기 버튼 단독 (어글리어스 스타일) — 찜 숨김 */
-      .qg-body-actions { margin-top: 8px !important; padding-top: 0 !important; gap: 0 !important; }
+      /* 담기 버튼 단독 — 이미지 바로 아래(본문 최상단)로 (어글리어스/사진2 스타일) */
+      .qg-body-actions { order: -2 !important; margin: 0 0 9px !important; padding-top: 0 !important; gap: 0 !important; }
       .qg-body-wish { display: none !important; }
       .qg-body-actions-divider { display: none !important; }
       .qg-body-cart { flex: 1 !important; height: 34px !important; font-size: 13px !important; font-weight: 600 !important; border: 1px solid #DDDDD9 !important; border-radius: 8px !important; }
+      /* 짧은설명 (이름 위) */
+      .qg-card-desc {
+        display: -webkit-box !important; -webkit-line-clamp: 1 !important; line-clamp: 1 !important;
+        -webkit-box-orient: vertical !important; overflow: hidden !important;
+        order: -1 !important; font-size: 11.5px !important; color: #9A958E !important;
+        line-height: 1.4 !important; margin-bottom: 1px !important;
+      }
+      /* 별점 (가격 아래) */
+      .qg-card-rating {
+        display: flex !important; align-items: center !important; gap: 4px !important;
+        margin-top: 5px !important; cursor: pointer !important;
+      }
+      .qg-card-rating > span { font-size: 11.5px !important; color: #888 !important; }
     }
     /* 퀵가이드 화살표 (PC 전용) */
     .qg-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
@@ -1504,6 +1517,9 @@
     .qg-card-price { font-size: 19px; font-weight: 800; color: var(--color-ink); }
     .qg-card-shipping { font-size: 13px; color: var(--color-ink-mute); margin-bottom: 12px; }
     .qg-card-img-r { display: none; }
+    /* 짧은설명·별점은 모바일 카드에서만 노출 (PC 가로카드는 기존 유지) */
+    .qg-card-desc { display: none; }
+    .qg-card-rating { display: none; }
     /* 카드 본문 찜/담기 바 */
     .qg-body-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; }
     .qg-body-wish, .qg-body-cart { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 5px; background: #fff; border: 1.5px solid #DDDDD9; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--color-ink); cursor: pointer; transition: border-color .15s, background .15s; }
