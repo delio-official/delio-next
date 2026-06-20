@@ -2001,7 +2001,7 @@ export default function ProductClient() {
               <button
                 onClick={() => {
                   if (!user) { router.push('/login'); return; }
-                  if (!hasPurchased) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+                  if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
                   setReviewModalOpen(true);
                 }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
