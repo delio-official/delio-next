@@ -77,7 +77,6 @@ export default function CheckoutClient() {
   interface Addr { id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean; created_at?:string; }
   const [savedAddresses, setSavedAddresses] = useState<Addr[]>([]);
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
-  const [safeNumber, setSafeNumber] = useState(false); // 안심번호 사용(표시용)
   /* 주문하시는 분(계정) */
   const [ordererName, setOrdererName] = useState('');
   const [ordererPhone, setOrdererPhone] = useState('');
@@ -547,10 +546,6 @@ export default function CheckoutClient() {
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:13, color:'#555', marginBottom:6 }}>
                   <span>{selAddr.recipient}  {selAddr.phone}</span>
-                  <label style={{ display:'flex', alignItems:'center', gap:5, color:'#888', cursor:'pointer', fontSize:12 }}>
-                    <input type="checkbox" checked={safeNumber} onChange={e => setSafeNumber(e.target.checked)} style={{ width:14, height:14, accentColor:'#1A1A1A' }} />
-                    안심번호 사용
-                  </label>
                 </div>
                 <div style={{ fontSize:13, color:'#555', lineHeight:1.5 }}>
                   {selAddr.zipcode && <span style={{ color:'#aaa' }}>[{selAddr.zipcode}] </span>}{selAddr.address1}
