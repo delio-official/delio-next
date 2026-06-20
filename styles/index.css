@@ -1482,15 +1482,25 @@
       .qg-card-desc {
         display: -webkit-box !important; -webkit-line-clamp: 1 !important; line-clamp: 1 !important;
         -webkit-box-orient: vertical !important; overflow: hidden !important;
-        order: -1 !important; font-size: 11.5px !important; color: #9A958E !important;
-        line-height: 1.4 !important; margin-bottom: 1px !important;
+        order: -1 !important; font-size: 12px !important; color: #9A958E !important;
+        line-height: 1.4 !important; margin-bottom: 2px !important;
       }
+      /* 가격: 할인%+원가 한 줄(작게) / 최종가 한 줄(크게) — 표준카드 스타일 */
+      .qg-card-discrow { display: flex !important; align-items: baseline !important; gap: 4px !important; margin-bottom: 1px !important; }
+      .qg-card-discount { font-size: 14px !important; font-weight: 800 !important; color: #E53E3E !important; display: inline !important; }
+      .qg-card-original { display: inline !important; font-size: 12px !important; color: #bbb !important; text-decoration: line-through !important; margin: 0 !important; }
+      .qg-card-price-row { margin-bottom: 0 !important; }
+      .qg-card-price { font-size: 18px !important; font-weight: 800 !important; color: var(--color-ink) !important; }
       /* 별점 (가격 아래) */
       .qg-card-rating {
         display: flex !important; align-items: center !important; gap: 4px !important;
         margin-top: 5px !important; cursor: pointer !important;
       }
-      .qg-card-rating > span { font-size: 11.5px !important; color: #888 !important; }
+      .qg-card-rating > span { font-size: 12px !important; color: #888 !important; }
+      /* 카드 테두리/그림자 제거 — 이미지에만 라운드+은은한 그림자 (표준카드처럼) */
+      .qg-card { box-shadow: none !important; border: none !important; background: transparent !important; border-radius: 0 !important; }
+      .qg-card-img { border-radius: 10px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important; }
+      .qg-card-body { padding: 10px 2px 4px !important; }
     }
     /* 퀵가이드 화살표 (PC 전용) */
     .qg-nav-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
@@ -1512,6 +1522,7 @@
     .qg-card-delivery { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
     .qg-card-name { font-size: 17px; font-weight: 700; color: var(--color-ink); line-height: 1.4; margin-bottom: 10px; }
     .qg-card-original { font-size: 14px; color: var(--color-ink-mute); text-decoration: line-through; text-decoration-thickness: 2px; margin-bottom: 3px; }
+    .qg-card-discrow { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; }
     .qg-card-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
     .qg-card-discount { font-size: 19px; font-weight: 800; color: var(--color-accent); }
     .qg-card-price { font-size: 19px; font-weight: 800; color: var(--color-ink); }

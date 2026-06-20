@@ -463,11 +463,15 @@ function QuickGuide() {
                         {p.short_desc && <div className="qg-card-desc">{p.short_desc}</div>}
                         <div className="qg-card-name">{p.name}</div>
                         {p.discount_rate > 0
-                          ? <div className="qg-card-original">{p.price.toLocaleString()}원</div>
-                          : <div className="qg-card-original" style={{ visibility:'hidden' }}>&nbsp;</div>
+                          ? (
+                            <div className="qg-card-discrow">
+                              <span className="qg-card-discount">{p.discount_rate}%</span>
+                              <span className="qg-card-original">{p.price.toLocaleString()}원</span>
+                            </div>
+                          )
+                          : <div className="qg-card-discrow" style={{ visibility:'hidden' }}>&nbsp;</div>
                         }
                         <div className="qg-card-price-row">
-                          {p.discount_rate > 0 && <span className="qg-card-discount">{p.discount_rate}%</span>}
                           <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
                         </div>
                         {p.avg_rating > 0 && (
