@@ -835,7 +835,8 @@ export default function ProductClient() {
       (a.user_id === user.id ? 0 : 1) - (b.user_id === user.id ? 0 : 1));
   }
   const reviewTotalPages = Math.max(1, Math.ceil(sortedReviews.length / REVIEWS_PER_PAGE));
-  const pagedReviews = sortedReviews.slice(reviewPage * REVIEWS_PER_PAGE, (reviewPage + 1) * REVIEWS_PER_PAGE);
+  const safeReviewPage = Math.min(Math.max(0, reviewPage), reviewTotalPages - 1);
+  const pagedReviews = sortedReviews.slice(safeReviewPage * REVIEWS_PER_PAGE, (safeReviewPage + 1) * REVIEWS_PER_PAGE);
 
   /* 평점 분포 */
   const ratingDist = [
@@ -2112,17 +2113,17 @@ export default function ProductClient() {
               <span style={{ fontSize:17, fontWeight:700 }}>
                 리뷰 {product.review_count.toLocaleString()}건
               </span>
-              <label style={{ display:'flex', alignItems:'center', gap:6,
+              <label
+                onClick={() => { setPhotoFilterOn(v => !v); setReviewPage(0); }}
+                style={{ display:'flex', alignItems:'center', gap:6,
                 fontSize:13, color:'var(--color-ink-mute)', cursor:'pointer' }}>
                 <span
-                  onClick={() => setPhotoFilterOn(v => !v)}
                   style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
                     width:18, height:18, borderRadius:'50%',
                     border: photoFilterOn ? 'none' : '1.5px solid #D0D0CC',
                     background: photoFilterOn ? 'var(--color-ink)' : '#fff',
                     fontSize:10,
-                    color: photoFilterOn ? '#fff' : 'var(--color-ink-mute)',
-                    cursor:'pointer' }}>
+                    color: photoFilterOn ? '#fff' : 'var(--color-ink-mute)' }}>
                   ✓
                 </span>
                 포토 리뷰만 보기
