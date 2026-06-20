@@ -2345,9 +2345,9 @@ export default function ProductClient() {
                                     }
                                   }
                                 }}
-                                style={{ flex:1, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
+                                style={{ flex:1, minWidth:0, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
                               <button
-                                style={{ height:36, padding:'0 16px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer' }}
+                                style={{ flexShrink:0, whiteSpace:'nowrap', height:36, padding:'0 16px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer' }}
                                 onClick={() => {
                                   if (pwInput[q.id] === q.password) {
                                     setUnlockedInq(prev => new Set([...prev, q.id]));
