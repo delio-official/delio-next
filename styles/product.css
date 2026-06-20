@@ -332,44 +332,25 @@
     .qna-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 0; border-bottom: 1px solid #EEECEA; }
     .qna-header-title { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
     .qna-header-sub { font-size: 13px; color: var(--color-ink-mute); }
+    /* 문의 카드 (PC·모바일 동일) — 카테고리·작성자·날짜 / 내용 */
     .qna-row {
-      display: grid;
-      grid-template-columns: 44px 1fr 80px 110px 36px;
-      align-items: center; gap: 4px;
-      padding: 15px 4px; border-bottom: 1px solid #EEECEA;
+      display: flex; flex-direction: column; gap: 7px;
+      padding: 16px 4px; border-bottom: 1px solid #EEECEA;
     }
-    .qna-no { font-size: 13px; color: var(--color-ink-mute); text-align: center; }
+    .qna-line1 { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 4px; }
+    .qna-cat { font-size: 13.5px; font-weight: 800; color: var(--color-ink); }
+    .qna-user { font-size: 13px; color: var(--color-ink-soft); }
+    .qna-datetime { font-size: 12px; color: var(--color-ink-mute); }
+    .qna-count {
+      margin-left: auto; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 999px; text-align: center; flex-shrink: 0;
+    }
+    .qna-count.wait { background: #FFF3E0; color: #C8841C; }
+    .qna-count.done { background: #E8F5E9; color: #2D7A4D; }
     .qna-content { display: flex; align-items: center; gap: 5px; min-width: 0; }
-    .qna-badge-ans {
-      font-size: 11px; color: #888; background: #EBEBEB;
-      padding: 2px 7px; border-radius: 3px; font-weight: 700; flex-shrink: 0;
-    }
-    .qna-category { font-size: 13px; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .qna-user { font-size: 13px; color: var(--color-ink-soft); text-align: right; white-space: nowrap; }
-    .qna-datetime { font-size: 12px; color: var(--color-ink-mute); text-align: right; line-height: 1.6; }
-    .qna-count { font-size: 13px; color: var(--color-ink-mute); text-align: center; }
-    /* 모바일: 5열 테이블 → 마켓컬리식 카드 (PC는 위 그리드 유지) */
-    @media (max-width: 768px) {
-      .qna-row {
-        display: flex; flex-wrap: wrap; align-items: center;
-        column-gap: 8px; row-gap: 7px; padding: 16px 2px;
-      }
-      .qna-no { display: none; }
-      .qna-badge-ans { display: none; }
-      .qna-content { order: 1; flex: 1 1 100%; }
-      .qna-category {
-        white-space: normal; font-size: 14px; font-weight: 600;
-        line-height: 1.45; color: var(--color-ink);
-        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-      }
-      .qna-count {
-        order: 2; font-size: 11px; font-weight: 700;
-        padding: 3px 9px; border-radius: 999px; text-align: center;
-      }
-      .qna-count.wait { background: #FFF3E0; color: #C8841C; }
-      .qna-count.done { background: #E8F5E9; color: #2D7A4D; }
-      .qna-user { order: 3; text-align: left; font-size: 12.5px; color: var(--color-ink-soft); }
-      .qna-datetime { order: 4; text-align: left; font-size: 12px; margin-left: auto; }
+    .qna-category {
+      font-size: 14px; color: var(--color-ink); line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
     .qna-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .qna-btn-outline {

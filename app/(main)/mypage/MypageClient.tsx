@@ -96,6 +96,12 @@ const CS_CATEGORIES: { value: CsCategory; icon: string; name: string; sub: strin
   { value: 'member',  icon: '👤', name: '회원/포인트',     sub: '계정 · 포인트 · 쿠폰' },
   { value: 'other',   icon: '💬', name: '기타',            sub: '그 외 문의' },
 ];
+/* 상품 Q&A 카테고리 표시 라벨 */
+const QNA_CAT_LABEL: Record<string, string> = {
+  '문의': '상품문의', '상품': '상품문의', '배송관련': '배송문의',
+  '취소/교환/반품': '취소/교환/반품', '기타': '기타문의',
+};
+const qnaCatLabel = (c: string) => QNA_CAT_LABEL[c] || (c || '상품문의');
 interface CsInquiry {
   id: string; category: CsCategory; title: string; message: string;
   status: string; answer?: string; created_at: string;
@@ -2878,19 +2884,8 @@ export default function MypageClient() {
                     <button type="button" className={`mp-cs-sum-col${qnaFilter==='answered'?' active':''}`} onClick={() => setQnaFilter(f => f==='answered'?'all':'answered')}><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}개</span></button>
                     <button type="button" className={`mp-cs-sum-col${qnaFilter==='waiting'?' active':''}`} onClick={() => setQnaFilter(f => f==='waiting'?'all':'waiting')}><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></button>
                   </div>
-                  <div style={{ marginTop:20, overflowX:'auto' }}>
-                    <div style={{ minWidth: isMobileView ? 'auto' : 560 }}>
-                      {!isMobileView && (
-                      <div style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
-                        background:'#F5F5F5', borderTop:'1px solid #E5E5E5', borderBottom:'1px solid #E5E5E5',
-                        fontSize:13, fontWeight:600, color:'#555' }}>
-                        <div style={{ padding:'14px 8px', textAlign:'center' }}>번호</div>
-                        <div style={{ padding:'14px 8px', textAlign:'center' }}>상품명</div>
-                        <div style={{ padding:'14px 8px', textAlign:'center' }}>제목</div>
-                        <div style={{ padding:'14px 8px', textAlign:'center' }}>등록일</div>
-                        <div style={{ padding:'14px 8px', textAlign:'center' }}>처리여부</div>
-                      </div>
-                      )}
+                  <div style={{ marginTop:20 }}>
+                    <div>
                       {qnaLoading ? (
                         <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:13, borderBottom:'1px solid #EEE' }}>불러오는 중...</div>
                       ) : (() => {
@@ -2901,38 +2896,22 @@ export default function MypageClient() {
                           const isOpen = qnaOpenId === q.id;
                           return (
                           <div key={q.id} style={{ borderBottom:'1px solid #F0F0F0' }}>
-                            {isMobileView ? (
-                              /* 모바일: 마켓컬리식 카드 */
-                              <div onClick={() => setQnaOpenId(isOpen ? null : q.id)}
-                                style={{ display:'flex', flexWrap:'wrap', alignItems:'center',
-                                  columnGap:8, rowGap:7, padding:'16px 2px', cursor:'pointer',
-                                  background: isOpen ? '#FAFAFA' : 'transparent' }}>
-                                <div style={{ flex:'1 1 100%', fontSize:14, fontWeight:600, color:'#222', lineHeight:1.45,
-                                  display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{q.content}</div>
-                                <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999,
-                                  background: q.answer ? '#E8F5E9' : '#FFF3E0', color: q.answer ? '#2D7A4D' : '#C8841C' }}>
-                                  {q.answer ? '답변완료' : '답변대기'}
-                                </span>
-                                <span style={{ fontSize:12, color:'#888', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'45%' }}>{q.products?.name ?? '-'}</span>
-                                <span style={{ fontSize:12, color:'#aaa', marginLeft:'auto' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</span>
-                              </div>
-                            ) : (
                             <div onClick={() => setQnaOpenId(isOpen ? null : q.id)}
-                              style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
-                                fontSize:13, alignItems:'center', cursor:'pointer',
+                              style={{ display:'flex', flexDirection:'column', gap:7,
+                                padding:'16px 2px', cursor:'pointer',
                                 background: isOpen ? '#FAFAFA' : 'transparent' }}>
-                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#888' }}>{view.length - i}</div>
-                              <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.products?.name ?? '-'}</div>
-                              <div style={{ padding:'14px 8px', textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</div>
-                              <div style={{ padding:'14px 8px', textAlign:'center', color:'#999' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</div>
-                              <div style={{ padding:'14px 8px', textAlign:'center' }}>
-                                <span style={{ fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:999,
+                              <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', columnGap:8, rowGap:4 }}>
+                                <span style={{ fontSize:13.5, fontWeight:800, color:'#1A1A1A' }}>{qnaCatLabel(q.category)}</span>
+                                <span style={{ fontSize:12.5, color:'#888', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'40%' }}>{q.products?.name ?? '-'}</span>
+                                <span style={{ fontSize:12, color:'#aaa' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</span>
+                                <span style={{ marginLeft:'auto', fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999,
                                   background: q.answer ? '#E8F5E9' : '#FFF3E0', color: q.answer ? '#2D7A4D' : '#C8841C' }}>
                                   {q.answer ? '답변완료' : '답변대기'}
                                 </span>
                               </div>
+                              <div style={{ fontSize:14, color:'#333', lineHeight:1.5,
+                                display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{q.content}</div>
                             </div>
-                            )}
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', padding:'16px 0' }}>
                                 {/* 문의 */}
@@ -3181,19 +3160,17 @@ export default function MypageClient() {
                           <div key={inq.id}
                             onClick={() => setCsOpenId(isOpen ? null : inq.id)}
                             style={{ padding:'14px 0', borderBottom:'1px solid #F4F4F4', cursor:'pointer' }}>
-                            <div style={{ fontSize:14, fontWeight:600, color:'#222', lineHeight:1.45, marginBottom:7,
-                              display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{inq.title}</div>
-                            <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', columnGap:8, rowGap:6 }}>
-                              <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999, flexShrink:0,
+                            <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', columnGap:8, rowGap:4, marginBottom:7 }}>
+                              <span style={{ fontSize:13.5, fontWeight:800, color:'#1A1A1A' }}>{cat?.name ?? inq.category}</span>
+                              <span style={{ fontSize:12, color:'#aaa' }}>{new Date(inq.created_at).toLocaleDateString('ko-KR')}</span>
+                              <span style={{ marginLeft:'auto', fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999, flexShrink:0,
                                 background: inq.status==='answered'?'#E8F5E9':'#FFF3E0',
                                 color: inq.status==='answered'?'#2D7A4D':'#C8841C' }}>
                                 {inq.status==='answered'?'답변완료':'답변대기'}
                               </span>
-                              <span style={{ fontSize:12, color:'#888' }}>{cat?.name ?? inq.category}</span>
-                              <span style={{ fontSize:12, color:'#aaa', marginLeft:'auto' }}>
-                                {new Date(inq.created_at).toLocaleDateString('ko-KR')}
-                              </span>
                             </div>
+                            <div style={{ fontSize:14, color:'#333', lineHeight:1.5,
+                              display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{inq.title}</div>
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', borderRadius:10, padding:'12px 14px',
                                 marginTop:10, fontSize:12, color:'#555', lineHeight:1.7 }}>

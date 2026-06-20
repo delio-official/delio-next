@@ -73,6 +73,12 @@ const BG_MAP: Record<string, string> = {
 
 /* ── 맛 프로파일 설정 ── */
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
+/* 문의 카테고리 표시 라벨 */
+const INQ_CAT_LABEL: Record<string, string> = {
+  '문의': '상품문의', '상품': '상품문의', '배송관련': '배송문의',
+  '취소/교환/반품': '취소/교환/반품', '기타': '기타문의',
+};
+const inqCatLabel = (c: string) => INQ_CAT_LABEL[c] || (c ? `${c}` : '상품문의');
 
 // Stars → StarRating 공유 컴포넌트 사용
 
@@ -2311,11 +2317,15 @@ export default function ProductClient() {
                       <div key={q.id}>
                         <div className="qna-row" style={{ cursor: 'pointer' }}
                           onClick={() => setExpandedInq(isExpanded ? null : q.id)}>
-                          <div className="qna-no">{inqPage * INQ_PER + i + 1}</div>
+                          <div className="qna-line1">
+                            <span className="qna-cat">{inqCatLabel(q.category)}</span>
+                            <span className="qna-user">{maskedName}</span>
+                            <span className="qna-datetime">{q.created_at.slice(0,10)}</span>
+                            <span className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</span>
+                          </div>
                           <div className="qna-content">
-                            {q.answer && <span className="qna-badge-ans">답변</span>}
                             {q.is_private && (
-                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none"
+                              <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
                                 stroke="currentColor" strokeWidth="2"
                                 style={{ flexShrink:0, color:'var(--color-ink-soft)' }}>
                                 <rect x="3" y="11" width="18" height="11" rx="2"/>
@@ -2323,12 +2333,9 @@ export default function ProductClient() {
                               </svg>
                             )}
                             <span className="qna-category">
-                              {isLocked ? '비밀 문의입니다.' : q.content.slice(0, 40) + (q.content.length > 40 ? '...' : '')}
+                              {isLocked ? '비밀글입니다.' : q.content.slice(0, 60) + (q.content.length > 60 ? '...' : '')}
                             </span>
                           </div>
-                          <div className="qna-user">{maskedName}</div>
-                          <div className="qna-datetime">{q.created_at.slice(0,10)}</div>
-                          <div className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</div>
                         </div>
                         {isExpanded && isLocked && !isUnlocked && q.password && !isMe && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
