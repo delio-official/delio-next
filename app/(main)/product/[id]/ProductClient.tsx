@@ -2329,7 +2329,7 @@ export default function ProductClient() {
                           <div className="qna-datetime">{q.created_at.slice(0,10)}</div>
                           <div className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</div>
                         </div>
-                        {isExpanded && isLocked && !isUnlocked && q.password && (
+                        {isExpanded && isLocked && !isUnlocked && q.password && !isMe && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
                             <div style={{ fontSize:13, color:'#555', marginBottom:10 }}>🔒 비밀 문의입니다. 비밀번호를 입력하세요.</div>
                             <div style={{ display:'flex', gap:8 }}>
