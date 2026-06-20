@@ -2525,36 +2525,50 @@ export default function ProductClient() {
       {/* ── 리뷰 작성 모달 ── */}
       {reviewModalOpen && (
         <div
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100,
-            display:'flex',
-            alignItems: isMobile ? 'flex-end' : 'center',
-            justifyContent:'center',
-            padding: isMobile ? 0 : 16,
-          }}
+          style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.5)', zIndex:3100,
+            display:'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'center',
+            padding: isMobile ? 0 : 16 }}
           onClick={() => setReviewModalOpen(false)}
         >
           <div
-            className={isMobile ? 'review-sheet-mobile' : undefined}
-            style={{
-              background:'#fff',
-              width:'100%',
-              maxWidth: isMobile ? 600 : 540,
-              maxHeight: isMobile ? '88vh' : '90vh',
-              overflowY:'auto',
-              borderRadius: isMobile ? '20px 20px 0 0' : 16,
-              padding:'28px 24px 40px',
-              boxShadow: isMobile ? '0 -8px 40px rgba(0,0,0,.15)' : '0 24px 64px rgba(0,0,0,0.28)',
-            }}
+            style={{ background:'#fff', width:'100%',
+              maxWidth: isMobile ? '100%' : 540,
+              height: isMobile ? '100%' : 'auto',
+              maxHeight: isMobile ? '100%' : '92vh',
+              borderRadius: isMobile ? 0 : 16,
+              display:'flex', flexDirection:'column', overflow:'hidden',
+              boxShadow: isMobile ? 'none' : '0 24px 64px rgba(0,0,0,0.28)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display:'flex', alignItems:'center',
-              justifyContent:'space-between', marginBottom:20 }}>
-              <span style={{ fontSize:16, fontWeight:700 }}>리뷰 작성</span>
+            {/* 헤더 */}
+            <div style={{ flexShrink:0, position:'relative', display:'flex', alignItems:'center',
+              justifyContent:'center', padding:'15px 16px', borderBottom:'1px solid #EEE' }}>
               <button onClick={() => setReviewModalOpen(false)}
-                style={{ background:'none', border:'none', fontSize:22, cursor:'pointer',
-                  color:'var(--color-ink-mute)', lineHeight:1, padding:'0 4px' }}>
-                ✕
-              </button>
+                style={{ position:'absolute', left:12, background:'none', border:'none', fontSize:22,
+                  cursor:'pointer', color:'#333', lineHeight:1, padding:'0 4px' }}>✕</button>
+              <span style={{ fontSize:17, fontWeight:700 }}>리뷰 남기기</span>
+            </div>
+
+            {/* 스크롤 본문 */}
+            <div style={{ flex:1, overflowY:'auto', padding:'20px 18px 24px' }}>
+
+            {/* 상품 정보 */}
+            <div style={{ display:'flex', gap:12, alignItems:'center', paddingBottom:18,
+              borderBottom:'1px solid #F0F0F0', marginBottom:20 }}>
+              <div style={{ width:56, height:56, borderRadius:8, overflow:'hidden', flexShrink:0,
+                background:'#F4F4F2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>
+                {product.thumbnail_url ? <img src={product.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : emoji}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13.5, fontWeight:600, color:'#222', lineHeight:1.4,
+                  display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{product.name}</div>
+                {(reviewPt.text + reviewPt.photo) > 0 && (
+                  <span style={{ display:'inline-block', marginTop:6, fontSize:11, fontWeight:700,
+                    color:'var(--color-accent)', background:'var(--color-accent-bg)', padding:'2px 8px', borderRadius:5 }}>
+                    최대 {(reviewPt.text + reviewPt.photo).toLocaleString()}P
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* 포인트 적립 안내 */}
@@ -2574,9 +2588,8 @@ export default function ProductClient() {
             )}
 
             <div style={{ marginBottom:20 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10,
-                color:'var(--color-ink-soft)' }}>
-                별점 선택
+              <div style={{ fontSize:15, fontWeight:700, marginBottom:12, color:'var(--color-ink)' }}>
+                이 상품 어떠셨나요?
               </div>
               <div style={{ display:'flex', gap:4 }}>
                 {[1,2,3,4,5].map(s => (
@@ -2781,16 +2794,30 @@ export default function ProductClient() {
               </div>
             </div>
 
-            <button
-              onClick={handleSubmitReview}
-              disabled={submitting || mediaUploading || newContent.trim().length < 10}
-              style={{ width:'100%', padding:'15px', background:'#1A1A1A',
-                color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
-                cursor: (submitting || mediaUploading || newContent.trim().length < 10) ? 'not-allowed' : 'pointer',
-                opacity: (submitting || mediaUploading || newContent.trim().length < 10) ? 0.6 : 1,
-                transition:'opacity .15s' }}>
-              {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '리뷰 등록하기'}
-            </button>
+            </div>{/* /스크롤 본문 */}
+
+            {/* 하단: 받을 수 있는 포인트 + 등록하기 */}
+            <div style={{ flexShrink:0, borderTop:'1px solid #EEE', padding:'10px 16px 14px', background:'#fff' }}>
+              {(reviewPt.text + reviewPt.photo) > 0 && (
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:13, marginBottom:8 }}>
+                  <span style={{ color:'#888' }}>받을 수 있는 포인트</span>
+                  <span style={{ fontWeight:700 }}>
+                    <span style={{ color:'var(--color-accent)' }}>{((newContent.trim().length >= 10 ? reviewPt.text : 0) + ((newImages.length > 0 || newVideo) ? reviewPt.photo : 0)).toLocaleString()}</span>
+                    <span style={{ color:'#bbb' }}> / {(reviewPt.text + reviewPt.photo).toLocaleString()}P</span>
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={handleSubmitReview}
+                disabled={submitting || mediaUploading || newContent.trim().length < 10}
+                style={{ width:'100%', height:50, background:'#1A1A1A',
+                  color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
+                  cursor: (submitting || mediaUploading || newContent.trim().length < 10) ? 'not-allowed' : 'pointer',
+                  opacity: (submitting || mediaUploading || newContent.trim().length < 10) ? 0.5 : 1,
+                  transition:'opacity .15s' }}>
+                {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '등록하기'}
+              </button>
+            </div>
           </div>
         </div>
       )}
