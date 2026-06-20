@@ -230,7 +230,8 @@ export default function CartClient() {
   const afterCoupon = Math.max(0, subtotal - couponDisc);
   const maxPoint = Math.min(pointBalance, afterCoupon);
   const appliedPoint = Math.min(pointUsed, maxPoint);
-  const total = Math.max(0, afterCoupon - appliedPoint);
+  /* 장바구니 결제예정금액 = 상품 판매가 합계 (쿠폰·포인트는 체크아웃에서 적용) */
+  const total = subtotal;
 
   /* 선택을 localStorage에 저장 → 체크아웃으로 공유 */
   useEffect(() => {
@@ -360,50 +361,31 @@ export default function CartClient() {
           <div className="order-summary">
             <div className="summary-title">주문 요약</div>
 
-            {/* 쿠폰 / 적립금 (로그인 시) */}
+            {/* 금액 */}
+            <div className="summary-row" style={{ borderBottom:'none' }}><span>총 상품금액</span><span>{fmtPrice(origSubtotal)}원</span></div>
+            {productDisc > 0 && (
+              <div className="summary-row" style={{ borderBottom:'none' }}><span>총 상품 할인금액</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(productDisc)}원</span></div>
+            )}
+            {/* 쿠폰·포인트는 안내(예상)만 — 실제 적용은 체크아웃에서 */}
             {user && (
-              <div style={{ padding:'4px 0 10px', borderBottom:'1px solid #F0F0F0', marginBottom:6 }}>
-                {/* 쿠폰 — 버튼 + 모달 */}
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', gap:10 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:13, fontWeight:600 }}>쿠폰</span>
-                    <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
-                      style={{ padding:'6px 12px', border:'1px solid #1A1A1A', borderRadius:6, background:'#fff', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                      쿠폰선택
-                    </button>
-                  </div>
-                  <span style={{ fontSize:12, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#999' }}>
-                    {coupon ? `−${fmtPrice(couponDisc)}원` : `${coupons.length}장 보유`}
-                  </span>
-                </div>
-                {/* 적립금 — 전액 버튼 + 입력 */}
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', gap:8, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:13, fontWeight:600 }}>포인트 <span style={{ fontSize:11, color:'#999', fontWeight:400 }}>(보유 {fmtPrice(pointBalance)}P)</span></span>
-                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                    <button onClick={() => setPointUsed(maxPoint)}
-                      style={{ padding:'0 12px', height:36, border:'1px solid #1A1A1A', background:'#fff', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>전액 사용</button>
-                    <input type="text" inputMode="numeric" value={pointUsed || ''}
-                      onChange={e => setPointUsed(Math.max(0, Math.min(maxPoint, Number(e.target.value.replace(/[^0-9]/g, '')) || 0)))} placeholder="0"
-                      style={{ width:80, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none', textAlign:'right' }} />
-                    <span style={{ fontSize:12, color:'#666' }}>원</span>
-                  </div>
-                </div>
+              <div className="summary-row" style={{ borderBottom:'none' }}>
+                <span>쿠폰 예상 할인금액</span>
+                <span style={{ color: bestCouponDisc > 0 ? 'var(--color-accent)' : '#999' }}>
+                  {bestCouponDisc > 0 ? `-${fmtPrice(bestCouponDisc)}원` : '0원'}
+                </span>
               </div>
             )}
-
-            {/* 금액 */}
-            <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 금액</span><span>{fmtPrice(origSubtotal)}원</span></div>
-            {productDisc > 0 && (
-              <div className="summary-row" style={{ borderBottom:'none' }}><span>상품 할인</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(productDisc)}원</span></div>
-            )}
-            {couponDisc > 0 && (
-              <div className="summary-row" style={{ borderBottom:'none' }}><span>쿠폰 할인</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(couponDisc)}원</span></div>
-            )}
-            {appliedPoint > 0 && (
-              <div className="summary-row" style={{ borderBottom:'none' }}><span>포인트 사용</span><span style={{ color:'var(--color-accent)' }}>-{fmtPrice(appliedPoint)}원</span></div>
+            {user && (
+              <div className="summary-row" style={{ borderBottom:'none' }}>
+                <span>사용 가능한 포인트</span>
+                <span style={{ color:'#888' }}>{fmtPrice(pointBalance)}P</span>
+              </div>
             )}
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
+            {user && (
+              <div style={{ fontSize:11, color:'#aaa', textAlign:'right', marginTop:4 }}>쿠폰·포인트는 결제(체크아웃) 단계에서 적용됩니다</div>
+            )}
 
             <div className="cta-group">
               <button className="cart-checkout-all" onClick={handleCheckout}>
