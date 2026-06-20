@@ -2899,6 +2899,22 @@ export default function MypageClient() {
                           const isOpen = qnaOpenId === q.id;
                           return (
                           <div key={q.id} style={{ borderBottom:'1px solid #F0F0F0' }}>
+                            {isMobileView ? (
+                              /* 모바일: 마켓컬리식 카드 */
+                              <div onClick={() => setQnaOpenId(isOpen ? null : q.id)}
+                                style={{ display:'flex', flexWrap:'wrap', alignItems:'center',
+                                  columnGap:8, rowGap:7, padding:'16px 2px', cursor:'pointer',
+                                  background: isOpen ? '#FAFAFA' : 'transparent' }}>
+                                <div style={{ flex:'1 1 100%', fontSize:14, fontWeight:600, color:'#222', lineHeight:1.45,
+                                  display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{q.content}</div>
+                                <span style={{ fontSize:11, fontWeight:700, padding:'3px 9px', borderRadius:999,
+                                  background: q.answer ? '#E8F5E9' : '#FFF3E0', color: q.answer ? '#2D7A4D' : '#C8841C' }}>
+                                  {q.answer ? '답변완료' : '답변대기'}
+                                </span>
+                                <span style={{ fontSize:12, color:'#888', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'45%' }}>{q.products?.name ?? '-'}</span>
+                                <span style={{ fontSize:12, color:'#aaa', marginLeft:'auto' }}>{new Date(q.created_at).toLocaleDateString('ko-KR')}</span>
+                              </div>
+                            ) : (
                             <div onClick={() => setQnaOpenId(isOpen ? null : q.id)}
                               style={{ display:'grid', gridTemplateColumns:'70px 1fr 1.4fr 110px 90px',
                                 fontSize:13, alignItems:'center', cursor:'pointer',
@@ -2914,6 +2930,7 @@ export default function MypageClient() {
                                 </span>
                               </div>
                             </div>
+                            )}
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', padding:'16px 0' }}>
                                 {/* 문의 */}

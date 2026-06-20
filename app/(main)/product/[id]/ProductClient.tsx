@@ -2327,7 +2327,7 @@ export default function ProductClient() {
                           </div>
                           <div className="qna-user">{maskedName}</div>
                           <div className="qna-datetime">{q.created_at.slice(0,10)}</div>
-                          <div className="qna-count">{q.answer ? '답변완료' : '대기중'}</div>
+                          <div className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</div>
                         </div>
                         {isExpanded && isLocked && !isUnlocked && q.password && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
