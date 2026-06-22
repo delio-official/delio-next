@@ -2968,8 +2968,10 @@ export default function MypageClient() {
                                     </>
                                   ) : (
                                     <>
-                                      <button onClick={() => { setEditQnaId(q.id); setEditQnaText(q.content); }}
-                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      {!q.answer && (
+                                        <button onClick={() => { setEditQnaId(q.id); setEditQnaText(q.content); }}
+                                          style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      )}
                                       <button onClick={() => deleteMyQna(q.id)}
                                         style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>삭제</button>
                                     </>
@@ -3267,8 +3269,10 @@ export default function MypageClient() {
                                     </>
                                   ) : (
                                     <>
-                                      <button onClick={e => { e.stopPropagation(); setEditCsId(inq.id); setEditCsText(inq.message || ''); }}
-                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      {inq.status !== 'answered' && (
+                                        <button onClick={e => { e.stopPropagation(); setEditCsId(inq.id); setEditCsText(inq.message || ''); }}
+                                          style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      )}
                                       <button onClick={e => { e.stopPropagation(); deleteMyCs(inq.id); }}
                                         style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>삭제</button>
                                     </>

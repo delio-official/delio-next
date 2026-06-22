@@ -2391,7 +2391,7 @@ export default function ProductClient() {
                             </span>
                           </div>
                         </div>
-                        {isExpanded && isLocked && !isUnlocked && q.password && !isMe && (
+                        {isExpanded && isLocked && !isUnlocked && q.password && !isMe && !isAdmin && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
                             <div style={{ fontSize:13, color:'#555', marginBottom:10 }}>🔒 비밀 문의입니다. 비밀번호를 입력하세요.</div>
                             <div style={{ display:'flex', gap:8 }}>
@@ -2456,10 +2456,12 @@ export default function ProductClient() {
                             {/* 본인 문의 수정/삭제 (편집 중 아닐 때) */}
                             {isMe && editInqId !== q.id && (
                               <div style={{ marginTop:14, display:'flex', justifyContent:'flex-end', gap:8 }}>
-                                <button onClick={() => { setEditInqId(q.id); setEditInqText(q.content); }}
-                                  style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
-                                  수정
-                                </button>
+                                {!q.answer && (
+                                  <button onClick={() => { setEditInqId(q.id); setEditInqText(q.content); }}
+                                    style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                    수정
+                                  </button>
+                                )}
                                 <button onClick={() => deleteInquiry(q.id)}
                                   style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
                                   삭제
