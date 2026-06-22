@@ -25,7 +25,7 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
         style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center' }}>
         −
       </button>
-      <span style={{ width:32, textAlign:'center', fontSize:13, fontWeight:700 }}>{value}</span>
+      <span style={{ width:32, textAlign:'center', fontSize:14, fontWeight:700 }}>{value}</span>
       <button onClick={() => onChange(value + 1)}
         style={{ width:30, height:30, border:'none', background:'#F7F7F5', cursor:'pointer', fontSize:16, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center' }}>
         +
@@ -410,7 +410,7 @@ export default function CartClient() {
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
             {user && (
-              <div style={{ fontSize:11, color:'#aaa', textAlign:'right', marginTop:4 }}>쿠폰·포인트는 결제(체크아웃) 단계에서 적용됩니다</div>
+              <div style={{ fontSize:12, color:'#aaa', textAlign:'right', marginTop:4 }}>쿠폰·포인트는 결제(체크아웃) 단계에서 적용됩니다</div>
             )}
 
             <div className="cta-group">
@@ -464,9 +464,9 @@ export default function CartClient() {
                 {optItem.name}
               </div>
               {optLoading ? (
-                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:13 }}>불러오는 중...</div>
+                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:14 }}>불러오는 중...</div>
               ) : optList.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:13 }}>변경 가능한 옵션이 없습니다.</div>
+                <div style={{ textAlign:'center', padding:'30px 0', color:'#aaa', fontSize:14 }}>변경 가능한 옵션이 없습니다.</div>
               ) : (
                 <>
                   <div style={{ fontSize:14, fontWeight:700, marginBottom:12 }}>상품옵션</div>
@@ -525,7 +525,7 @@ export default function CartClient() {
               borderRadius: isMobile ? 0 : 14,
               display:'flex', flexDirection:'column', overflow:'hidden' }}>
             <div style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #F0F0F0' }}>
-              <span style={{ fontSize:17, fontWeight:700 }}>장바구니 쿠폰 <span style={{ color:'#CB1D11', fontSize:15 }}>{coupons.length}장</span></span>
+              <span style={{ fontSize:16, fontWeight:700 }}>장바구니 쿠폰 <span style={{ color:'#CB1D11', fontSize:15 }}>{coupons.length}장</span></span>
               <button onClick={() => setCouponModal(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -571,12 +571,12 @@ export default function CartClient() {
                       <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
                         {c.min_order_amount > 0 ? `${fmtPrice(c.min_order_amount)}원 이상 구매` : '0원 이상 구매'}<br/>{periodStr}
                       </div>
-                      {!usable && <div style={{ fontSize:11, color:'#CB1D11', fontWeight:600, marginTop:6 }}>{fmtPrice(c.min_order_amount)}원 이상 구매 시 사용 가능</div>}
+                      {!usable && <div style={{ fontSize:12, color:'#CB1D11', fontWeight:600, marginTop:6 }}>{fmtPrice(c.min_order_amount)}원 이상 구매 시 사용 가능</div>}
                     </button>
                   );
                 })}
               </div>
-              {coupons.length === 0 && <div style={{ textAlign:'center', color:'#AAA', fontSize:13, padding:'30px 0' }}>보유한 쿠폰이 없습니다</div>}
+              {coupons.length === 0 && <div style={{ textAlign:'center', color:'#AAA', fontSize:14, padding:'30px 0' }}>보유한 쿠폰이 없습니다</div>}
             </div>
             <div style={{ flexShrink:0, padding:'12px 20px 16px', borderTop:'1px solid #F0F0F0', background:'#fff' }}>
               {(() => {
