@@ -435,22 +435,22 @@ export default function ProductClient() {
 
     async function loadCoupons() {
       const supabase = createClient();
-      // coupons(*) → 컬럼 구성이 달라도(applicable_* 유무 등) select가 깨지지 않게
-      const { data, error } = await supabase
-        .from('user_coupons')
-        .select('id, coupons:coupon_id (*)')
-        .eq('user_id', user!.id)
-        .eq('is_used', false);
-
-      if (error) { console.error('[bestCoupon]', error.message); setBestCoupon(null); return; }
-      if (!data || data.length === 0) { setBestCoupon(null); return; }
+      // 보유 쿠폰 + 다운로드 가능(공개) 이벤트 쿠폰을 모두 후보로
+      const [{ data: heldData }, { data: pubData }] = await Promise.all([
+        supabase.from('user_coupons').select('id, coupons:coupon_id (*)').eq('user_id', user!.id).eq('is_used', false),
+        supabase.from('coupons').select('*').eq('is_public', true).eq('is_active', true),
+      ]);
 
       const now = new Date();
       const bp  = product!.discounted_price ?? product!.price;
       let best: { name: string; discountAmt: number; finalPrice: number; totalRate: number } | null = null;
 
-      for (const uc of data as any[]) {
-        const c = uc.coupons;
+      const seen = new Set<string>();
+      const candidates: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
+      for (const uc of (heldData as any[]) || []) { const cc = uc.coupons; if (cc?.id && !seen.has(cc.id)) { seen.add(cc.id); candidates.push(cc); } } // eslint-disable-line @typescript-eslint/no-explicit-any
+      for (const cc of (pubData as any[]) || []) { if (cc?.id && !seen.has(cc.id)) { seen.add(cc.id); candidates.push(cc); } } // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      for (const c of candidates) {
         if (!c || !c.discount_value || !c.is_active) continue;
 
         // 만료 체크
@@ -494,7 +494,8 @@ export default function ProductClient() {
     if (user) { setSignupBest(null); return; }
     (async () => {
       const supabase = createClient();
-      const { data } = await supabase.from('coupons').select('*').eq('signup_grant', true).eq('is_active', true);
+      // 신규가입 웰컴 쿠폰 + 다운로드 가능(공개) 이벤트 쿠폰 모두 후보로
+      const { data } = await supabase.from('coupons').select('*').or('signup_grant.eq.true,is_public.eq.true').eq('is_active', true);
       if (!data || data.length === 0) { setSignupBest(null); return; }
       const now = new Date();
       const bp = product.discounted_price ?? product.price;
