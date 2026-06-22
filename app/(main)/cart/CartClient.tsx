@@ -36,7 +36,11 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
 
 export default function CartClient() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  /* 비로그인 상태에서 장바구니 접근 → 로그인 페이지로 (장바구니는 기기에 그대로 보존) */
+  useEffect(() => {
+    if (!authLoading && !user) router.replace('/login?next=/cart');
+  }, [authLoading, user, router]);
   const [items, setItems] = useState<CartItem[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [coupons, setCoupons] = useState<{ ucId:string; name:string; discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null; starts_at:string|null; expires_at:string|null }[]>([]);
@@ -270,6 +274,9 @@ export default function CartClient() {
     if (selItems.length === 0) { alert('주문할 상품을 선택해주세요.'); return; }
     router.push('/checkout');
   }
+
+  // 비로그인이면 위 effect가 /login으로 보냄 — 그동안 내용(빈 장바구니 포함) 노출 방지
+  if (!user) return null;
 
   if (items.length === 0) {
     return (
