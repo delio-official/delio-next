@@ -24,6 +24,7 @@ export default function OptionDrawer() {
   const [product, setProduct] = useState<Product | null>(null);
   const [options, setOptions] = useState<Option[]>([]);
   const [selByGroup, setSelByGroup] = useState<Record<string, string>>({});
+  const [picks, setPicks]     = useState<{ key: string; opts: Option[]; qty: number }[]>([]);
   const [qty, setQty]         = useState(1);
   const [loading, setLoading] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export default function OptionDrawer() {
       setClosing(false);
       setLoading(true);
       setSelByGroup({});
+      setPicks([]);
       setQty(1);
       setOpenGroup(null);
       const supabase = createClient();
@@ -42,15 +44,8 @@ export default function OptionDrawer() {
         supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', productId).single(),
         supabase.from('product_options').select('id,label,add_price,stock,is_default,group_name,is_required,parent_label').eq('product_id', productId).order('sort_order'),
       ]);
-      let optionList = (opts as Option[]) || [];
-      // 옵션이 없는 기존 상품 → "기본" 가상 옵션으로 통일
-      if (optionList.length === 0) {
-        optionList = [{ id: '__default__', label: '기본', add_price: 0, stock: 999, is_default: true, group_name: '옵션', is_required: true }];
-      }
       setProduct(prod as Product);
-      setOptions(optionList);
-      const def = optionList.find(o => o.is_default) || optionList[0];
-      if (def) setSelByGroup({ [def.group_name || '옵션']: def.id });
+      setOptions((opts as Option[]) || []);
       setLoading(false);
     }
     window.addEventListener('openOptionDrawer', handler);
@@ -65,54 +60,81 @@ export default function OptionDrawer() {
   if (!open) return null;
 
   const groupNames = [...new Set(options.map(o => o.group_name || '옵션'))];
-  const selectedOpts = groupNames.map(g => options.find(o => o.id === selByGroup[g])).filter(Boolean) as Option[];
   const requiredGroups = groupNames.filter(g => options.find(o => (o.group_name || '옵션') === g)?.is_required !== false);
   /* 2단(종속) 옵션: 첫 그룹=상위, 이후 하위는 parent_label로 필터 */
   const parentGroup = groupNames[0];
   const isCascade = options.some(o => !!(o.parent_label && o.parent_label.trim()));
+  const hasOptionalGroup = groupNames.some(g => options.find(o => (o.group_name || '옵션') === g)?.is_required === false);
   const selectedParentLabel = options.find(o => o.id === selByGroup[parentGroup])?.label || '';
   const optsForGroup = (g: string): Option[] => {
     const inGroup = options.filter(o => (o.group_name || '옵션') === g);
-    if (g === parentGroup) return inGroup;
+    if (!isCascade || g === parentGroup) return inGroup;
     return inGroup.filter(o => !o.parent_label || o.parent_label === selectedParentLabel);
   };
-  const allSel = options.length === 0 || requiredGroups.every(g => {
-    if (selByGroup[g]) return true;
-    if (groupNames.indexOf(g) > 0 && optsForGroup(g).length === 0) return true;
-    return false;
-  });
-  const basePrice = product ? (product.discounted_price ?? product.price) : 0;
-  const totalAddPrice = selectedOpts.reduce((s, o) => s + (o.add_price || 0), 0);
-  const unitPrice = basePrice + totalAddPrice;
-  const totalPrice = unitPrice * qty;
+  const hasOpts = options.length > 0;
 
-  function buildItem() {
-    if (!product) return null;
-    const isDefault = selectedOpts.length === 1 && selectedOpts[0].id === '__default__';
-    return {
-      id: product.id,
-      name: product.name,
-      price: unitPrice,
-      originalPrice: product.price + totalAddPrice,
-      thumbnail: product.thumbnail_url || '',
-      quantity: qty,
-      optionId: isDefault ? undefined : (selectedOpts.map(o => o.id).join(',') || undefined),
-      options: isDefault ? undefined : (selectedOpts.map(o => o.label).join(' / ') || undefined),
-      deliveryType: product.is_dawn ? '산지직송' : '자사배송' as '산지직송' | '자사배송',
-    };
+  function getSelectedOpts(map: Record<string, string> = selByGroup): Option[] {
+    return groupNames.map(g => options.find(o => o.id === map[g])).filter(Boolean) as Option[];
+  }
+  function allGroupsSelected(map: Record<string, string> = selByGroup): boolean {
+    if (options.length === 0) return true;
+    if (!isCascade) return requiredGroups.every(g => !!map[g]);
+    const parentLabel = options.find(o => o.id === map[parentGroup])?.label || '';
+    return requiredGroups.every(g => {
+      if (map[g]) return true;
+      if (groupNames.indexOf(g) > 0) {
+        const avail = options.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
+        if (avail.length === 0) return true;
+      }
+      return false;
+    });
+  }
+  /* 옵션 조합을 누적 목록에 추가 (같은 조합이면 수량 +1) */
+  function addPick(opts: Option[]) {
+    const key = opts.map(o => o.id).join(',');
+    setPicks(prev => {
+      const i = prev.findIndex(p => p.key === key);
+      if (i >= 0) { const next = [...prev]; next[i] = { ...next[i], qty: next[i].qty + 1 }; return next; }
+      return [...prev, { key, opts, qty: 1 }];
+    });
+  }
+  const commitPick = () => { addPick(getSelectedOpts()); setSelByGroup({}); setOpenGroup(null); };
+
+  const basePrice = product ? (product.discounted_price ?? product.price) : 0;
+  const picksTotal = picks.reduce((s, p) => s + (basePrice + p.opts.reduce((a, o) => a + (o.add_price || 0), 0)) * p.qty, 0);
+  const picksQty = picks.reduce((s, p) => s + p.qty, 0);
+  const totalPrice = hasOpts ? picksTotal : basePrice * qty;
+  const totalQty = hasOpts ? picksQty : qty;
+  const canAdd = hasOpts ? picks.length > 0 : true;
+
+  function addAll() {
+    if (!product) return;
+    const list = hasOpts ? picks : [{ opts: [] as Option[], qty }];
+    list.forEach(p => {
+      const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: basePrice + addP,
+        originalPrice: product.price + addP,
+        thumbnail: product.thumbnail_url || '',
+        quantity: p.qty,
+        optionId: p.opts.map(o => o.id).join(',') || undefined,
+        options: p.opts.map(o => o.label).join(' / ') || undefined,
+        deliveryType: product.is_dawn ? '산지직송' : '자사배송' as '산지직송' | '자사배송',
+      });
+    });
   }
 
   function handleAddCart() {
     if (!requireLogin()) { close(); return; }
-    if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
-    const item = buildItem();
-    if (item) { addToCart(item); showCartToast(); close(); }
+    if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
+    addAll(); showCartToast(); close();
   }
   function handleBuyNow() {
     if (!requireLogin()) { close(); return; }
-    if (!allSel) { alert('옵션을 모두 선택해 주세요.'); return; }
-    const item = buildItem();
-    if (item) { addToCart(item); close(); router.push('/cart'); }
+    if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
+    addAll(); close(); router.push('/cart');
   }
 
   return (
@@ -160,9 +182,19 @@ export default function OptionDrawer() {
                     const selOpt = groupOpts.find(o => o.id === selByGroup[g]);
                     const isOpen = openGroup === g;
                     const choose = (val: string) => {
-                      setSelByGroup(prev => { const next = { ...prev, [g]: val }; if (g === parentGroup) groupNames.slice(1).forEach(sub => { delete next[sub]; }); return next; });
-                      setQty(1);
-                      setOpenGroup(null);
+                      const next = { ...selByGroup, [g]: val };
+                      if (isCascade && g === parentGroup) groupNames.slice(1).forEach(sub => { delete next[sub]; });
+                      if (!hasOptionalGroup) {
+                        // 필수 그룹만 있는 상품: 필수 다 차면 자동 누적 + 선택 초기화
+                        if (allGroupsSelected(next)) { addPick(getSelectedOpts(next)); setSelByGroup({}); }
+                        else setSelByGroup(next);
+                        setOpenGroup(null);
+                        return;
+                      }
+                      // 선택옵션 있는 상품: 자동 담기 X, 필수 완료 시 미선택 드롭다운 자동 오픈
+                      setSelByGroup(next);
+                      const unselected = groupNames.find(gn => !next[gn]);
+                      setOpenGroup(allGroupsSelected(next) && unselected ? unselected : null);
                     };
                     return (
                       <div className="opt-dd">
@@ -201,12 +233,52 @@ export default function OptionDrawer() {
                 );
               })}
 
-              {/* 수량 + 선택된 옵션 카드 */}
-              {allSel && selectedOpts.length > 0 && (
+              {/* 선택옵션 있는 상품: 필수 완료 시 '이 옵션 담기' 버튼 */}
+              {hasOpts && hasOptionalGroup && allGroupsSelected() && (
+                <button type="button" onClick={commitPick}
+                  style={{ width:'100%', padding:'11px', marginBottom:10, borderRadius:8,
+                    border:'1.5px solid #1A1A1A', background:'#1A1A1A', color:'#fff',
+                    fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                  이 옵션 담기
+                </button>
+              )}
+
+              {/* 누적 선택된 옵션 목록 */}
+              {picks.length > 0 && (
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {picks.map((p, idx) => {
+                    const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
+                    const unit = basePrice + addP;
+                    return (
+                      <div key={p.key} style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+                          <span style={{ fontSize:13, fontWeight:600, flex:1, lineHeight:1.45 }}>
+                            {p.opts.map(o => o.label).join(' / ') || product.name}
+                            {addP > 0 && <span style={{ fontSize:12, color:'#1A1A1A', marginLeft:6, fontWeight:700 }}>+{addP.toLocaleString()}원</span>}
+                          </span>
+                          <button onClick={() => setPicks(prev => prev.filter((_, i) => i !== idx))}
+                            style={{ background:'none', border:'none', cursor:'pointer', fontSize:15, color:'#AAA', padding:'0 0 0 10px', lineHeight:1, flexShrink:0 }}>✕</button>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                          <div style={{ display:'flex', alignItems:'center', border:'1px solid #DADADA', borderRadius:8, background:'#fff' }}>
+                            <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
+                              style={{ width:32, height:32, border:'none', background:'none', fontSize:16, cursor:'pointer', color:'#555' }}>−</button>
+                            <span style={{ width:32, textAlign:'center', fontSize:14, fontWeight:600 }}>{p.qty}</span>
+                            <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x))}
+                              style={{ width:32, height:32, border:'none', background:'none', fontSize:16, cursor:'pointer', color:'#555' }}>+</button>
+                          </div>
+                          <span style={{ fontSize:15, fontWeight:800 }}>{(unit * p.qty).toLocaleString()}원</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 옵션 없는 상품: 수량 직접 조절 */}
+              {!hasOpts && (
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px' }}>
-                  <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>
-                    {product.name}{selectedOpts.some(o => o.id !== '__default__') ? ` (${selectedOpts.filter(o => o.id !== '__default__').map(o => o.label).join(' / ')})` : ''}
-                  </div>
+                  <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{product.name}</div>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                     <div style={{ display:'flex', alignItems:'center', border:'1px solid #DADADA', borderRadius:8, background:'#fff' }}>
                       <button onClick={() => setQty(q => Math.max(1, q - 1))}
@@ -215,7 +287,7 @@ export default function OptionDrawer() {
                       <button onClick={() => setQty(q => q + 1)}
                         style={{ width:32, height:32, border:'none', background:'none', fontSize:16, cursor:'pointer', color:'#555' }}>+</button>
                     </div>
-                    <span style={{ fontSize:15, fontWeight:800 }}>{(unitPrice * qty).toLocaleString()}원</span>
+                    <span style={{ fontSize:15, fontWeight:800 }}>{(basePrice * qty).toLocaleString()}원</span>
                   </div>
                 </div>
               )}
@@ -224,7 +296,7 @@ export default function OptionDrawer() {
             {/* 하단 합계 + 버튼 */}
             <div style={{ borderTop:'1px solid #F0F0F0', padding:'16px 20px' }}>
               <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
-                <span style={{ fontSize:14, color:'#555' }}>TOTAL <span style={{ color:'#888', fontSize:12 }}>({qty}개)</span></span>
+                <span style={{ fontSize:14, color:'#555' }}>TOTAL <span style={{ color:'#888', fontSize:12 }}>({totalQty}개)</span></span>
                 <span style={{ fontSize:20, fontWeight:800, color:'#1A1A1A' }}>{totalPrice.toLocaleString()}원</span>
               </div>
               <div style={{ display:'flex', gap:8 }}>
