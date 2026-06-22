@@ -100,7 +100,7 @@ body { background: #fff; }
       position: sticky;
       top: 80px;
     }
-    .summary-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; }
+    .summary-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
     .summary-row {
       display: flex; justify-content: space-between;
       font-size: 13px; padding: 7px 0;
