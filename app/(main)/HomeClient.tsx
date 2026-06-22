@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { loadTabsFor, loadCategoryTabs } from '@/lib/filterTabs';
 import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
 import '@/styles/index.css';
@@ -799,7 +800,10 @@ export default function HomeClient() {
   };
 
   /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
-  const [reviews, setReviews] = useState<{ id: string; image: string; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null }[]>([]);
+  const [reviews, setReviews] = useState<{ id: string; image: string; images: string[]; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null }[]>([]);
+  const [reviewModal, setReviewModal] = useState<(typeof reviews)[number] | null>(null);
+  const [reviewModalIdx, setReviewModalIdx] = useState(0);
+  useBodyScrollLock(!!reviewModal);
   const [reviewLoaded, setReviewLoaded] = useState(false);
   useEffect(() => {
     (async () => {
@@ -826,6 +830,7 @@ export default function HomeClient() {
         .map(r => ({
           id: r.id,
           image: r.image_urls![0],
+          images: r.image_urls!,
           stars: r.rating,
           text: r.content,
           prodId: r.products!.id,
@@ -1122,14 +1127,15 @@ export default function HomeClient() {
             <div className="review-scroll" ref={reviewScrollRef}>
               {reviews.map((r, i) => (
                 <div key={i} className="review-card">
-                  {/* 이미지 + 리뷰 텍스트 → 리뷰 상세 */}
-                  <Link href={`/product/${r.prodId}`} className="review-card-top" style={{ textDecoration:'none', color:'inherit', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
+                  {/* 이미지 + 리뷰 텍스트 → 리뷰 모달 */}
+                  <div className="review-card-top" onClick={() => { setReviewModal(r); setReviewModalIdx(0); }}
+                    style={{ cursor:'pointer', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
                     <div className="review-photo" style={{ overflow:'hidden' }}><img src={r.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
                     <div className="review-body">
                       <div className="review-stars"><StarRating rating={r.stars} size={14} /></div>
                       <div className="review-text">{r.text}</div>
                     </div>
-                  </Link>
+                  </div>
                   {/* 상품 정보 → 상품 상세 페이지 */}
                   <Link href={`/product/${r.prodId}`} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
                     <div className="review-prod-icon" style={{ overflow:'hidden' }}>
@@ -1150,6 +1156,46 @@ export default function HomeClient() {
         </div>
       </section>
 
+      )}
+
+      {/* ── 리뷰 모달 (리뷰 하이라이트 사진 클릭) ── */}
+      {reviewModal && (
+        <div onClick={() => setReviewModal(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:480, maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid #F0F0F0', flexShrink:0 }}>
+              <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
+              <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
+            </div>
+            <div style={{ background:'#111', aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+            </div>
+            {reviewModal.images.length > 1 && (
+              <div style={{ display:'flex', gap:6, padding:'8px 12px', overflowX:'auto', borderTop:'1px solid #F0F0F0', flexShrink:0 }}>
+                {reviewModal.images.map((u, ii) => (
+                  <img key={ii} src={u} alt="" onClick={() => setReviewModalIdx(ii)}
+                    style={{ width:48, height:48, objectFit:'cover', borderRadius:6, flexShrink:0, cursor:'pointer', border:`2px solid ${ii===reviewModalIdx ? '#1A1A1A' : 'transparent'}` }} />
+                ))}
+              </div>
+            )}
+            <div style={{ padding:'12px 16px', overflowY:'auto', flex:1 }}>
+              <div style={{ marginBottom:8 }}><StarRating rating={reviewModal.stars} size={15} /></div>
+              <p style={{ fontSize:14, color:'#333', lineHeight:1.7, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
+            </div>
+            <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderTop:'1px solid #F0F0F0', textDecoration:'none', color:'inherit', flexShrink:0 }}>
+              <div style={{ width:40, height:40, borderRadius:8, overflow:'hidden', background:'#F4F4F2', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>
+                {reviewModal.prodThumb ? <img src={reviewModal.prodThumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : reviewModal.emoji}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{reviewModal.prodName}</div>
+                <div style={{ fontSize:12, color:'#888', display:'flex', alignItems:'center', gap:3 }}><SingleStar size={11} />{reviewModal.prodRating}</div>
+              </div>
+              <span style={{ fontSize:13, color:'#888', flexShrink:0 }}>상품보기 ›</span>
+            </Link>
+          </div>
+        </div>
       )}
 
       {/* ── 델리오 라운지 ── */}
