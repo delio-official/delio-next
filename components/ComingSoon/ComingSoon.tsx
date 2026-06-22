@@ -39,7 +39,7 @@ export default function ComingSoon({
         {title}
       </h3>
 
-      <div style={{ marginTop: 10, color: '#9A958E', fontSize: 13.5, lineHeight: 1.7 }}>
+      <div style={{ marginTop: 10, color: '#1A1A1A', fontSize: 13.5, lineHeight: 1.7 }}>
         {lines.map((line, i) => (
           <p key={i} style={{ margin: 0 }}>{line}</p>
         ))}
