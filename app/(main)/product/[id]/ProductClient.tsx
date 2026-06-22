@@ -175,6 +175,7 @@ export default function ProductClient() {
     });
   }
   const [submitting,       setSubmitting]       = useState(false);
+  const submittingRef = useRef(false); // 연타 동시 제출 방지 (state는 비동기라 ref로 동기 차단)
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
   const [tasteMore,           setTasteMore]           = useState(false);
@@ -644,6 +645,8 @@ export default function ProductClient() {
     if (!user) { router.push('/login'); return; }
     if (!hasPurchased) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
+    if (submittingRef.current) return;   // 이미 제출 중이면 무시 (연타 차단)
+    submittingRef.current = true;
     setSubmitting(true);
     const supabase = createClient();
 
@@ -660,7 +663,7 @@ export default function ProductClient() {
       for (const file of newImages) {
         const path = `reviews/${user.id}/${safeName(file.name)}`;
         const { error: upErr } = await supabase.storage.from('products').upload(path, file, { upsert: true });
-        if (upErr) { setSubmitting(false); setMediaUploading(false); alert(`사진 업로드 실패: ${upErr.message}`); return; }
+        if (upErr) { submittingRef.current = false; setSubmitting(false); setMediaUploading(false); alert(`사진 업로드 실패: ${upErr.message}`); return; }
         const { data } = supabase.storage.from('products').getPublicUrl(path);
         uploadedImageUrls.push(data.publicUrl);
       }
@@ -673,7 +676,7 @@ export default function ProductClient() {
       setMediaUploading(true);
       const path = `reviews/${user.id}/${safeName(newVideo.name)}`;
       const { error: upErr } = await supabase.storage.from('products').upload(path, newVideo, { upsert: true });
-      if (upErr) { setSubmitting(false); setMediaUploading(false); alert(`영상 업로드 실패: ${upErr.message}`); return; }
+      if (upErr) { submittingRef.current = false; setSubmitting(false); setMediaUploading(false); alert(`영상 업로드 실패: ${upErr.message}`); return; }
       const { data } = supabase.storage.from('products').getPublicUrl(path);
       uploadedVideoUrl = data.publicUrl;
       setMediaUploading(false);
@@ -704,7 +707,7 @@ export default function ProductClient() {
       delete reviewPayload.author_name;
       ({ data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single());
     }
-    if (error) { setSubmitting(false); alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+    if (error) { submittingRef.current = false; setSubmitting(false); alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
     /* 성공: 모달 닫을 때까지 submitting 유지 → 중복 제출(다중 클릭) 방지 */
 
     /* 리뷰 작성 포인트 적립 (멱등) */
@@ -745,7 +748,7 @@ export default function ProductClient() {
     setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
-    setSubmitting(false);
+    submittingRef.current = false; setSubmitting(false);
   }
 
   /* ── 리뷰 도움됐어요 ── */
