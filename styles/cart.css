@@ -100,7 +100,7 @@ body { background: #fff; }
       position: sticky;
       top: 80px;
     }
-    .summary-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+    .summary-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
     .summary-row {
       display: flex; justify-content: space-between;
       font-size: 13px; padding: 7px 0;
@@ -109,7 +109,7 @@ body { background: #fff; }
     }
     .summary-row:last-of-type { border-bottom: none; }
     .summary-row.total {
-      font-size: 15px; font-weight: 700; color: var(--color-ink);
+      font-size: 16px; font-weight: 800; color: var(--color-ink);
       border-top: 2px solid #EBEBEB; margin-top: 8px; padding-top: 14px;
       border-bottom: none;
     }
