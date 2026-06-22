@@ -256,8 +256,9 @@ export default function CartClient() {
   const afterCoupon = Math.max(0, subtotal - couponDisc);
   const maxPoint = Math.min(pointBalance, afterCoupon);
   const appliedPoint = Math.min(pointUsed, maxPoint);
-  /* 장바구니 결제예정금액 = 상품 판매가 합계 (쿠폰·포인트는 체크아웃에서 적용) */
-  const total = subtotal;
+  /* 장바구니 결제예정금액 = 상품가 − 최대할인 쿠폰(예상). 체크아웃이 최대할인 쿠폰을 자동적용하므로 금액 일치.
+     포인트는 체크아웃에서 사용자가 직접 적용하므로 여기선 차감하지 않음(보유 안내만). */
+  const total = Math.max(0, subtotal - bestCouponDisc);
 
   /* 선택을 localStorage에 저장 → 체크아웃으로 공유 */
   useEffect(() => {
@@ -403,14 +404,14 @@ export default function CartClient() {
             )}
             {user && (
               <div className="summary-row" style={{ borderBottom:'none' }}>
-                <span>사용 가능한 포인트</span>
-                <span style={{ color:'var(--color-accent)', fontWeight:600 }}>{fmtPrice(pointBalance)}P</span>
+                <span>보유 포인트</span>
+                <span style={{ color:'#888', fontWeight:600 }}>{fmtPrice(pointBalance)}P</span>
               </div>
             )}
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
             {user && (
-              <div style={{ fontSize:12, color:'#aaa', textAlign:'right', marginTop:4 }}>쿠폰·포인트는 결제(체크아웃) 단계에서 적용됩니다</div>
+              <div style={{ fontSize:12, color:'#aaa', textAlign:'right', marginTop:4 }}>최대할인 쿠폰 반영가 · 포인트는 결제 단계에서 사용 가능</div>
             )}
 
             <div className="cta-group">
