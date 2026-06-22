@@ -264,10 +264,12 @@ export default function ProductClient() {
     }
     const loop = () => {
       if (stopped) return;
-      const el = document.getElementById('productTabs');
+      // sticky 탭바 대신 비-sticky 부모 섹션 기준 + 고정헤더(56px) 보정으로 수동 스크롤
+      // (모바일 사파리에서 sticky 요소 scrollIntoView가 안 먹는 버그 회피)
+      const el = document.getElementById('productTabsAnchor');
       if (el) {
         const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-        el.scrollIntoView({ block: 'start' });
+        window.scrollTo({ top: Math.max(0, top - 56), behavior: 'auto' });
         lastSetY = window.scrollY;
         stable = Math.abs(top - prevTop) <= 1 ? stable + 1 : 0;
         prevTop = top;
@@ -1828,7 +1830,7 @@ export default function ProductClient() {
       </div>
 
       {/* ══ 탭 ══ */}
-      <div className="pd-tabs-section">
+      <div className="pd-tabs-section" id="productTabsAnchor">
         <div className="pd-tab-bar" id="productTabs">
           {TABS.map((t, i) => (
             <div key={t} className={`pd-tab${activeTab === i ? ' active' : ''}`}
