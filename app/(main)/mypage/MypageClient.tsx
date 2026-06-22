@@ -8,6 +8,7 @@ import { getDownloadableCoupons, claimAllPublic, redeemCouponByCode, type Public
 import { DEFAULT_TIERS, GRADE_LABEL, GRADE_LABEL_EN, GRADE_COLOR, MEMBERSHIP_COUPON, normalizeGrade, effectiveRate, type MembershipTier } from '@/lib/membership';
 import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
@@ -279,6 +280,8 @@ export default function MypageClient() {
   const [addrForm,     setAddrForm]     = useState({ ...EMPTY_ADDR });
   const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
   const [isMobileView, setIsMobileView] = useState(false);
+  /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
+  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
     const update = () => setIsMobileView(mq.matches);

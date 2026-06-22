@@ -9,6 +9,7 @@ import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -185,6 +186,8 @@ export default function ProductClient() {
   const [siteDispatchCutoff,  setSiteDispatchCutoff]  = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
+  /* 모달/풀스크린 열림 동안 뒷 배경 스크롤 잠금 */
+  useBodyScrollLock(inqModal || reviewModalOpen || reviewPolicyOpen || photoGalleryOpen);
   const [isAdmin, setIsAdmin] = useState(false);
 
   function showToast(msg: string) {
