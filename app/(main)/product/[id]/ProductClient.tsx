@@ -1008,7 +1008,7 @@ export default function ProductClient() {
 
         return (
           <div onClick={closeAll} style={{
-            position: 'fixed', inset: 0, zIndex: 3000,
+            position: 'fixed', inset: 0, zIndex: 3500,
             background: 'rgba(0,0,0,0.55)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: isMobile ? 0 : 16,
