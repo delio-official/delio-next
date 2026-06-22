@@ -183,6 +183,7 @@ export default function ProductClient() {
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
   const [photoGalleryOpen,    setPhotoGalleryOpen]    = useState(false);
   const [selectedGalleryIdx,  setSelectedGalleryIdx]  = useState<number | null>(null);
+  const [galleryFromReview,   setGalleryFromReview]   = useState(false); // 리뷰 사진에서 진입했는지(뒤로가기 동작 구분)
   const [isMobile,            setIsMobile]            = useState(false);
   const [siteDispatchCutoff,  setSiteDispatchCutoff]  = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -1028,7 +1029,7 @@ export default function ProductClient() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {selItem && (
-                    <button onClick={() => setSelectedGalleryIdx(null)} aria-label="뒤로가기" style={{
+                    <button onClick={() => { if (galleryFromReview) closeAll(); else setSelectedGalleryIdx(null); }} aria-label="뒤로가기" style={{
                       background: 'none', border: 'none', cursor: 'pointer', padding: 0,
                       display: 'flex', alignItems: 'center', color: '#1A1A1A', lineHeight: 0,
                     }}>
@@ -1076,25 +1077,25 @@ export default function ProductClient() {
                         )}
                         {/* 이전 */}
                         {selectedGalleryIdx! > 0 && (
-                          <button onClick={() => setSelectedGalleryIdx(i => i! - 1)} style={{
-                            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-                            width: 32, height: 32, borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.92)', border: '1px solid #DDD',
-                            cursor: 'pointer', fontSize: 18, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                          }}>‹</button>
+                          <button onClick={() => setSelectedGalleryIdx(i => i! - 1)} aria-label="이전 사진" style={{
+                            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                            width: 34, height: 34, borderRadius: '50%',
+                            background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                          }}>
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                          </button>
                         )}
                         {/* 다음 */}
                         {selectedGalleryIdx! < allPhotoItems.length - 1 && (
-                          <button onClick={() => setSelectedGalleryIdx(i => i! + 1)} style={{
-                            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                            width: 32, height: 32, borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.92)', border: '1px solid #DDD',
-                            cursor: 'pointer', fontSize: 18, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                          }}>›</button>
+                          <button onClick={() => setSelectedGalleryIdx(i => i! + 1)} aria-label="다음 사진" style={{
+                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                            width: 34, height: 34, borderRadius: '50%',
+                            background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', padding: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                          }}>
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                          </button>
                         )}
                       </div>
 
@@ -2139,7 +2140,7 @@ export default function ProductClient() {
                     const isLastMore = allPhotoItems.length > 4 && i === 3;
                     return (
                       <div key={i}
-                        onClick={() => { setPhotoGalleryOpen(true); setSelectedGalleryIdx(isLastMore ? null : i); }}
+                        onClick={() => { setGalleryFromReview(false); setPhotoGalleryOpen(true); setSelectedGalleryIdx(isLastMore ? null : i); }}
                         style={{ aspectRatio:'1', position:'relative', borderRadius:6, cursor:'pointer',
                           background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
@@ -2228,6 +2229,7 @@ export default function ProductClient() {
                         <img key={ii} src={url} alt="" loading="lazy"
                           onClick={() => {
                             const gIdx = allPhotoItems.findIndex(p => p.review?.id === r.id && p.photoIdx === ii);
+                            setGalleryFromReview(true);
                             setSelectedGalleryIdx(gIdx >= 0 ? gIdx : null);
                             setPhotoGalleryOpen(true);
                           }}
