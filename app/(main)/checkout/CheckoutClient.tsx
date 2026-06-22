@@ -542,16 +542,16 @@ export default function CheckoutClient() {
               <div style={{ border:'1px solid #E8E8E8', borderRadius:10, padding:'14px 16px' }}>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:14, fontWeight:700 }}>{selAddr.label || '배송지'}</span>
+                    <span style={{ fontSize:15, fontWeight:700 }}>{selAddr.label || '배송지'}</span>
                     {selAddr.is_default && <span style={{ fontSize:12, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px' }}>기본배송지</span>}
                   </div>
                   <button type="button" onClick={() => setAddrListModal(true)}
                     style={{ background:'none', border:'none', fontSize:14, color:'#555', textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>변경</button>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:14, color:'#555', marginBottom:6 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:15, color:'#555', marginBottom:6 }}>
                   <span>{selAddr.recipient}  {selAddr.phone}</span>
                 </div>
-                <div style={{ fontSize:14, color:'#555', lineHeight:1.5 }}>
+                <div style={{ fontSize:15, color:'#555', lineHeight:1.5 }}>
                   {selAddr.zipcode && <span style={{ color:'#aaa' }}>[{selAddr.zipcode}] </span>}{selAddr.address1}
                   {selAddr.address2 && <div>{selAddr.address2}</div>}
                 </div>
@@ -667,7 +667,7 @@ export default function CheckoutClient() {
           style={{ width:'100%', height:52, background: (loading || !payAgree) ? '#999' : '#1A1A1A',
             color:'#fff', border:'none', borderRadius:8, fontSize:16, fontWeight:700,
             cursor: (loading || !payAgree) ? 'not-allowed' : 'pointer', transition:'background .2s' }}>
-          {loading ? '결제창 열리는 중...' : !payAgree ? '결제에 동의해 주세요' : `${fmtPrice(total)}원 결제하기`}
+          {loading ? '결제창 열리는 중...' : `${fmtPrice(total)}원 결제하기`}
         </button>
       </div>
 
