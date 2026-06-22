@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getCart, saveCart, removeFromCart, updateQty, freshIdx, type CartItem } from '@/lib/cart';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getOrderPrefs, setOrderPrefs } from '@/lib/orderPrefs';
@@ -52,6 +53,8 @@ export default function CartClient() {
   const [optSel, setOptSel] = useState<Record<string, string>>({}); // group_name -> option id
   const [optLoading, setOptLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
+  useBodyScrollLock(!!optItem || couponModal);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');

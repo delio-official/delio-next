@@ -8,6 +8,7 @@ import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs'
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import '@/styles/checkout.css';
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
@@ -100,6 +101,8 @@ export default function CheckoutClient() {
   const [coupons, setCoupons]       = useState<UserCoupon[]>([]);
   const [selCoupon, setSelCoupon]   = useState('');
   const [couponModal, setCouponModal] = useState(false);
+  /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
+  useBodyScrollLock(addrListModal || addrFormModal || couponModal);
   const [modalSel, setModalSel]     = useState(''); // 모달 내 임시 선택
   const [dlCount, setDlCount]       = useState(0);  // 다운가능 쿠폰 수
   const [claiming, setClaiming]     = useState(false);
