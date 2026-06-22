@@ -1470,8 +1470,8 @@ export default function ProductClient() {
                 </Link>
               )}
 
-              {/* 가격 ↔ 배송정보 구분선 */}
-              <div style={{ borderTop: '1px solid #EDEDED', margin: '18px 0 4px' }} />
+              {/* 가격 ↔ 배송정보 구분선 (모바일은 화면 끝까지) */}
+              <div className="pd-price-divider" />
 
               {/* 배송 정보 테이블 */}
               <table className="pd-info-table">

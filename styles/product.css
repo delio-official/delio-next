@@ -207,13 +207,20 @@
     }
 
     /* ===== 옵션 ===== */
+    /* 가격↔배송 구분선: PC는 컬럼 내부, 모바일은 화면 끝까지(full-bleed) */
+    .pd-price-divider { border-top: 1px solid #EDEDED; margin: 18px 0 4px; }
     .option-section {
       padding-top: 20px; margin-top: 4px;
     }
     @media (max-width: 768px) {
+      .pd-price-divider {
+        width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+      }
       .option-section {
         background: var(--color-bg-white);
         padding: 20px 20px; margin-top: 0; border-top: 8px solid #F7F7F5;
+        width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
+        box-sizing: border-box;
       }
     }
     .option-label { font-size: 12px; font-weight: 700; color: var(--color-ink-mute); margin-bottom: 8px; }
