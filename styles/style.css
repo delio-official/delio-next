@@ -783,6 +783,10 @@ input, select, textarea { font-family: inherit; }
   text-align: center;
   color: rgba(0,0,0,0.4);
 }
+/* 사업자정보 아코디언: PC는 항상 펼침·토글 숨김 */
+.footer-biz-toggle { display: none; }
+.footer-biz-detail { display: flex; flex-direction: column; gap: 8px; }
+
 @media (max-width: 640px) {
   .footer-inner { grid-template-columns: 1fr; }
   .footer-links { align-items: flex-start; }
@@ -799,6 +803,16 @@ input, select, textarea { font-family: inherit; }
   /* 사업자 정보 줄간격 좁히기 */
   .footer-biz { line-height: 1.55 !important; }
   .footer-top { gap: 22px !important; padding-bottom: 28px !important; }
+  /* 모바일: 사업자정보 접기(아코디언) */
+  .footer-biz-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+    font-size: 15px; font-weight: 700; color: #1A1A1A; text-align: left;
+  }
+  .footer-biz-toggle svg { color: #999; transition: transform .2s; flex-shrink: 0; }
+  .footer-biz.open .footer-biz-toggle svg { transform: rotate(180deg); }
+  .footer-biz-detail { display: none; margin-top: 14px; }
+  .footer-biz.open .footer-biz-detail { display: flex; }
 }
 
 /* ===== 상단 이동 버튼 ===== */

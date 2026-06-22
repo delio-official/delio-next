@@ -672,6 +672,7 @@ export default function HomeClient() {
   const [pickLoaded, setPickLoaded] = useState(false);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
   const [loungeLoaded, setLoungeLoaded] = useState(false);
+  const [bizOpen, setBizOpen] = useState(false); // 모바일 푸터 사업자정보 접기
 
   /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
   const [secOff, setSecOff] = useState<Set<string>>(new Set());
@@ -1274,8 +1275,13 @@ export default function HomeClient() {
           {/* 사업자정보 | 고객센터 | 입금계좌 (같은 높이 박스, 내용 위아래 꽉) */}
           <div className="footer-top" style={{ display:'grid', gridTemplateColumns:'1.9fr 1fr 1fr', gap:48, paddingBottom:40, alignItems:'stretch' }}>
             {/* 사업자 정보 */}
-            <div className="footer-biz" style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div className={`footer-biz${bizOpen ? ' open' : ''}`} style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+              {/* 모바일 전용 토글 헤더 */}
+              <button type="button" className="footer-biz-toggle" onClick={() => setBizOpen(o => !o)}>
+                <span>델리오 사업자 정보</span>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div className="footer-biz-detail">
                 <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
                 <div>주소 : 경기도 고양시 덕양구 용현로3, 7층 14호</div>
                 <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 2026-고양덕양구-1612</div>
