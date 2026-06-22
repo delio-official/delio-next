@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
+import { getDownloadableCoupons, claimAllPublic, type PublicCoupon } from '@/lib/coupons';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -190,8 +191,9 @@ export default function ProductClient() {
   const [siteDispatchCutoff,  setSiteDispatchCutoff]  = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
+  const [couponDownOpen,      setCouponDownOpen]      = useState(false);
   /* 모달/풀스크린 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(inqModal || reviewModalOpen || reviewPolicyOpen || photoGalleryOpen);
+  useBodyScrollLock(inqModal || reviewModalOpen || reviewPolicyOpen || photoGalleryOpen || couponDownOpen);
   const [isAdmin, setIsAdmin] = useState(false);
 
   function showToast(msg: string) {
@@ -201,6 +203,9 @@ export default function ProductClient() {
   const [csPhone,             setCsPhone]             = useState('02-6925-2311');
   const [signupCoupon,        setSignupCoupon]        = useState(5000);
   const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null>(null);
+  const [downCoupons,         setDownCoupons]         = useState<PublicCoupon[]>([]);
+  const [claiming,            setClaiming]            = useState(false);
+  const [couponRefresh,       setCouponRefresh]       = useState(0);
   const [pointRate,           setPointRate]           = useState(1);
   const [bestCoupon,       setBestCoupon]       = useState<{
     name: string; discountAmt: number; finalPrice: number; totalRate: number; held: boolean;
@@ -488,7 +493,7 @@ export default function ProductClient() {
     }
 
     loadCoupons();
-  }, [product, user]);
+  }, [product, user, couponRefresh]);
 
   /* ── 비로그인: 신규가입 웰컴 쿠폰(signup_grant) 중 이 상품에 적용 가능한 최대 할인 계산 (min_order_amount 준수) ── */
   useEffect(() => {
@@ -522,6 +527,28 @@ export default function ProductClient() {
       setSignupBest(best);
     })();
   }, [product, user]);
+
+  /* ── 쿠폰 다운로드 모달 ── */
+  async function openCouponDownload() {
+    setCouponDownOpen(true);
+    if (user) {
+      setDownCoupons(await getDownloadableCoupons(user.id));
+    } else {
+      const { data } = await createClient().from('coupons')
+        .select('id,name,discount_type,discount_value,min_order_amount,max_discount_amount,starts_at,expires_at,valid_days')
+        .eq('is_public', true).eq('is_active', true);
+      setDownCoupons((data as PublicCoupon[]) || []);
+    }
+  }
+  async function claimCoupons() {
+    if (!user) { setCouponDownOpen(false); router.push('/login'); return; }
+    setClaiming(true);
+    const n = await claimAllPublic(user.id);
+    setClaiming(false);
+    setCouponDownOpen(false);
+    if (n > 0) { showToast(`${n}장의 쿠폰을 받았어요! 🎉`); setCouponRefresh(x => x + 1); }
+    else showToast('받을 수 있는 쿠폰이 없습니다.');
+  }
 
   async function toggleWishlist() {
     if (!requireLogin() || !user) return;
@@ -1489,7 +1516,12 @@ export default function ProductClient() {
                     <span className="price-coupon-val">
                       {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원</span>
                     </span>
-                    <span className="price-coupon-tag">{bestCoupon.held ? '쿠폰 적용 최대할인가' : '쿠폰 다운받을 시 최대할인가'}</span>
+                    {bestCoupon.held
+                      ? <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
+                      : <button type="button" onClick={openCouponDownload}
+                          style={{ border:'none', background:'#1A1A1A', color:'#fff', fontSize:11.5, fontWeight:700, padding:'4px 11px', borderRadius:999, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:4 }}>
+                          🎟️ 쿠폰 다운받기
+                        </button>}
                   </div>
                 ) : (!user && signupBest) ? (
                   /* 비로그인/비회원: 신규가입 웰컴 쿠폰 중 이 상품에 적용 가능한 최대할인가 (최소주문금액 미달이면 미표시) */
@@ -1498,7 +1530,12 @@ export default function ProductClient() {
                     <span className="price-coupon-val">
                       {fmtPrice(signupBest.finalPrice)}<span className="price-won-suffix">원</span>
                     </span>
-                    <span className="price-coupon-tag">{signupBest.fromSignup ? '신규가입 시 최대할인가' : '쿠폰 다운받을 시 최대할인가'}</span>
+                    {signupBest.fromSignup
+                      ? <span className="price-coupon-tag">신규가입 시 최대할인가</span>
+                      : <button type="button" onClick={openCouponDownload}
+                          style={{ border:'none', background:'#1A1A1A', color:'#fff', fontSize:11.5, fontWeight:700, padding:'4px 11px', borderRadius:999, cursor:'pointer', fontFamily:'inherit', display:'inline-flex', alignItems:'center', gap:4 }}>
+                          🎟️ 쿠폰 다운받기
+                        </button>}
                   </div>
                 ) : null}
               </div>
@@ -2997,6 +3034,46 @@ export default function ProductClient() {
         </button>
       </div>
       {/* ── 토스트 알림 ── */}
+      {/* ── 쿠폰 다운로드 모달 ── */}
+      {couponDownOpen && (
+        <div onClick={() => setCouponDownOpen(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3500, display:'flex',
+            alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, width:'100%', maxWidth:440, maxHeight:'80vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 18px', borderBottom:'1px solid #F0F0F0' }}>
+              <span style={{ fontSize:16, fontWeight:800 }}>🎟️ 쿠폰 다운받기</span>
+              <button onClick={() => setCouponDownOpen(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1 }}>✕</button>
+            </div>
+            <div style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
+              {downCoupons.length === 0 ? (
+                <div style={{ textAlign:'center', color:'#aaa', fontSize:14, padding:'30px 0' }}>받을 수 있는 쿠폰이 없습니다.</div>
+              ) : downCoupons.map(c => (
+                <div key={c.id} style={{ border:'1px solid #EEE', borderRadius:10, padding:'14px 16px', marginBottom:10, display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:18, fontWeight:800, color:'#CB1D11' }}>
+                      {c.discount_type === 'percent' ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', marginTop:2 }}>{c.name}</div>
+                    <div style={{ fontSize:12, color:'#888', marginTop:3 }}>
+                      {c.min_order_amount > 0 ? `${c.min_order_amount.toLocaleString()}원 이상 구매 시` : '구매 금액 제한 없음'}
+                      {c.max_discount_amount ? ` · 최대 ${c.max_discount_amount.toLocaleString()}원` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding:'12px 18px calc(12px + env(safe-area-inset-bottom))', borderTop:'1px solid #F0F0F0' }}>
+              <button onClick={claimCoupons} disabled={claiming || downCoupons.length === 0}
+                style={{ width:'100%', height:50, border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor: (claiming || downCoupons.length===0) ? 'default' : 'pointer',
+                  background: (claiming || downCoupons.length===0) ? '#bbb' : '#1A1A1A', color:'#fff' }}>
+                {claiming ? '받는 중...' : !user ? '로그인하고 받기' : `쿠폰 ${downCoupons.length}장 모두 받기`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div style={{
           position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
