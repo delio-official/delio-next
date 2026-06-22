@@ -1362,8 +1362,8 @@ export default function ProductClient() {
                           <polyline points="9 18 15 12 9 6"/>
                         </svg>
                       </div>
-                      {farm.intro && <div className="brand-card-desc">{farm.intro}</div>}
                       <div className="brand-card-sub">{farm.region} · {farm.farm_type}</div>
+                      {farm.intro && <div className="brand-card-desc">{farm.intro}</div>}
                     </div>
                     <div className="brand-card-wish">
                       <button className="brand-card-wish-btn"
