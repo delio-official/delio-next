@@ -117,6 +117,8 @@ export default function ProductClient() {
   const [expandedInq, setExpandedInq] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState<Record<string, string>>({});
   const [unlockedInq, setUnlockedInq] = useState<Set<string>>(new Set());
+  const [editInqId, setEditInqId] = useState<string | null>(null);
+  const [editInqText, setEditInqText] = useState('');
   const [sections,      setSections]      = useState<DetailSection[]>([]);
   const [detailImages,  setDetailImages]  = useState<string[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -829,6 +831,18 @@ export default function ProductClient() {
     setInquiries(prev => prev.filter(x => x.id !== id));
     setExpandedInq(null);
     showToast('문의가 삭제되었습니다.');
+  }
+
+  /* ── 본인 문의 수정 (인라인) ── */
+  async function updateInquiry(id: string) {
+    const text = editInqText.trim();
+    if (!text) { showToast('내용을 입력해주세요.'); return; }
+    const supabase = createClient();
+    const { error } = await supabase.from('product_inquiries').update({ content: text }).eq('id', id);
+    if (error) { showToast('수정 실패: ' + error.message); return; }
+    setInquiries(prev => prev.map(x => x.id === id ? { ...x, content: text } : x));
+    setEditInqId(null);
+    showToast('문의가 수정되었습니다.');
   }
 
   if (loading) {
@@ -2408,10 +2422,23 @@ export default function ProductClient() {
                         )}
                         {isExpanded && canView && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
-                            {/* 문의 전문 */}
-                            <div style={{ fontSize:13, color:'#333', lineHeight:1.8, marginBottom: q.answer ? 16 : 0, whiteSpace:'pre-wrap' }}>
-                              {q.content}
-                            </div>
+                            {/* 문의 전문 (편집 중이면 textarea) */}
+                            {editInqId === q.id ? (
+                              <div style={{ marginBottom: q.answer ? 16 : 0 }}>
+                                <textarea value={editInqText} onChange={e => setEditInqText(e.target.value)}
+                                  style={{ width:'100%', minHeight:80, padding:'10px 12px', border:'1.5px solid #DDD', borderRadius:8, fontSize:13, fontFamily:'inherit', lineHeight:1.7, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
+                                <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:8 }}>
+                                  <button onClick={() => setEditInqId(null)}
+                                    style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>취소</button>
+                                  <button onClick={() => updateInquiry(q.id)}
+                                    style={{ fontSize:12, color:'#fff', background:'#1A1A1A', border:'none', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontWeight:600 }}>저장</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize:13, color:'#333', lineHeight:1.8, marginBottom: q.answer ? 16 : 0, whiteSpace:'pre-wrap' }}>
+                                {q.content}
+                              </div>
+                            )}
                             {/* 답변 */}
                             {q.answer && (
                               <div style={{ borderTop:'1px solid #E8E8E6', paddingTop:14 }}>
@@ -2426,12 +2453,15 @@ export default function ProductClient() {
                                 </div>
                               </div>
                             )}
-                            {/* 본인 문의 삭제 */}
-                            {isMe && (
-                              <div style={{ marginTop:14, textAlign:'right' }}>
+                            {/* 본인 문의 수정/삭제 (편집 중 아닐 때) */}
+                            {isMe && editInqId !== q.id && (
+                              <div style={{ marginTop:14, display:'flex', justifyContent:'flex-end', gap:8 }}>
+                                <button onClick={() => { setEditInqId(q.id); setEditInqText(q.content); }}
+                                  style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                  수정
+                                </button>
                                 <button onClick={() => deleteInquiry(q.id)}
-                                  style={{ fontSize:12, color:'#DC2626', background:'#fff',
-                                    border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                  style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
                                   삭제
                                 </button>
                               </div>

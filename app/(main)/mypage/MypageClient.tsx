@@ -280,6 +280,10 @@ export default function MypageClient() {
   const [addrForm,     setAddrForm]     = useState({ ...EMPTY_ADDR });
   const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
   const [isMobileView, setIsMobileView] = useState(false);
+  const [editQnaId, setEditQnaId] = useState<string | null>(null);
+  const [editQnaText, setEditQnaText] = useState('');
+  const [editCsId, setEditCsId] = useState<string | null>(null);
+  const [editCsText, setEditCsText] = useState('');
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
   useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen);
   useEffect(() => {
@@ -358,6 +362,26 @@ export default function MypageClient() {
     if (error) { showToastMsg('삭제 실패: ' + error.message); return; }
     setCsInquiries(prev => prev.filter(x => x.id !== id));
     showToastMsg('문의가 삭제되었습니다.');
+  }
+  /* 본인 상품 Q&A 수정 (인라인) */
+  async function updateMyQna(id: string) {
+    const text = editQnaText.trim();
+    if (!text) { showToastMsg('내용을 입력해주세요.'); return; }
+    const { error } = await createClient().from('product_inquiries').update({ content: text }).eq('id', id);
+    if (error) { showToastMsg('수정 실패: ' + error.message); return; }
+    setMyQna(prev => prev.map(x => x.id === id ? { ...x, content: text } : x));
+    setEditQnaId(null);
+    showToastMsg('문의가 수정되었습니다.');
+  }
+  /* 본인 1:1 문의 수정 (인라인) */
+  async function updateMyCs(id: string) {
+    const text = editCsText.trim();
+    if (!text) { showToastMsg('내용을 입력해주세요.'); return; }
+    const { error } = await createClient().from('cs_inquiries').update({ message: text }).eq('id', id);
+    if (error) { showToastMsg('수정 실패: ' + error.message); return; }
+    setCsInquiries(prev => prev.map(x => x.id === id ? { ...x, message: text } : x));
+    setEditCsId(null);
+    showToastMsg('문의가 수정되었습니다.');
   }
 
   /* 프로필 이미지 업로드 (cs-attachments 버킷 재사용) */
@@ -2920,7 +2944,12 @@ export default function MypageClient() {
                                 {/* 문의 */}
                                 <div style={{ display:'flex', alignItems:'flex-start', marginBottom: q.answer ? 14 : 0 }}>
                                   <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#1A1A1A' }}>Q</span>
-                                  <div style={{ flex:1, paddingRight:8, fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{q.content}</div>
+                                  <div style={{ flex:1, paddingRight:8, fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
+                                    {editQnaId === q.id
+                                      ? <textarea value={editQnaText} onChange={e => setEditQnaText(e.target.value)}
+                                          style={{ width:'100%', minHeight:72, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:13, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
+                                      : q.content}
+                                  </div>
                                 </div>
                                 {/* 답변 */}
                                 <div style={{ display:'flex', alignItems:'flex-start', borderTop:'1px solid #ECECEC', paddingTop:14 }}>
@@ -2929,11 +2958,22 @@ export default function MypageClient() {
                                     {q.answer || '아직 답변이 등록되지 않았습니다.'}
                                   </div>
                                 </div>
-                                <div style={{ display:'flex', justifyContent:'flex-end', paddingRight:16, marginTop:12 }}>
-                                  <button onClick={() => deleteMyQna(q.id)}
-                                    style={{ fontSize:12, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
-                                    삭제
-                                  </button>
+                                <div style={{ display:'flex', justifyContent:'flex-end', paddingRight:16, marginTop:12, gap:8 }}>
+                                  {editQnaId === q.id ? (
+                                    <>
+                                      <button onClick={() => setEditQnaId(null)}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>취소</button>
+                                      <button onClick={() => updateMyQna(q.id)}
+                                        style={{ fontSize:12, color:'#fff', background:'#1A1A1A', border:'none', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontWeight:600 }}>저장</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button onClick={() => { setEditQnaId(q.id); setEditQnaText(q.content); }}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      <button onClick={() => deleteMyQna(q.id)}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>삭제</button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -3178,7 +3218,10 @@ export default function MypageClient() {
                               <div style={{ background:'#F7F7F5', borderRadius:10, padding:'12px 14px',
                                 marginTop:10, fontSize:12, color:'#555', lineHeight:1.7 }}>
                                 <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📝 문의 내용</div>
-                                <p style={{ margin:0, whiteSpace:'pre-wrap', marginBottom: inq.answer?12:0 }}>{inq.message}</p>
+                                {editCsId === inq.id
+                                  ? <textarea value={editCsText} onClick={e => e.stopPropagation()} onChange={e => setEditCsText(e.target.value)}
+                                      style={{ width:'100%', minHeight:84, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:12, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical', marginBottom: inq.answer?12:0 }} />
+                                  : <p style={{ margin:0, whiteSpace:'pre-wrap', marginBottom: inq.answer?12:0 }}>{inq.message}</p>}
                                 {inq.attachments && inq.attachments.length > 0 && (
                                   <div style={{ marginTop:10 }}>
                                     <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📎 첨부파일</div>
@@ -3214,11 +3257,22 @@ export default function MypageClient() {
                                     <p style={{ margin:0, whiteSpace:'pre-wrap' }}>{inq.answer}</p>
                                   </>
                                 )}
-                                <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
-                                  <button onClick={e => { e.stopPropagation(); deleteMyCs(inq.id); }}
-                                    style={{ fontSize:12, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
-                                    삭제
-                                  </button>
+                                <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12, gap:8 }}>
+                                  {editCsId === inq.id ? (
+                                    <>
+                                      <button onClick={e => { e.stopPropagation(); setEditCsId(null); }}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>취소</button>
+                                      <button onClick={e => { e.stopPropagation(); updateMyCs(inq.id); }}
+                                        style={{ fontSize:12, color:'#fff', background:'#1A1A1A', border:'none', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontWeight:600 }}>저장</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button onClick={e => { e.stopPropagation(); setEditCsId(inq.id); setEditCsText(inq.message || ''); }}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>수정</button>
+                                      <button onClick={e => { e.stopPropagation(); deleteMyCs(inq.id); }}
+                                        style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>삭제</button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             )}
