@@ -1141,7 +1141,7 @@
     /* ===== 리뷰 라운지 ===== */
     .review-section { padding: 72px 0; }
     .review-scroll-wrap { position: relative; overflow: visible; }
-    .review-scroll { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; padding: 28px 8px 28px; width: 100%; }
+    .review-scroll { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; padding: 4px 8px 28px; width: 100%; }
     .review-scroll::-webkit-scrollbar { display: none; }
     .review-card { flex-shrink: 0; width: 233px; height: 420px; background: #fff; border: 1.5px solid #F0F0EE; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform .18s, box-shadow .18s; display: flex; flex-direction: column; }
     .review-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px 0px rgba(0,0,0,0.10); }
