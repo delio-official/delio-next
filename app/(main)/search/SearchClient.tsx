@@ -61,7 +61,7 @@ function SearchProductCard({ p }: { p: Product }) {
   function handleReviewClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/product/${p.id}?tab=review`);
+    router.push(`/product/${p.id}?tab=review#productTabsAnchor`);
   }
 
   const reviewCount = p.review_count > 9999
