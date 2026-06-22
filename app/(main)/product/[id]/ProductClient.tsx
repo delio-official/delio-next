@@ -244,40 +244,34 @@ export default function ProductClient() {
     if (sp.get('tab') !== 'review') return;
     didJumpReviewRef.current = true;
     setActiveTab(2);
-    /* 위쪽 이미지가 늦게 로드되며 탭바 위치가 계속 밀리므로,
-       탭바 위치가 안정될 때까지(또는 최대 3.5초) 매 프레임 재보정한다.
-       사용자가 직접 스크롤하면(직전 안착점에서 크게 벗어나면) 즉시 중단해 방해하지 않음. */
+    /* 위쪽 갤러리 이미지가 늦게 로드되며 탭바 위치가 계속 아래로 밀린다.
+       → 위치 안정 판정으로 일찍 멈추지 말고, 최대 2초간 매 프레임 재보정한다.
+       사용자가 스크롤 "의도"(wheel/touch/key)를 보이면 즉시 멈춰 방해하지 않는다.
+       (sticky 탭바는 모바일 사파리 scrollIntoView 버그가 있어 비-sticky 부모 섹션 기준으로 직접 스크롤) */
     let raf = 0;
-    let lastSetY = -1;
-    let prevTop = -1;
-    let stable = 0;
-    const start = performance.now();
     let stopped = false;
-    const onUserScroll = () => {
-      if (lastSetY !== -1 && Math.abs(window.scrollY - lastSetY) > 90) stop();
-    };
-    function stop() {
+    const start = performance.now();
+    const stop = () => {
       if (stopped) return;
       stopped = true;
       cancelAnimationFrame(raf);
-      window.removeEventListener('scroll', onUserScroll);
-    }
+      window.removeEventListener('wheel', stop);
+      window.removeEventListener('touchmove', stop);
+      window.removeEventListener('keydown', stop);
+    };
     const loop = () => {
       if (stopped) return;
-      // sticky 탭바 대신 비-sticky 부모 섹션 기준 + 고정헤더(56px) 보정으로 수동 스크롤
-      // (모바일 사파리에서 sticky 요소 scrollIntoView가 안 먹는 버그 회피)
       const el = document.getElementById('productTabsAnchor');
       if (el) {
-        const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-        window.scrollTo({ top: Math.max(0, top - 56), behavior: 'instant' as ScrollBehavior });
-        lastSetY = window.scrollY;
-        stable = Math.abs(top - prevTop) <= 1 ? stable + 1 : 0;
-        prevTop = top;
+        const y = el.getBoundingClientRect().top + window.scrollY - 56; // 고정헤더 보정
+        window.scrollTo({ top: Math.max(0, y), behavior: 'instant' as ScrollBehavior });
       }
-      if (stable >= 5 || performance.now() - start > 3500) { stop(); return; }
+      if (performance.now() - start > 2000) { stop(); return; }
       raf = requestAnimationFrame(loop);
     };
-    window.addEventListener('scroll', onUserScroll, { passive: true });
+    window.addEventListener('wheel', stop, { passive: true });
+    window.addEventListener('touchmove', stop, { passive: true });
+    window.addEventListener('keydown', stop);
     raf = requestAnimationFrame(loop);
     return () => stop();
   }, [product]);
