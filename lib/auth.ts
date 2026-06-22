@@ -1,4 +1,5 @@
 import { createClient } from './supabase';
+import { clearCart } from './cart';
 
 /** 유저 ID(UUID) 기반 고유 추천 코드 생성 */
 function generateReferralCode(userId: string): string {
@@ -60,6 +61,7 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
   const supabase = createClient();
   await supabase.auth.signOut();
+  try { clearCart(); } catch { /* localStorage 없을 때 무시 */ } // 로그아웃 시 장바구니 비우기
 }
 
 /** 카카오 OAuth 로그인 (Supabase 기본 provider) */
