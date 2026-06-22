@@ -253,10 +253,19 @@ export default function ProductClient() {
     window.addEventListener('wheel', onUser, { passive: true });
     window.addEventListener('touchmove', onUser, { passive: true });
     window.addEventListener('keydown', onUser);
-    const timers = [80, 300, 600, 1000, 1500].map(d => window.setTimeout(() => {
+    const jump = () => {
       if (userInterrupted) return;
-      document.getElementById('productTabsAnchor')?.scrollIntoView({ block: 'start' });
-    }, d));
+      const el = document.getElementById('productTabsAnchor');
+      if (!el) return;
+      // 전역 scroll-behavior:smooth를 일시 무력화 → 즉시 점프(애니메이션 취소 이슈 없이 모든 브라우저 동일 동작)
+      const html = document.documentElement;
+      const prevBehavior = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      const y = el.getBoundingClientRect().top + window.scrollY - 60; // 헤더 보정
+      window.scrollTo(0, Math.max(0, y));
+      html.style.scrollBehavior = prevBehavior;
+    };
+    const timers = [60, 250, 500, 850, 1300].map(d => window.setTimeout(jump, d));
     const cleanup = () => {
       timers.forEach(clearTimeout);
       window.removeEventListener('wheel', onUser);
