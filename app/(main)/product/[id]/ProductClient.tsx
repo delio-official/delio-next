@@ -269,7 +269,7 @@ export default function ProductClient() {
       const el = document.getElementById('productTabsAnchor');
       if (el) {
         const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
-        window.scrollTo({ top: Math.max(0, top - 56), behavior: 'auto' });
+        window.scrollTo({ top: Math.max(0, top - 56), behavior: 'instant' as ScrollBehavior });
         lastSetY = window.scrollY;
         stable = Math.abs(top - prevTop) <= 1 ? stable + 1 : 0;
         prevTop = top;
