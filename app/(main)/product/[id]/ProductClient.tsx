@@ -241,13 +241,20 @@ export default function ProductClient() {
   useEffect(() => {
     if (didJumpReviewRef.current || !product) return;
     const sp = new URLSearchParams(window.location.search);
-    if (sp.get('tab') === 'review') {
-      didJumpReviewRef.current = true;
-      setActiveTab(2);
-      setTimeout(() => {
-        document.getElementById('productTabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 120);
-    }
+    if (sp.get('tab') !== 'review') return;
+    didJumpReviewRef.current = true;
+    setActiveTab(2);
+    /* 위쪽 이미지가 늦게 로드되며 탭바가 밀리므로, 짧은 구간 동안 여러 번 재보정.
+       단, 사용자가 직접 스크롤하면(직전 안착점에서 크게 벗어나면) 중단해 방해하지 않음. */
+    let lastY = -1;
+    const jump = () => {
+      if (lastY !== -1 && Math.abs(window.scrollY - lastY) > 90) return; // 사용자가 스크롤함 → 멈춤
+      document.getElementById('productTabs')?.scrollIntoView({ block: 'start' });
+      lastY = window.scrollY;
+    };
+    requestAnimationFrame(jump);
+    const timers = [120, 350, 650, 1000].map(t => window.setTimeout(jump, t));
+    return () => timers.forEach(clearTimeout);
   }, [product]);
 
   /* 어드민 여부 */
