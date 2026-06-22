@@ -244,36 +244,27 @@ export default function ProductClient() {
     if (sp.get('tab') !== 'review') return;
     didJumpReviewRef.current = true;
     setActiveTab(2);
-    /* 위쪽 갤러리 이미지가 늦게 로드되며 탭바 위치가 계속 아래로 밀린다.
-       → 위치 안정 판정으로 일찍 멈추지 말고, 최대 2초간 매 프레임 재보정한다.
-       사용자가 스크롤 "의도"(wheel/touch/key)를 보이면 즉시 멈춰 방해하지 않는다.
-       (sticky 탭바는 모바일 사파리 scrollIntoView 버그가 있어 비-sticky 부모 섹션 기준으로 직접 스크롤) */
-    let raf = 0;
-    let stopped = false;
-    const start = performance.now();
-    const stop = () => {
-      if (stopped) return;
-      stopped = true;
-      cancelAnimationFrame(raf);
-      window.removeEventListener('wheel', stop);
-      window.removeEventListener('touchmove', stop);
-      window.removeEventListener('keydown', stop);
+    /* 비-sticky 부모 섹션으로 스크롤(sticky 탭바는 사파리 scrollIntoView 버그).
+       모바일 사파리는 behavior:'instant'를 무시하고 CSS scroll-behavior:smooth로 처리하므로,
+       매 프레임 호출하면 smooth가 매번 재시작돼 멈춘다 → 띄엄띄엄 한 번씩만 호출해 각 스크롤이 완료될 시간을 준다.
+       이미지 로드/Next 진입 scroll-top 경쟁 대비해 여러 시점 재시도. 사용자가 스크롤하면 중단. */
+    let userInterrupted = false;
+    const onUser = () => { userInterrupted = true; };
+    window.addEventListener('wheel', onUser, { passive: true });
+    window.addEventListener('touchmove', onUser, { passive: true });
+    window.addEventListener('keydown', onUser);
+    const timers = [80, 300, 600, 1000, 1500].map(d => window.setTimeout(() => {
+      if (userInterrupted) return;
+      document.getElementById('productTabsAnchor')?.scrollIntoView({ block: 'start' });
+    }, d));
+    const cleanup = () => {
+      timers.forEach(clearTimeout);
+      window.removeEventListener('wheel', onUser);
+      window.removeEventListener('touchmove', onUser);
+      window.removeEventListener('keydown', onUser);
     };
-    const loop = () => {
-      if (stopped) return;
-      const el = document.getElementById('productTabsAnchor');
-      if (el) {
-        const y = el.getBoundingClientRect().top + window.scrollY - 56; // 고정헤더 보정
-        window.scrollTo({ top: Math.max(0, y), behavior: 'instant' as ScrollBehavior });
-      }
-      if (performance.now() - start > 2000) { stop(); return; }
-      raf = requestAnimationFrame(loop);
-    };
-    window.addEventListener('wheel', stop, { passive: true });
-    window.addEventListener('touchmove', stop, { passive: true });
-    window.addEventListener('keydown', stop);
-    raf = requestAnimationFrame(loop);
-    return () => stop();
+    const finalTimer = window.setTimeout(cleanup, 1700);
+    return () => { cleanup(); clearTimeout(finalTimer); };
   }, [product]);
 
   /* 어드민 여부 */
@@ -1824,7 +1815,7 @@ export default function ProductClient() {
       </div>
 
       {/* ══ 탭 ══ */}
-      <div className="pd-tabs-section" id="productTabsAnchor">
+      <div className="pd-tabs-section" id="productTabsAnchor" style={{ scrollMarginTop: 60 }}>
         <div className="pd-tab-bar" id="productTabs">
           {TABS.map((t, i) => (
             <div key={t} className={`pd-tab${activeTab === i ? ' active' : ''}`}
