@@ -1956,8 +1956,8 @@ export default function ProductClient() {
                           <th style={{ textAlign:'left', fontWeight:600, color:'#8A8A8A',
                             padding:'13px 12px 13px 0', width:'50%', verticalAlign:'top', lineHeight:1.6,
                             wordBreak:'keep-all' }}>{r.k}</th>
-                          <td style={{ padding:'13px 0', color:'#333', verticalAlign:'top', lineHeight:1.6,
-                            textAlign:'right', wordBreak:'keep-all' }}>{r.v || '-'}</td>
+                          <td style={{ padding:'13px 0 13px 10px', color:'#333', verticalAlign:'top', lineHeight:1.6,
+                            textAlign:'left', wordBreak:'keep-all' }}>{r.v || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
