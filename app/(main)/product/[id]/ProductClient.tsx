@@ -200,10 +200,10 @@ export default function ProductClient() {
   }
   const [csPhone,             setCsPhone]             = useState('02-6925-2311');
   const [signupCoupon,        setSignupCoupon]        = useState(5000);
-  const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number } | null>(null);
+  const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null>(null);
   const [pointRate,           setPointRate]           = useState(1);
   const [bestCoupon,       setBestCoupon]       = useState<{
-    name: string; discountAmt: number; finalPrice: number; totalRate: number;
+    name: string; discountAmt: number; finalPrice: number; totalRate: number; held: boolean;
   } | null | 'loading'>('loading');
 
   /* ── 상세정보 표시용 데이터 ── */
@@ -443,11 +443,12 @@ export default function ProductClient() {
 
       const now = new Date();
       const bp  = product!.discounted_price ?? product!.price;
-      let best: { name: string; discountAmt: number; finalPrice: number; totalRate: number } | null = null;
+      let best: { name: string; discountAmt: number; finalPrice: number; totalRate: number; held: boolean } | null = null;
 
       const seen = new Set<string>();
+      const heldSet = new Set<string>();
       const candidates: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
-      for (const uc of (heldData as any[]) || []) { const cc = uc.coupons; if (cc?.id && !seen.has(cc.id)) { seen.add(cc.id); candidates.push(cc); } } // eslint-disable-line @typescript-eslint/no-explicit-any
+      for (const uc of (heldData as any[]) || []) { const cc = uc.coupons; if (cc?.id) { heldSet.add(cc.id); if (!seen.has(cc.id)) { seen.add(cc.id); candidates.push(cc); } } } // eslint-disable-line @typescript-eslint/no-explicit-any
       for (const cc of (pubData as any[]) || []) { if (cc?.id && !seen.has(cc.id)) { seen.add(cc.id); candidates.push(cc); } } // eslint-disable-line @typescript-eslint/no-explicit-any
 
       for (const c of candidates) {
@@ -478,6 +479,7 @@ export default function ProductClient() {
             discountAmt,
             finalPrice: bp - discountAmt,
             totalRate:  Math.round((1 - (bp - discountAmt) / product!.price) * 100),
+            held:       heldSet.has(c.id),   // 이미 보유 중인 쿠폰인지(아니면 다운로드 필요)
           };
         }
       }
@@ -499,7 +501,7 @@ export default function ProductClient() {
       if (!data || data.length === 0) { setSignupBest(null); return; }
       const now = new Date();
       const bp = product.discounted_price ?? product.price;
-      let best: { discountAmt: number; finalPrice: number; totalRate: number } | null = null;
+      let best: { discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null = null;
       for (const c of data as any[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
         if (!c.discount_value) continue;
         if (c.expires_at && new Date(c.expires_at) < now) continue;
@@ -514,7 +516,7 @@ export default function ProductClient() {
           discountAmt = Math.min(c.discount_value, bp);
         }
         if (!best || discountAmt > best.discountAmt) {
-          best = { discountAmt, finalPrice: bp - discountAmt, totalRate: Math.round((1 - (bp - discountAmt) / product.price) * 100) };
+          best = { discountAmt, finalPrice: bp - discountAmt, totalRate: Math.round((1 - (bp - discountAmt) / product.price) * 100), fromSignup: !!c.signup_grant };
         }
       }
       setSignupBest(best);
@@ -1487,7 +1489,7 @@ export default function ProductClient() {
                     <span className="price-coupon-val">
                       {fmtPrice(bestCoupon.finalPrice)}<span className="price-won-suffix">원</span>
                     </span>
-                    <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
+                    <span className="price-coupon-tag">{bestCoupon.held ? '쿠폰 적용 최대할인가' : '쿠폰 다운받을 시 최대할인가'}</span>
                   </div>
                 ) : (!user && signupBest) ? (
                   /* 비로그인/비회원: 신규가입 웰컴 쿠폰 중 이 상품에 적용 가능한 최대할인가 (최소주문금액 미달이면 미표시) */
@@ -1496,7 +1498,7 @@ export default function ProductClient() {
                     <span className="price-coupon-val">
                       {fmtPrice(signupBest.finalPrice)}<span className="price-won-suffix">원</span>
                     </span>
-                    <span className="price-coupon-tag">신규가입 시 최대할인가</span>
+                    <span className="price-coupon-tag">{signupBest.fromSignup ? '신규가입 시 최대할인가' : '쿠폰 다운받을 시 최대할인가'}</span>
                   </div>
                 ) : null}
               </div>
