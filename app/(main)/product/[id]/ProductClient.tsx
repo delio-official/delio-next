@@ -200,6 +200,7 @@ export default function ProductClient() {
   }
   const [csPhone,             setCsPhone]             = useState('02-6925-2311');
   const [signupCoupon,        setSignupCoupon]        = useState(5000);
+  const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number } | null>(null);
   const [pointRate,           setPointRate]           = useState(1);
   const [bestCoupon,       setBestCoupon]       = useState<{
     name: string; discountAmt: number; finalPrice: number; totalRate: number;
@@ -485,6 +486,38 @@ export default function ProductClient() {
     }
 
     loadCoupons();
+  }, [product, user]);
+
+  /* ── 비로그인: 신규가입 웰컴 쿠폰(signup_grant) 중 이 상품에 적용 가능한 최대 할인 계산 (min_order_amount 준수) ── */
+  useEffect(() => {
+    if (!product) return;
+    if (user) { setSignupBest(null); return; }
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from('coupons').select('*').eq('signup_grant', true).eq('is_active', true);
+      if (!data || data.length === 0) { setSignupBest(null); return; }
+      const now = new Date();
+      const bp = product.discounted_price ?? product.price;
+      let best: { discountAmt: number; finalPrice: number; totalRate: number } | null = null;
+      for (const c of data as any[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (!c.discount_value) continue;
+        if (c.expires_at && new Date(c.expires_at) < now) continue;
+        if ((c.min_order_amount ?? 0) > bp) continue;                 // 최소주문금액 미달 → 제외
+        if (c.applicable_categories?.length && !c.applicable_categories.includes(product.category)) continue;
+        if (c.applicable_product_ids?.length && !c.applicable_product_ids.includes(product.id)) continue;
+        let discountAmt = 0;
+        if (c.discount_type === 'percent') {
+          discountAmt = Math.round(bp * c.discount_value / 100);
+          if (c.max_discount_amount) discountAmt = Math.min(discountAmt, c.max_discount_amount);
+        } else {
+          discountAmt = Math.min(c.discount_value, bp);
+        }
+        if (!best || discountAmt > best.discountAmt) {
+          best = { discountAmt, finalPrice: bp - discountAmt, totalRate: Math.round((1 - (bp - discountAmt) / product.price) * 100) };
+        }
+      }
+      setSignupBest(best);
+    })();
   }, [product, user]);
 
   async function toggleWishlist() {
@@ -1455,21 +1488,16 @@ export default function ProductClient() {
                     </span>
                     <span className="price-coupon-tag">쿠폰 적용 최대할인가</span>
                   </div>
-                ) : (!user && signupCoupon > 0) ? (() => {
-                  /* 비로그인/비회원: 신규가입 쿠폰 기준 최대할인가 (로그인 사용자와 동일 표기) */
-                  const disc = Math.min(signupCoupon, basePrice);
-                  const fin  = basePrice - disc;
-                  const rate = Math.round((1 - fin / product.price) * 100);
-                  return (
-                    <div className="price-line" style={{ alignItems:'center' }}>
-                      <span className="price-coupon-rate">{rate}%</span>
-                      <span className="price-coupon-val">
-                        {fmtPrice(fin)}<span className="price-won-suffix">원</span>
-                      </span>
-                      <span className="price-coupon-tag">신규가입 시 최대할인가</span>
-                    </div>
-                  );
-                })() : null}
+                ) : (!user && signupBest) ? (
+                  /* 비로그인/비회원: 신규가입 웰컴 쿠폰 중 이 상품에 적용 가능한 최대할인가 (최소주문금액 미달이면 미표시) */
+                  <div className="price-line" style={{ alignItems:'center' }}>
+                    <span className="price-coupon-rate">{signupBest.totalRate}%</span>
+                    <span className="price-coupon-val">
+                      {fmtPrice(signupBest.finalPrice)}<span className="price-won-suffix">원</span>
+                    </span>
+                    <span className="price-coupon-tag">신규가입 시 최대할인가</span>
+                  </div>
+                ) : null}
               </div>
 
               {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
