@@ -2140,7 +2140,7 @@ export default function ProductClient() {
                     const isLastMore = allPhotoItems.length > 4 && i === 3;
                     return (
                       <div key={i}
-                        onClick={() => { setGalleryFromReview(false); setPhotoGalleryOpen(true); setSelectedGalleryIdx(isLastMore ? null : i); }}
+                        onClick={() => { setGalleryFromReview(!isLastMore); setPhotoGalleryOpen(true); setSelectedGalleryIdx(isLastMore ? null : i); }}
                         style={{ aspectRatio:'1', position:'relative', borderRadius:6, cursor:'pointer',
                           background: item.url ? '#F0F0F0' : `linear-gradient(135deg,${item.color},#fff)`,
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
