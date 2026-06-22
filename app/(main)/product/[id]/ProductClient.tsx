@@ -244,17 +244,40 @@ export default function ProductClient() {
     if (sp.get('tab') !== 'review') return;
     didJumpReviewRef.current = true;
     setActiveTab(2);
-    /* 위쪽 이미지가 늦게 로드되며 탭바가 밀리므로, 짧은 구간 동안 여러 번 재보정.
-       단, 사용자가 직접 스크롤하면(직전 안착점에서 크게 벗어나면) 중단해 방해하지 않음. */
-    let lastY = -1;
-    const jump = () => {
-      if (lastY !== -1 && Math.abs(window.scrollY - lastY) > 90) return; // 사용자가 스크롤함 → 멈춤
-      document.getElementById('productTabs')?.scrollIntoView({ block: 'start' });
-      lastY = window.scrollY;
+    /* 위쪽 이미지가 늦게 로드되며 탭바 위치가 계속 밀리므로,
+       탭바 위치가 안정될 때까지(또는 최대 3.5초) 매 프레임 재보정한다.
+       사용자가 직접 스크롤하면(직전 안착점에서 크게 벗어나면) 즉시 중단해 방해하지 않음. */
+    let raf = 0;
+    let lastSetY = -1;
+    let prevTop = -1;
+    let stable = 0;
+    const start = performance.now();
+    let stopped = false;
+    const onUserScroll = () => {
+      if (lastSetY !== -1 && Math.abs(window.scrollY - lastSetY) > 90) stop();
     };
-    requestAnimationFrame(jump);
-    const timers = [120, 350, 650, 1000].map(t => window.setTimeout(jump, t));
-    return () => timers.forEach(clearTimeout);
+    function stop() {
+      if (stopped) return;
+      stopped = true;
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onUserScroll);
+    }
+    const loop = () => {
+      if (stopped) return;
+      const el = document.getElementById('productTabs');
+      if (el) {
+        const top = Math.round(el.getBoundingClientRect().top + window.scrollY);
+        el.scrollIntoView({ block: 'start' });
+        lastSetY = window.scrollY;
+        stable = Math.abs(top - prevTop) <= 1 ? stable + 1 : 0;
+        prevTop = top;
+      }
+      if (stable >= 5 || performance.now() - start > 3500) { stop(); return; }
+      raf = requestAnimationFrame(loop);
+    };
+    window.addEventListener('scroll', onUserScroll, { passive: true });
+    raf = requestAnimationFrame(loop);
+    return () => stop();
   }, [product]);
 
   /* 어드민 여부 */
