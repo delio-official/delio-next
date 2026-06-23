@@ -24,6 +24,8 @@ interface OrderItem {
   product_name: string; quantity: number;
   unit_price: number; subtotal: number;
   thumbnail_url: string | null;
+  option_label?: string | null;
+  farm_name?: string | null;
   products?: { origin: string | null; category: string | null } | null;
 }
 const ORIGIN_LABEL: Record<string, string> = { domestic: '국산과일', import: '수입과일' };
@@ -162,6 +164,7 @@ export default function MypageClient() {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string | null>(null); // 주문처리현황 단계 클릭 필터
   const orderListRef = useRef<HTMLDivElement>(null);          // 단계 클릭 시 목록으로 스크롤
   const [detailOrder, setDetailOrder] = useState<Order | null>(null); // 주문 상세보기 모달
+  const [cancelDetail, setCancelDetail] = useState<Order | null>(null); // 취소/환불 상세 모달
   const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
   const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
@@ -300,7 +303,7 @@ export default function MypageClient() {
   const [editCsId, setEditCsId] = useState<string | null>(null);
   const [editCsText, setEditCsText] = useState('');
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal || !!picker);
+  useBodyScrollLock(!!detailOrder || !!cancelDetail || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal || !!picker);
 
   /* ── 상품 문의 작성 제출(배송조회 → 바로 모달) ── */
   async function submitAsk() {
@@ -488,7 +491,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,products(origin,category))')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,farm_name,products(origin,category))')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1398,74 +1401,169 @@ export default function MypageClient() {
       {/* 주문 상세보기 모달 */}
       {detailOrder && (() => {
         const o = detailOrder;
-        const PM: Record<string, string> = { card:'신용카드', kakao:'카카오페이', naver:'네이버페이', toss:'토스페이', vbank:'무통장입금', bank:'무통장입금', transfer:'계좌이체' };
-        const row = (label: string, value: React.ReactNode, accent = false) => (
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, padding:'5px 0' }}>
-            <span style={{ color:'#888' }}>{label}</span>
-            <span style={{ fontWeight: accent ? 700 : 500, color: accent ? '#1A1A1A' : '#333' }}>{value}</span>
+        const PM: Record<string, string> = { card:'카드', kakao:'카카오페이', naver:'네이버페이', toss:'토스페이', vbank:'무통장입금', bank:'무통장입금', transfer:'계좌이체' };
+        const wd = (d: string) => new Date(d).toLocaleDateString('ko-KR',{ month:'numeric', day:'numeric', weekday:'short' });
+        let statusSuffix = '';
+        if (o.status==='shipped' && (o.shipped_at || o.created_at)) statusSuffix = ` · ${wd(o.shipped_at || o.created_at)} 배송 시작`;
+        else if (o.status==='delivered' && o.delivered_at) statusSuffix = ` · ${wd(o.delivered_at)} 도착`;
+        else if (o.status==='cancelled' || o.status==='refunded') statusSuffix = ' · 7영업일 이내 환불';
+        const statusColor = o.status==='delivered'?'#1A1A1A': (o.status==='cancelled'||o.status==='refunded')?'#e00':'var(--color-accent)';
+        const sellers = [...new Set((o.order_items || []).map(it => it.farm_name).filter(Boolean))].join(', ');
+        // 라벨|값 (배송지)
+        const rowL = (label: string, value: React.ReactNode) => (
+          <div style={{ display:'flex', fontSize:13.5, padding:'5px 0', alignItems:'flex-start' }}>
+            <span style={{ width:76, flexShrink:0, color:'#999' }}>{label}</span>
+            <span style={{ flex:1, color:'#333', wordBreak:'keep-all' }}>{value}</span>
           </div>
         );
+        // 양끝 정렬 (결제)
+        const rowR = (label: React.ReactNode, value: React.ReactNode, accent = false) => (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13.5, padding:'5px 0' }}>
+            <span style={{ color:'#999' }}>{label}</span>
+            <span style={{ fontWeight: accent ? 800 : 500, color: accent ? '#1A1A1A' : '#333', fontSize: accent ? 15 : 13.5 }}>{value}</span>
+          </div>
+        );
+        const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
+        const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
         return (
           <div onClick={() => setDetailOrder(null)}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'86vh', overflowY:'auto', padding:'22px 22px 24px' }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-                <span style={{ fontSize:16, fontWeight:800 }}>주문 상세</span>
-                <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:18, color:'#999', lineHeight:1 }}>✕</button>
+              style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:460, maxHeight:'90vh', overflowY:'auto', paddingBottom:'calc(20px + env(safe-area-inset-bottom))' }}>
+              {/* 헤더 */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 20px 14px', position:'sticky', top:0, background:'#fff', zIndex:2 }}>
+                <span style={{ fontSize:16, fontWeight:800 }}>주문상세</span>
+                <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#999', lineHeight:1 }}>✕</button>
+              </div>
+              <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
+                {new Date(o.created_at).toLocaleDateString('ko-KR')} 주문 · 주문번호 {o.order_no}
               </div>
 
-              {/* 주문 정보 */}
-              <div style={{ background:'#F8F8F8', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
-                {row('주문번호', o.order_no)}
-                {row('주문일시', new Date(o.created_at).toLocaleString('ko-KR'))}
-                {row('주문상태', STATUS_LABEL[o.status] || o.status)}
-                {o.tracking_number && (
-                  <div style={{ display:'flex', justifyContent:'flex-end', marginTop:4 }}>
-                    <button onClick={() => setTrackingTarget({ carrierId: o.courier || 'kr.cjlogistics', trackingNumber: o.tracking_number! })}
-                      style={{ fontSize:12, color:'var(--color-accent)', background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>배송조회 ›</button>
-                  </div>
-                )}
-              </div>
-
-              {/* 배송지 */}
-              <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>배송지</div>
-                {row('받는 분', o.recipient || '-')}
-                {row('연락처', o.phone || '-')}
-                {row('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
-                {o.delivery_memo && row('요청사항', o.delivery_memo)}
-              </div>
-
-              {/* 주문 상품 */}
-              <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>주문 상품</div>
-                {o.order_items?.map((item, i) => (
-                  <div key={i} style={{ display:'flex', gap:10, alignItems:'center', marginBottom:8 }}>
-                    <div style={{ width:46, height:46, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:20 }}>🍑</span>}
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{item.product_name}</div>
-                      <div style={{ fontSize:12, color:'#999' }}>{item.quantity}개 · {fmtPrice(item.unit_price)}원</div>
-                    </div>
-                    <div style={{ fontSize:13, fontWeight:700 }}>{fmtPrice(item.subtotal)}원</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* 결제 내역 */}
-              <div style={{ borderTop:'1px solid #EEE', paddingTop:12 }}>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>결제 내역</div>
-                {row('결제수단', PM[o.payment_method || ''] || o.payment_method || '-')}
-                {(o.total_amount ?? 0) > 0 && row('상품금액', `${fmtPrice(o.total_amount!)}원`)}
-                {(o.coupon_discount ?? 0) > 0 && row('쿠폰할인', `−${fmtPrice(o.coupon_discount!)}원`)}
-                {(o.point_used ?? 0) > 0 && row('적립금 사용', `−${fmtPrice(o.point_used!)}원`)}
-                <div style={{ borderTop:'1px solid #EEE', marginTop:6, paddingTop:6 }}>
-                  {row('최종 결제금액', `${fmtPrice(o.final_amount)}원`, true)}
+              <div style={{ padding:'0 20px' }}>
+                {/* 배송지 정보 */}
+                <div style={sec}>
+                  <div style={secTitle}>배송지 정보</div>
+                  {rowL('받는 사람', o.recipient || '-')}
+                  {rowL('연락처', o.phone || '-')}
+                  {rowL('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
+                  {o.delivery_memo && rowL('배송메모', o.delivery_memo)}
                 </div>
-                {(o.earned_point ?? 0) > 0 && (
-                  <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:4 }}>적립 {fmtPrice(o.earned_point!)}P</div>
+
+                {/* 주문 상품 */}
+                <div style={sec}>
+                  <div style={secTitle}>주문 상품</div>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:12 }}>
+                    <span style={{ color:statusColor }}>{STATUS_LABEL[o.status] || o.status}</span>
+                    {statusSuffix && <span style={{ color:'#555', fontWeight:600 }}>{statusSuffix}</span>}
+                  </div>
+                  {o.order_items?.map((item, i) => (
+                    <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 }}>
+                      <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
+                        {item.option_label && <div style={{ fontSize:12.5, color:'#999', marginTop:3 }}>{item.option_label}</div>}
+                        <div style={{ fontSize:13, color:'#555', marginTop:5 }}>{fmtPrice(item.unit_price)}원 · {item.quantity}개</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
+                    {rowL('배송비', '무료 (일반택배)')}
+                    {sellers && rowL('판매자', sellers)}
+                  </div>
+                </div>
+
+                {/* 결제 정보 */}
+                <div style={{ paddingBottom:8 }}>
+                  <div style={secTitle}>결제 정보</div>
+                  {rowR('상품금액', `${fmtPrice(o.total_amount ?? o.final_amount)}원`)}
+                  {rowR('배송비', '0원')}
+                  {(o.coupon_discount ?? 0) > 0 && rowR('쿠폰할인', `−${fmtPrice(o.coupon_discount!)}원`)}
+                  {(o.point_used ?? 0) > 0 && rowR('적립금 사용', `−${fmtPrice(o.point_used!)}원`)}
+                  <div style={{ borderTop:'1px solid #EEE', marginTop:8, paddingTop:8 }}>
+                    {rowR('주문금액', `${fmtPrice(o.final_amount)}원`, true)}
+                  </div>
+                  <div style={{ marginTop:8 }}>
+                    {rowR(`${PM[o.payment_method || ''] || o.payment_method || '결제'}`, `${fmtPrice(o.final_amount)}원`)}
+                  </div>
+                  {(o.earned_point ?? 0) > 0 && (
+                    <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:6 }}>적립 {fmtPrice(o.earned_point!)}P</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 취소/환불 상세 모달 (오늘의집 스타일) */}
+      {cancelDetail && (() => {
+        const o = cancelDetail;
+        const PM: Record<string, string> = { card:'카드', kakao:'카카오페이', naver:'네이버페이', toss:'토스페이', vbank:'무통장입금', bank:'무통장입금', transfer:'계좌이체' };
+        const isRefund = o.status === 'refunded';
+        const req = myRefundReqs.find(r => r.order_id === o.id) || null;
+        const rowR = (label: React.ReactNode, value: React.ReactNode, accent = false) => (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:13.5, padding:'5px 0' }}>
+            <span style={{ color:'#999' }}>{label}</span>
+            <span style={{ fontWeight: accent ? 800 : 500, color: accent ? '#1A1A1A' : '#333', fontSize: accent ? 15 : 13.5 }}>{value}</span>
+          </div>
+        );
+        const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
+        const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
+        return (
+          <div onClick={() => setCancelDetail(null)}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:460, maxHeight:'90vh', overflowY:'auto', paddingBottom:'calc(20px + env(safe-area-inset-bottom))' }}>
+              {/* 헤더 */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 20px 14px', position:'sticky', top:0, background:'#fff', zIndex:2 }}>
+                <span style={{ fontSize:16, fontWeight:800 }}>{isRefund ? '환불상세' : '취소상세'}</span>
+                <button onClick={() => setCancelDetail(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#999', lineHeight:1 }}>✕</button>
+              </div>
+              <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
+                {new Date(req?.created_at || o.created_at).toLocaleDateString('ko-KR')} {isRefund ? '환불요청' : '취소요청'}
+              </div>
+
+              <div style={{ padding:'0 20px' }}>
+                {/* 취소 상품 */}
+                <div style={sec}>
+                  <div style={secTitle}>{isRefund ? '환불 상품' : '취소 상품'}</div>
+                  {o.order_items?.map((item, i) => (
+                    <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 }}>
+                      <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
+                        {item.option_label && <div style={{ fontSize:12.5, color:'#999', marginTop:3 }}>{item.option_label}</div>}
+                        <div style={{ fontSize:13, color:'#555', marginTop:5 }}>{fmtPrice(item.unit_price)}원 · {item.quantity}개</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 환불 정보 */}
+                <div style={sec}>
+                  <div style={secTitle}>환불 정보</div>
+                  {rowR('주문금액', `${fmtPrice(o.final_amount)}원`)}
+                  {rowR('차감금액', '0원')}
+                  <div style={{ borderTop:'1px solid #EEE', marginTop:8, paddingTop:8 }}>
+                    {rowR('환불금액', `${fmtPrice(o.final_amount)}원`, true)}
+                  </div>
+                  <div style={{ marginTop:8 }}>
+                    {rowR(`${PM[o.payment_method || ''] || o.payment_method || '결제'}`, `${fmtPrice(o.final_amount)}원`)}
+                  </div>
+                  {rowR('환불예정일', '환불 승인 후 최대 7영업일 소요')}
+                </div>
+
+                {/* 취소 이유 */}
+                {req && (
+                  <div style={{ paddingBottom:8 }}>
+                    <div style={secTitle}>{isRefund ? '환불 이유' : '취소 이유'}</div>
+                    <div style={{ fontSize:13.5, color:'#333', lineHeight:1.6 }}>{req.reason}</div>
+                    {req.detail && <div style={{ fontSize:13, color:'#777', marginTop:6, lineHeight:1.6 }}>{req.detail}</div>}
+                  </div>
                 )}
               </div>
             </div>
@@ -2065,7 +2163,7 @@ export default function MypageClient() {
                               btns.push(cartBtn);
                             } else if (o.status === 'cancelled' || o.status === 'refunded') {
                               btns.push(askBtn);
-                              btns.push({ key:'detail', label: o.status === 'cancelled' ? '취소상세' : '환불상세', onClick: () => setDetailOrder(o) });
+                              btns.push({ key:'detail', label: o.status === 'cancelled' ? '취소상세' : '환불상세', onClick: () => setCancelDetail(o) });
                             } else {
                               btns.push(askBtn);
                             }
