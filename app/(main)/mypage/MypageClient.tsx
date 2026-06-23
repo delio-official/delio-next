@@ -171,8 +171,8 @@ export default function MypageClient() {
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
   const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
   const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
-  // 상품 문의 작성 모달(배송조회에서 바로 띄움)
-  const [askModal, setAskModal] = useState<{ productId: string; productName: string } | null>(null);
+  // 상품 문의 작성 모달(배송조회에서 바로 띄움) — 주문 내 상품 목록 + 선택된 상품
+  const [askModal, setAskModal] = useState<{ items: { productId: string; productName: string; thumb: string | null }[]; selectedId: string } | null>(null);
   const [askCategory, setAskCategory] = useState('문의');
   const [askContent, setAskContent] = useState('');
   const [askPrivate, setAskPrivate] = useState(false);
@@ -301,7 +301,7 @@ export default function MypageClient() {
     if (!askContent.trim()) { showToastMsg('문의 내용을 입력해주세요.'); return; }
     setAskSubmitting(true);
     const { error } = await createClient().from('product_inquiries').insert({
-      product_id: askModal.productId,
+      product_id: askModal.selectedId,
       user_id: user.id,
       category: askCategory,
       content: askContent.trim(),
@@ -1231,7 +1231,29 @@ export default function MypageClient() {
               <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
               <button onClick={() => setAskModal(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
             </div>
-            <div style={{ fontSize:13, color:'#888', marginBottom:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{askModal.productName}</div>
+            {askModal.items.length > 1 ? (
+              <div style={{ marginTop:14, marginBottom:18 }}>
+                <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>문의할 상품 선택</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {askModal.items.map(it => {
+                    const sel = it.productId === askModal.selectedId;
+                    return (
+                      <button key={it.productId} type="button"
+                        onClick={() => setAskModal(m => m ? { ...m, selectedId: it.productId } : m)}
+                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', border:`1.5px solid ${sel ? '#1A1A1A' : '#E0E0DC'}`, borderRadius:10, background: sel ? '#FAFAFA' : '#fff', cursor:'pointer', textAlign:'left', fontFamily:'inherit', width:'100%' }}>
+                        <div style={{ width:38, height:38, borderRadius:6, background:'#F7F7F5', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {it.thumb ? <img src={it.thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:18 }}>🍑</span>}
+                        </div>
+                        <span style={{ flex:1, minWidth:0, fontSize:13, fontWeight: sel ? 700 : 500, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.productName}</span>
+                        {sel && <span style={{ color:'#1A1A1A', fontWeight:800, flexShrink:0 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize:13, color:'#888', marginBottom:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{askModal.items[0]?.productName}</div>
+            )}
 
             <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>카테고리</label>
             <select value={askCategory} onChange={e => setAskCategory(e.target.value)}
@@ -1920,13 +1942,15 @@ export default function MypageClient() {
                               actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
                             }
 
-                            const firstItem = o.order_items?.find(it => it.product_id);
+                            const askItems = (o.order_items || [])
+                              .filter(it => it.product_id)
+                              .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null }));
                             return (
                               <div style={{ display:'flex', gap:8 }}>
                                 <button
                                   onClick={() => {
-                                    if (firstItem?.product_id) {
-                                      setAskModal({ productId: firstItem.product_id, productName: firstItem.product_name });
+                                    if (askItems.length) {
+                                      setAskModal({ items: askItems, selectedId: askItems[0].productId });
                                       setAskCategory('문의'); setAskContent(''); setAskPrivate(false);
                                     } else { goPanel('cs'); }
                                   }}
