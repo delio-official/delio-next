@@ -250,9 +250,10 @@ export default function ProductClient() {
   useEffect(() => {
     if (didJumpReviewRef.current || !product) return;
     const sp = new URLSearchParams(window.location.search);
-    if (sp.get('tab') !== 'review') return;
+    const tabParam = sp.get('tab');
+    if (tabParam !== 'review' && tabParam !== 'qna') return;
     didJumpReviewRef.current = true;
-    setActiveTab(2);
+    setActiveTab(tabParam === 'qna' ? 3 : 2);
     /* 비-sticky 부모 섹션으로 스크롤(sticky 탭바는 사파리 scrollIntoView 버그).
        모바일 사파리는 behavior:'instant'를 무시하고 CSS scroll-behavior:smooth로 처리하므로,
        매 프레임 호출하면 smooth가 매번 재시작돼 멈춘다 → 띄엄띄엄 한 번씩만 호출해 각 스크롤이 완료될 시간을 준다.

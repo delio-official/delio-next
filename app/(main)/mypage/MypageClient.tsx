@@ -1800,10 +1800,21 @@ export default function MypageClient() {
                               </div>
                             </>
                           );
-                          return item.product_id ? (
-                            <Link key={i} href={`/product/${item.product_id}`} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom:18, textDecoration:'none', color:'inherit' }}>{body}</Link>
-                          ) : (
-                            <div key={i} style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom:18 }}>{body}</div>
+                          return (
+                            <div key={i} style={{ marginBottom:16 }}>
+                              <div
+                                onClick={() => { if (item.product_id) router.push(`/product/${item.product_id}`); }}
+                                style={{ display:'flex', gap:14, alignItems:'flex-start', cursor: item.product_id ? 'pointer' : 'default' }}>
+                                {body}
+                              </div>
+                              {item.product_id && (
+                                <button
+                                  onClick={() => router.push(`/product/${item.product_id}?tab=qna`)}
+                                  style={{ width:'100%', marginTop:10, fontSize:13, padding:'9px 0', border:'1px solid #E5E5E2', borderRadius:8, background:'#FAFAFA', color:'#555', fontWeight:600, fontFamily:'inherit', cursor:'pointer' }}>
+                                  상품 문의
+                                </button>
+                              )}
+                            </div>
                           );
                         })}
 
@@ -1851,12 +1862,11 @@ export default function MypageClient() {
                               actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
                             }
 
-                            return (
+                            return actionBtn ? (
                               <div style={{ display:'flex', gap:8 }}>
-                                <button onClick={() => goPanel('cs')} style={btnBig}>문의</button>
                                 {actionBtn}
                               </div>
-                            );
+                            ) : null;
                           })()}
                         </div>
                       </div>
