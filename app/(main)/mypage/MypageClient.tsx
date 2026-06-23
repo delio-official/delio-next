@@ -10,6 +10,7 @@ import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
+import { addToCart, showCartToast } from '@/lib/cart';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
@@ -179,6 +180,10 @@ export default function MypageClient() {
   const [askSubmitting, setAskSubmitting] = useState(false);
   const [askCatOpen, setAskCatOpen] = useState(false);
   const [askProdOpen, setAskProdOpen] = useState(false);
+  // 상품 선택 모달 (리뷰 쓰기 / 재구매 / 장바구니) — 주문 상품 2개 이상일 때
+  type PickItem = { productId: string; productName: string; thumb: string | null; unitPrice: number };
+  const [picker, setPicker] = useState<{ mode: 'review' | 'repurchase' | 'cart'; items: PickItem[]; selectedId: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
@@ -295,7 +300,7 @@ export default function MypageClient() {
   const [editCsId, setEditCsId] = useState<string | null>(null);
   const [editCsText, setEditCsText] = useState('');
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal);
+  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal || !!picker);
 
   /* ── 상품 문의 작성 제출(배송조회 → 바로 모달) ── */
   async function submitAsk() {
@@ -317,6 +322,39 @@ export default function MypageClient() {
     setAskCategory('문의');
     setAskPrivate(false);
     showToastMsg('문의가 등록되었습니다.');
+  }
+
+  /* ── 리뷰 쓰기 / 재구매 / 장바구니 실행 (선택된 상품 대상) ── */
+  function runItemAction(mode: 'review' | 'repurchase' | 'cart', it: PickItem) {
+    if (mode === 'review') {
+      router.push(`/product/${it.productId}?tab=review`);
+      return;
+    }
+    addToCart({
+      id: it.productId,
+      name: it.productName,
+      price: it.unitPrice,
+      originalPrice: it.unitPrice,
+      thumbnail: it.thumb || '',
+      quantity: 1,
+      deliveryType: '자사배송',
+    });
+    if (mode === 'cart') {
+      showCartToast(it.productName);          // 담기만
+    } else {
+      router.push('/checkout');               // 재구매 → 담고 결제로
+    }
+  }
+
+  /* 주문 카드 버튼에서 호출 — 상품 1개면 바로, 2개 이상이면 선택 모달 */
+  function startItemAction(mode: 'review' | 'repurchase' | 'cart', o: Order) {
+    const items: PickItem[] = (o.order_items || [])
+      .filter(it => it.product_id)
+      .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null, unitPrice: it.unit_price }));
+    if (items.length === 0) return;
+    if (items.length === 1) { runItemAction(mode, items[0]); return; }
+    setPicker({ mode, items, selectedId: items[0].productId });
+    setPickerOpen(false);
   }
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -1307,6 +1345,47 @@ export default function MypageClient() {
         </div>
       )}
 
+      {/* 상품 선택 모달 (리뷰 쓰기 / 재구매 / 장바구니 — 상품 2개 이상) */}
+      {picker && (() => {
+        const title = picker.mode === 'review' ? '리뷰 쓸 상품 선택' : picker.mode === 'repurchase' ? '재구매할 상품 선택' : '장바구니에 담을 상품 선택';
+        const cta = picker.mode === 'review' ? '리뷰 쓰기' : picker.mode === 'repurchase' ? '재구매' : '장바구니 담기';
+        const cur = picker.items.find(it => it.productId === picker.selectedId);
+        return (
+          <div onClick={() => { setPicker(null); setPickerOpen(false); }}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:'16px 16px 0 0', padding:'22px 20px calc(24px + env(safe-area-inset-bottom))', maxHeight:'85vh', overflowY:'auto' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+                <span style={{ fontSize:17, fontWeight:700 }}>{title}</span>
+                <button onClick={() => { setPicker(null); setPickerOpen(false); }} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
+              </div>
+              <div className="opt-dd" style={{ marginBottom:20 }}>
+                <button type="button" className={`opt-dd-btn${pickerOpen ? ' open' : ''}`} onClick={() => setPickerOpen(o => !o)}>
+                  <span>{cur?.productName}</span>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                {pickerOpen && (
+                  <>
+                    <div className="opt-dd-backdrop" style={{ zIndex: 3101 }} onClick={() => setPickerOpen(false)} />
+                    <div className="opt-dd-list" style={{ zIndex: 3102 }}>
+                      {picker.items.map(it => (
+                        <button type="button" key={it.productId}
+                          className={`opt-dd-item${it.productId === picker.selectedId ? ' sel' : ''}`}
+                          onClick={() => { setPicker(m => m ? { ...m, selectedId: it.productId } : m); setPickerOpen(false); }}>{it.productName}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              <button onClick={() => { if (cur) runItemAction(picker.mode, cur); setPicker(null); setPickerOpen(false); }}
+                style={{ width:'100%', padding:'14px 0', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, fontFamily:'inherit', cursor:'pointer' }}>
+                {cta}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 배송추적 모달 */}
       {trackingTarget && (
         <TrackingModal
@@ -1940,47 +2019,63 @@ export default function MypageClient() {
                           </button>
                         )}
 
-                        {/* 하단: 버튼 2개 가로 균등 */}
+                        {/* 하단: 상태별 버튼 (오늘의집 플로우) */}
                         <div style={{ paddingTop:12, marginTop:4 }}>
                           {(() => {
                             const active = activeReqByOrder.get(o.id);
-                            const btnBig: React.CSSProperties = { flex:1, fontSize:13.5, padding:'11px 0', textAlign:'center', border:'1px solid #DDDDD9', borderRadius:8, cursor:'pointer', background:'#fff', color:'#333', fontWeight:600, fontFamily:'inherit' };
-                            const instantCancelable = o.status === 'paid';            // 결제완료 → 즉시 취소
-                            const requestCancelable = o.status === 'preparing';       // 준비중 → 취소 신청
-                            const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
+                            const btnBig: React.CSSProperties = { flex:1, minWidth:0, fontSize:13, padding:'11px 4px', textAlign:'center', border:'1px solid #DDDDD9', borderRadius:8, cursor:'pointer', background:'#fff', color:'#333', fontWeight:600, fontFamily:'inherit', whiteSpace:'nowrap' };
 
-                            // 두 번째(우측) 액션 버튼 — 상태별 1개만
-                            let actionBtn: React.ReactNode = null;
-                            if (active && (instantCancelable || requestCancelable || canRefund)) {
-                              actionBtn = (
-                                <span style={{ ...btnBig, color:'#999', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                  {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
-                                </span>
-                              );
-                            } else if (instantCancelable) {
-                              actionBtn = <button onClick={() => instantCancel(o)} style={btnBig}>주문취소</button>;
-                            } else if (requestCancelable) {
-                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }} style={btnBig}>주문취소</button>;
-                            } else if (canRefund) {
-                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }} style={btnBig}>환불신청</button>;
+                            // 상품 문의 모달 열기
+                            const openAsk = () => {
+                              const askItems = (o.order_items || [])
+                                .filter(it => it.product_id)
+                                .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null }));
+                              if (askItems.length) {
+                                setAskModal({ items: askItems, selectedId: askItems[0].productId });
+                                setAskCategory('문의'); setAskContent(''); setAskPrivate(false);
+                              } else { goPanel('cs'); }
+                            };
+
+                            type Btn = { key: string; label: string; onClick?: () => void; muted?: boolean };
+                            const btns: Btn[] = [];
+                            const askBtn: Btn = { key:'ask', label:'상품문의', onClick: openAsk };
+                            const trackBtn: Btn | null = o.tracking_number
+                              ? { key:'track', label:'배송조회', onClick: () => setTrackingTarget({ carrierId: o.courier || 'kr.cjlogistics', trackingNumber: o.tracking_number! }) }
+                              : null;
+                            const cartBtn: Btn = { key:'cart', label:'장바구니', onClick: () => startItemAction('cart', o) };
+
+                            if (o.status === 'paid' || o.status === 'preparing') {
+                              btns.push(askBtn);
+                              if (active) btns.push({ key:'reqst', label:`${active.type === 'cancel' ? '취소' : '환불'} 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
+                              else if (o.status === 'paid') btns.push({ key:'cancel', label:'주문취소', onClick: () => instantCancel(o) });
+                              else btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); } });
+                            } else if (o.status === 'shipped') {
+                              if (trackBtn) btns.push(trackBtn);
+                              btns.push(askBtn, cartBtn);
+                            } else if (o.status === 'delivered') {
+                              if (trackBtn) btns.push(trackBtn);
+                              btns.push(askBtn);
+                              if (active) btns.push({ key:'reqst', label:`환불 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
+                              else btns.push({ key:'refund', label:'환불신청', onClick: () => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); } });
+                              btns.push(cartBtn);
+                            } else if (o.status === 'confirmed') {
+                              btns.push({ key:'review', label:'리뷰 쓰기', onClick: () => startItemAction('review', o) });
+                              btns.push(askBtn);
+                              btns.push({ key:'repurchase', label:'재구매', onClick: () => startItemAction('repurchase', o) });
+                              btns.push(cartBtn);
                             } else if (o.status === 'cancelled' || o.status === 'refunded') {
-                              actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
+                              btns.push(askBtn);
+                              btns.push({ key:'detail', label: o.status === 'cancelled' ? '취소상세' : '환불상세', onClick: () => setDetailOrder(o) });
+                            } else {
+                              btns.push(askBtn);
                             }
 
-                            const askItems = (o.order_items || [])
-                              .filter(it => it.product_id)
-                              .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null }));
                             return (
-                              <div style={{ display:'flex', gap:8 }}>
-                                <button
-                                  onClick={() => {
-                                    if (askItems.length) {
-                                      setAskModal({ items: askItems, selectedId: askItems[0].productId });
-                                      setAskCategory('문의'); setAskContent(''); setAskPrivate(false);
-                                    } else { goPanel('cs'); }
-                                  }}
-                                  style={btnBig}>문의</button>
-                                {actionBtn}
+                              <div style={{ display:'flex', gap:6 }}>
+                                {btns.map(b => b.muted
+                                  ? <span key={b.key} style={{ ...btnBig, color:'#999', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center' }}>{b.label}</span>
+                                  : <button key={b.key} onClick={b.onClick} style={btnBig}>{b.label}</button>
+                                )}
                               </div>
                             );
                           })()}
