@@ -1779,18 +1779,21 @@ export default function MypageClient() {
                                   : <span style={{ fontSize:34 }}>🍑</span>}
                               </div>
                               <div style={{ flex:1, minWidth:0, paddingTop:2 }}>
-                                <div style={{ fontSize:13.5, fontWeight:700, marginBottom:6 }}>
+                                <div style={{ fontSize:13.5, fontWeight:700, marginBottom:7 }}>
                                   <span style={{ color:statusColor }}>{STATUS_LABEL[o.status] || o.status}</span>
                                   {statusSuffix && <span style={{ color:'#555', fontWeight:600 }}>{statusSuffix}</span>}
                                 </div>
-                                <div style={{ fontSize:17, fontWeight:800, color:'#1A1A1A', marginBottom:6 }}>{fmtPrice(item.unit_price)}원</div>
-                                <div style={{ fontSize:13, color:'#444', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
+                                <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A', lineHeight:1.4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.product_name}</div>
                                 {(() => {
                                   const major = item.products?.origin ? (ORIGIN_LABEL[item.products.origin] || item.products.origin) : '';
-                                  const minor = item.products?.category ? (CAT_LABEL[item.products.category] || item.products.category) : '';
-                                  const catText = [major, minor].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' | ');
-                                  return catText ? <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{catText}</div> : null;
+                                  const minor = item.products?.category ? (CAT_LABEL[item.products.category] || '') : '';
+                                  const catText = [major, minor].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ');
+                                  return catText ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>{catText}</div> : null;
                                 })()}
+                                <div style={{ fontSize:15, fontWeight:800, color:'#1A1A1A', marginTop:8 }}>
+                                  {fmtPrice(item.unit_price)}원
+                                  {item.quantity > 1 && <span style={{ fontSize:12, fontWeight:600, color:'#999', marginLeft:6 }}>· {item.quantity}개</span>}
+                                </div>
                               </div>
                             </>
                           );
