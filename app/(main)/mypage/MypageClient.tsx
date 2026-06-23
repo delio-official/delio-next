@@ -1761,7 +1761,10 @@ export default function MypageClient() {
                           <span style={{ fontSize:15, fontWeight:800, color:'#1A1A1A' }}>
                             {new Date(o.created_at).toLocaleDateString('ko-KR')}
                           </span>
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                          <span style={{ display:'flex', alignItems:'center', gap:1, fontSize:13, color:'#999', fontWeight:600 }}>
+                            주문상세
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#bbb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                          </span>
                         </button>
 
                         {/* 상품 목록 — 클릭 시 상품상세 (사진 레이아웃: 위쪽 정렬·큰 썸네일·상태 2색) */}
@@ -1821,51 +1824,41 @@ export default function MypageClient() {
                           </button>
                         )}
 
-                        {/* 하단: 금액 + 버튼 */}
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                          paddingTop:10, marginTop:4 }}>
-                          <span style={{ fontSize:14, fontWeight:700 }}>{fmtPrice(o.final_amount)}원</span>
-                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
-                            {(() => {
-                              const active = activeReqByOrder.get(o.id);
-                              const btnGhost: React.CSSProperties = { fontSize:12, padding:'6px 18px', minWidth:68, textAlign:'center', border:'1.5px solid #DDDDD9', borderRadius:6, cursor:'pointer', background:'#fff', color:'#555', fontWeight:600, fontFamily:'inherit' };
-                              const instantCancelable = o.status === 'paid';            // 결제완료 → 즉시 취소
-                              const requestCancelable = o.status === 'preparing';       // 준비중 → 취소 신청
-                              const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
-                              const accentBtn: React.CSSProperties = { ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' };
-                              return (
-                                <>
-                                  <button onClick={() => setDetailOrder(o)} style={btnGhost}>주문상세</button>
-                                  {active && (instantCancelable || requestCancelable || canRefund) && (
-                                    <span style={{ fontSize:12, padding:'6px 14px', borderRadius:6, background:'#FFF3E0', color:'#C8841C', fontWeight:700 }}>
-                                      {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
-                                    </span>
-                                  )}
-                                  {!active && instantCancelable && (
-                                    <button onClick={() => instantCancel(o)} style={accentBtn}>주문취소</button>
-                                  )}
-                                  {!active && requestCancelable && (
-                                    <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }}
-                                      style={accentBtn}>
-                                      주문취소
-                                    </button>
-                                  )}
-                                  {!active && canRefund && (
-                                    <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }}
-                                      style={{ ...btnGhost, border:'1.5px solid var(--color-accent)', color:'var(--color-accent)' }}>
-                                      환불신청
-                                    </button>
-                                  )}
-                                  {o.status === 'delivered' && (
-                                    <>
-                                      <button onClick={() => goPanel('cs')} style={btnGhost}>문의</button>
-                                      <button onClick={() => showToastMsg('재구매 기능은 준비 중입니다.')} style={btnGhost}>재구매</button>
-                                    </>
-                                  )}
-                                </>
+                        {/* 하단: 버튼 2개 가로 균등 */}
+                        <div style={{ paddingTop:12, marginTop:4 }}>
+                          {(() => {
+                            const active = activeReqByOrder.get(o.id);
+                            const btnBig: React.CSSProperties = { flex:1, fontSize:13.5, padding:'11px 0', textAlign:'center', border:'1px solid #DDDDD9', borderRadius:8, cursor:'pointer', background:'#fff', color:'#333', fontWeight:600, fontFamily:'inherit' };
+                            const accentBig: React.CSSProperties = { ...btnBig, border:'1px solid var(--color-accent)', color:'var(--color-accent)' };
+                            const instantCancelable = o.status === 'paid';            // 결제완료 → 즉시 취소
+                            const requestCancelable = o.status === 'preparing';       // 준비중 → 취소 신청
+                            const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
+
+                            // 두 번째(우측) 액션 버튼 — 상태별 1개만
+                            let actionBtn: React.ReactNode = null;
+                            if (active && (instantCancelable || requestCancelable || canRefund)) {
+                              actionBtn = (
+                                <span style={{ ...btnBig, color:'#C8841C', borderColor:'#F0D9B0', background:'#FFF8EE', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                  {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
+                                </span>
                               );
-                            })()}
-                          </div>
+                            } else if (instantCancelable) {
+                              actionBtn = <button onClick={() => instantCancel(o)} style={accentBig}>주문취소</button>;
+                            } else if (requestCancelable) {
+                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }} style={accentBig}>주문취소</button>;
+                            } else if (canRefund) {
+                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }} style={accentBig}>환불신청</button>;
+                            } else if (o.status === 'cancelled' || o.status === 'refunded') {
+                              actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
+                            }
+
+                            return (
+                              <div style={{ display:'flex', gap:8 }}>
+                                <button onClick={() => goPanel('cs')} style={btnBig}>문의</button>
+                                {actionBtn}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     );
