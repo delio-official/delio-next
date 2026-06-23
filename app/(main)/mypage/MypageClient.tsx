@@ -169,6 +169,7 @@ export default function MypageClient() {
   const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
   const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
+  const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
@@ -415,7 +416,7 @@ export default function MypageClient() {
 
     async function load() {
       const supabase = createClient();
-      const [{ data: prof }, { data: ords }, { data: revs }] = await Promise.all([
+      const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
           .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,products(origin,category))')
@@ -423,11 +424,13 @@ export default function MypageClient() {
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('reviews')
-          .select('id,rating,content,created_at,image_urls,video_url,taste,products(id,name,thumbnail_url)')
+          .select('id,product_id,rating,content,created_at,image_urls,video_url,taste,products(id,name,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(30),
+        supabase.from('site_settings').select('key,value').in('key', ['review_point_photo']),
       ]);
+      { const rp = ((rpSettings as { key: string; value: string }[]) || []).find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 500); }
       setProfile(prof as Profile);
       if ((prof as Profile & { referral_code?: string })?.referral_code) {
         setReferralCode((prof as Profile & { referral_code?: string }).referral_code!);
@@ -1693,6 +1696,36 @@ export default function MypageClient() {
                     <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                   </svg>
                 </div>
+
+                {/* 리뷰 남기고 받을 수 있는 포인트 배너 (배송완료·미작성 상품 × 포토리뷰 적립) */}
+                {(() => {
+                  const reviewedPids = new Set(myReviews.map(r => r.products?.id).filter(Boolean) as string[]);
+                  const pids = new Set<string>();
+                  orders.forEach(o => {
+                    if (o.status === 'delivered' || o.status === 'confirmed') {
+                      o.order_items?.forEach(it => { if (it.product_id && !reviewedPids.has(it.product_id)) pids.add(it.product_id); });
+                    }
+                  });
+                  const pts = pids.size * reviewRewardPhoto;
+                  if (pts <= 0) return null;
+                  return (
+                    <button type="button" onClick={() => switchPanel('myreviews')}
+                      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', gap:10,
+                        background:'#F7F7F5', border:'none', borderRadius:12, padding:'14px 16px', margin:'4px 0 16px',
+                        cursor:'pointer', fontFamily:'inherit' }}>
+                      <span style={{ display:'flex', alignItems:'center', gap:9, minWidth:0 }}>
+                        <span style={{ width:22, height:22, borderRadius:'50%', background:'var(--color-accent)', color:'#fff',
+                          fontSize:13, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>P</span>
+                        <span style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>리뷰 남기고 받을 수 있는 포인트</span>
+                      </span>
+                      <span style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
+                        <span style={{ fontSize:15, fontWeight:800, color:'#1A1A1A' }}>총 {fmtPrice(pts)}P</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                      </span>
+                    </button>
+                  );
+                })()}
+
                 {orders.length === 0 ? (
                   <div className="mp-empty">주문 내역이 없습니다.</div>
                 ) : filteredOrders.length === 0 ? (
