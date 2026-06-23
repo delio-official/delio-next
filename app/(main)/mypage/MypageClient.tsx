@@ -177,6 +177,8 @@ export default function MypageClient() {
   const [askContent, setAskContent] = useState('');
   const [askPrivate, setAskPrivate] = useState(false);
   const [askSubmitting, setAskSubmitting] = useState(false);
+  const [askCatOpen, setAskCatOpen] = useState(false);
+  const [askProdOpen, setAskProdOpen] = useState(false);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
@@ -1234,27 +1236,59 @@ export default function MypageClient() {
             {askModal.items.length > 1 ? (
               <div style={{ marginTop:14, marginBottom:18 }}>
                 <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>문의할 상품 선택</label>
-                <select value={askModal.selectedId}
-                  onChange={e => setAskModal(m => m ? { ...m, selectedId: e.target.value } : m)}
-                  style={{ width:'100%', padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', background:'#fff', fontFamily:'inherit' }}>
-                  {askModal.items.map(it => (
-                    <option key={it.productId} value={it.productId}>{it.productName}</option>
-                  ))}
-                </select>
+                {(() => {
+                  const cur = askModal.items.find(it => it.productId === askModal.selectedId);
+                  return (
+                    <div className="opt-dd">
+                      <button type="button" className={`opt-dd-btn${askProdOpen ? ' open' : ''}`} onClick={() => setAskProdOpen(o => !o)}>
+                        <span>{cur?.productName}</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      {askProdOpen && (
+                        <>
+                          <div className="opt-dd-backdrop" style={{ zIndex: 3101 }} onClick={() => setAskProdOpen(false)} />
+                          <div className="opt-dd-list" style={{ zIndex: 3102 }}>
+                            {askModal.items.map(it => (
+                              <button type="button" key={it.productId}
+                                className={`opt-dd-item${it.productId === askModal.selectedId ? ' sel' : ''}`}
+                                onClick={() => { setAskModal(m => m ? { ...m, selectedId: it.productId } : m); setAskProdOpen(false); }}>{it.productName}</button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div style={{ fontSize:13, color:'#888', marginBottom:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{askModal.items[0]?.productName}</div>
             )}
 
             <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>카테고리</label>
-            <select value={askCategory} onChange={e => setAskCategory(e.target.value)}
-              style={{ width:'100%', padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', background:'#fff', fontFamily:'inherit', marginBottom:18 }}>
-              <option value="문의">문의 유형 선택하기</option>
-              <option value="배송관련">배송관련</option>
-              <option value="취소/교환/반품">취소/교환/반품</option>
-              <option value="상품">상품 문의</option>
-              <option value="기타">기타</option>
-            </select>
+            {(() => {
+              const CATS = [['문의','문의 유형 선택하기'],['배송관련','배송관련'],['취소/교환/반품','취소/교환/반품'],['상품','상품 문의'],['기타','기타']] as const;
+              const curLabel = CATS.find(([v]) => v === askCategory)?.[1] ?? '문의 유형 선택하기';
+              return (
+                <div className="opt-dd" style={{ marginBottom:18 }}>
+                  <button type="button" className={`opt-dd-btn${askCatOpen ? ' open' : ''}`} onClick={() => setAskCatOpen(o => !o)}>
+                    <span className={askCategory === '문의' ? 'ph' : ''}>{curLabel}</span>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {askCatOpen && (
+                    <>
+                      <div className="opt-dd-backdrop" style={{ zIndex: 3101 }} onClick={() => setAskCatOpen(false)} />
+                      <div className="opt-dd-list" style={{ zIndex: 3102 }}>
+                        {CATS.map(([v, l]) => (
+                          <button type="button" key={v}
+                            className={`opt-dd-item${askCategory === v ? ' sel' : ''}`}
+                            onClick={() => { setAskCategory(v); setAskCatOpen(false); }}>{l}</button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>문의 내용 <span style={{ color:'var(--color-accent)' }}>*</span></label>
             <textarea value={askContent} onChange={e => setAskContent(e.target.value)} placeholder="문의 내용을 입력해주세요."
