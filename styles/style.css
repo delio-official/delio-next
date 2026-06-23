@@ -532,7 +532,7 @@ input, select, textarea { font-family: inherit; }
 .cat-drawer-sub2:hover, .cat-drawer-sub2:active {
   background: #ECECEC;
 }
-.cat-drawer-sub2.full-view { color: #1A1A1A; font-weight: 700; }
+.cat-drawer-sub2.full-view { color: #1A1A1A; font-weight: 400; }
 /* 드로어 내 프로모 배너 */
 .cd-promo {
   margin: 12px 12px 0;
