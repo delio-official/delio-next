@@ -906,3 +906,33 @@ body { background: #fff; }
 
 /* 모바일 메뉴 아이템 우측 영역 */
 .mp-menu-item-right { display: flex; align-items: center; gap: 8px; }
+
+/* ===== 커스텀 드롭다운 (문의 모달 등) — product.css와 동일 ===== */
+.opt-dd { position: relative; }
+.opt-dd-btn {
+  width: 100%; padding: 12px 14px 12px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-radius: 8px; border: 1.5px solid #DDDDD9; background: #fff;
+  font-size: 14px; color: var(--color-ink); cursor: pointer; font-family: inherit; text-align: left;
+}
+.opt-dd-btn:disabled { background: #F5F5F3; color: #AAA; cursor: not-allowed; }
+.opt-dd-btn.open { border-color: var(--color-ink); }
+.opt-dd-btn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-dd-btn .ph { color: #9A9A9A; }
+.opt-dd-btn svg { color: #8B9389; flex-shrink: 0; transition: transform .15s; }
+.opt-dd-btn.open svg { transform: rotate(180deg); }
+.opt-dd-backdrop { position: fixed; inset: 0; }
+.opt-dd-list {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: #fff; border: 1px solid #E2E2E2; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; max-height: 280px; overflow-y: auto;
+}
+.opt-dd-item {
+  display: block; width: 100%; text-align: left;
+  padding: 13px 16px; background: #fff; border: none; cursor: pointer;
+  font-size: 14px; color: var(--color-ink); font-family: inherit;
+  border-bottom: 1px solid #F2F2F2;
+}
+.opt-dd-item:last-child { border-bottom: none; }
+.opt-dd-item:hover { background: #F7F7F5; }
+.opt-dd-item.sel { background: #F2F2F0; font-weight: 700; }
