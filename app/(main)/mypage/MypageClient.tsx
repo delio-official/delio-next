@@ -171,7 +171,7 @@ export default function MypageClient() {
   const [trackingTarget, setTrackingTarget] = useState<{ carrierId: string; trackingNumber: string } | null>(null);
   const [wishlist,       setWishlist]       = useState<WishItem[]>([]);
   const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
-  const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null } | null }[]>([]);
+  const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null; thumbnail_url: string|null; hero_image_url: string|null; logo_url: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
   const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
   const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
@@ -851,7 +851,7 @@ export default function MypageClient() {
           .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
-          .select('id, farms(id,slug,name,region,farm_type,intro)')
+          .select('id, farms(id,slug,name,region,farm_type,intro,thumbnail_url,hero_image_url,logo_url)')
           .eq('user_id', user!.id).limit(40),
       ]);
       setWishlist((data as unknown as WishItem[]) || []);
@@ -2763,19 +2763,32 @@ export default function MypageClient() {
                   farmWishlist.length === 0 ? (
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
-                    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    <div className="mp-wish-grid">
                       {farmWishlist.map(fw => {
                         const f = fw.farms;
                         if (!f) return null;
+                        const banner = f.thumbnail_url || f.hero_image_url || null;
+                        const logo = f.logo_url || f.thumbnail_url || null;
                         return (
-                          <div key={fw.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'14px', border:'1px solid #EBEBEB', borderRadius:12 }}>
-                            <div style={{ width:44, height:44, borderRadius:'50%', background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, flexShrink:0 }}>🍊</div>
-                            <Link href={`/farm/${f.slug}`} style={{ flex:1, textDecoration:'none', color:'inherit', minWidth:0 }}>
-                              <div style={{ fontSize:14, fontWeight:700 }}>{f.name}</div>
-                              <div style={{ fontSize:12, color:'#999' }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                          <div key={fw.id} className="mp-wish-item">
+                            <div className="mp-wish-img">
+                              {banner
+                                ? <img src={banner} alt={f.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                : <span style={{ fontSize:34 }}>🍊</span>}
+                              <button className="mp-wish-del"
+                                onClick={e => { e.stopPropagation(); removeFarmWish(fw.id); }}>♥</button>
+                            </div>
+                            <Link href={`/farm/${f.slug}`} style={{ textDecoration:'none', color:'inherit' }}>
+                              <div className="mp-wish-body">
+                                <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                                  <div style={{ width:24, height:24, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>
+                                    {logo ? <img src={logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
+                                  </div>
+                                  <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
+                                </div>
+                                <div style={{ fontSize:12, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                              </div>
                             </Link>
-                            <button onClick={() => removeFarmWish(fw.id)}
-                              style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#E55A4B', flexShrink:0 }}>♥</button>
                           </div>
                         );
                       })}
