@@ -1829,7 +1829,6 @@ export default function MypageClient() {
                           {(() => {
                             const active = activeReqByOrder.get(o.id);
                             const btnBig: React.CSSProperties = { flex:1, fontSize:13.5, padding:'11px 0', textAlign:'center', border:'1px solid #DDDDD9', borderRadius:8, cursor:'pointer', background:'#fff', color:'#333', fontWeight:600, fontFamily:'inherit' };
-                            const accentBig: React.CSSProperties = { ...btnBig, border:'1px solid var(--color-accent)', color:'var(--color-accent)' };
                             const instantCancelable = o.status === 'paid';            // 결제완료 → 즉시 취소
                             const requestCancelable = o.status === 'preparing';       // 준비중 → 취소 신청
                             const canRefund = ['shipped','delivered','confirmed'].includes(o.status);
@@ -1838,16 +1837,16 @@ export default function MypageClient() {
                             let actionBtn: React.ReactNode = null;
                             if (active && (instantCancelable || requestCancelable || canRefund)) {
                               actionBtn = (
-                                <span style={{ ...btnBig, color:'#C8841C', borderColor:'#F0D9B0', background:'#FFF8EE', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                <span style={{ ...btnBig, color:'#999', cursor:'default', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                   {active.type === 'cancel' ? '취소' : '환불'} 신청 {active.status === 'processing' ? '처리중' : '접수'}
                                 </span>
                               );
                             } else if (instantCancelable) {
-                              actionBtn = <button onClick={() => instantCancel(o)} style={accentBig}>주문취소</button>;
+                              actionBtn = <button onClick={() => instantCancel(o)} style={btnBig}>주문취소</button>;
                             } else if (requestCancelable) {
-                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }} style={accentBig}>주문취소</button>;
+                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); }} style={btnBig}>주문취소</button>;
                             } else if (canRefund) {
-                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }} style={accentBig}>환불신청</button>;
+                              actionBtn = <button onClick={() => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); }} style={btnBig}>환불신청</button>;
                             } else if (o.status === 'cancelled' || o.status === 'refunded') {
                               actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
                             }
