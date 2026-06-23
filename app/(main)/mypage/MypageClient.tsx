@@ -1426,14 +1426,12 @@ export default function MypageClient() {
         const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
         const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
         return (
-          <div onClick={() => setDetailOrder(null)}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-            <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:460, maxHeight:'90vh', overflowY:'auto', paddingBottom:'calc(20px + env(safe-area-inset-bottom))' }}>
+          <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
+            <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
               {/* 헤더 */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 20px 14px', position:'sticky', top:0, background:'#fff', zIndex:2 }}>
-                <span style={{ fontSize:16, fontWeight:800 }}>주문상세</span>
-                <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#999', lineHeight:1 }}>✕</button>
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', position:'sticky', top:0, background:'#fff', zIndex:2, borderBottom:'1px solid #F0F0F0' }}>
+                <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#333', lineHeight:1, padding:0 }}>✕</button>
+                <span style={{ flex:1, textAlign:'center', fontSize:16, fontWeight:700, marginRight:20 }}>주문상세</span>
               </div>
               <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
                 {new Date(o.created_at).toLocaleDateString('ko-KR')} 주문 · 주문번호 {o.order_no}
@@ -1512,14 +1510,12 @@ export default function MypageClient() {
         const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
         const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
         return (
-          <div onClick={() => setCancelDetail(null)}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-            <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:460, maxHeight:'90vh', overflowY:'auto', paddingBottom:'calc(20px + env(safe-area-inset-bottom))' }}>
+          <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
+            <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
               {/* 헤더 */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 20px 14px', position:'sticky', top:0, background:'#fff', zIndex:2 }}>
-                <span style={{ fontSize:16, fontWeight:800 }}>{isRefund ? '환불상세' : '취소상세'}</span>
-                <button onClick={() => setCancelDetail(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#999', lineHeight:1 }}>✕</button>
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', position:'sticky', top:0, background:'#fff', zIndex:2, borderBottom:'1px solid #F0F0F0' }}>
+                <button onClick={() => setCancelDetail(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#333', lineHeight:1, padding:0 }}>✕</button>
+                <span style={{ flex:1, textAlign:'center', fontSize:16, fontWeight:700, marginRight:20 }}>{isRefund ? '환불상세' : '취소상세'}</span>
               </div>
               <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
                 {new Date(req?.created_at || o.created_at).toLocaleDateString('ko-KR')} {isRefund ? '환불요청' : '취소요청'}
