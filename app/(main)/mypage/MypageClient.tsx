@@ -1868,19 +1868,10 @@ export default function MypageClient() {
                             </>
                           );
                           return (
-                            <div key={i} style={{ marginBottom:16 }}>
-                              <div
-                                onClick={() => { if (item.product_id) router.push(`/product/${item.product_id}`); }}
-                                style={{ display:'flex', gap:14, alignItems:'flex-start', cursor: item.product_id ? 'pointer' : 'default' }}>
-                                {body}
-                              </div>
-                              {item.product_id && (
-                                <button
-                                  onClick={() => { setAskModal({ productId: item.product_id!, productName: item.product_name }); setAskCategory('문의'); setAskContent(''); setAskPrivate(false); }}
-                                  style={{ width:'100%', marginTop:10, fontSize:13, padding:'9px 0', border:'1px solid #E5E5E2', borderRadius:8, background:'#FAFAFA', color:'#555', fontWeight:600, fontFamily:'inherit', cursor:'pointer' }}>
-                                  상품 문의
-                                </button>
-                              )}
+                            <div key={i}
+                              onClick={() => { if (item.product_id) router.push(`/product/${item.product_id}`); }}
+                              style={{ display:'flex', gap:14, alignItems:'flex-start', marginBottom:18, cursor: item.product_id ? 'pointer' : 'default' }}>
+                              {body}
                             </div>
                           );
                         })}
@@ -1929,11 +1920,20 @@ export default function MypageClient() {
                               actionBtn = <button onClick={() => setDetailOrder(o)} style={btnBig}>{o.status === 'cancelled' ? '취소상세' : '환불상세'}</button>;
                             }
 
-                            return actionBtn ? (
+                            const firstItem = o.order_items?.find(it => it.product_id);
+                            return (
                               <div style={{ display:'flex', gap:8 }}>
+                                <button
+                                  onClick={() => {
+                                    if (firstItem?.product_id) {
+                                      setAskModal({ productId: firstItem.product_id, productName: firstItem.product_name });
+                                      setAskCategory('문의'); setAskContent(''); setAskPrivate(false);
+                                    } else { goPanel('cs'); }
+                                  }}
+                                  style={btnBig}>문의</button>
                                 {actionBtn}
                               </div>
-                            ) : null;
+                            );
                           })()}
                         </div>
                       </div>
