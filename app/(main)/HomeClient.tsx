@@ -1324,7 +1324,7 @@ export default function HomeClient() {
               <Link href="/faq" style={{ color:'#444', textDecoration:'none' }}>자주 묻는 질문</Link>
             </div>
             <div className="footer-sns" style={{ display:'flex', gap:16, alignItems:'center', color:'#bbb' }}>
-              <a href="#" style={{ color:'#bbb' }} title="인스타그램">
+              <a href="https://www.instagram.com/the_delio" target="_blank" rel="noreferrer" style={{ color:'#bbb' }} title="인스타그램">
                 <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
               </a>
               <a href="#" style={{ color:'#bbb' }} title="유튜브">
