@@ -573,8 +573,8 @@ input, select, textarea { font-family: inherit; }
 /* 드로어 내 바로가기 — pill 칩 */
 .cd-sc-grid {
   display: flex; flex-wrap: wrap; gap: 8px;
-  padding: 14px 12px 12px;
-  background: #fff; margin-top: 12px;
+  padding: 20px 12px 20px;
+  background: #fff; margin-top: 16px;
   border-top: 1px solid #F4F4F4; border-bottom: 1px solid #F4F4F4;
 }
 .cd-sc-item {
