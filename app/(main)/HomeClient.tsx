@@ -1303,7 +1303,7 @@ export default function HomeClient() {
             </div>
 
             {/* 입금 계좌 */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:12, fontSize:13.5, color:'#999', lineHeight:1.9 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>국민은행 469901-04-404587</div>
