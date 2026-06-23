@@ -1809,7 +1809,7 @@ export default function MypageClient() {
                               </div>
                               {item.product_id && (
                                 <button
-                                  onClick={() => router.push(`/product/${item.product_id}?tab=qna`)}
+                                  onClick={() => router.push(`/product/${item.product_id}?tab=qna&ask=1`)}
                                   style={{ width:'100%', marginTop:10, fontSize:13, padding:'9px 0', border:'1px solid #E5E5E2', borderRadius:8, background:'#FAFAFA', color:'#555', fontWeight:600, fontFamily:'inherit', cursor:'pointer' }}>
                                   상품 문의
                                 </button>

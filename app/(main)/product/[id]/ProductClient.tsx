@@ -254,6 +254,8 @@ export default function ProductClient() {
     if (tabParam !== 'review' && tabParam !== 'qna') return;
     didJumpReviewRef.current = true;
     setActiveTab(tabParam === 'qna' ? 3 : 2);
+    // 문의 작성 의도로 진입(?ask=1) → 상품 문의 작성 모달 바로 열기
+    if (tabParam === 'qna' && sp.get('ask') === '1') setInqModal(true);
     /* 비-sticky 부모 섹션으로 스크롤(sticky 탭바는 사파리 scrollIntoView 버그).
        모바일 사파리는 behavior:'instant'를 무시하고 CSS scroll-behavior:smooth로 처리하므로,
        매 프레임 호출하면 smooth가 매번 재시작돼 멈춘다 → 띄엄띄엄 한 번씩만 호출해 각 스크롤이 완료될 시간을 준다.
