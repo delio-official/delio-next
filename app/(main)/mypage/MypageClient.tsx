@@ -171,6 +171,12 @@ export default function MypageClient() {
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
   const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
   const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
+  // 상품 문의 작성 모달(배송조회에서 바로 띄움)
+  const [askModal, setAskModal] = useState<{ productId: string; productName: string } | null>(null);
+  const [askCategory, setAskCategory] = useState('문의');
+  const [askContent, setAskContent] = useState('');
+  const [askPrivate, setAskPrivate] = useState(false);
+  const [askSubmitting, setAskSubmitting] = useState(false);
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
@@ -287,7 +293,29 @@ export default function MypageClient() {
   const [editCsId, setEditCsId] = useState<string | null>(null);
   const [editCsText, setEditCsText] = useState('');
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen);
+  useBodyScrollLock(!!detailOrder || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal);
+
+  /* ── 상품 문의 작성 제출(배송조회 → 바로 모달) ── */
+  async function submitAsk() {
+    if (!askModal || !user) return;
+    if (!askContent.trim()) { showToastMsg('문의 내용을 입력해주세요.'); return; }
+    setAskSubmitting(true);
+    const { error } = await createClient().from('product_inquiries').insert({
+      product_id: askModal.productId,
+      user_id: user.id,
+      category: askCategory,
+      content: askContent.trim(),
+      is_private: askPrivate,
+      password: null,
+    });
+    setAskSubmitting(false);
+    if (error) { showToastMsg('문의 등록 실패: ' + error.message); return; }
+    setAskModal(null);
+    setAskContent('');
+    setAskCategory('문의');
+    setAskPrivate(false);
+    showToastMsg('문의가 등록되었습니다.');
+  }
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
     const update = () => setIsMobileView(mq.matches);
@@ -1193,6 +1221,45 @@ export default function MypageClient() {
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
 
+      {/* 상품 문의 작성 모달 (배송조회에서 바로) */}
+      {askModal && (
+        <div onClick={() => setAskModal(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:'16px 16px 0 0', padding:'22px 20px 28px', maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+              <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
+              <button onClick={() => setAskModal(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
+            </div>
+            <div style={{ fontSize:13, color:'#888', marginBottom:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{askModal.productName}</div>
+
+            <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>카테고리</label>
+            <select value={askCategory} onChange={e => setAskCategory(e.target.value)}
+              style={{ width:'100%', padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', background:'#fff', fontFamily:'inherit', marginBottom:18 }}>
+              <option value="문의">문의 유형 선택하기</option>
+              <option value="배송관련">배송관련</option>
+              <option value="취소/교환/반품">취소/교환/반품</option>
+              <option value="상품">상품 문의</option>
+              <option value="기타">기타</option>
+            </select>
+
+            <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>문의 내용 <span style={{ color:'var(--color-accent)' }}>*</span></label>
+            <textarea value={askContent} onChange={e => setAskContent(e.target.value)} placeholder="문의 내용을 입력해주세요."
+              style={{ width:'100%', minHeight:120, padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:16 }} />
+
+            <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13.5, color:'#555', marginBottom:20, cursor:'pointer' }}>
+              <input type="checkbox" checked={askPrivate} onChange={e => setAskPrivate(e.target.checked)} style={{ width:16, height:16 }} />
+              비밀 문의로 등록
+            </label>
+
+            <button onClick={submitAsk} disabled={askSubmitting}
+              style={{ width:'100%', padding:'14px 0', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, fontFamily:'inherit', cursor: askSubmitting ? 'default' : 'pointer', opacity: askSubmitting ? 0.6 : 1 }}>
+              {askSubmitting ? '등록 중...' : '등록하기'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 배송추적 모달 */}
       {trackingTarget && (
         <TrackingModal
@@ -1809,7 +1876,7 @@ export default function MypageClient() {
                               </div>
                               {item.product_id && (
                                 <button
-                                  onClick={() => router.push(`/product/${item.product_id}?tab=qna&ask=1`)}
+                                  onClick={() => { setAskModal({ productId: item.product_id!, productName: item.product_name }); setAskCategory('문의'); setAskContent(''); setAskPrivate(false); }}
                                   style={{ width:'100%', marginTop:10, fontSize:13, padding:'9px 0', border:'1px solid #E5E5E2', borderRadius:8, background:'#FAFAFA', color:'#555', fontWeight:600, fontFamily:'inherit', cursor:'pointer' }}>
                                   상품 문의
                                 </button>
