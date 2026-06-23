@@ -1224,9 +1224,9 @@ export default function MypageClient() {
       {/* 상품 문의 작성 모달 (배송조회에서 바로) */}
       {askModal && (
         <div onClick={() => setAskModal(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 16px' }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:'calc(58px + env(safe-area-inset-bottom))' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:16, padding:'22px 20px 24px', maxHeight:'80vh', overflowY:'auto' }}>
+            style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:'16px 16px 0 0', padding:'22px 20px 24px', maxHeight:'78vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
               <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
               <button onClick={() => setAskModal(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
