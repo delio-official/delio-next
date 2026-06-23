@@ -170,6 +170,7 @@ export default function MypageClient() {
   const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
   const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
+  const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
   const [editingId,      setEditingId]      = useState<string | null>(null);
   const [editRating,     setEditRating]     = useState(5);
   const [editContent,    setEditContent]    = useState('');
@@ -1159,6 +1160,23 @@ export default function MypageClient() {
       );
     });
   })();
+  /* 작성 가능한 리뷰 = 배송완료(delivered/confirmed) 주문 중 아직 리뷰 안 쓴 상품 (상품별 1건) */
+  const writableReviews = (() => {
+    const reviewedPids = new Set(myReviews.map(r => r.products?.id).filter(Boolean) as string[]);
+    const seen = new Set<string>();
+    const list: { id: string; name: string; thumb: string | null }[] = [];
+    orders.forEach(o => {
+      if (o.status === 'delivered' || o.status === 'confirmed') {
+        o.order_items?.forEach(it => {
+          if (it.product_id && !reviewedPids.has(it.product_id) && !seen.has(it.product_id)) {
+            seen.add(it.product_id);
+            list.push({ id: it.product_id, name: it.product_name, thumb: it.thumbnail_url ?? null });
+          }
+        });
+      }
+    });
+    return list;
+  })();
   const gradeLabel = GRADE_LABEL[normalizeGrade(profile?.grade)];
 
   /* ─── Loading ─── */
@@ -2147,12 +2165,54 @@ export default function MypageClient() {
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
                 <div className="mp-section-header">
-                  <span className="mp-section-title">내가 쓴 리뷰</span>
-                  {myReviews.length > 0 && (
-                    <span className="mp-section-sub mp-wish-count">{myReviews.length}개</span>
-                  )}
+                  <span className="mp-section-title">나의 리뷰</span>
                 </div>
-                {myReviews.length === 0 ? (
+
+                {/* 탭: 리뷰 남기기 / 내가 남긴 리뷰 */}
+                <div style={{ display:'flex', borderBottom:'1px solid #EEE', marginBottom:8 }}>
+                  <button type="button" onClick={() => setReviewTab('writable')}
+                    style={{ flex:1, padding:'12px 0', background:'none', border:'none', borderBottom:`2px solid ${reviewTab==='writable'?'#1A1A1A':'transparent'}`, cursor:'pointer', fontFamily:'inherit', fontSize:15, fontWeight: reviewTab==='writable'?800:500, color: reviewTab==='writable'?'#1A1A1A':'#999' }}>
+                    리뷰 남기기 {writableReviews.length}
+                  </button>
+                  <button type="button" onClick={() => setReviewTab('written')}
+                    style={{ flex:1, padding:'12px 0', background:'none', border:'none', borderBottom:`2px solid ${reviewTab==='written'?'#1A1A1A':'transparent'}`, cursor:'pointer', fontFamily:'inherit', fontSize:15, fontWeight: reviewTab==='written'?800:500, color: reviewTab==='written'?'#1A1A1A':'#999' }}>
+                    내가 남긴 리뷰 {myReviews.length}
+                  </button>
+                </div>
+
+                {/* ── 리뷰 남기기(작성 가능) ── */}
+                {reviewTab === 'writable' && (
+                  writableReviews.length === 0 ? (
+                    <div className="mp-empty">작성 가능한 리뷰가 없습니다.</div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                      {writableReviews.map(w => (
+                        <div key={w.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
+                          <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:12 }}>
+                            <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              {w.thumb ? <img src={w.thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:22 }}>🍑</span>}
+                            </div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <Link href={`/product/${w.id}?tab=review`} style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', textDecoration:'none', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</Link>
+                              <Link href={`/product/${w.id}?tab=review`} aria-label="별점 주고 리뷰 작성" style={{ display:'inline-flex', gap:2, marginTop:7 }}>
+                                {[1,2,3,4,5].map(s => (
+                                  <svg key={s} viewBox="0 0 20 20" width="23" height="23"><polygon points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18" fill="#E0DFDB" /></svg>
+                                ))}
+                              </Link>
+                            </div>
+                          </div>
+                          <Link href={`/product/${w.id}?tab=review`}
+                            style={{ display:'block', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', textDecoration:'none' }}>
+                            리뷰 작성하고 최대 {fmtPrice(reviewRewardPhoto)}P 받기
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                )}
+
+                {/* ── 내가 남긴 리뷰 ── */}
+                {reviewTab === 'written' && (myReviews.length === 0 ? (
                   <div className="mp-empty">작성한 리뷰가 없습니다.</div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
@@ -2364,7 +2424,7 @@ export default function MypageClient() {
                       </div>
                     ))}
                   </div>
-                )}
+                ))}
               </div>
             </div>
 
