@@ -1234,22 +1234,13 @@ export default function MypageClient() {
             {askModal.items.length > 1 ? (
               <div style={{ marginTop:14, marginBottom:18 }}>
                 <label style={{ display:'block', fontSize:13.5, fontWeight:700, color:'#1A1A1A', marginBottom:8 }}>문의할 상품 선택</label>
-                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                  {askModal.items.map(it => {
-                    const sel = it.productId === askModal.selectedId;
-                    return (
-                      <button key={it.productId} type="button"
-                        onClick={() => setAskModal(m => m ? { ...m, selectedId: it.productId } : m)}
-                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', border:`1.5px solid ${sel ? '#1A1A1A' : '#E0E0DC'}`, borderRadius:10, background: sel ? '#FAFAFA' : '#fff', cursor:'pointer', textAlign:'left', fontFamily:'inherit', width:'100%' }}>
-                        <div style={{ width:38, height:38, borderRadius:6, background:'#F7F7F5', overflow:'hidden', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          {it.thumb ? <img src={it.thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:18 }}>🍑</span>}
-                        </div>
-                        <span style={{ flex:1, minWidth:0, fontSize:13, fontWeight: sel ? 700 : 500, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{it.productName}</span>
-                        {sel && <span style={{ color:'#1A1A1A', fontWeight:800, flexShrink:0 }}>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+                <select value={askModal.selectedId}
+                  onChange={e => setAskModal(m => m ? { ...m, selectedId: e.target.value } : m)}
+                  style={{ width:'100%', padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', background:'#fff', fontFamily:'inherit' }}>
+                  {askModal.items.map(it => (
+                    <option key={it.productId} value={it.productId}>{it.productName}</option>
+                  ))}
+                </select>
               </div>
             ) : (
               <div style={{ fontSize:13, color:'#888', marginBottom:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{askModal.items[0]?.productName}</div>
