@@ -60,7 +60,7 @@ function Pagination({ total, perPage, page, onChange }: {
 }
 
 /* ── 리뷰 상세 모달 ── */
-function ReviewDetailModal({ review, onClose }: { review: Review; onClose: () => void }) {
+function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: Review; onClose: () => void; onPrev?: () => void; onNext?: () => void; pos?: string }) {
   const [activeImg, setActiveImg] = useState(0);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(review.likes_count || 0);
@@ -76,9 +76,18 @@ function ReviewDetailModal({ review, onClose }: { review: Review; onClose: () =>
       <div onClick={e => e.stopPropagation()} style={{ background: '#f9f9f7', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
 
         {/* 헤더 */}
-        <div style={{ background: '#fff', borderRadius: '16px 16px 0 0', padding: '16px 20px', borderBottom: '1px solid #EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 1 }}>
+        <div style={{ background: '#fff', borderRadius: '16px 16px 0 0', padding: '14px 16px', borderBottom: '1px solid #EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 1 }}>
           <span style={{ fontSize: 16, fontWeight: 700 }}>리뷰 상세</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1 }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {(onPrev || onNext) && (
+              <>
+                <button onClick={onPrev} disabled={!onPrev} aria-label="이전 리뷰" style={{ background: 'none', border: 'none', cursor: onPrev ? 'pointer' : 'default', fontSize: 24, color: onPrev ? '#444' : '#D5D5D5', lineHeight: 1, padding: '0 4px' }}>‹</button>
+                {pos && <span style={{ fontSize: 12, color: '#888', minWidth: 44, textAlign: 'center' }}>{pos}</span>}
+                <button onClick={onNext} disabled={!onNext} aria-label="다음 리뷰" style={{ background: 'none', border: 'none', cursor: onNext ? 'pointer' : 'default', fontSize: 24, color: onNext ? '#444' : '#D5D5D5', lineHeight: 1, padding: '0 4px' }}>›</button>
+              </>
+            )}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1, marginLeft: 4 }}>✕</button>
+          </div>
         </div>
 
         <div style={{ padding: 16 }}>
@@ -358,9 +367,19 @@ export default function ReviewClient() {
       )}
 
       {/* 리뷰 상세 모달 */}
-      {modalReview && (
-        <ReviewDetailModal review={modalReview} onClose={() => setModalReview(null)} />
-      )}
+      {modalReview && (() => {
+        const list = photoReviews.some(r => r.id === modalReview.id) ? photoReviews : textReviews;
+        const idx = list.findIndex(r => r.id === modalReview.id);
+        return (
+          <ReviewDetailModal
+            review={modalReview}
+            onClose={() => setModalReview(null)}
+            onPrev={idx > 0 ? () => setModalReview(list[idx - 1]) : undefined}
+            onNext={idx >= 0 && idx < list.length - 1 ? () => setModalReview(list[idx + 1]) : undefined}
+            pos={idx >= 0 && list.length > 1 ? `${idx + 1} / ${list.length}` : undefined}
+          />
+        );
+      })()}
     </>
   );
 }
