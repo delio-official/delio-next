@@ -2307,26 +2307,30 @@ export default function MypageClient() {
                     const isPercent = c.discount_type === 'percent';
                     const daysLeft = c.expires_at ? Math.ceil((new Date(c.expires_at).getTime() - now.getTime()) / 86400000) : null;
                     return (
-                      <div key={c.id} className="mp-dlcp-card">
-                        <div className="mp-dlcp-top">
-                          {daysLeft !== null && daysLeft >= 0
-                            ? <span className="mp-dlcp-days">{daysLeft === 0 ? '오늘까지' : `${daysLeft}일 남음`}</span>
-                            : <span />}
+                      <div key={c.id} className="mp-cp-card">
+                        <div className="mp-cp-main">
+                          <div className="mp-cp-toprow">
+                            <span className="mp-cp-badge">할인쿠폰</span>
+                          </div>
+                          <div className="mp-cp-value">{isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}</div>
+                          <div className="mp-cp-name">{c.name}</div>
+                          <div className="mp-cp-meta">
+                            {c.min_order_amount > 0 && <div>최소주문 {c.min_order_amount.toLocaleString()}원</div>}
+                            {c.expires_at && <div>사용기간 {fmtDate(c.expires_at)}까지</div>}
+                          </div>
+                        </div>
+                        <div className="mp-cp-side">
+                          {daysLeft !== null && daysLeft >= 0 && (
+                            <span className={`mp-cp-side-exp${daysLeft <= 14 ? ' soon' : ''}`}>
+                              {daysLeft === 0 ? '오늘까지' : `${daysLeft}일 남음`}
+                            </span>
+                          )}
                           <button className="mp-dlcp-dl" onClick={() => claimOneCoupon(c)} disabled={claimingCoupon} aria-label="쿠폰 받기">
                             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 3v12" /><polyline points="7 11 12 16 17 11" /><path d="M5 20h14" />
                             </svg>
                           </button>
                         </div>
-                        <div className="mp-dlcp-value">{isPercent ? `${c.discount_value}%` : `${c.discount_value.toLocaleString()}원`}</div>
-                        <div className="mp-dlcp-name">{c.name}</div>
-                        <div className="mp-dlcp-meta">
-                          {c.min_order_amount > 0 && <div>- {c.min_order_amount.toLocaleString()}원 이상 구매 시</div>}
-                          {(c.starts_at || c.expires_at) && (
-                            <div>- {c.starts_at ? fmtDate(c.starts_at) : ''}{c.expires_at ? `~${fmtDate(c.expires_at)}` : ''}</div>
-                          )}
-                        </div>
-                        <Link href="/category" className="mp-dlcp-link">할인 상품 보기 ›</Link>
                       </div>
                     );
                   };
