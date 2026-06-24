@@ -287,13 +287,7 @@ function BottomNavInner() {
           </Link>
         </div>
       </nav>
-
-      {/* 카카오 플로팅 */}
-      <button className="kakao-float" title="카카오 채널 상담" onClick={() => window.open('https://pf.kakao.com/_RxnrxbX/chat', '_blank')}>
-        <svg viewBox="0 0 24 24" width="26" height="26" xmlns="http://www.w3.org/2000/svg">
-          <path fill="#3C1E1E" d="M12 3C6.48 3 2 6.48 2 10.8c0 2.74 1.6 5.15 4.02 6.62l-.97 3.63c-.08.3.23.55.5.38L9.8 18.9c.71.1 1.44.15 2.2.15 5.52 0 10-3.48 10-7.8S17.52 3 12 3z"/>
-        </svg>
-      </button>
+      {/* 카카오/상단이동 플로팅은 FloatingButtons(layout)에서 통합 렌더 — 중복 제거 */}
     </>
   );
 }
