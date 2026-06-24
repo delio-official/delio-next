@@ -3871,7 +3871,7 @@ export default function MypageClient() {
         const idx = myReviews.findIndex(x => x.id === r.id);
         return (
           <ReviewPhotoModal
-            review={{ id: r.id, images: r.image_urls || [], rating: r.rating, content: r.content, createdAt: r.created_at }}
+            review={{ id: r.id, images: r.image_urls || [], videoUrl: r.video_url, rating: r.rating, content: r.content, createdAt: r.created_at }}
             product={r.products ? { id: r.products.id, name: r.products.name, thumbnail: r.products.thumbnail_url } : null}
             onClose={() => setReviewPhotoModal(null)}
             onPrev={idx > 0 ? () => setReviewPhotoModal(myReviews[idx - 1]) : undefined}

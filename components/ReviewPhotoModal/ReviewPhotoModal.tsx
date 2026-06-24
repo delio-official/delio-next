@@ -8,6 +8,7 @@ import { StarRating, SingleStar } from '@/components/StarRating';
 export interface RPReview {
   id: string;
   images: string[];
+  videoUrl?: string | null;
   rating: number;
   content: string;
   authorName?: string | null;
@@ -75,9 +76,15 @@ export default function ReviewPhotoModal({
   const bg = product?.bg || '#F4EFE6';
   const emoji = product?.emoji || '🍑';
   const images = review.images || [];
+  // 사진 + (있으면) 영상 통합 미디어
+  const media: { url: string; video: boolean }[] = [
+    ...images.map(u => ({ url: u, video: false })),
+    ...(review.videoUrl ? [{ url: review.videoUrl, video: true }] : []),
+  ];
   const hasPrice = !!product && (product.price != null || product.discountedPrice != null);
 
-  const multi = images.length > 1;
+  const multi = media.length > 1;
+  const cur = media[activeImg];
   const photoArrow = (side: 'left' | 'right'): React.CSSProperties => ({
     position: 'absolute', top: '50%', transform: 'translateY(-50%)', [side]: 8,
     width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.42)', color: '#fff', border: 'none',
@@ -91,35 +98,39 @@ export default function ReviewPhotoModal({
       onTouchStart={multi ? (e) => { touchStartX.current = e.touches[0].clientX; } : undefined}
       onTouchEnd={multi ? (e) => {
         const dx = e.changedTouches[0].clientX - touchStartX.current;
-        if (dx < -40 && activeImg < images.length - 1) setActiveImg(activeImg + 1);
+        if (dx < -40 && activeImg < media.length - 1) setActiveImg(activeImg + 1);
         else if (dx > 40 && activeImg > 0) setActiveImg(activeImg - 1);
       } : undefined}
-      style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {images.length > 0
-        ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      style={{ position: 'relative', width: '100%', aspectRatio: '1', background: cur?.video ? '#000' : bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {cur
+        ? (cur.video
+            ? <video src={cur.url} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+            : <img src={cur.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
-      {/* 사진 넘기기 — PC는 hover 시 사진 내부 화살표, 모바일은 스와이프 */}
+      {/* 미디어 넘기기 — PC는 hover 시 사진 내부 화살표, 모바일은 스와이프 */}
       {multi && !isMobile && activeImg > 0 && (
-        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg - 1); }} aria-label="이전 사진" style={photoArrow('left')}>‹</button>
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg - 1); }} aria-label="이전" style={photoArrow('left')}>‹</button>
       )}
-      {multi && !isMobile && activeImg < images.length - 1 && (
-        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg + 1); }} aria-label="다음 사진" style={photoArrow('right')}>›</button>
+      {multi && !isMobile && activeImg < media.length - 1 && (
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg + 1); }} aria-label="다음" style={photoArrow('right')}>›</button>
       )}
-      {/* 사진 위치 점 인디케이터 */}
+      {/* 위치 점 인디케이터 */}
       {multi && (
         <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5, zIndex: 2 }}>
-          {images.map((_, i) => (
+          {media.map((_, i) => (
             <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === activeImg ? '#fff' : 'rgba(255,255,255,0.5)', transition: 'background .15s' }} />
           ))}
         </div>
       )}
     </div>
   );
-  const thumbs = images.length > 1 && (
+  const thumbs = media.length > 1 && (
     <div style={{ display: 'flex', gap: 6, padding: '10px 12px', overflowX: 'auto' }}>
-      {images.map((url, i) => (
-        <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0 }}>
-          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      {media.map((m, i) => (
+        <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0, background: m.video ? '#222' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {m.video
+            ? <span style={{ color: '#fff', fontSize: 18 }}>▶</span>
+            : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </button>
       ))}
     </div>

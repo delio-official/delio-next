@@ -1099,7 +1099,7 @@ export default function ProductClient() {
           const author = rv.author_name ? `${rv.author_name.charAt(0)}**` : rv.profiles?.name ? `${rv.profiles.name.charAt(0)}**` : '익명';
           return (
             <ReviewPhotoModal
-              review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at, likesCount: rv.likes_count || 0 }}
+              review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], videoUrl: rv.video_url, rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at, likesCount: rv.likes_count || 0 }}
               product={{ id: product.id, name: product.name, thumbnail: product.thumbnail_url, discountRate: product.discount_rate, price: product.price, discountedPrice: product.discounted_price, avgRating: product.avg_rating, reviewCount: product.review_count }}
               onClose={() => { if (galleryFromReview) closeAll(); else setSelectedGalleryIdx(null); }}
               onPrev={curRevIdx > 0 ? () => goRev(curRevIdx - 1) : undefined}
