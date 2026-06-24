@@ -1175,10 +1175,10 @@ export default function HomeClient() {
         const photo = (
           <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative', flexShrink:0 }}>
             <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-            {isMobileRv && hasPrev && (
+            {hasPrev && (
               <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ position:'absolute', top:'50%', left:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>‹</button>
             )}
-            {isMobileRv && hasNext && (
+            {hasNext && (
               <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ position:'absolute', top:'50%', right:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>›</button>
             )}
           </div>
@@ -1241,7 +1241,6 @@ export default function HomeClient() {
           );
         }
 
-        const outerArrow: React.CSSProperties = { position:'fixed', top:'50%', transform:'translateY(-50%)', width:46, height:46, borderRadius:'50%', background:'rgba(255,255,255,0.92)', color:'#333', border:'none', cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 16px rgba(0,0,0,0.25)', zIndex:3600 };
         return (
           <div onClick={() => setReviewModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:880, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
@@ -1254,8 +1253,6 @@ export default function HomeClient() {
                 </div>
               </div>
             </div>
-            {hasPrev && <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ ...outerArrow, left:24 }}>‹</button>}
-            {hasNext && <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ ...outerArrow, right:24 }}>›</button>}
           </div>
         );
       })()}

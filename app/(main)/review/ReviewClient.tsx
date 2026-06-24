@@ -85,10 +85,10 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
       {images.length > 0
         ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
-      {isMobile && onPrev && (
+      {onPrev && (
         <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
       )}
-      {isMobile && onNext && (
+      {onNext && (
         <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
       )}
     </div>
@@ -176,8 +176,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
     );
   }
 
-  /* ── PC: 좌우 분할(사진 | 내용) + 모달 밖 화살표 ── */
-  const outerArrow: React.CSSProperties = { position: 'fixed', top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', color: '#333', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 3600 };
+  /* ── PC: 좌우 분할(사진 | 내용), 화살표는 사진 위(공통) ── */
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 880, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
@@ -194,8 +193,6 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
           </div>
         </div>
       </div>
-      {onPrev && <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ ...outerArrow, left: 24 }}>‹</button>}
-      {onNext && <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ ...outerArrow, right: 24 }}>›</button>}
     </div>
   );
 }
