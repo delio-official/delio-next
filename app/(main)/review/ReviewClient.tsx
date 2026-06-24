@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import '@/styles/review.css';
 
 interface Review {
@@ -163,6 +164,7 @@ export default function ReviewClient() {
   const [galleryOpen,  setGalleryOpen]  = useState(false);
   const [galleryIdx,   setGalleryIdx]   = useState<number | null>(null);
   const [modalReview,  setModalReview]  = useState<Review | null>(null);
+  useBodyScrollLock(!!modalReview || galleryIdx !== null);
 
   useEffect(() => {
     async function load() {
