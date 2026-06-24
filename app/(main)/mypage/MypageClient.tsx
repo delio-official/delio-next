@@ -3476,7 +3476,7 @@ export default function MypageClient() {
                       <form onSubmit={submitCsInquiry}>
                         {/* 유형 선택 — 필 탭 */}
                         <div style={{ marginBottom:16 }}>
-                          <div style={{ fontSize:11, fontWeight:700, color:'#aaa', marginBottom:10,
+                          <div style={{ fontSize:13, fontWeight:700, color:'#aaa', marginBottom:10,
                             textTransform:'uppercase', letterSpacing:'0.4px' }}>문의 유형</div>
                           <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                             {CS_CATEGORIES.map(c => {
@@ -3484,10 +3484,10 @@ export default function MypageClient() {
                               return (
                                 <button type="button" key={c.value}
                                   onClick={() => setCsCategory(c.value)}
-                                  style={{ padding:'9px 18px', borderRadius:999,
+                                  style={{ padding:'10px 19px', borderRadius:999,
                                     border:`1px solid ${on ? '#1A1A1A' : '#E5E5E5'}`,
                                     background: on ? '#1A1A1A' : '#F4F4F4',
-                                    fontSize:13, fontWeight:700, color: on ? '#fff' : '#888',
+                                    fontSize:14, fontWeight:700, color: on ? '#fff' : '#888',
                                     cursor:'pointer', transition:'all .15s', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                                   {c.name}
                                 </button>
@@ -3498,22 +3498,22 @@ export default function MypageClient() {
 
                         {/* 제목 */}
                         <div style={{ marginBottom:12 }}>
-                          <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
-                            제목 <span style={{ color:'#1A1A1A', fontSize:10 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
+                            제목 <span style={{ color:'#1A1A1A', fontSize:11.5 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
                           <input type="text" value={csTitle} onChange={e => setCsTitle(e.target.value)}
                             placeholder="문의 제목을 입력해주세요"
-                            style={{ width:'100%', padding:'11px 13px', border:'1.5px solid #EBEBEB',
-                              borderRadius:10, fontSize:14, color:'#1A1A1A', background:'#FAFAFA',
+                            style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #EBEBEB',
+                              borderRadius:10, fontSize:15, color:'#1A1A1A', background:'#FAFAFA',
                               outline:'none', boxSizing:'border-box', fontFamily:'inherit' }} />
                         </div>
 
                         {/* 내용 */}
                         <div style={{ marginBottom:16 }}>
-                          <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
-                            문의 내용 <span style={{ color:'#1A1A1A', fontSize:10 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
+                            문의 내용 <span style={{ color:'#1A1A1A', fontSize:11.5 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
                           <textarea value={csMessage} onChange={e => setCsMessage(e.target.value)} rows={5}
                             placeholder={
@@ -3523,20 +3523,20 @@ export default function MypageClient() {
                               csCategory==='member'  ? '회원 정보, 포인트, 쿠폰 관련 내용을 입력해주세요.' :
                               '문의 내용을 자유롭게 입력해주세요.'
                             }
-                            style={{ width:'100%', minHeight:120, padding:'12px 13px',
-                              border:'1.5px solid #EBEBEB', borderRadius:10, fontSize:13,
+                            style={{ width:'100%', minHeight:130, padding:'13px 14px',
+                              border:'1.5px solid #EBEBEB', borderRadius:10, fontSize:14.5,
                               color:'#1A1A1A', resize:'vertical', outline:'none', background:'#FAFAFA',
                               fontFamily:'inherit', boxSizing:'border-box', lineHeight:1.6 }} />
-                          <div style={{ textAlign:'right', fontSize:11, color:'#aaa', marginTop:4 }}>
+                          <div style={{ textAlign:'right', fontSize:12, color:'#aaa', marginTop:4 }}>
                             {csMessage.length} / 1000
                           </div>
                         </div>
 
                         {/* 파일 첨부 */}
                         <div style={{ marginBottom:16 }}>
-                          <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
                             marginBottom:8, textTransform:'uppercase', letterSpacing:'0.4px' }}>
-                            파일 첨부 <span style={{ fontWeight:400, color:'#bbb', fontSize:10 }}>선택 · 최대 5개</span>
+                            파일 첨부 <span style={{ fontWeight:400, color:'#bbb', fontSize:11.5 }}>선택 · 최대 5개</span>
                           </label>
                           <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-start' }}>
                             {/* 파일 썸네일 목록 */}
@@ -3546,8 +3546,8 @@ export default function MypageClient() {
                               const isPdf = f.type === 'application/pdf';
                               const icon = isImg ? '🖼️' : isVid ? '🎬' : isPdf ? '📄' : '📎';
                               return (
-                                <div key={i} style={{ width:68, position:'relative' }}>
-                                  <div style={{ width:68, height:68, borderRadius:10, background:'#F0F0F0',
+                                <div key={i} style={{ width:82, position:'relative' }}>
+                                  <div style={{ width:82, height:82, borderRadius:10, background:'#F0F0F0',
                                     border:'1px solid #E0E0E0', display:'flex', flexDirection:'column',
                                     alignItems:'center', justifyContent:'center', gap:2, overflow:'hidden' }}>
                                     {isImg ? (
@@ -3578,12 +3578,12 @@ export default function MypageClient() {
                             })}
                             {/* 추가 버튼 */}
                             {csFiles.length < 5 && (
-                              <label style={{ width:68, height:68, borderRadius:10,
+                              <label style={{ width:82, height:82, borderRadius:10,
                                 border:'1px dashed #D0D0D0', background:'#F7F7F5',
                                 display:'flex', flexDirection:'column', alignItems:'center',
                                 justifyContent:'center', cursor:'pointer', gap:3, flexShrink:0 }}>
-                                <span style={{ fontSize:20, color:'#aaa' }}>＋</span>
-                                <span style={{ fontSize:9, color:'#bbb' }}>파일추가</span>
+                                <span style={{ fontSize:28, color:'#aaa', lineHeight:1 }}>＋</span>
+                                <span style={{ fontSize:11, color:'#bbb' }}>파일추가</span>
                                 <input type="file" multiple hidden
                                   accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx"
                                   onChange={e => {
@@ -3597,7 +3597,7 @@ export default function MypageClient() {
                               </label>
                             )}
                           </div>
-                          <div style={{ fontSize:11, color:'#bbb', marginTop:6 }}>
+                          <div style={{ fontSize:12, color:'#bbb', marginTop:8 }}>
                             이미지(JPG·PNG·GIF)·영상(MP4·MOV)·PDF·문서(DOC·XLS) 지원 · 파일당 최대 20MB
                           </div>
                         </div>
