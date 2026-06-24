@@ -14,6 +14,7 @@ import { addToCart, showCartToast } from '@/lib/cart';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
+import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
@@ -197,7 +198,6 @@ export default function MypageClient() {
   const [editNewVideo,   setEditNewVideo]   = useState<File | null>(null);
   const [editTaste,      setEditTaste]      = useState<Record<string, number>>({}); // 맛 평가 수정
   const [reviewPhotoModal, setReviewPhotoModal] = useState<MyReview | null>(null);
-  const [reviewPhotoIdx,   setReviewPhotoIdx]   = useState(0);
   const [recentPage,       setRecentPage]       = useState(0);
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([]);
   const [activePanel,    setActivePanel]    = useState<PanelType>('order');
@@ -2694,13 +2694,13 @@ export default function MypageClient() {
                                   <div style={{ display:'flex', gap:4, marginTop:8, flexWrap:'wrap' }}>
                                     {(r.image_urls || []).map((url, i) => (
                                       <img key={i} src={url} alt=""
-                                        onClick={() => { setReviewPhotoModal(r); setReviewPhotoIdx(i); }}
+                                        onClick={() => setReviewPhotoModal(r)}
                                         style={{ width:44, height:44, borderRadius:6, objectFit:'cover',
                                           border:'1px solid #EBEBEB', cursor:'pointer' }} />
                                     ))}
                                     {r.video_url && (
                                       <div
-                                        onClick={() => { setReviewPhotoModal(r); setReviewPhotoIdx((r.image_urls?.length ?? 0)); }}
+                                        onClick={() => setReviewPhotoModal(r)}
                                         style={{ width:44, height:44, borderRadius:6, background:'#222',
                                           display:'flex', alignItems:'center', justifyContent:'center',
                                           fontSize:16, color:'#fff', border:'1px solid #444', cursor:'pointer' }}>▶</div>
@@ -3868,76 +3868,22 @@ export default function MypageClient() {
       ══════════════════════════════ */}
       {reviewPhotoModal && (() => {
         const r = reviewPhotoModal;
-        const mediaItems: { url: string; isVideo: boolean }[] = [
-          ...(r.image_urls || []).map(url => ({ url, isVideo: false })),
-          ...(r.video_url ? [{ url: r.video_url, isVideo: true }] : []),
-        ];
-        const sel = mediaItems[reviewPhotoIdx] || mediaItems[0];
+        const idx = myReviews.findIndex(x => x.id === r.id);
         return (
-          <div onClick={() => setReviewPhotoModal(null)}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)',
-              zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-            <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:560,
-                maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-
-              {/* 헤더 */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-                padding:'14px 16px', borderBottom:'1px solid #f0f0f0', flexShrink:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontSize:14, fontWeight:700 }}>내 리뷰 사진</span>
-                  {r.products?.name && (
-                    <span style={{ fontSize:12, color:'#999' }}>· {r.products.name}</span>
-                  )}
-                </div>
-                <button onClick={() => setReviewPhotoModal(null)}
-                  style={{ background:'none', border:'none', fontSize:20, cursor:'pointer',
-                    color:'#888', lineHeight:1, padding:0 }}>✕</button>
+          <ReviewPhotoModal
+            review={{ id: r.id, images: r.image_urls || [], rating: r.rating, content: r.content, createdAt: r.created_at }}
+            product={r.products ? { id: r.products.id, name: r.products.name, thumbnail: r.products.thumbnail_url } : null}
+            onClose={() => setReviewPhotoModal(null)}
+            onPrev={idx > 0 ? () => setReviewPhotoModal(myReviews[idx - 1]) : undefined}
+            onNext={idx >= 0 && idx < myReviews.length - 1 ? () => setReviewPhotoModal(myReviews[idx + 1]) : undefined}
+            pos={idx >= 0 && myReviews.length > 1 ? `${idx + 1} / ${myReviews.length}` : undefined}
+            footerNode={
+              <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, background: '#fff' }}>
+                <button onClick={() => { setReviewPhotoModal(null); startEdit(r); }} style={{ flex: 1, padding: '14px 0', borderRadius: 10, border: '1.5px solid #DDD', background: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>수정</button>
+                <button onClick={() => { handleDeleteReview(r.id); setReviewPhotoModal(null); }} style={{ flex: 1, padding: '14px 0', borderRadius: 10, border: '1.5px solid #F0C9C9', background: '#fff', color: '#E53935', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>삭제</button>
               </div>
-
-              {/* 메인 미디어 */}
-              <div style={{ flex:1, minHeight:0, overflow:'hidden',
-                background:'#111', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {sel?.isVideo ? (
-                  <video src={sel.url} controls
-                    style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' }} />
-                ) : sel ? (
-                  <img src={sel.url} alt=""
-                    style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' }} />
-                ) : null}
-              </div>
-
-              {/* 썸네일 + 리뷰 정보 */}
-              <div style={{ flexShrink:0, borderTop:'1px solid #f0f0f0' }}>
-                {/* 썸네일 행 */}
-                {mediaItems.length > 1 && (
-                  <div style={{ display:'flex', gap:6, padding:'10px 14px', overflowX:'auto' }}>
-                    {mediaItems.map((m, i) => (
-                      <div key={i} onClick={() => setReviewPhotoIdx(i)}
-                        style={{ width:52, height:52, borderRadius:6, flexShrink:0, overflow:'hidden',
-                          cursor:'pointer', border:`2px solid ${i === reviewPhotoIdx ? '#1A1A1A' : 'transparent'}`,
-                          background:'#222', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {m.isVideo
-                          ? <span style={{ color:'#fff', fontSize:18 }}>▶</span>
-                          : <img src={m.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 리뷰 텍스트 */}
-                <div style={{ padding:'10px 16px 16px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                    <StarRating rating={r.rating} size={14} />
-                    <span style={{ fontSize:11, color:'#aaa', lineHeight:1 }}>
-                      {new Date(r.created_at).toLocaleDateString('ko-KR')}
-                    </span>
-                  </div>
-                  <p style={{ fontSize:13, color:'#444', lineHeight:1.7, margin:0 }}>{r.content}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+            }
+          />
         );
       })()}
 

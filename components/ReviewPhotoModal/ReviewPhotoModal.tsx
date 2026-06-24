@@ -45,7 +45,7 @@ const navPC = (side: 'left' | 'right'): React.CSSProperties => ({
 });
 
 export default function ReviewPhotoModal({
-  review, product, onClose, onPrev, onNext, pos, breakpoint = 500, onBuy, onWish, wished,
+  review, product, onClose, onPrev, onNext, pos, breakpoint = 500, onBuy, onWish, wished, footerNode,
 }: {
   review: RPReview;
   product?: RPProduct | null;
@@ -57,6 +57,7 @@ export default function ReviewPhotoModal({
   onBuy?: () => void;   // 있으면 구매하기 버튼이 이 콜백 호출(없으면 상품페이지 링크)
   onWish?: () => void;  // 있으면 찜 버튼이 이 콜백 호출
   wished?: boolean;
+  footerNode?: React.ReactNode; // 있으면 기본 푸터(찜·구매하기) 대신 이걸 렌더 (예: 내 리뷰 수정/삭제)
 }) {
   const [activeImg, setActiveImg] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -202,7 +203,7 @@ export default function ReviewPhotoModal({
         <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {header}
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
-          {footer}
+          {footerNode ?? footer}
         </div>
         {onPrev && <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={navMobile('left')}>‹</button>}
         {onNext && <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={navMobile('right')}>›</button>}
@@ -219,7 +220,7 @@ export default function ReviewPhotoModal({
           <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: 20 }}>{photo}{thumbs}{productCard}</div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{ flex: 1, overflowY: 'auto' }}>{info}</div>
-            {footer}
+            {footerNode ?? footer}
           </div>
         </div>
       </div>
