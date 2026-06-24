@@ -3484,10 +3484,10 @@ export default function MypageClient() {
                               return (
                                 <button type="button" key={c.value}
                                   onClick={() => setCsCategory(c.value)}
-                                  style={{ padding:'10px 19px', borderRadius:999,
+                                  style={{ padding:'9px 18px', borderRadius:999,
                                     border:`1px solid ${on ? '#1A1A1A' : '#E5E5E5'}`,
                                     background: on ? '#1A1A1A' : '#F4F4F4',
-                                    fontSize:14, fontWeight:700, color: on ? '#fff' : '#888',
+                                    fontSize:13, fontWeight:700, color: on ? '#fff' : '#888',
                                     cursor:'pointer', transition:'all .15s', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                                   {c.name}
                                 </button>
