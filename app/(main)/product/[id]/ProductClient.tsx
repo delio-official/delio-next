@@ -14,6 +14,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 
@@ -1085,6 +1086,32 @@ export default function ProductClient() {
       {photoGalleryOpen && (() => {
         const closeAll = () => { setPhotoGalleryOpen(false); setSelectedGalleryIdx(null); };
         const selItem  = selectedGalleryIdx !== null ? allPhotoItems[selectedGalleryIdx] : null;
+
+        /* 사진 선택됨 → 공통 ReviewPhotoModal (리뷰 단위 넘기기 + 사진 넘기기) */
+        if (selItem && selItem.review) {
+          const rv = selItem.review;
+          const reviewReps = allPhotoItems.filter(p => p.photoIdx === 0);
+          const curRevIdx = reviewReps.findIndex(p => p.review?.id === rv.id);
+          const goRev = (ri: number) => {
+            const rep = reviewReps[ri];
+            setSelectedGalleryIdx(allPhotoItems.findIndex(p => p.review?.id === rep.review?.id && p.photoIdx === 0));
+          };
+          const author = rv.author_name ? `${rv.author_name.charAt(0)}**` : rv.profiles?.name ? `${rv.profiles.name.charAt(0)}**` : '익명';
+          return (
+            <ReviewPhotoModal
+              review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at, likesCount: rv.likes_count || 0 }}
+              product={{ id: product.id, name: product.name, thumbnail: product.thumbnail_url, discountRate: product.discount_rate, price: product.price, discountedPrice: product.discounted_price, avgRating: product.avg_rating, reviewCount: product.review_count }}
+              onClose={() => { if (galleryFromReview) closeAll(); else setSelectedGalleryIdx(null); }}
+              onPrev={curRevIdx > 0 ? () => goRev(curRevIdx - 1) : undefined}
+              onNext={curRevIdx >= 0 && curRevIdx < reviewReps.length - 1 ? () => goRev(curRevIdx + 1) : undefined}
+              pos={reviewReps.length > 1 && curRevIdx >= 0 ? `${curRevIdx + 1} / ${reviewReps.length}` : undefined}
+              breakpoint={640}
+              onBuy={() => { closeAll(); openOptionDrawer(product.id); }}
+              onWish={toggleWishlist}
+              wished={wishlisted}
+            />
+          );
+        }
 
         return (
           <div onClick={closeAll} style={{

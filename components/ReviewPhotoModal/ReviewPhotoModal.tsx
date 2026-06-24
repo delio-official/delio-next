@@ -45,7 +45,7 @@ const navPC = (side: 'left' | 'right'): React.CSSProperties => ({
 });
 
 export default function ReviewPhotoModal({
-  review, product, onClose, onPrev, onNext, pos, breakpoint = 500,
+  review, product, onClose, onPrev, onNext, pos, breakpoint = 500, onBuy, onWish, wished,
 }: {
   review: RPReview;
   product?: RPProduct | null;
@@ -54,6 +54,9 @@ export default function ReviewPhotoModal({
   onNext?: () => void;
   pos?: string;
   breakpoint?: number;
+  onBuy?: () => void;   // 있으면 구매하기 버튼이 이 콜백 호출(없으면 상품페이지 링크)
+  onWish?: () => void;  // 있으면 찜 버튼이 이 콜백 호출
+  wished?: boolean;
 }) {
   const [activeImg, setActiveImg] = useState(0);
   const [liked, setLiked] = useState(false);
@@ -168,10 +171,16 @@ export default function ReviewPhotoModal({
       )}
     </div>
   );
+  const wishStyle: React.CSSProperties = { width: 48, height: 48, borderRadius: 10, border: '1.5px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: wished ? '#E53935' : '#888', fontSize: 22, textDecoration: 'none', background: '#fff', cursor: 'pointer' };
+  const buyStyle: React.CSSProperties = { flex: 1, textAlign: 'center', padding: '14px 0', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' };
   const footer = product && (
     <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
-      <Link href={`/product/${product.id}`} onClick={onClose} aria-label="찜" style={{ width: 48, height: 48, borderRadius: 10, border: '1.5px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#888', fontSize: 22, textDecoration: 'none' }}>♡</Link>
-      <Link href={`/product/${product.id}`} onClick={onClose} style={{ flex: 1, textAlign: 'center', padding: '14px 0', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>구매하기</Link>
+      {onWish
+        ? <button onClick={onWish} aria-label="찜" style={wishStyle}>{wished ? '♥' : '♡'}</button>
+        : <Link href={`/product/${product.id}`} onClick={onClose} aria-label="찜" style={wishStyle}>♡</Link>}
+      {onBuy
+        ? <button onClick={onBuy} style={buyStyle}>구매하기</button>
+        : <Link href={`/product/${product.id}`} onClick={onClose} style={buyStyle}>구매하기</Link>}
     </div>
   );
   const header = (
