@@ -6,7 +6,7 @@ export default function FloatingButtons() {
   /* 스크롤 감지 → body에 scroll-active 클래스 토글 */
   useEffect(() => {
     function onScroll() {
-      if (window.scrollY > 300) {
+      if (window.scrollY > 120) {
         document.body.classList.add('scroll-active');
       } else {
         document.body.classList.remove('scroll-active');
