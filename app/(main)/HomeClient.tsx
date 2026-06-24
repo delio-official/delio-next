@@ -1086,7 +1086,7 @@ export default function HomeClient() {
                     </div>
                     <div className="bdc-product-info">
                       <div className="bdc-product-name">{b.prodName}</div>
-                      <div className="bdc-product-price">{b.discount > 0 && <span className="bdc-discount">{b.discount}%</span>} {b.prodPrice}</div>
+                      <div className="bdc-product-price">{b.discount > 0 && <span className="bdc-discount">{Math.round(b.discount)}%</span>} {b.prodPrice}</div>
                     </div>
                   </Link>
                 </div>
