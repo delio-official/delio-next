@@ -3319,9 +3319,9 @@ export default function MypageClient() {
                   <>
                   {/* 상품 Q&A 요약 3열 (클릭 시 필터) */}
                   <div className="mp-cs-summary">
-                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='all'?' active':''}`} onClick={() => setQnaFilter('all')}><span className="mp-cs-sum-label">전체문의</span><span className="mp-cs-sum-num">{myQna.length}개</span></button>
-                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='answered'?' active':''}`} onClick={() => setQnaFilter(f => f==='answered'?'all':'answered')}><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}개</span></button>
-                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='waiting'?' active':''}`} onClick={() => setQnaFilter(f => f==='waiting'?'all':'waiting')}><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}개</span></button>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='all'?' active':''}`} onClick={() => setQnaFilter('all')}><span className="mp-cs-sum-label">전체문의</span><span className="mp-cs-sum-num">{myQna.length}<span className="mp-cs-sum-unit">개</span></span></button>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='answered'?' active':''}`} onClick={() => setQnaFilter(f => f==='answered'?'all':'answered')}><span className="mp-cs-sum-label">답변완료</span><span className="mp-cs-sum-num">{myQna.filter(q => q.answer).length}<span className="mp-cs-sum-unit">개</span></span></button>
+                    <button type="button" className={`mp-cs-sum-col${qnaFilter==='waiting'?' active':''}`} onClick={() => setQnaFilter(f => f==='waiting'?'all':'waiting')}><span className="mp-cs-sum-label">답변대기</span><span className="mp-cs-sum-num">{myQna.filter(q => !q.answer).length}<span className="mp-cs-sum-unit">개</span></span></button>
                   </div>
                   <div style={{ marginTop:20 }}>
                     <div>
