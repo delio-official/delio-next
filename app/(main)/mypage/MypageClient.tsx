@@ -139,6 +139,23 @@ const SURVEYS = [
 
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 
+/* 리뷰 남기기 별점 — hover 시 그 별까지 채워지고, 클릭하면 그 점수로 작성 이동 */
+function WritableStars({ onPick }: { onPick: (s: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div onMouseLeave={() => setHover(0)} style={{ display:'inline-flex', gap:2, marginTop:7 }}>
+      {[1,2,3,4,5].map(s => (
+        <button key={s} aria-label={`별점 ${s}점으로 리뷰 작성`}
+          onMouseEnter={() => setHover(s)}
+          onClick={e => { e.stopPropagation(); onPick(s); }}
+          style={{ background:'none', border:'none', padding:0, cursor:'pointer', lineHeight:0 }}>
+          <svg viewBox="0 0 20 20" width="23" height="23"><polygon points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18" fill={s <= hover ? '#FFB400' : '#E0DFDB'} style={{ transition:'fill .1s' }} /></svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ─── SVG Icons ─── */
 const IconArrowRight = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -2505,16 +2522,8 @@ export default function MypageClient() {
                             </div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</div>
-                              {/* 별 클릭 → 그 별점 반영된 리뷰 작성 창 */}
-                              <div style={{ display:'inline-flex', gap:2, marginTop:7 }}>
-                                {[1,2,3,4,5].map(s => (
-                                  <button key={s} aria-label={`별점 ${s}점으로 리뷰 작성`}
-                                    onClick={e => { e.stopPropagation(); router.push(`/product/${w.id}?tab=review&star=${s}`); }}
-                                    style={{ background:'none', border:'none', padding:0, cursor:'pointer', lineHeight:0 }}>
-                                    <svg viewBox="0 0 20 20" width="23" height="23"><polygon points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18" fill="#E0DFDB" /></svg>
-                                  </button>
-                                ))}
-                              </div>
+                              {/* 별: hover 시 채워지고, 클릭하면 그 별점 반영된 리뷰 작성 창 */}
+                              <WritableStars onPick={s => router.push(`/product/${w.id}?tab=review&star=${s}`)} />
                             </div>
                           </div>
                           {/* 리뷰 작성 버튼 → 작성 모달 */}
