@@ -72,8 +72,8 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
   const prod   = review.products;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 16px calc(128px + env(safe-area-inset-bottom))' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#f9f9f7', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 16px calc(118px + env(safe-area-inset-bottom))' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#f9f9f7', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
 
         {/* 헤더 */}
         <div style={{ background: '#fff', borderRadius: '16px 16px 0 0', padding: '14px 16px', borderBottom: '1px solid #EBEBEB', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 1 }}>
@@ -154,7 +154,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
       {/* 이전/다음 리뷰 — 하단바와 모달 사이 떠있는 pill */}
       {(onPrev || onNext) && (
         <div onClick={e => e.stopPropagation()}
-          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(72px + 18px + env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', gap: 4, background: '#fff', borderRadius: 999, padding: '7px 8px', boxShadow: '0 6px 20px rgba(0,0,0,0.22)', zIndex: 2 }}>
+          style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: 'calc(70px + 12px + env(safe-area-inset-bottom))', display: 'flex', alignItems: 'center', gap: 4, background: '#fff', borderRadius: 999, padding: '7px 8px', boxShadow: '0 6px 20px rgba(0,0,0,0.22)', zIndex: 2 }}>
           <button onClick={onPrev} disabled={!onPrev} aria-label="이전 리뷰" style={{ background: 'none', border: 'none', cursor: onPrev ? 'pointer' : 'default', fontSize: 22, color: onPrev ? '#333' : '#D5D5D5', lineHeight: 1, padding: '0 8px' }}>‹</button>
           <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A', minWidth: 46, textAlign: 'center' }}>{pos}</span>
           <button onClick={onNext} disabled={!onNext} aria-label="다음 리뷰" style={{ background: 'none', border: 'none', cursor: onNext ? 'pointer' : 'default', fontSize: 22, color: onNext ? '#333' : '#D5D5D5', lineHeight: 1, padding: '0 8px' }}>›</button>
