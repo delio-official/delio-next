@@ -2497,23 +2497,31 @@ export default function MypageClient() {
                     <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
                       {writableReviews.map(w => (
                         <div key={w.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
-                          <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:12 }}>
+                          {/* 사진·제목·배경 클릭 → 상품 상세 */}
+                          <div onClick={() => router.push(`/product/${w.id}`)}
+                            style={{ display:'flex', gap:12, alignItems:'center', marginBottom:12, cursor:'pointer' }}>
                             <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                               {w.thumb ? <img src={w.thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:22 }}>🍑</span>}
                             </div>
                             <div style={{ flex:1, minWidth:0 }}>
-                              <Link href={`/product/${w.id}?tab=review`} style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', textDecoration:'none', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</Link>
-                              <Link href={`/product/${w.id}?tab=review`} aria-label="별점 주고 리뷰 작성" style={{ display:'inline-flex', gap:2, marginTop:7 }}>
+                              <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</div>
+                              {/* 별 클릭 → 그 별점 반영된 리뷰 작성 창 */}
+                              <div style={{ display:'inline-flex', gap:2, marginTop:7 }}>
                                 {[1,2,3,4,5].map(s => (
-                                  <svg key={s} viewBox="0 0 20 20" width="23" height="23"><polygon points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18" fill="#E0DFDB" /></svg>
+                                  <button key={s} aria-label={`별점 ${s}점으로 리뷰 작성`}
+                                    onClick={e => { e.stopPropagation(); router.push(`/product/${w.id}?tab=review&star=${s}`); }}
+                                    style={{ background:'none', border:'none', padding:0, cursor:'pointer', lineHeight:0 }}>
+                                    <svg viewBox="0 0 20 20" width="23" height="23"><polygon points="10,1.5 12.65,7.18 19,8.09 14.5,12.49 15.78,18.82 10,15.72 4.22,18.82 5.5,12.49 1,8.09 7.35,7.18" fill="#E0DFDB" /></svg>
+                                  </button>
                                 ))}
-                              </Link>
+                              </div>
                             </div>
                           </div>
-                          <Link href={`/product/${w.id}?tab=review`}
-                            style={{ display:'block', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', textDecoration:'none' }}>
+                          {/* 리뷰 작성 버튼 → 작성 모달 */}
+                          <button onClick={() => router.push(`/product/${w.id}?tab=review&review=1`)}
+                            style={{ display:'block', width:'100%', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', background:'#fff', cursor:'pointer', fontFamily:'inherit' }}>
                             리뷰 작성하고 최대 {fmtPrice(reviewRewardPhoto)}P 받기
-                          </Link>
+                          </button>
                         </div>
                       ))}
                     </div>
