@@ -66,7 +66,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
   const [likeCount, setLikeCount] = useState(review.likes_count || 0);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const f = () => setIsMobile(window.innerWidth <= 600);
+    const f = () => setIsMobile(window.innerWidth <= 480);
     f(); window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, []);
