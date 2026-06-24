@@ -2749,7 +2749,7 @@ export default function MypageClient() {
                 <div style={{ display:'flex', gap:8, marginBottom:16 }}>
                   {([['product', '상품'], ['farm', '농가']] as const).map(([id, label]) => (
                     <button key={id} onClick={() => setWishTab(id)}
-                      style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
+                      style={{ padding:'8px 18px', borderRadius:99, border:'1.5px solid', fontSize:14, fontWeight:600, cursor:'pointer',
                         borderColor: wishTab===id ? '#1A1A1A' : '#E2E2E0',
                         background: wishTab===id ? '#1A1A1A' : '#fff',
                         color: wishTab===id ? '#fff' : '#888' }}>
@@ -2786,7 +2786,7 @@ export default function MypageClient() {
                                 </div>
                                 <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
                               </div>
-                              <div style={{ fontSize:12, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                              <div style={{ fontSize:13, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
                             </div>
                           </div>
                         );
