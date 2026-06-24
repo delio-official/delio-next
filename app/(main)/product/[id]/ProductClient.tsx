@@ -2400,8 +2400,8 @@ export default function ProductClient() {
                   {/* 판매자 답변 */}
                   {r.seller_reply && (
                     <div style={{ marginTop:12, padding:'12px 14px', background:'#F7F7F5',
-                      borderRadius:8, borderLeft:'3px solid #1A1A1A' }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#1A1A1A', marginBottom:4 }}>
+                      borderRadius:8 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#555', marginBottom:4 }}>
                         🏪 판매자 답변
                       </div>
                       <p style={{ fontSize:13, color:'#555', lineHeight:1.7, whiteSpace:'pre-wrap', margin:0 }}>
