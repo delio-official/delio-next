@@ -1169,8 +1169,8 @@ export default function HomeClient() {
               <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
               <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
             </div>
-            <div style={{ background:'#fff', display:'flex', justifyContent:'center', position:'relative' }}>
-              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'auto', display:'block' }} />
+            <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative' }}>
+              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
               {(() => {
                 const idx = reviews.findIndex(r => r.id === reviewModal.id);
                 const navBtn: React.CSSProperties = { position:'absolute', top:'50%', transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, lineHeight:1, zIndex:2 };
