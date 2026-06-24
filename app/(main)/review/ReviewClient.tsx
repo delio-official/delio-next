@@ -85,10 +85,10 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
       {images.length > 0
         ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
-      {onPrev && (
+      {isMobile && onPrev && (
         <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
       )}
-      {onNext && (
+      {isMobile && onNext && (
         <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
       )}
     </div>
@@ -176,7 +176,13 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
     );
   }
 
-  /* ── PC: 좌우 분할(사진 | 내용), 화살표는 사진 위(공통) ── */
+  /* ── PC: 좌우 분할(사진 | 내용), 화살표는 모달 밖 좌우(배너 스타일) ── */
+  const navBtn = (dir: 'prev' | 'next'): React.CSSProperties => ({
+    position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 3600,
+    width: 52, height: 52, background: 'rgba(0,0,0,0.32)', color: '#fff', border: 'none',
+    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+    ...(dir === 'prev' ? { left: 'max(12px, calc((100% - 880px) / 2 - 64px))' } : { right: 'max(12px, calc((100% - 880px) / 2 - 64px))' }),
+  });
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 880, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
@@ -193,6 +199,16 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
           </div>
         </div>
       </div>
+      {onPrev && (
+        <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={navBtn('prev')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+      )}
+      {onNext && (
+        <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={navBtn('next')}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>
+        </button>
+      )}
     </div>
   );
 }

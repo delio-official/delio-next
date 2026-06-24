@@ -1175,10 +1175,10 @@ export default function HomeClient() {
         const photo = (
           <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative', flexShrink:0 }}>
             <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-            {hasPrev && (
+            {isMobileRv && hasPrev && (
               <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ position:'absolute', top:'50%', left:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>‹</button>
             )}
-            {hasNext && (
+            {isMobileRv && hasNext && (
               <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ position:'absolute', top:'50%', right:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>›</button>
             )}
           </div>
@@ -1253,6 +1253,16 @@ export default function HomeClient() {
                 </div>
               </div>
             </div>
+            {hasPrev && (
+              <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', left:'max(12px, calc((100% - 880px) / 2 - 64px))' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
+              </button>
+            )}
+            {hasNext && (
+              <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', right:'max(12px, calc((100% - 880px) / 2 - 64px))' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>
+              </button>
+            )}
           </div>
         );
       })()}
