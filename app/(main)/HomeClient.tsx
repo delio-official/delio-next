@@ -802,7 +802,7 @@ export default function HomeClient() {
   };
 
   /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
-  const [reviews, setReviews] = useState<{ id: string; image: string; images: string[]; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null }[]>([]);
+  const [reviews, setReviews] = useState<{ id: string; image: string; images: string[]; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null; authorName: string }[]>([]);
   const [reviewModal, setReviewModal] = useState<(typeof reviews)[number] | null>(null);
   useBodyScrollLock(!!reviewModal);
   const [reviewLoaded, setReviewLoaded] = useState(false);
@@ -810,7 +810,7 @@ export default function HomeClient() {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'reviewhl');
-      const sel = 'id, rating, content, image_urls, likes_count, products(id, name, category, avg_rating, review_count, thumbnail_url)';
+      const sel = 'id, rating, content, image_urls, likes_count, author_name, products(id, name, category, avg_rating, review_count, thumbnail_url)';
       let data;
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         ({ data } = await supabase.from('reviews').select(sel).in('id', cfg.ids));
@@ -822,7 +822,7 @@ export default function HomeClient() {
           .limit(Math.max(24, cfg.count * 4)));
       }
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
-      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null; thumbnail_url: string | null } | null };
+      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; author_name: string | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null; thumbnail_url: string | null } | null };
       let rows = ((data || []) as unknown as Row[])
         .filter(r => r.image_urls && r.image_urls.length > 0 && r.products);
       if (cfg.mode === 'manual' && cfg.ids.length > 0) rows = orderByIds(rows, cfg.ids);
@@ -839,6 +839,7 @@ export default function HomeClient() {
           prodRating: `${(r.products!.avg_rating || 0).toFixed(1)} (${(r.products!.review_count || 0).toLocaleString()})`,
           emoji: EMOJI[r.products!.category] || '🍑',
           prodThumb: r.products!.thumbnail_url || null,
+          authorName: r.author_name || '익명',
         }));
       setReviews(cards);
       setReviewLoaded(true);
@@ -1164,7 +1165,7 @@ export default function HomeClient() {
         const idx = reviews.findIndex(r => r.id === reviewModal.id);
         return (
           <ReviewPhotoModal
-            review={{ id: reviewModal.id, images: reviewModal.images.length ? reviewModal.images : [reviewModal.image], rating: reviewModal.stars, content: reviewModal.text }}
+            review={{ id: reviewModal.id, images: reviewModal.images.length ? reviewModal.images : [reviewModal.image], rating: reviewModal.stars, content: reviewModal.text, authorName: reviewModal.authorName }}
             product={{ id: reviewModal.prodId, name: reviewModal.prodName, thumbnail: reviewModal.prodThumb, ratingText: reviewModal.prodRating, emoji: reviewModal.emoji }}
             onClose={() => setReviewModal(null)}
             onPrev={idx > 0 ? () => setReviewModal(reviews[idx - 1]) : undefined}
