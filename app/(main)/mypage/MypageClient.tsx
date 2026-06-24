@@ -2247,9 +2247,6 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='coupon'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">쿠폰 내역</span>
-                </div>
                 {couponLoading ? (
                   <div className="mp-empty">불러오는 중...</div>
                 ) : (() => {
