@@ -1335,7 +1335,9 @@ export default function AdminClient() {
     if (pDiscMode !== 'amount' || pDiscAmount === '') return;
     setPForm(f => {
       if (!(f.price > 0)) return f;
-      const r = Math.min(99, Math.max(0, Math.round(Number(pDiscAmount) / f.price * 100)));
+      // 원 할인 입력 → 소수 할인율로 환산(정수 반올림 X) → 생성 판매가가 입력 금액만큼 정확히 빠짐
+      const raw = Math.min(99, Math.max(0, Number(pDiscAmount) / f.price * 100));
+      const r = Math.round(raw * 10000) / 10000; // numeric(7,4) 정밀도에 맞춰 소수 4자리
       return f.discount_rate === r ? f : { ...f, discount_rate: r };
     });
   }, [pDiscAmount, pDiscMode]);
@@ -4644,7 +4646,7 @@ export default function AdminClient() {
                     </strong>
                     {pForm.discount_rate > 0 && (
                       <span style={{ color:'#CB1D11', marginLeft:8 }}>
-                        ({pForm.discount_rate}% · {Math.round(pForm.price * pForm.discount_rate / 100).toLocaleString()}원 할인)
+                        ({Math.round(pForm.discount_rate)}% · {Math.round(pForm.price * pForm.discount_rate / 100).toLocaleString()}원 할인)
                       </span>
                     )}
                   </div>
@@ -6110,7 +6112,7 @@ export default function AdminClient() {
                             <td>{catOptions[p.category] || CAT_LABEL[p.category] || p.category}</td>
                             <td className="adm-mono adm-muted"><s>{fmtPrice(p.price)}원</s></td>
                             <td className="adm-mono"><strong>{fmtPrice(p.discounted_price)}원</strong></td>
-                            <td>{p.discount_rate > 0 ? <span className="adm-badge badge-paid">{p.discount_rate}%</span> : '-'}</td>
+                            <td>{p.discount_rate > 0 ? <span className="adm-badge badge-paid">{Math.round(p.discount_rate)}%</span> : '-'}</td>
                             <td>
                               <span className={`adm-badge ${p.is_active ? 'badge-on' : 'badge-off'}`}>
                                 {p.is_active ? '판매중' : '판매중지'}

@@ -241,7 +241,7 @@ export default function ReviewDetailClient() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
                   {prod.discount_rate > 0 && (
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#E53E3E' }}>{prod.discount_rate}%</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: '#E53E3E' }}>{Math.round(prod.discount_rate)}%</span>
                   )}
                   <span style={{ fontSize: 16, fontWeight: 800, color: '#1A1A1A' }}>
                     {fmtPrice(prod.discounted_price || prod.price)}원

@@ -465,7 +465,7 @@ function QuickGuide() {
                         <div className="qg-card-name">{p.name}</div>
                         {p.discount_rate > 0 && (
                           <div className="qg-card-discrow">
-                            <span className="qg-card-discount">{p.discount_rate}%</span>
+                            <span className="qg-card-discount">{Math.round(p.discount_rate)}%</span>
                             <span className="qg-card-original">{p.price.toLocaleString()}원</span>
                           </div>
                         )}
@@ -999,7 +999,7 @@ export default function HomeClient() {
                                 <div className="product-card-name">{p.name}</div>
                                 {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
                                 <div className="product-price-row">
-                                  {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
+                                  {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
                                   <span className="price-current">{basePrice.toLocaleString()}원</span>
                                   {p.discount_rate > 0 && <span className="price-original">{p.price.toLocaleString()}원</span>}
                                 </div>

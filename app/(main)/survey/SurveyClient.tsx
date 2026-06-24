@@ -824,7 +824,7 @@ export default function SurveyClient() {
                               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                 {p.discount_rate > 0 && (
                                   <span style={{ fontSize:11, fontWeight:700, color:'var(--color-accent)' }}>
-                                    {p.discount_rate}%
+                                    {Math.round(p.discount_rate)}%
                                   </span>
                                 )}
                                 <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>

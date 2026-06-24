@@ -133,7 +133,7 @@ function ReviewDetailModal({ review, onClose }: { review: Review; onClose: () =>
                   <div style={{ fontSize: 11, color: '#bbb', marginBottom: 3 }}>구매 상품</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{prod.name}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-                    {prod.discount_rate > 0 && <span style={{ fontSize: 12, fontWeight: 800, color: '#E53E3E' }}>{prod.discount_rate}%</span>}
+                    {prod.discount_rate > 0 && <span style={{ fontSize: 12, fontWeight: 800, color: '#E53E3E' }}>{Math.round(prod.discount_rate)}%</span>}
                     <span style={{ fontSize: 15, fontWeight: 800 }}>{fmtPrice(prod.discounted_price || prod.price)}원</span>
                     {prod.discount_rate > 0 && <span style={{ fontSize: 11, color: '#bbb', textDecoration: 'line-through' }}>{fmtPrice(prod.price)}원</span>}
                   </div>

@@ -110,7 +110,7 @@ function SearchProductCard({ p }: { p: Product }) {
         </div>
         <div className="product-card-name">{p.name}</div>
         <div className="product-price-row">
-          {p.discount_rate > 0 && <span className="price-discount">{p.discount_rate}%</span>}
+          {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
           <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
           {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
         </div>

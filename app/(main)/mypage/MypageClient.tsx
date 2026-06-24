@@ -2440,7 +2440,7 @@ export default function MypageClient() {
                                 <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                   {p.discount_rate > 0 && (
                                     <span style={{ fontSize:11, fontWeight:700, color:'var(--color-accent)' }}>
-                                      {p.discount_rate}%
+                                      {Math.round(p.discount_rate)}%
                                     </span>
                                   )}
                                   <span className="mp-wish-price">{fmtPrice(p.price)}원</span>
@@ -2820,7 +2820,7 @@ export default function MypageClient() {
                               <div className="mp-wish-name">{p.name}</div>
                               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                 {p.discount_rate > 0 && (
-                                  <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>{p.discount_rate}%</span>
+                                  <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>{Math.round(p.discount_rate)}%</span>
                                 )}
                                 <span className="mp-wish-price">{fmtPrice(price)}원</span>
                               </div>
