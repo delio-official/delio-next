@@ -12,6 +12,7 @@ import { loadTabsFor, loadCategoryTabs } from '@/lib/filterTabs';
 import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 
@@ -803,14 +804,7 @@ export default function HomeClient() {
   /* 리뷰 하이라이트 — 사진 리뷰 실데이터 (없으면 섹션 숨김) */
   const [reviews, setReviews] = useState<{ id: string; image: string; images: string[]; stars: number; text: string; prodId: string; prodName: string; prodRating: string; emoji: string; prodThumb: string | null }[]>([]);
   const [reviewModal, setReviewModal] = useState<(typeof reviews)[number] | null>(null);
-  const [reviewModalIdx, setReviewModalIdx] = useState(0);
   useBodyScrollLock(!!reviewModal);
-  const [isMobileRv, setIsMobileRv] = useState(false);
-  useEffect(() => {
-    const f = () => setIsMobileRv(window.innerWidth <= 500);
-    f(); window.addEventListener('resize', f);
-    return () => window.removeEventListener('resize', f);
-  }, []);
   const [reviewLoaded, setReviewLoaded] = useState(false);
   useEffect(() => {
     (async () => {
@@ -1135,7 +1129,7 @@ export default function HomeClient() {
               {reviews.map((r, i) => (
                 <div key={i} className="review-card">
                   {/* 이미지 + 리뷰 텍스트 → 리뷰 모달 */}
-                  <div className="review-card-top" onClick={() => { setReviewModal(r); setReviewModalIdx(0); }}
+                  <div className="review-card-top" onClick={() => setReviewModal(r)}
                     style={{ cursor:'pointer', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
                     <div className="review-photo" style={{ overflow:'hidden' }}><img src={r.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
                     <div className="review-body">
@@ -1165,105 +1159,18 @@ export default function HomeClient() {
 
       )}
 
-      {/* ── 리뷰 모달 (리뷰 하이라이트 사진 클릭) — 풀페이지 사진 후기 ── */}
+      {/* ── 리뷰 모달 (리뷰 하이라이트 사진 클릭) — 공통 ReviewPhotoModal ── */}
       {reviewModal && (() => {
         const idx = reviews.findIndex(r => r.id === reviewModal.id);
-        const go = (n: number) => { setReviewModal(reviews[n]); setReviewModalIdx(0); };
-        const hasPrev = idx > 0;
-        const hasNext = idx < reviews.length - 1;
-
-        const photo = (
-          <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative', flexShrink:0 }}>
-            <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-          </div>
-        );
-        const thumbs = reviewModal.images.length > 1 && (
-          <div style={{ display:'flex', gap:6, padding:'10px 12px', overflowX:'auto' }}>
-            {reviewModal.images.map((u, ii) => (
-              <img key={ii} src={u} alt="" onClick={() => setReviewModalIdx(ii)}
-                style={{ width:56, height:56, objectFit:'cover', borderRadius:7, flexShrink:0, cursor:'pointer', border:`2px solid ${ii===reviewModalIdx ? '#1A1A1A' : 'transparent'}` }} />
-            ))}
-          </div>
-        );
-        const info = (
-          <div style={{ padding:'16px 18px 20px' }}>
-            <div style={{ marginBottom:14 }}><StarRating rating={reviewModal.stars} size={15} /></div>
-            <p style={{ fontSize:14, color:'#333', lineHeight:1.85, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
-          </div>
-        );
-        const productCard = (
-          <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ textDecoration:'none', color:'inherit', display:'block', margin:'12px 16px 4px' }}>
-            <div style={{ background:'#fff', borderRadius:12, padding:'12px 14px', border:'1px solid #EEE', display:'flex', gap:12, alignItems:'center' }}>
-              <div style={{ width:54, height:54, borderRadius:9, flexShrink:0, background:'#F4F4F2', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>
-                {reviewModal.prodThumb ? <img src={reviewModal.prodThumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : reviewModal.emoji}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13.5, fontWeight:700, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:4 }}>{reviewModal.prodName}</div>
-                <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:11.5, color:'#888' }}><SingleStar size={11} /><span>{reviewModal.prodRating}</span></div>
-              </div>
-              <span style={{ fontSize:18, color:'#ccc', flexShrink:0 }}>›</span>
-            </div>
-          </Link>
-        );
-        const footer = (
-          <div style={{ flexShrink:0, borderTop:'1px solid #EBEBEB', padding:'10px 12px calc(10px + env(safe-area-inset-bottom))', display:'flex', gap:10, alignItems:'center', background:'#fff' }}>
-            <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} aria-label="찜" style={{ width:48, height:48, borderRadius:10, border:'1.5px solid #E5E5E5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, color:'#888', fontSize:22, textDecoration:'none' }}>♡</Link>
-            <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ flex:1, textAlign:'center', padding:'14px 0', borderRadius:10, background:'var(--color-accent)', color:'#fff', fontSize:15, fontWeight:700, textDecoration:'none' }}>구매하기</Link>
-          </div>
-        );
-        const header = (
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 12px', borderBottom:'1px solid #F0F0F0', flexShrink:0 }}>
-            {isMobileRv
-              ? <button onClick={() => setReviewModal(null)} aria-label="뒤로" style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0, color:'#1A1A1A' }}>
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-              : <span style={{ width:24 }} />}
-            <span style={{ fontSize:16, fontWeight:700 }}>사진 후기{reviews.length > 1 && <small style={{ fontSize:13, color:'#aaa', fontWeight:600, marginLeft:7 }}>{idx + 1} / {reviews.length}</small>}</span>
-            <button onClick={() => setReviewModal(null)} aria-label="닫기" style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#888', lineHeight:1, padding:'0 6px' }}>✕</button>
-          </div>
-        );
-
-        if (isMobileRv) {
-          return (
-            <div onClick={() => setReviewModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex' }}>
-              <div onClick={e => e.stopPropagation()} style={{ background:'#fff', width:'100%', height:'100%', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-                {header}
-                <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>{photo}{thumbs}{info}{productCard}</div>
-                {footer}
-              </div>
-              {hasPrev && (
-                <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'fixed', left:8, top:'50%', transform:'translateY(-50%)', width:42, height:42, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center', zIndex:3600 }}>‹</button>
-              )}
-              {hasNext && (
-                <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'fixed', right:8, top:'50%', transform:'translateY(-50%)', width:42, height:42, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center', zIndex:3600 }}>›</button>
-              )}
-            </div>
-          );
-        }
-
         return (
-          <div onClick={() => setReviewModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:880, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
-              {header}
-              <div style={{ display:'flex', flex:1, minHeight:0 }}>
-                <div style={{ width:'50%', borderRight:'1px solid #EEE', display:'flex', flexDirection:'column', overflowY:'auto', paddingBottom:20 }}>{photo}{thumbs}{productCard}</div>
-                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
-                  <div style={{ flex:1, overflowY:'auto' }}>{info}</div>
-                  {footer}
-                </div>
-              </div>
-            </div>
-            {hasPrev && (
-              <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', left:'max(12px, calc((100% - 880px) / 2 - 30px))' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
-              </button>
-            )}
-            {hasNext && (
-              <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', right:'max(12px, calc((100% - 880px) / 2 - 30px))' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>
-              </button>
-            )}
-          </div>
+          <ReviewPhotoModal
+            review={{ id: reviewModal.id, images: reviewModal.images.length ? reviewModal.images : [reviewModal.image], rating: reviewModal.stars, content: reviewModal.text }}
+            product={{ id: reviewModal.prodId, name: reviewModal.prodName, thumbnail: reviewModal.prodThumb, ratingText: reviewModal.prodRating, emoji: reviewModal.emoji }}
+            onClose={() => setReviewModal(null)}
+            onPrev={idx > 0 ? () => setReviewModal(reviews[idx - 1]) : undefined}
+            onNext={idx < reviews.length - 1 ? () => setReviewModal(reviews[idx + 1]) : undefined}
+            pos={reviews.length > 1 ? `${idx + 1} / ${reviews.length}` : undefined}
+          />
         );
       })()}
 

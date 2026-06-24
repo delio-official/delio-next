@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
+import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import '@/styles/review.css';
 
@@ -59,159 +60,6 @@ function Pagination({ total, perPage, page, onChange }: {
   );
 }
 
-/* ── 리뷰 상세 모달 ── */
-function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: Review; onClose: () => void; onPrev?: () => void; onNext?: () => void; pos?: string }) {
-  const [activeImg, setActiveImg] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(review.likes_count || 0);
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const f = () => setIsMobile(window.innerWidth <= 500);
-    f(); window.addEventListener('resize', f);
-    return () => window.removeEventListener('resize', f);
-  }, []);
-  // 리뷰가 바뀌면 첫 사진으로 리셋
-  useEffect(() => { setActiveImg(0); setLiked(false); setLikeCount(review.likes_count || 0); }, [review.id, review.likes_count]);
-
-  const cat   = review.products?.category || 'default';
-  const emoji = EMOJI_MAP[cat] || EMOJI_MAP.default;
-  const bg    = BG_MAP[cat] || '#F4EFE6';
-  const images = review.image_urls || [];
-  const prod   = review.products;
-
-  /* ── 공통 블록 ── */
-  const photo = (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      {images.length > 0
-        ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : <span style={{ fontSize: 72 }}>{emoji}</span>}
-    </div>
-  );
-  const thumbs = images.length > 1 && (
-    <div style={{ display: 'flex', gap: 6, padding: '10px 12px', overflowX: 'auto' }}>
-      {images.map((url, i) => (
-        <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0 }}>
-          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </button>
-      ))}
-    </div>
-  );
-  const info = (
-    <div style={{ padding: '16px 18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{emoji}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{review.profiles?.name || '익명'}</div>
-        </div>
-        {review.is_best && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: '#FFF3E0', color: '#E65100', border: '1px solid #FFCC80' }}>BEST</span>
-        )}
-      </div>
-      <div style={{ marginBottom: 14 }}><StarRating rating={review.rating} size={15} /></div>
-      <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
-      <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.created_at)}</span>
-        <button onClick={() => { setLiked(v => !v); setLikeCount(v => liked ? v - 1 : v + 1); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 999, border: `1.5px solid ${liked ? '#E53935' : '#E0E0E0'}`, background: liked ? '#FFF5F5' : '#fff', color: liked ? '#E53935' : '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          <span>{liked ? '♥' : '♡'}</span>
-          도움됐어요 {likeCount > 0 && likeCount}
-        </button>
-      </div>
-    </div>
-  );
-  const productCard = prod && (
-    <Link href={`/product/${prod.id}`} onClick={onClose} style={{ textDecoration: 'none', color: 'inherit', display: 'block', margin: '12px 16px 4px' }}>
-      <div style={{ background: '#fff', borderRadius: 12, padding: '12px 14px', border: '1px solid #EEE', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <div style={{ width: 54, height: 54, borderRadius: 9, flexShrink: 0, background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-          {prod.thumbnail_url ? <img src={prod.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{prod.name}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-            {prod.discount_rate > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: '#E53E3E' }}>{Math.round(prod.discount_rate)}%</span>}
-            <span style={{ fontSize: 14.5, fontWeight: 800 }}>{fmtPrice(prod.discounted_price || prod.price)}원</span>
-            {prod.discount_rate > 0 && <span style={{ fontSize: 11, color: '#bbb', textDecoration: 'line-through' }}>{fmtPrice(prod.price)}원</span>}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 11.5, color: '#888' }}>
-            <SingleStar size={11} /><span>{prod.avg_rating?.toFixed(1)}</span><span style={{ color: '#bbb' }}>({prod.review_count?.toLocaleString()})</span>
-          </div>
-        </div>
-        <span style={{ fontSize: 18, color: '#ccc', flexShrink: 0 }}>›</span>
-      </div>
-    </Link>
-  );
-  const footer = prod && (
-    <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
-      <Link href={`/product/${prod.id}`} onClick={onClose} aria-label="찜" style={{ width: 48, height: 48, borderRadius: 10, border: '1.5px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#888', fontSize: 22, textDecoration: 'none' }}>♡</Link>
-      <Link href={`/product/${prod.id}`} onClick={onClose} style={{ flex: 1, textAlign: 'center', padding: '14px 0', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>구매하기</Link>
-    </div>
-  );
-  const header = (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px', borderBottom: '1px solid #EBEBEB', flexShrink: 0 }}>
-      {isMobile
-        ? <button onClick={onClose} aria-label="뒤로" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 0, color: '#1A1A1A' }}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-        : <span style={{ width: 24 }} />}
-      <span style={{ fontSize: 16, fontWeight: 700 }}>사진 후기{pos && <small style={{ fontSize: 13, color: '#aaa', fontWeight: 600, marginLeft: 7 }}>{pos}</small>}</span>
-      <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1, padding: '0 6px' }}>✕</button>
-    </div>
-  );
-
-  /* ── 모바일: 세로 풀스크린 ── */
-  if (isMobile) {
-    return (
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex' }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {header}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
-          {footer}
-        </div>
-        {onPrev && (
-          <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ position: 'fixed', left: 8, top: '50%', transform: 'translateY(-50%)', width: 42, height: 42, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3600 }}>‹</button>
-        )}
-        {onNext && (
-          <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ position: 'fixed', right: 8, top: '50%', transform: 'translateY(-50%)', width: 42, height: 42, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3600 }}>›</button>
-        )}
-      </div>
-    );
-  }
-
-  /* ── PC: 좌우 분할(사진 | 내용), 화살표는 모달 밖 좌우(배너 스타일) ── */
-  const navBtn = (dir: 'prev' | 'next'): React.CSSProperties => ({
-    position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 3600,
-    width: 52, height: 52, background: 'rgba(0,0,0,0.32)', color: '#fff', border: 'none',
-    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-    ...(dir === 'prev' ? { left: 'max(8px, calc((100% - 880px) / 2 - 30px))' } : { right: 'max(8px, calc((100% - 880px) / 2 - 30px))' }),
-  });
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 880, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
-        {header}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-          {/* 좌: 사진 + 썸네일 */}
-          <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: 20 }}>
-            {photo}{thumbs}{productCard}
-          </div>
-          {/* 우: 내용 + 구매하기 */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ flex: 1, overflowY: 'auto' }}>{info}</div>
-            {footer}
-          </div>
-        </div>
-      </div>
-      {onPrev && (
-        <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={navBtn('prev')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
-        </button>
-      )}
-      {onNext && (
-        <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={navBtn('next')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform: 'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>
-        </button>
-      )}
-    </div>
-  );
-}
 
 export default function ReviewClient() {
   const [photoReviews, setPhotoReviews] = useState<Review[]>([]);
@@ -420,9 +268,11 @@ export default function ReviewClient() {
       {modalReview && (() => {
         const list = photoReviews.some(r => r.id === modalReview.id) ? photoReviews : textReviews;
         const idx = list.findIndex(r => r.id === modalReview.id);
+        const prod = modalReview.products;
         return (
-          <ReviewDetailModal
-            review={modalReview}
+          <ReviewPhotoModal
+            review={{ id: modalReview.id, images: modalReview.image_urls || [], rating: modalReview.rating, content: modalReview.content, authorName: modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at, likesCount: modalReview.likes_count }}
+            product={prod ? { id: prod.id, name: prod.name, thumbnail: prod.thumbnail_url, discountRate: prod.discount_rate, price: prod.price, discountedPrice: prod.discounted_price, avgRating: prod.avg_rating, reviewCount: prod.review_count } : null}
             onClose={() => setModalReview(null)}
             onPrev={idx > 0 ? () => setModalReview(list[idx - 1]) : undefined}
             onNext={idx >= 0 && idx < list.length - 1 ? () => setModalReview(list[idx + 1]) : undefined}
