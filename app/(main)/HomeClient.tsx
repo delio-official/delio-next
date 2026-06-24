@@ -1169,8 +1169,26 @@ export default function HomeClient() {
               <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
               <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
             </div>
-            <div style={{ background:'#fff', display:'flex', justifyContent:'center' }}>
+            <div style={{ background:'#fff', display:'flex', justifyContent:'center', position:'relative' }}>
               <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'auto', display:'block' }} />
+              {(() => {
+                const idx = reviews.findIndex(r => r.id === reviewModal.id);
+                const navBtn: React.CSSProperties = { position:'absolute', top:'50%', transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, lineHeight:1, zIndex:2 };
+                const go = (n: number) => { setReviewModal(reviews[n]); setReviewModalIdx(0); };
+                return (
+                  <>
+                    {idx > 0 && (
+                      <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ ...navBtn, left:10 }}>‹</button>
+                    )}
+                    {idx < reviews.length - 1 && (
+                      <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ ...navBtn, right:10 }}>›</button>
+                    )}
+                    {reviews.length > 1 && (
+                      <span style={{ position:'absolute', bottom:10, right:12, fontSize:12, fontWeight:600, color:'#fff', background:'rgba(0,0,0,0.5)', padding:'2px 8px', borderRadius:999, zIndex:2 }}>{idx + 1} / {reviews.length}</span>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             {reviewModal.images.length > 1 && (
               <div style={{ display:'flex', gap:6, padding:'8px 12px', overflowX:'auto', borderTop:'1px solid #F0F0F0', flexShrink:0 }}>
