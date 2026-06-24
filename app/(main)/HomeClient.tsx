@@ -1164,8 +1164,8 @@ export default function HomeClient() {
         <div onClick={() => setReviewModal(null)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:480, maxHeight:'90vh', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid #F0F0F0', flexShrink:0 }}>
+            style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:480, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid #F0F0F0', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
               <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
               <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
             </div>
@@ -1180,7 +1180,7 @@ export default function HomeClient() {
                 ))}
               </div>
             )}
-            <div style={{ padding:'12px 16px', overflowY:'auto', flex:1 }}>
+            <div style={{ padding:'12px 16px' }}>
               <div style={{ marginBottom:8 }}><StarRating rating={reviewModal.stars} size={15} /></div>
               <p style={{ fontSize:14, color:'#333', lineHeight:1.7, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
             </div>
