@@ -1254,12 +1254,12 @@ export default function HomeClient() {
               </div>
             </div>
             {hasPrev && (
-              <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', left:'max(12px, calc((100% - 880px) / 2 - 64px))' }}>
+              <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', left:'max(12px, calc((100% - 880px) / 2 - 30px))' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(-1px)' }}><polyline points="15 18 9 12 15 6" /></svg>
               </button>
             )}
             {hasNext && (
-              <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', right:'max(12px, calc((100% - 880px) / 2 - 64px))' }}>
+              <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'absolute', top:'50%', transform:'translateY(-50%)', zIndex:3600, width:52, height:52, background:'rgba(0,0,0,0.32)', color:'#fff', border:'none', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', right:'max(12px, calc((100% - 880px) / 2 - 30px))' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" width="28" height="28" style={{ transform:'translateX(1px)' }}><polyline points="9 18 15 12 9 6" /></svg>
               </button>
             )}

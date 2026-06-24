@@ -181,7 +181,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
     position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 3600,
     width: 52, height: 52, background: 'rgba(0,0,0,0.32)', color: '#fff', border: 'none',
     borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-    ...(dir === 'prev' ? { left: 'max(12px, calc((100% - 880px) / 2 - 64px))' } : { right: 'max(12px, calc((100% - 880px) / 2 - 64px))' }),
+    ...(dir === 'prev' ? { left: 'max(8px, calc((100% - 880px) / 2 - 30px))' } : { right: 'max(8px, calc((100% - 880px) / 2 - 30px))' }),
   });
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
