@@ -2742,8 +2742,8 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='wish'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">나의 위시리스트</span>
+                <div className="mp-section-header" style={{ marginTop:-3 }}>
+                  <span className="mp-section-title" style={{ fontSize:16 }}>나의 위시리스트</span>
                 </div>
                 {/* 상품 / 농가 탭 */}
                 <div style={{ display:'flex', gap:8, marginBottom:16 }}>
@@ -2820,7 +2820,7 @@ export default function MypageClient() {
                               <div className="mp-wish-name">{p.name}</div>
                               <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                                 {p.discount_rate > 0 && (
-                                  <span style={{ fontSize:12, fontWeight:800, color:'var(--color-accent)' }}>{p.discount_rate}%</span>
+                                  <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>{p.discount_rate}%</span>
                                 )}
                                 <span className="mp-wish-price">{fmtPrice(price)}원</span>
                               </div>
@@ -2830,7 +2830,7 @@ export default function MypageClient() {
                                     <span className={`product-badge ${p.is_new ? 'badge-new' : 'badge-best'}`}>{p.is_new ? 'NEW' : '인기'}</span>
                                   )}
                                   {p.avg_rating > 0 && (
-                                    <span style={{ fontSize:11, color:'#888', display:'flex', alignItems:'center', gap:2 }}>
+                                    <span style={{ fontSize:13, color:'#888', display:'flex', alignItems:'center', gap:2 }}>
                                       <span style={{ color:'#FFB300' }}>★</span>{p.avg_rating.toFixed(1)} ({p.review_count})
                                     </span>
                                   )}

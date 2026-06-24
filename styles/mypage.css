@@ -584,9 +584,9 @@ body { background: #fff; }
       font-size: 12px; cursor: pointer; color: var(--color-accent);
       display: flex; align-items: center; justify-content: center;
     }
-    .mp-wish-body { padding: 12px; }
-    .mp-wish-name { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
-    .mp-wish-price { font-size: 15px; font-weight: 800; color: #1A1A1A; }
+    .mp-wish-body { padding: 13px; }
+    .mp-wish-name { font-size: 14.5px; font-weight: 600; margin-bottom: 5px; }
+    .mp-wish-price { font-size: 16.5px; font-weight: 800; color: #1A1A1A; }
 
     /* ===== 혜택 ===== */
     .mp-benefit-row {
