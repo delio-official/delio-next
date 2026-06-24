@@ -3267,14 +3267,14 @@ export default function MypageClient() {
 
                       {/* 현재 등급 혜택 */}
                       <div style={{ border:`1.5px solid ${GRADE_COLOR[cur]}33`, borderRadius:12, overflow:'hidden', marginBottom:16 }}>
-                        <div style={{ background:GRADE_COLOR[cur], color:'#fff', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                        <div style={{ background:'#1A1A1A', color:'#fff', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                           <span style={{ fontWeight:800, fontSize:15 }}>{curTier.label} 혜택</span>
                           <span style={{ fontSize:12, fontWeight:700, opacity:0.95 }}>포인트 {effectiveRate(curTier)}% 적립</span>
                         </div>
                         <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', gap:9 }}>
                           {curBenefits.map((txt, i) => (
                             <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#333' }}>
-                              <span style={{ color:GRADE_COLOR[cur], fontWeight:800, flexShrink:0 }}>✓</span>{txt}
+                              <span style={{ color:'#1A1A1A', fontWeight:800, flexShrink:0 }}>✓</span>{txt}
                             </div>
                           ))}
                         </div>
