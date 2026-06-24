@@ -238,14 +238,14 @@ body { background: #fff; }
     .mp-pt-item:last-child { border-bottom: none; }
     .mp-pt-item-left { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .mp-pt-tag {
-      font-size: 11px; font-weight: 700; color: #1E8A4C;
-      background: #EAF6EE; padding: 3px 8px; border-radius: 5px;
+      font-size: 11px; font-weight: 700; color: #1A1A1A;
+      background: #F0F0F0; padding: 3px 8px; border-radius: 5px;
     }
     .mp-pt-tag.use { color: #888; background: #F0F0F0; }
     .mp-pt-item-date { font-size: 13px; color: #888; }
     .mp-pt-item-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .mp-pt-item-desc { font-size: 14px; color: #1A1A1A; font-weight: 500; line-height: 1.4; }
-    .mp-pt-item-amt { font-size: 15px; font-weight: 800; color: #1E8A4C; white-space: nowrap; }
+    .mp-pt-item-amt { font-size: 15px; font-weight: 800; color: #1A1A1A; white-space: nowrap; }
     .mp-pt-item-amt.use { color: #1A1A1A; }
 
     /* ===== 배송지 관리 (쿠팡/아르르 스타일) ===== */
