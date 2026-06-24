@@ -79,82 +79,105 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
   const images = review.image_urls || [];
   const prod   = review.products;
 
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? 0 : 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: isMobile ? 0 : 14, width: '100%', maxWidth: isMobile ? '100%' : 480, height: isMobile ? '100%' : '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
-
-        {/* 헤더 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px', borderBottom: '1px solid #EBEBEB', flexShrink: 0 }}>
-          <button onClick={onClose} aria-label="뒤로" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 0, color: '#1A1A1A' }}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <span style={{ fontSize: 16, fontWeight: 700 }}>사진 후기{pos && <small style={{ fontSize: 13, color: '#aaa', fontWeight: 600, marginLeft: 7 }}>{pos}</small>}</span>
-          <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1, padding: '0 6px' }}>✕</button>
+  /* ── 공통 블록 ── */
+  const photo = (
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {images.length > 0
+        ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : <span style={{ fontSize: 72 }}>{emoji}</span>}
+      {isMobile && onPrev && (
+        <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+      )}
+      {isMobile && onNext && (
+        <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+      )}
+    </div>
+  );
+  const thumbs = images.length > 1 && (
+    <div style={{ display: 'flex', gap: 6, padding: '10px 12px', overflowX: 'auto' }}>
+      {images.map((url, i) => (
+        <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0 }}>
+          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </button>
+      ))}
+    </div>
+  );
+  const info = (
+    <div style={{ padding: '16px 18px 20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{emoji}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{review.profiles?.name || '익명'}</div>
         </div>
-
-        {/* 본문 스크롤 */}
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          {/* 큰 사진 (정사각·통일) + 좌우 화살표(이전/다음 리뷰) */}
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {images.length > 0
-              ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ fontSize: 72 }}>{emoji}</span>}
-            {onPrev && (
-              <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-            )}
-            {onNext && (
-              <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 24, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
-            )}
-          </div>
-
-          {/* 썸네일 스트립 */}
-          {images.length > 1 && (
-            <div style={{ display: 'flex', gap: 6, padding: '10px 12px', overflowX: 'auto' }}>
-              {images.map((url, i) => (
-                <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0 }}>
-                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* 작성자 + 별점 + 상품 + 내용 */}
-          <div style={{ padding: '14px 16px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{emoji}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{review.profiles?.name || '익명'}</div>
-              </div>
-              {review.is_best && (
-                <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: '#FFF3E0', color: '#E65100', border: '1px solid #FFCC80' }}>BEST</span>
-              )}
-            </div>
-            <div style={{ marginBottom: 12 }}><StarRating rating={review.rating} size={15} /></div>
-
-            {prod && (
-              <Link href={`/product/${prod.id}`} onClick={onClose} style={{ display: 'inline-block', fontSize: 12.5, color: '#888', background: '#F4F4F2', padding: '5px 10px', borderRadius: 6, marginBottom: 14, textDecoration: 'none', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</Link>
-            )}
-
-            <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
-
-            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.created_at)}</span>
-              <button onClick={() => { setLiked(v => !v); setLikeCount(v => liked ? v - 1 : v + 1); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 999, border: `1.5px solid ${liked ? '#E53935' : '#E0E0E0'}`, background: liked ? '#FFF5F5' : '#fff', color: liked ? '#E53935' : '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                <span>{liked ? '♥' : '♡'}</span>
-                도움됐어요 {likeCount > 0 && likeCount}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 하단: 찜 + 구매하기 */}
-        {prod && (
-          <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
-            <Link href={`/product/${prod.id}`} onClick={onClose} aria-label="찜" style={{ width: 48, height: 48, borderRadius: 10, border: '1.5px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#888', fontSize: 22, textDecoration: 'none' }}>♡</Link>
-            <Link href={`/product/${prod.id}`} onClick={onClose} style={{ flex: 1, textAlign: 'center', padding: '14px 0', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>구매하기</Link>
-          </div>
+        {review.is_best && (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: '#FFF3E0', color: '#E65100', border: '1px solid #FFCC80' }}>BEST</span>
         )}
       </div>
+      <div style={{ marginBottom: 12 }}><StarRating rating={review.rating} size={15} /></div>
+      {prod && (
+        <Link href={`/product/${prod.id}`} onClick={onClose} style={{ display: 'inline-block', fontSize: 12.5, color: '#888', background: '#F4F4F2', padding: '5px 10px', borderRadius: 6, marginBottom: 14, textDecoration: 'none', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</Link>
+      )}
+      <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
+      <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.created_at)}</span>
+        <button onClick={() => { setLiked(v => !v); setLikeCount(v => liked ? v - 1 : v + 1); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 999, border: `1.5px solid ${liked ? '#E53935' : '#E0E0E0'}`, background: liked ? '#FFF5F5' : '#fff', color: liked ? '#E53935' : '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <span>{liked ? '♥' : '♡'}</span>
+          도움됐어요 {likeCount > 0 && likeCount}
+        </button>
+      </div>
+    </div>
+  );
+  const footer = prod && (
+    <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
+      <Link href={`/product/${prod.id}`} onClick={onClose} aria-label="찜" style={{ width: 48, height: 48, borderRadius: 10, border: '1.5px solid #E5E5E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#888', fontSize: 22, textDecoration: 'none' }}>♡</Link>
+      <Link href={`/product/${prod.id}`} onClick={onClose} style={{ flex: 1, textAlign: 'center', padding: '14px 0', borderRadius: 10, background: 'var(--color-accent)', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>구매하기</Link>
+    </div>
+  );
+  const header = (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px', borderBottom: '1px solid #EBEBEB', flexShrink: 0 }}>
+      {isMobile
+        ? <button onClick={onClose} aria-label="뒤로" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 0, color: '#1A1A1A' }}>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        : <span style={{ width: 24 }} />}
+      <span style={{ fontSize: 16, fontWeight: 700 }}>사진 후기{pos && <small style={{ fontSize: 13, color: '#aaa', fontWeight: 600, marginLeft: 7 }}>{pos}</small>}</span>
+      <button onClick={onClose} aria-label="닫기" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1, padding: '0 6px' }}>✕</button>
+    </div>
+  );
+
+  /* ── 모바일: 세로 풀스크린 ── */
+  if (isMobile) {
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {header}
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}</div>
+          {footer}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── PC: 좌우 분할(사진 | 내용) + 모달 밖 화살표 ── */
+  const outerArrow: React.CSSProperties = { position: 'fixed', top: '50%', transform: 'translateY(-50%)', width: 46, height: 46, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', color: '#333', border: 'none', cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 3600 };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 880, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+        {header}
+        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+          {/* 좌: 사진 + 썸네일 */}
+          <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            {photo}{thumbs}
+          </div>
+          {/* 우: 내용 + 구매하기 */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ flex: 1, overflowY: 'auto' }}>{info}</div>
+            {footer}
+          </div>
+        </div>
+      </div>
+      {onPrev && <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={{ ...outerArrow, left: 24 }}>‹</button>}
+      {onNext && <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={{ ...outerArrow, right: 24 }}>›</button>}
     </div>
   );
 }
