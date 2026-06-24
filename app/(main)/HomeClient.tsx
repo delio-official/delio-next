@@ -1175,12 +1175,6 @@ export default function HomeClient() {
         const photo = (
           <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative', flexShrink:0 }}>
             <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-            {isMobileRv && hasPrev && (
-              <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ position:'absolute', top:'50%', left:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>‹</button>
-            )}
-            {isMobileRv && hasNext && (
-              <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ position:'absolute', top:'50%', right:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>›</button>
-            )}
           </div>
         );
         const thumbs = reviewModal.images.length > 1 && (
@@ -1237,6 +1231,12 @@ export default function HomeClient() {
                 <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>{photo}{thumbs}{info}{productCard}</div>
                 {footer}
               </div>
+              {hasPrev && (
+                <button onClick={e => { e.stopPropagation(); go(idx - 1); }} aria-label="이전 리뷰" style={{ position:'fixed', left:8, top:'50%', transform:'translateY(-50%)', width:42, height:42, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center', zIndex:3600 }}>‹</button>
+              )}
+              {hasNext && (
+                <button onClick={e => { e.stopPropagation(); go(idx + 1); }} aria-label="다음 리뷰" style={{ position:'fixed', right:8, top:'50%', transform:'translateY(-50%)', width:42, height:42, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center', zIndex:3600 }}>›</button>
+              )}
             </div>
           );
         }
