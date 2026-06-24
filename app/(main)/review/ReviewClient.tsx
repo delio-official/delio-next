@@ -72,7 +72,7 @@ function ReviewDetailModal({ review, onClose }: { review: Review; onClose: () =>
   const prod   = review.products;
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px 16px calc(74px + env(safe-area-inset-bottom))' }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#f9f9f7', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
 
         {/* 헤더 */}
