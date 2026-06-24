@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { StarRating, SingleStar } from '@/components/StarRating';
 
@@ -59,6 +59,8 @@ export default function ReviewPhotoModal({
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(review.likesCount || 0);
   const [isMobile, setIsMobile] = useState(false);
+  const [photoHover, setPhotoHover] = useState(false);
+  const touchStartX = useRef(0);
   useEffect(() => {
     const f = () => setIsMobile(window.innerWidth <= breakpoint);
     f(); window.addEventListener('resize', f);
@@ -71,11 +73,42 @@ export default function ReviewPhotoModal({
   const images = review.images || [];
   const hasPrice = !!product && (product.price != null || product.discountedPrice != null);
 
+  const multi = images.length > 1;
+  const photoArrow = (side: 'left' | 'right'): React.CSSProperties => ({
+    position: 'absolute', top: '50%', transform: 'translateY(-50%)', [side]: 8,
+    width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.42)', color: '#fff', border: 'none',
+    cursor: 'pointer', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    opacity: photoHover ? 1 : 0, transition: 'opacity .15s', zIndex: 2,
+  });
   const photo = (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div
+      onMouseEnter={() => setPhotoHover(true)}
+      onMouseLeave={() => setPhotoHover(false)}
+      onTouchStart={multi ? (e) => { touchStartX.current = e.touches[0].clientX; } : undefined}
+      onTouchEnd={multi ? (e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        if (dx < -40 && activeImg < images.length - 1) setActiveImg(activeImg + 1);
+        else if (dx > 40 && activeImg > 0) setActiveImg(activeImg - 1);
+      } : undefined}
+      style={{ position: 'relative', width: '100%', aspectRatio: '1', background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {images.length > 0
         ? <img src={images[activeImg]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
+      {/* 사진 넘기기 — PC는 hover 시 사진 내부 화살표, 모바일은 스와이프 */}
+      {multi && !isMobile && activeImg > 0 && (
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg - 1); }} aria-label="이전 사진" style={photoArrow('left')}>‹</button>
+      )}
+      {multi && !isMobile && activeImg < images.length - 1 && (
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg + 1); }} aria-label="다음 사진" style={photoArrow('right')}>›</button>
+      )}
+      {/* 사진 위치 점 인디케이터 */}
+      {multi && (
+        <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5, zIndex: 2 }}>
+          {images.map((_, i) => (
+            <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i === activeImg ? '#fff' : 'rgba(255,255,255,0.5)', transition: 'background .15s' }} />
+          ))}
+        </div>
+      )}
     </div>
   );
   const thumbs = images.length > 1 && (
