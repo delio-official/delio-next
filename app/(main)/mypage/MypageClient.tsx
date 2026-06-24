@@ -2770,7 +2770,8 @@ export default function MypageClient() {
                         const banner = f.thumbnail_url || f.hero_image_url || null;
                         const logo = f.logo_url || f.thumbnail_url || null;
                         return (
-                          <div key={fw.id} className="mp-wish-item">
+                          <div key={fw.id} className="mp-wish-item" style={{ cursor:'pointer' }}
+                            onClick={() => router.push(`/farm/${f.slug}`)}>
                             <div className="mp-wish-img">
                               {banner
                                 ? <img src={banner} alt={f.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
@@ -2778,17 +2779,15 @@ export default function MypageClient() {
                               <button className="mp-wish-del"
                                 onClick={e => { e.stopPropagation(); removeFarmWish(fw.id); }}>♥</button>
                             </div>
-                            <Link href={`/farm/${f.slug}`} style={{ textDecoration:'none', color:'inherit' }}>
-                              <div className="mp-wish-body">
-                                <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                                  <div style={{ width:24, height:24, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>
-                                    {logo ? <img src={logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
-                                  </div>
-                                  <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
+                            <div className="mp-wish-body">
+                              <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                                <div style={{ width:24, height:24, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>
+                                  {logo ? <img src={logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
                                 </div>
-                                <div style={{ fontSize:12, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                                <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
                               </div>
-                            </Link>
+                              <div style={{ fontSize:12, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
+                            </div>
                           </div>
                         );
                       })}
