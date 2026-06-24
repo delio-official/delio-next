@@ -455,7 +455,7 @@ body { background: #fff; }
 
     /* ===== 쿠폰 등록 ===== */
     .mp-cp-register { margin-top: 34px; }
-    .mp-cp-register-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+    .mp-cp-register-title { font-size: 18px; font-weight: 800; margin-bottom: 12px; }
     .mp-cp-register-row { display: flex; gap: 8px; }
     .mp-cp-register-row input {
       flex: 1; min-width: 0; padding: 13px 14px;
@@ -484,7 +484,7 @@ body { background: #fff; }
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 14px;
     }
-    .mp-cp-sec-title { font-size: 16px; font-weight: 800; color: #1A1A1A; }
+    .mp-cp-sec-title { font-size: 18px; font-weight: 800; color: #1A1A1A; }
     .mp-cp-claimall {
       background: none; border: none; padding: 0; cursor: pointer;
       font-family: inherit; font-size: 13px; font-weight: 700; color: #1A1A1A;
