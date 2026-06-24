@@ -807,7 +807,7 @@ export default function HomeClient() {
   useBodyScrollLock(!!reviewModal);
   const [isMobileRv, setIsMobileRv] = useState(false);
   useEffect(() => {
-    const f = () => setIsMobileRv(window.innerWidth <= 768);
+    const f = () => setIsMobileRv(window.innerWidth <= 600);
     f(); window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, []);
