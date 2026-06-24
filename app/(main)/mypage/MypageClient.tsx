@@ -2298,9 +2298,7 @@ export default function MypageClient() {
                               {daysLeft === 0 ? '오늘 소멸' : `${daysLeft}일 후 소멸`}
                             </span>
                           )}
-                          {dim
-                            ? <span className="mp-cp-side-done">사용완료</span>
-                            : <Link href="/category" className="mp-cp-side-use">사용하기 ›</Link>}
+                          {dim && <span className="mp-cp-side-done">사용완료</span>}
                         </div>
                       </div>
                     );
