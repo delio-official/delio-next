@@ -3253,7 +3253,7 @@ export default function MypageClient() {
                         </div>
                         <div style={{ height:5, background:'#E4E4E4', borderRadius:3, overflow:'hidden', marginBottom:7 }}>
                           <div style={{ height:'100%', width:`${amtPct}%`, borderRadius:3, transition:'width .5s',
-                            background: 'var(--color-accent)' }} />
+                            background: 'linear-gradient(90deg, #F0603A, #CB1D11)' }} />
                         </div>
                         <div style={{ fontSize:11, textAlign:'right' }}>
                           {nextTier
