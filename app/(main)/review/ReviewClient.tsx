@@ -131,7 +131,6 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
           {prod.thumbnail_url ? <img src={prod.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, color: '#bbb', marginBottom: 3 }}>구매 상품</div>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{prod.name}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
             {prod.discount_rate > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: '#E53E3E' }}>{Math.round(prod.discount_rate)}%</span>}
@@ -185,7 +184,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
         {header}
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* 좌: 사진 + 썸네일 */}
-          <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+          <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: 20 }}>
             {photo}{thumbs}{productCard}
           </div>
           {/* 우: 내용 + 구매하기 */}

@@ -1204,7 +1204,6 @@ export default function HomeClient() {
                 {reviewModal.prodThumb ? <img src={reviewModal.prodThumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : reviewModal.emoji}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:11, color:'#bbb', marginBottom:3 }}>구매 상품</div>
                 <div style={{ fontSize:13.5, fontWeight:700, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:4 }}>{reviewModal.prodName}</div>
                 <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:11.5, color:'#888' }}><SingleStar size={11} /><span>{reviewModal.prodRating}</span></div>
               </div>
@@ -1248,7 +1247,7 @@ export default function HomeClient() {
             <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:880, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
               {header}
               <div style={{ display:'flex', flex:1, minHeight:0 }}>
-                <div style={{ width:'50%', borderRight:'1px solid #EEE', display:'flex', flexDirection:'column', overflowY:'auto' }}>{photo}{thumbs}{productCard}</div>
+                <div style={{ width:'50%', borderRight:'1px solid #EEE', display:'flex', flexDirection:'column', overflowY:'auto', paddingBottom:20 }}>{photo}{thumbs}{productCard}</div>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
                   <div style={{ flex:1, overflowY:'auto' }}>{info}</div>
                   {footer}
