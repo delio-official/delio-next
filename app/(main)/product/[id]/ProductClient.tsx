@@ -1111,7 +1111,7 @@ export default function ProductClient() {
               onPrev={curRevIdx > 0 ? () => goRev(curRevIdx - 1) : undefined}
               onNext={curRevIdx >= 0 && curRevIdx < reviewReps.length - 1 ? () => goRev(curRevIdx + 1) : undefined}
               pos={reviewReps.length > 1 && curRevIdx >= 0 ? `${curRevIdx + 1} / ${reviewReps.length}` : undefined}
-              breakpoint={640}
+              breakpoint={500}
               onBuy={() => { closeAll(); openOptionDrawer(product.id); }}
               onWish={toggleWishlist}
               wished={wishlisted}
