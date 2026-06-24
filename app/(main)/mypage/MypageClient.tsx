@@ -3615,8 +3615,8 @@ export default function MypageClient() {
                   </div>
                 )}
 
-                {/* ── 문의 내역 (항상 표시) ── */}
-                <div style={{ padding:'8px 0 16px', marginBottom:12 }}>
+                {/* ── 문의 내역 (문의 작성 중에는 숨김) ── */}
+                <div style={{ padding:'8px 0 16px', marginBottom:12, display: csFormOpen ? 'none' : 'block' }}>
                   <div style={{ fontSize:16, fontWeight:800, margin:'8px 0 10px' }}>문의 내역</div>
                     {csInquiries.length === 0 ? (
                       <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13 }}>
