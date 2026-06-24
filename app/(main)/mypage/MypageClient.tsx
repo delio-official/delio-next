@@ -2747,7 +2747,7 @@ export default function MypageClient() {
                 </div>
                 {/* 상품 / 농가 탭 */}
                 <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-                  {([['product', `상품 ${wishlist.length}`], ['farm', `농가 ${farmWishlist.length}`]] as const).map(([id, label]) => (
+                  {([['product', '상품'], ['farm', '농가']] as const).map(([id, label]) => (
                     <button key={id} onClick={() => setWishTab(id)}
                       style={{ padding:'7px 16px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
                         borderColor: wishTab===id ? '#1A1A1A' : '#E2E2E0',
