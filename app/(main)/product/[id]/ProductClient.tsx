@@ -1095,7 +1095,7 @@ export default function ProductClient() {
           }}>
             <div onClick={e => e.stopPropagation()} style={{
               background: '#fff', borderRadius: isMobile ? 0 : 12,
-              width: '100%', maxWidth: isMobile ? '100%' : 760,
+              width: '100%', maxWidth: isMobile ? '100%' : 880,
               height: isMobile ? '100%' : '88vh',
               boxShadow: '0 24px 64px rgba(0,0,0,0.28)',
               display: 'flex', flexDirection: 'column',
@@ -1130,11 +1130,11 @@ export default function ProductClient() {
                 /* ────── 상세 뷰 ────── */
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-                  {/* 본문: 세로 스크롤 */}
-                  <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                  {/* 본문: 모바일=세로 스크롤 / PC=좌우 분할 */}
+                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflowY: isMobile ? 'auto' : 'hidden' }}>
 
                     {/* ── 큰 사진 + 썸네일 ── */}
-                    <div style={{ width: '100%', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ width: isMobile ? '100%' : '50%', flexShrink: 0, display: 'flex', flexDirection: 'column', ...(isMobile ? {} : { overflowY: 'auto', borderRight: '1px solid #EEE' }) }}>
                       {/* 큰 사진 (정사각 — 사진 크기 통일) */}
                       <div style={{
                         position: 'relative', width: '100%', aspectRatio: '1', background: '#F4F4F2',
@@ -1212,7 +1212,7 @@ export default function ProductClient() {
                     </div>
 
                     {/* ── 리뷰 정보 ── */}
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, ...(isMobile ? {} : { flex: 1, overflowY: 'auto' }) }}>
                       {selItem.review ? (
                         <>
                           {/* ① 상단 배지 행: BEST | 이름 | 평점텍스트 */}
