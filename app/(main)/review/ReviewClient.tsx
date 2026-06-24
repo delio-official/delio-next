@@ -17,6 +17,7 @@ interface Review {
   image_urls: string[];
   likes_count: number;
   is_best: boolean;
+  author_name: string | null;
   products: {
     id: string; name: string; thumbnail_url: string | null;
     category: string; avg_rating: number; review_count: number;
@@ -216,7 +217,7 @@ export default function ReviewClient() {
                       </div>
 
                       <div style={{ flexShrink: 0, textAlign: 'right', paddingTop: 2 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{r.profiles?.name || '익명'}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{r.author_name || r.profiles?.name || '익명'}</div>
                         <div style={{ fontSize: 12, color: '#bbb', marginTop: 3 }}>{fmtDate(r.created_at)}</div>
                       </div>
                     </div>
@@ -271,7 +272,7 @@ export default function ReviewClient() {
         const prod = modalReview.products;
         return (
           <ReviewPhotoModal
-            review={{ id: modalReview.id, images: modalReview.image_urls || [], rating: modalReview.rating, content: modalReview.content, authorName: modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at, likesCount: modalReview.likes_count }}
+            review={{ id: modalReview.id, images: modalReview.image_urls || [], rating: modalReview.rating, content: modalReview.content, authorName: modalReview.author_name || modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at, likesCount: modalReview.likes_count }}
             product={prod ? { id: prod.id, name: prod.name, thumbnail: prod.thumbnail_url, discountRate: prod.discount_rate, price: prod.price, discountedPrice: prod.discounted_price, avgRating: prod.avg_rating, reviewCount: prod.review_count } : null}
             onClose={() => setModalReview(null)}
             onPrev={idx > 0 ? () => setModalReview(list[idx - 1]) : undefined}
