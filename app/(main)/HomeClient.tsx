@@ -805,6 +805,12 @@ export default function HomeClient() {
   const [reviewModal, setReviewModal] = useState<(typeof reviews)[number] | null>(null);
   const [reviewModalIdx, setReviewModalIdx] = useState(0);
   useBodyScrollLock(!!reviewModal);
+  const [isMobileRv, setIsMobileRv] = useState(false);
+  useEffect(() => {
+    const f = () => setIsMobileRv(window.innerWidth <= 768);
+    f(); window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
   const [reviewLoaded, setReviewLoaded] = useState(false);
   useEffect(() => {
     (async () => {
@@ -1159,63 +1165,64 @@ export default function HomeClient() {
 
       )}
 
-      {/* ── 리뷰 모달 (리뷰 하이라이트 사진 클릭) ── */}
-      {reviewModal && (
-        <div onClick={() => setReviewModal(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:480, maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom:'1px solid #F0F0F0', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
-              <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
-            </div>
-            <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative' }}>
-              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
-              {(() => {
-                const idx = reviews.findIndex(r => r.id === reviewModal.id);
-                const navBtn: React.CSSProperties = { position:'absolute', top:'50%', transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, lineHeight:1, zIndex:2 };
-                const go = (n: number) => { setReviewModal(reviews[n]); setReviewModalIdx(0); };
-                return (
-                  <>
-                    {idx > 0 && (
-                      <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ ...navBtn, left:10 }}>‹</button>
-                    )}
-                    {idx < reviews.length - 1 && (
-                      <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ ...navBtn, right:10 }}>›</button>
-                    )}
-                    {reviews.length > 1 && (
-                      <span style={{ position:'absolute', bottom:10, right:12, fontSize:12, fontWeight:600, color:'#fff', background:'rgba(0,0,0,0.5)', padding:'2px 8px', borderRadius:999, zIndex:2 }}>{idx + 1} / {reviews.length}</span>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-            {reviewModal.images.length > 1 && (
-              <div style={{ display:'flex', gap:6, padding:'8px 12px', overflowX:'auto', borderTop:'1px solid #F0F0F0', flexShrink:0 }}>
-                {reviewModal.images.map((u, ii) => (
-                  <img key={ii} src={u} alt="" onClick={() => setReviewModalIdx(ii)}
-                    style={{ width:48, height:48, objectFit:'cover', borderRadius:6, flexShrink:0, cursor:'pointer', border:`2px solid ${ii===reviewModalIdx ? '#1A1A1A' : 'transparent'}` }} />
-                ))}
+      {/* ── 리뷰 모달 (리뷰 하이라이트 사진 클릭) — 풀페이지 사진 후기 ── */}
+      {reviewModal && (() => {
+        const idx = reviews.findIndex(r => r.id === reviewModal.id);
+        const go = (n: number) => { setReviewModal(reviews[n]); setReviewModalIdx(0); };
+        return (
+          <div onClick={() => setReviewModal(null)}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex', alignItems:'center', justifyContent:'center', padding: isMobileRv ? 0 : 16 }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:'#fff', borderRadius: isMobileRv ? 0 : 14, width:'100%', maxWidth: isMobileRv ? '100%' : 480, height: isMobileRv ? '100%' : '90vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              {/* 헤더 */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 12px', borderBottom:'1px solid #F0F0F0', flexShrink:0 }}>
+                <button onClick={() => setReviewModal(null)} aria-label="뒤로" style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0, color:'#1A1A1A' }}>
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span style={{ fontSize:16, fontWeight:700 }}>사진 후기{reviews.length > 1 && <small style={{ fontSize:13, color:'#aaa', fontWeight:600, marginLeft:7 }}>{idx + 1} / {reviews.length}</small>}</span>
+                <button onClick={() => setReviewModal(null)} aria-label="닫기" style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#888', lineHeight:1, padding:'0 6px' }}>✕</button>
               </div>
-            )}
-            <div style={{ padding:'12px 16px' }}>
-              <div style={{ marginBottom:8 }}><StarRating rating={reviewModal.stars} size={15} /></div>
-              <p style={{ fontSize:14, color:'#333', lineHeight:1.7, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
+
+              {/* 본문 스크롤 */}
+              <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>
+                {/* 큰 사진 (정사각·통일) + 좌우 화살표(이전/다음 리뷰) */}
+                <div style={{ background:'#f4f4f2', aspectRatio:'1', overflow:'hidden', position:'relative' }}>
+                  <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                  {idx > 0 && (
+                    <button aria-label="이전 리뷰" onClick={e => { e.stopPropagation(); go(idx - 1); }} style={{ position:'absolute', top:'50%', left:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>‹</button>
+                  )}
+                  {idx < reviews.length - 1 && (
+                    <button aria-label="다음 리뷰" onClick={e => { e.stopPropagation(); go(idx + 1); }} style={{ position:'absolute', top:'50%', right:10, transform:'translateY(-50%)', width:38, height:38, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, lineHeight:1, zIndex:2 }}>›</button>
+                  )}
+                </div>
+
+                {/* 썸네일 */}
+                {reviewModal.images.length > 1 && (
+                  <div style={{ display:'flex', gap:6, padding:'10px 12px', overflowX:'auto' }}>
+                    {reviewModal.images.map((u, ii) => (
+                      <img key={ii} src={u} alt="" onClick={() => setReviewModalIdx(ii)}
+                        style={{ width:56, height:56, objectFit:'cover', borderRadius:7, flexShrink:0, cursor:'pointer', border:`2px solid ${ii===reviewModalIdx ? '#1A1A1A' : 'transparent'}` }} />
+                    ))}
+                  </div>
+                )}
+
+                {/* 별점 + 상품태그 + 내용 */}
+                <div style={{ padding:'14px 16px 20px' }}>
+                  <div style={{ marginBottom:12 }}><StarRating rating={reviewModal.stars} size={15} /></div>
+                  <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ display:'inline-block', fontSize:12.5, color:'#888', background:'#F4F4F2', padding:'5px 10px', borderRadius:6, marginBottom:14, textDecoration:'none', maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{reviewModal.prodName}</Link>
+                  <p style={{ fontSize:14, color:'#333', lineHeight:1.85, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
+                </div>
+              </div>
+
+              {/* 하단: 찜 + 구매하기 */}
+              <div style={{ flexShrink:0, borderTop:'1px solid #EBEBEB', padding:'10px 12px calc(10px + env(safe-area-inset-bottom))', display:'flex', gap:10, alignItems:'center', background:'#fff' }}>
+                <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} aria-label="찜" style={{ width:48, height:48, borderRadius:10, border:'1.5px solid #E5E5E5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, color:'#888', fontSize:22, textDecoration:'none' }}>♡</Link>
+                <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ flex:1, textAlign:'center', padding:'14px 0', borderRadius:10, background:'var(--color-accent)', color:'#fff', fontSize:15, fontWeight:700, textDecoration:'none' }}>구매하기</Link>
+              </div>
             </div>
-            <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)}
-              style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderTop:'1px solid #F0F0F0', textDecoration:'none', color:'inherit', flexShrink:0 }}>
-              <div style={{ width:40, height:40, borderRadius:8, overflow:'hidden', background:'#F4F4F2', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>
-                {reviewModal.prodThumb ? <img src={reviewModal.prodThumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : reviewModal.emoji}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{reviewModal.prodName}</div>
-                <div style={{ fontSize:12, color:'#888', display:'flex', alignItems:'center', gap:3 }}><SingleStar size={11} />{reviewModal.prodRating}</div>
-              </div>
-              <span style={{ fontSize:13, color:'#888', flexShrink:0 }}>상품보기 ›</span>
-            </Link>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── 델리오 라운지 ── */}
       {secOn('lounge') && (
