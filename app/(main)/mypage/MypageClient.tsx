@@ -3253,13 +3253,11 @@ export default function MypageClient() {
                         </div>
                         <div style={{ height:5, background:'#E4E4E4', borderRadius:3, overflow:'hidden', marginBottom:7 }}>
                           <div style={{ height:'100%', width:`${amtPct}%`, borderRadius:3, transition:'width .5s',
-                            background: nextTier
-                              ? `linear-gradient(90deg,${GRADE_COLOR[curTier.grade]},${GRADE_COLOR[nextTier.grade]})`
-                              : GRADE_COLOR[curTier.grade] }} />
+                            background: 'var(--color-accent)' }} />
                         </div>
                         <div style={{ fontSize:11, textAlign:'right' }}>
                           {nextTier
-                            ? <span style={{ color: GRADE_COLOR[nextTier.grade], fontWeight:700 }}>
+                            ? <span style={{ color: 'var(--color-accent)', fontWeight:700 }}>
                                 {nextTier.label}까지 {fmtPrice(Math.max(nextTier.min_amount - qAmount, 0))}원{nextTier.min_count > qCount ? ` · ${nextTier.min_count - qCount}회` : ''} 남음
                               </span>
                             : <span style={{ color:'#555', fontWeight:700 }}>최고 등급 달성!</span>
