@@ -1169,8 +1169,8 @@ export default function HomeClient() {
               <span style={{ fontSize:15, fontWeight:700 }}>리뷰</span>
               <button onClick={() => setReviewModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1, padding:0 }}>✕</button>
             </div>
-            <div style={{ background:'#111', aspectRatio:'1', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
-              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }} />
+            <div style={{ background:'#fff', display:'flex', justifyContent:'center' }}>
+              <img src={reviewModal.images[reviewModalIdx] || reviewModal.image} alt="" style={{ width:'100%', height:'auto', display:'block' }} />
             </div>
             {reviewModal.images.length > 1 && (
               <div style={{ display:'flex', gap:6, padding:'8px 12px', overflowX:'auto', borderTop:'1px solid #F0F0F0', flexShrink:0 }}>
