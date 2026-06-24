@@ -3608,7 +3608,7 @@ export default function MypageClient() {
                             cursor: (csLoading||csUploading)?'default':'pointer',
                             opacity: (csLoading||csUploading)?0.7:1,
                             fontFamily:'inherit' }}>
-                          {csUploading ? '📤 파일 업로드 중...' : csLoading ? '등록 중...' : '문의 등록하기 →'}
+                          {csUploading ? '📤 파일 업로드 중...' : csLoading ? '등록 중...' : '문의 등록하기'}
                         </button>
                       </form>
                     )}
