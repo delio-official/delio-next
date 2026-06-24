@@ -113,10 +113,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
           <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: '#FFF3E0', color: '#E65100', border: '1px solid #FFCC80' }}>BEST</span>
         )}
       </div>
-      <div style={{ marginBottom: 12 }}><StarRating rating={review.rating} size={15} /></div>
-      {prod && (
-        <Link href={`/product/${prod.id}`} onClick={onClose} style={{ display: 'inline-block', fontSize: 12.5, color: '#888', background: '#F4F4F2', padding: '5px 10px', borderRadius: 6, marginBottom: 14, textDecoration: 'none', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prod.name}</Link>
-      )}
+      <div style={{ marginBottom: 14 }}><StarRating rating={review.rating} size={15} /></div>
       <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
       <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.created_at)}</span>
@@ -126,6 +123,28 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
         </button>
       </div>
     </div>
+  );
+  const productCard = prod && (
+    <Link href={`/product/${prod.id}`} onClick={onClose} style={{ textDecoration: 'none', color: 'inherit', display: 'block', margin: '12px 16px 4px' }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: '12px 14px', border: '1px solid #EEE', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ width: 54, height: 54, borderRadius: 9, flexShrink: 0, background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+          {prod.thumbnail_url ? <img src={prod.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: '#bbb', marginBottom: 3 }}>구매 상품</div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{prod.name}</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+            {prod.discount_rate > 0 && <span style={{ fontSize: 12.5, fontWeight: 800, color: '#E53E3E' }}>{Math.round(prod.discount_rate)}%</span>}
+            <span style={{ fontSize: 14.5, fontWeight: 800 }}>{fmtPrice(prod.discounted_price || prod.price)}원</span>
+            {prod.discount_rate > 0 && <span style={{ fontSize: 11, color: '#bbb', textDecoration: 'line-through' }}>{fmtPrice(prod.price)}원</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 3, fontSize: 11.5, color: '#888' }}>
+            <SingleStar size={11} /><span>{prod.avg_rating?.toFixed(1)}</span><span style={{ color: '#bbb' }}>({prod.review_count?.toLocaleString()})</span>
+          </div>
+        </div>
+        <span style={{ fontSize: 18, color: '#ccc', flexShrink: 0 }}>›</span>
+      </div>
+    </Link>
   );
   const footer = prod && (
     <div style={{ flexShrink: 0, borderTop: '1px solid #EBEBEB', padding: '10px 12px calc(10px + env(safe-area-inset-bottom))', display: 'flex', gap: 10, alignItems: 'center', background: '#fff' }}>
@@ -151,7 +170,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.55)', display: 'flex' }}>
         <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {header}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}</div>
+          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
           {footer}
         </div>
       </div>
@@ -167,7 +186,7 @@ function ReviewDetailModal({ review, onClose, onPrev, onNext, pos }: { review: R
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* 좌: 사진 + 썸네일 */}
           <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-            {photo}{thumbs}
+            {photo}{thumbs}{productCard}
           </div>
           {/* 우: 내용 + 구매하기 */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>

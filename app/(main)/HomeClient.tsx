@@ -1193,10 +1193,24 @@ export default function HomeClient() {
         );
         const info = (
           <div style={{ padding:'16px 18px 20px' }}>
-            <div style={{ marginBottom:12 }}><StarRating rating={reviewModal.stars} size={15} /></div>
-            <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ display:'inline-block', fontSize:12.5, color:'#888', background:'#F4F4F2', padding:'5px 10px', borderRadius:6, marginBottom:14, textDecoration:'none', maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{reviewModal.prodName}</Link>
+            <div style={{ marginBottom:14 }}><StarRating rating={reviewModal.stars} size={15} /></div>
             <p style={{ fontSize:14, color:'#333', lineHeight:1.85, margin:0, whiteSpace:'pre-wrap' }}>{reviewModal.text}</p>
           </div>
+        );
+        const productCard = (
+          <Link href={`/product/${reviewModal.prodId}`} onClick={() => setReviewModal(null)} style={{ textDecoration:'none', color:'inherit', display:'block', margin:'12px 16px 4px' }}>
+            <div style={{ background:'#fff', borderRadius:12, padding:'12px 14px', border:'1px solid #EEE', display:'flex', gap:12, alignItems:'center' }}>
+              <div style={{ width:54, height:54, borderRadius:9, flexShrink:0, background:'#F4F4F2', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>
+                {reviewModal.prodThumb ? <img src={reviewModal.prodThumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : reviewModal.emoji}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:11, color:'#bbb', marginBottom:3 }}>구매 상품</div>
+                <div style={{ fontSize:13.5, fontWeight:700, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginBottom:4 }}>{reviewModal.prodName}</div>
+                <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:11.5, color:'#888' }}><SingleStar size={11} /><span>{reviewModal.prodRating}</span></div>
+              </div>
+              <span style={{ fontSize:18, color:'#ccc', flexShrink:0 }}>›</span>
+            </div>
+          </Link>
         );
         const footer = (
           <div style={{ flexShrink:0, borderTop:'1px solid #EBEBEB', padding:'10px 12px calc(10px + env(safe-area-inset-bottom))', display:'flex', gap:10, alignItems:'center', background:'#fff' }}>
@@ -1221,7 +1235,7 @@ export default function HomeClient() {
             <div onClick={() => setReviewModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:3500, display:'flex' }}>
               <div onClick={e => e.stopPropagation()} style={{ background:'#fff', width:'100%', height:'100%', display:'flex', flexDirection:'column', overflow:'hidden' }}>
                 {header}
-                <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>{photo}{thumbs}{info}</div>
+                <div style={{ flex:1, overflowY:'auto', minHeight:0 }}>{photo}{thumbs}{info}{productCard}</div>
                 {footer}
               </div>
             </div>
@@ -1234,7 +1248,7 @@ export default function HomeClient() {
             <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:880, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.28)' }}>
               {header}
               <div style={{ display:'flex', flex:1, minHeight:0 }}>
-                <div style={{ width:'50%', borderRight:'1px solid #EEE', display:'flex', flexDirection:'column', overflowY:'auto' }}>{photo}{thumbs}</div>
+                <div style={{ width:'50%', borderRight:'1px solid #EEE', display:'flex', flexDirection:'column', overflowY:'auto' }}>{photo}{thumbs}{productCard}</div>
                 <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
                   <div style={{ flex:1, overflowY:'auto' }}>{info}</div>
                   {footer}
