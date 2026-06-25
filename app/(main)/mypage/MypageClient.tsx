@@ -73,6 +73,7 @@ interface RecentProduct {
 interface Address {
   id: string; label: string; recipient: string; phone: string;
   zipcode: string; address1: string; address2: string; is_default: boolean;
+  delivery_request?: string | null;
 }
 interface UserCoupon {
   id: string; used: boolean; issued_at: string; expires_at: string | null;
@@ -115,7 +116,8 @@ interface CsInquiry {
   attachments?: string[];
 }
 
-const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false };
+const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false, delivery_request:'' };
+const DELIVERY_REQ_PRESETS = ['문 앞에 놓아주세요', '경비실에 맡겨주세요', '택배함에 넣어주세요', '배송 전 미리 연락 주세요'];
 
 /* ─── Constants ─── */
 const STATUS_LABEL: Record<string, string> = {
@@ -315,6 +317,8 @@ export default function MypageClient() {
   const [addrFormOpen, setAddrFormOpen] = useState(false);
   const [addrEditing,  setAddrEditing]  = useState<Address | null>(null);
   const [addrForm,     setAddrForm]     = useState({ ...EMPTY_ADDR });
+  const [addrReqOpen,   setAddrReqOpen]   = useState(false); // 배송 요청사항 드롭다운 열림
+  const [addrReqCustom, setAddrReqCustom] = useState(false); // 직접 입력 모드
   const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
   const [isMobileView, setIsMobileView] = useState(false);
   const [editQnaId, setEditQnaId] = useState<string | null>(null);
@@ -1228,6 +1232,7 @@ export default function MypageClient() {
     const payload = {
       label: addrForm.label, recipient: addrForm.recipient, phone: addrForm.phone,
       zipcode: addrForm.zipcode, address1: addrForm.address1, address2: addrForm.address2,
+      delivery_request: addrForm.delivery_request?.trim() || null,
     };
     // 기본 배송지로 지정 시 기존 기본 해제
     if (makeDefault) {
@@ -1244,6 +1249,7 @@ export default function MypageClient() {
     setAddrFormOpen(false);
     setAddrEditing(null);
     setAddrForm({ ...EMPTY_ADDR });
+    setAddrReqCustom(false);
     loadAddresses();
     showToastMsg('배송지가 저장되었습니다 ✓');
   }
@@ -3186,6 +3192,33 @@ export default function MypageClient() {
                         onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
                         style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
                     </div>
+                    {/* 배송 요청사항 */}
+                    <div style={{ marginBottom:18 }}>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
+                      <div className="opt-dd">
+                        <button type="button" className={`opt-dd-btn${addrReqOpen ? ' open' : ''}`} onClick={() => setAddrReqOpen(o => !o)}>
+                          <span className={(!addrReqCustom && !addrForm.delivery_request) ? 'ph' : ''}>{addrReqCustom ? '직접 입력' : (addrForm.delivery_request || '배송요청사항 없음')}</span>
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        {addrReqOpen && (
+                          <>
+                            <div className="opt-dd-backdrop" onClick={() => setAddrReqOpen(false)} />
+                            <div className="opt-dd-list">
+                              <button type="button" className={`opt-dd-item${!addrReqCustom && !addrForm.delivery_request ? ' sel' : ''}`} onClick={() => { setAddrForm(f => ({ ...f, delivery_request:'' })); setAddrReqCustom(false); setAddrReqOpen(false); }}>배송요청사항 없음</button>
+                              {DELIVERY_REQ_PRESETS.map(p => (
+                                <button type="button" key={p} className={`opt-dd-item${!addrReqCustom && addrForm.delivery_request === p ? ' sel' : ''}`} onClick={() => { setAddrForm(f => ({ ...f, delivery_request:p })); setAddrReqCustom(false); setAddrReqOpen(false); }}>{p}</button>
+                              ))}
+                              <button type="button" className={`opt-dd-item${addrReqCustom ? ' sel' : ''}`} onClick={() => { setAddrReqCustom(true); setAddrForm(f => ({ ...f, delivery_request:'' })); setAddrReqOpen(false); }}>직접 입력</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {addrReqCustom && (
+                        <input maxLength={50} placeholder="요청사항을 입력해주세요 (최대 50자)" value={addrForm.delivery_request}
+                          onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
+                          style={{ marginTop:8, width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                      )}
+                    </div>
                     {/* 기본 배송지 체크 */}
                     <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', cursor:'pointer', marginBottom:22 }}>
                       <input type="checkbox" checked={addrForm.is_default}
@@ -3195,7 +3228,7 @@ export default function MypageClient() {
                     </label>
                     {/* 버튼 */}
                     <div style={{ display:'flex', gap:10 }}>
-                      <button onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); }}
+                      <button onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrReqCustom(false); }}
                         style={{ flex:1, padding:'15px', border:'1px solid #DDD', borderRadius:8, background:'#fff', fontSize:15, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
                         취소
                       </button>
@@ -3248,7 +3281,7 @@ export default function MypageClient() {
                             {a.zipcode && <span className="zip">[{a.zipcode}] </span>}{a.address1}{a.address2 ? ` ${a.address2}` : ''}
                           </div>
                           <div className="mp-addr-actions">
-                            <button className="mp-addr-btn" onClick={() => { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default }); setAddrFormOpen(true); }}>수정</button>
+                            <button className="mp-addr-btn" onClick={() => { const dr = a.delivery_request || ''; setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2, is_default:a.is_default, delivery_request:dr }); setAddrReqCustom(!!dr && !DELIVERY_REQ_PRESETS.includes(dr)); setAddrFormOpen(true); }}>수정</button>
                             <button className="mp-addr-btn" onClick={() => deleteAddress(a.id)}>삭제</button>
                           </div>
                         </div>
@@ -3258,7 +3291,7 @@ export default function MypageClient() {
                     {/* + 배송지 추가 (PC·모바일 하단 알약) */}
                     {addresses.length < 5 && (
                       <div className="mp-addr-add-wrap">
-                        <button className="mp-addr-add" onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormOpen(true); }}>
+                        <button className="mp-addr-add" onClick={() => { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrReqCustom(false); setAddrFormOpen(true); }}>
                           + 배송지 추가
                         </button>
                       </div>
