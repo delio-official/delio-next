@@ -68,6 +68,7 @@ interface MyReview {
 interface RecentProduct {
   id: string; name: string; price: number; discount_rate: number;
   thumbnail_url: string | null; avg_rating: number; category: string;
+  discounted_price?: number | null; review_count?: number; is_dawn?: boolean; is_new?: boolean; is_best?: boolean;
 }
 interface Address {
   id: string; label: string; recipient: string; phone: string;
@@ -564,11 +565,21 @@ export default function MypageClient() {
       setWishlist((wishData as unknown as WishItem[]) || []);
     }
 
-    // 최근 본 상품 — localStorage
-    try {
-      const raw = localStorage.getItem('delio_recent_products');
-      setRecentProducts(raw ? JSON.parse(raw) : []);
-    } catch { setRecentProducts([]); }
+    // 최근 본 상품 — localStorage의 id 순서로 상품 풀데이터 재조회(정가·배송·후기수 등)
+    (async () => {
+      try {
+        const raw = localStorage.getItem('delio_recent_products');
+        const stored: { id: string }[] = raw ? JSON.parse(raw) : [];
+        const ids = stored.map(p => p.id);
+        if (!ids.length) { setRecentProducts([]); return; }
+        const { data } = await createClient()
+          .from('products')
+          .select('id,name,price,discounted_price,discount_rate,thumbnail_url,avg_rating,review_count,category,is_dawn,is_new,is_best')
+          .in('id', ids);
+        const map = new Map(((data || []) as unknown as RecentProduct[]).map(d => [d.id, d]));
+        setRecentProducts(ids.map(id => map.get(id)).filter(Boolean) as RecentProduct[]);
+      } catch { setRecentProducts([]); }
+    })();
 
     load();
   }, [user, authLoading, router]);
@@ -2450,9 +2461,16 @@ export default function MypageClient() {
                   return (
                     <>
                       <div className="mp-wish-grid">
-                        {paged.map(p => (
+                        {paged.map(p => {
+                          const sell = p.discounted_price ?? p.price;
+                          return (
                           <div key={p.id} className="mp-wish-item" style={{ position:'relative', display:'flex', flexDirection:'column' }}>
                             <div className="mp-wish-img">
+                              {/* 배송 배지 */}
+                              <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
+                                style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
+                                {p.is_dawn ? '산지직송' : '자사배송'}
+                              </span>
                               {p.thumbnail_url
                                 ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                 : <span>{EMOJI_MAP[p.category] || EMOJI_MAP.default}</span>}
@@ -2461,18 +2479,27 @@ export default function MypageClient() {
                             </div>
                             <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
                               <div className="mp-wish-body" style={{ paddingBottom:8 }}>
+                                {(p.is_new || p.is_best) && (
+                                  <span style={{ display:'inline-block', fontSize:10.5, fontWeight:700, padding:'2px 7px', borderRadius:4, background:'#1A1A1A', color:'#fff', marginBottom:6 }}>
+                                    {p.is_new ? 'NEW' : '인기'}
+                                  </span>
+                                )}
                                 <div className="mp-wish-name">{p.name}</div>
+                                {p.discount_rate > 0 && (
+                                  <div style={{ fontSize:12, color:'#bbb', textDecoration:'line-through', marginBottom:2 }}>{fmtPrice(p.price)}원</div>
+                                )}
                                 <div style={{ display:'flex', alignItems:'baseline', gap:5 }}>
                                   {p.discount_rate > 0 && (
                                     <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>
                                       {Math.round(p.discount_rate)}%
                                     </span>
                                   )}
-                                  <span className="mp-wish-price">{fmtPrice(p.price)}원</span>
+                                  <span className="mp-wish-price">{fmtPrice(sell)}원</span>
                                 </div>
                                 {p.avg_rating > 0 && (
                                   <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:12, color:'#888' }}>
                                     <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
+                                    {p.review_count != null && <span style={{ color:'#bbb' }}>({p.review_count.toLocaleString()})</span>}
                                   </div>
                                 )}
                               </div>
@@ -2490,7 +2517,8 @@ export default function MypageClient() {
                               </button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {/* 페이지네이션 */}
