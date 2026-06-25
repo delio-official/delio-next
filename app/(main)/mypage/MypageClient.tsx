@@ -12,6 +12,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
 import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { ProductCard } from '@/components/ProductCard';
+import { FarmCard } from '@/components/FarmCard';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
@@ -2858,34 +2859,10 @@ export default function MypageClient() {
                   farmWishlist.length === 0 ? (
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
-                    <div className="mp-wish-grid">
-                      {farmWishlist.map(fw => {
-                        const f = fw.farms;
-                        if (!f) return null;
-                        const banner = f.thumbnail_url || f.hero_image_url || null;
-                        const logo = f.logo_url || f.thumbnail_url || null;
-                        return (
-                          <div key={fw.id} className="mp-wish-item" style={{ cursor:'pointer' }}
-                            onClick={() => router.push(`/farm/${f.slug}`)}>
-                            <div className="mp-wish-img">
-                              {banner
-                                ? <img src={imgThumb(banner, 400)} alt={f.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                                : <span style={{ fontSize:34 }}>🍊</span>}
-                              <button className="mp-wish-del"
-                                onClick={e => { e.stopPropagation(); removeFarmWish(fw.id); }}>♥</button>
-                            </div>
-                            <div className="mp-wish-body">
-                              <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                                <div style={{ width:24, height:24, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>
-                                  {logo ? <img src={imgThumb(logo, 120)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
-                                </div>
-                                <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
-                              </div>
-                              <div style={{ fontSize:13, color:'#999', marginTop:6 }}>{[f.region, f.farm_type].filter(Boolean).join(' · ')}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="farms-grid">
+                      {farmWishlist.map(fw => fw.farms ? (
+                        <FarmCard key={fw.id} farm={fw.farms} onRemove={() => removeFarmWish(fw.id)} />
+                      ) : null)}
                     </div>
                   )
                 ) : wishlist.length === 0 ? (
