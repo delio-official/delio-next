@@ -440,10 +440,16 @@ export default function MypageClient() {
     window.scrollTo(0, 0);
   }, [activePanel, showMobileMenu]);
 
-  /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작 */
+  /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작.
+     단, 최근 1시간 이내에 본인인증을 통과했으면 유예하고 바로 수정 폼(edit). */
   useEffect(() => {
-    if (activePanel === 'info') setInfoStep('verify');
-  }, [activePanel]);
+    if (activePanel !== 'info') return;
+    try {
+      const at = Number(localStorage.getItem(`mp_reauth_at_${user?.id}`) || 0);
+      if (at && Date.now() - at < 60 * 60 * 1000) { setInfoStep('edit'); return; }
+    } catch { /* localStorage 접근 불가 시 무시 */ }
+    setInfoStep('verify');
+  }, [activePanel, user?.id]);
 
   /* toast helper */
   function showToastMsg(msg: string) {
@@ -1120,7 +1126,10 @@ export default function MypageClient() {
     setReauthLoading(true);
     const ok = await runIdentityVerification();
     setReauthLoading(false);
-    if (ok) { setInfoStep('edit'); showToastMsg('본인인증이 완료되었습니다 ✓'); }
+    if (ok) {
+      try { localStorage.setItem(`mp_reauth_at_${user?.id}`, String(Date.now())); } catch { /* noop */ }
+      setInfoStep('edit'); showToastMsg('본인인증이 완료되었습니다 ✓');
+    }
   }
   /* 회원 탈퇴 → 사유 선택 → 혜택소멸 안내·동의 → 소프트 탈퇴 처리 */
   const [withdrawing, setWithdrawing] = useState(false);
