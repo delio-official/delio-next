@@ -13,6 +13,7 @@ import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/l
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
+import { imgThumb } from '@/lib/img';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 
@@ -262,11 +263,11 @@ function MainBanner() {
                   {s.image_url ? (
                     s.image_url_mobile ? (
                       <>
-                        <img src={s.image_url} alt="" className="bnr-img-pc-only" />
-                        <img src={s.image_url_mobile} alt="" className="bnr-img-mob" />
+                        <img src={imgThumb(s.image_url, 1200)} alt="" className="bnr-img-pc-only" />
+                        <img src={imgThumb(s.image_url_mobile, 800)} alt="" className="bnr-img-mob" />
                       </>
                     ) : (
-                      <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      <img src={imgThumb(s.image_url, 1200)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     )
                   ) : (
                     <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
@@ -450,7 +451,7 @@ function QuickGuide() {
                           {p.is_dawn ? '산지직송' : '자사배송'}
                         </span>
                         {p.thumbnail_url
-                          ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : <span className="qg-card-img-inner">{icon}</span>
                         }
                       </div>
@@ -622,11 +623,11 @@ function MidBanner() {
                     {s.image_url ? (
                       s.image_url_mobile ? (
                         <>
-                          <img src={s.image_url} alt="" className="bnr-img-pc-only" />
-                          <img src={s.image_url_mobile} alt="" className="bnr-img-mob" />
+                          <img src={imgThumb(s.image_url, 1200)} alt="" className="bnr-img-pc-only" />
+                          <img src={imgThumb(s.image_url_mobile, 800)} alt="" className="bnr-img-mob" />
                         </>
                       ) : (
-                        <img src={s.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        <img src={imgThumb(s.image_url, 1200)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       )
                     ) : (
                       <div style={{ width: '100%', height: '100%', background: '#F0F0EE' }} />
@@ -956,7 +957,7 @@ export default function HomeClient() {
                               onClick={() => router.push(`/product/${p.id}`)}>
                               <div className="product-card-img" style={{ background: bg }}>
                                 {p.thumbnail_url
-                                  ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                  ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                   : <div className="fruit-emoji">{icon}</div>
                                 }
                                 <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}>
@@ -1063,7 +1064,7 @@ export default function HomeClient() {
                 <Link href={b.brandHref} className="bdc-banner-wrap" style={{ display:'block' }}>
                   <div className={`bdc-banner ${b.bannerImg ? '' : b.banner}`}>
                     {b.bannerImg
-                      ? <img src={b.bannerImg} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                      ? <img src={imgThumb(b.bannerImg, 700)} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                       : <span className="bdc-emoji">{b.emoji}</span>}
                   </div>
                 </Link>
@@ -1071,7 +1072,7 @@ export default function HomeClient() {
                   <Link href={b.brandHref} className="bdc-brand-row">
                     <div className={`bdc-brand-logo ${b.farmThumb ? '' : b.logo}`} style={{ overflow:'hidden' }}>
                       {b.farmThumb
-                        ? <img src={b.farmThumb} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        ? <img src={imgThumb(b.farmThumb, 200)} alt={b.brand} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                         : <span>{b.emoji}</span>}
                     </div>
                     <span className="bdc-brand-name">{b.brand}</span>
@@ -1082,7 +1083,7 @@ export default function HomeClient() {
                   <Link href={b.prodHref} className="bdc-product-row">
                     <div className={`bdc-product-thumb ${b.prodThumb ? '' : b.logo.replace('logo','thumb')}`} style={{ overflow:'hidden' }}>
                       {b.prodThumb
-                        ? <img src={b.prodThumb} alt={b.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        ? <img src={imgThumb(b.prodThumb, 150)} alt={b.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                         : b.emoji}
                     </div>
                     <div className="bdc-product-info">
@@ -1132,7 +1133,7 @@ export default function HomeClient() {
                   {/* 이미지 + 리뷰 텍스트 → 리뷰 모달 */}
                   <div className="review-card-top" onClick={() => setReviewModal(r)}
                     style={{ cursor:'pointer', display:'flex', flexDirection:'column', flex:1, minHeight:0 }}>
-                    <div className="review-photo" style={{ overflow:'hidden' }}><img src={r.image} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
+                    <div className="review-photo" style={{ overflow:'hidden' }}><img src={imgThumb(r.image, 500)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /></div>
                     <div className="review-body">
                       <div className="review-stars"><StarRating rating={r.stars} size={14} /></div>
                       <div className="review-text">{r.text}</div>
@@ -1142,7 +1143,7 @@ export default function HomeClient() {
                   <Link href={`/product/${r.prodId}`} className="review-footer review-footer-link" style={{ textDecoration:'none', color:'inherit' }}>
                     <div className="review-prod-icon" style={{ overflow:'hidden' }}>
                       {r.prodThumb
-                        ? <img src={r.prodThumb} alt={r.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                        ? <img src={imgThumb(r.prodThumb, 120)} alt={r.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                         : r.emoji}
                     </div>
                     <div className="review-prod-info">
@@ -1202,7 +1203,7 @@ export default function HomeClient() {
                   <Link key={post.id} href={`/lounge/${post.id}`} className="lounge-card">
                     <div className="lounge-card-img" style={{ background: post.bg }}>
                       {post.thumbnail_url
-                        ? <img src={post.thumbnail_url} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        ? <img src={imgThumb(post.thumbnail_url, 500)} alt={post.title} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                         : post.emoji}
                     </div>
                     <div className="lounge-card-meta">
