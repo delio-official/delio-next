@@ -2859,7 +2859,7 @@ export default function MypageClient() {
                   farmWishlist.length === 0 ? (
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
-                    <div className="farms-grid">
+                    <div className="mob-pv-grid">
                       {farmWishlist.map(fw => fw.farms ? (
                         <FarmCard key={fw.id} farm={fw.farms} onRemove={() => removeFarmWish(fw.id)} />
                       ) : null)}
