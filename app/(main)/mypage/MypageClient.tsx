@@ -68,7 +68,7 @@ interface MyReview {
 interface RecentProduct {
   id: string; name: string; price: number; discount_rate: number;
   thumbnail_url: string | null; avg_rating: number; category: string;
-  discounted_price?: number | null; review_count?: number; is_dawn?: boolean; is_new?: boolean; is_best?: boolean;
+  discounted_price?: number | null; review_count?: number; is_dawn?: boolean; is_new?: boolean; is_best?: boolean; short_desc?: string | null;
 }
 interface Address {
   id: string; label: string; recipient: string; phone: string;
@@ -574,7 +574,7 @@ export default function MypageClient() {
         if (!ids.length) { setRecentProducts([]); return; }
         const { data } = await createClient()
           .from('products')
-          .select('id,name,price,discounted_price,discount_rate,thumbnail_url,avg_rating,review_count,category,is_dawn,is_new,is_best')
+          .select('id,name,price,discounted_price,discount_rate,thumbnail_url,avg_rating,review_count,category,is_dawn,is_new,is_best,short_desc')
           .in('id', ids);
         const map = new Map(((data || []) as unknown as RecentProduct[]).map(d => [d.id, d]));
         setRecentProducts(ids.map(id => map.get(id)).filter(Boolean) as RecentProduct[]);
@@ -2477,45 +2477,31 @@ export default function MypageClient() {
                               <button className="mp-wish-del" style={{ color:'#1A1A1A' }}
                                 onClick={e => { e.stopPropagation(); removeRecentProduct(p.id); }}>✕</button>
                             </div>
+                            {/* 담기 버튼 — 썸네일 바로 아래 전체폭 (퀵가이드 모바일과 동일) */}
+                            <button onClick={() => openOptionDrawer(p.id)}
+                              style={{ margin:'10px 0 0', padding:'9px 0', border:'1px solid #DDDDD9', borderRadius:8, background:'#fff', fontSize:13, fontWeight:600, color:'#1A1A1A', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5, fontFamily:'inherit' }}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/></svg>
+                              담기
+                            </button>
                             <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
-                              <div className="mp-wish-body" style={{ paddingBottom:8 }}>
-                                {(p.is_new || p.is_best) && (
-                                  <span style={{ display:'inline-block', fontSize:10.5, fontWeight:700, padding:'2px 7px', borderRadius:4, background:'#1A1A1A', color:'#fff', marginBottom:6 }}>
-                                    {p.is_new ? 'NEW' : '인기'}
-                                  </span>
-                                )}
+                              <div className="mp-wish-body" style={{ padding:'8px 2px 4px' }}>
+                                {p.short_desc && <div style={{ fontSize:12, color:'#999', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.short_desc}</div>}
                                 <div className="mp-wish-name">{p.name}</div>
                                 {p.discount_rate > 0 && (
-                                  <div style={{ fontSize:12, color:'#bbb', textDecoration:'line-through', marginBottom:2 }}>{fmtPrice(p.price)}원</div>
+                                  <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:1 }}>
+                                    <span style={{ fontSize:14, fontWeight:800, color:'#E53E3E' }}>{Math.round(p.discount_rate)}%</span>
+                                    <span style={{ fontSize:12, color:'#bbb', textDecoration:'line-through' }}>{fmtPrice(p.price)}원</span>
+                                  </div>
                                 )}
-                                <div style={{ display:'flex', alignItems:'baseline', gap:5 }}>
-                                  {p.discount_rate > 0 && (
-                                    <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>
-                                      {Math.round(p.discount_rate)}%
-                                    </span>
-                                  )}
-                                  <span className="mp-wish-price">{fmtPrice(sell)}원</span>
-                                </div>
+                                <div className="mp-wish-price" style={{ fontSize:18 }}>{fmtPrice(sell)}원</div>
                                 {p.avg_rating > 0 && (
-                                  <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:12, color:'#888' }}>
+                                  <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:13, color:'#888' }}>
                                     <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
                                     {p.review_count != null && <span style={{ color:'#bbb' }}>({p.review_count.toLocaleString()})</span>}
                                   </div>
                                 )}
                               </div>
                             </Link>
-                            {/* 하단 찜 / 담기 (퀵가이드 카드처럼) */}
-                            <div style={{ display:'flex', alignItems:'center', borderTop:'1px solid #F0F0F0', marginTop:'auto' }}>
-                              <button onClick={() => addProductWish(p.id)}
-                                style={{ flex:1, padding:'10px 0', background:'none', border:'none', cursor:'pointer', fontSize:12.5, fontWeight:600, color:'#888', display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontFamily:'inherit' }}>
-                                ♡ 찜
-                              </button>
-                              <span style={{ width:1, height:16, background:'#EEE' }} />
-                              <button onClick={() => openOptionDrawer(p.id)}
-                                style={{ flex:1, padding:'10px 0', background:'none', border:'none', cursor:'pointer', fontSize:12.5, fontWeight:600, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontFamily:'inherit' }}>
-                                🛒 담기
-                              </button>
-                            </div>
                           </div>
                           );
                         })}
