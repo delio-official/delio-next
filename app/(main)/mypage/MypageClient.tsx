@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
 import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
+import { ProductCard } from '@/components/ProductCard';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
@@ -2890,53 +2891,11 @@ export default function MypageClient() {
                 ) : wishlist.length === 0 ? (
                   <div className="mp-empty">찜한 상품이 없습니다.</div>
                 ) : (
-                  <div className="mp-wish-grid">
-                    {wishlist.map(w => {
-                      const p = w.products;
-                      if (!p) return null;
-                      const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
-                      const price = p.discounted_price ?? p.price;
-                      return (
-                        <div key={w.id} className="mp-wish-item mp-recent-card" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
-                          <div className="mp-wish-img">
-                            <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
-                              style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
-                              {p.is_dawn ? '산지직송' : '자사배송'}
-                            </span>
-                            {p.thumbnail_url
-                              ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                              : <span>{emoji}</span>}
-                            <button className="mp-wish-del"
-                              onClick={e => { e.stopPropagation(); removeWish(w.id); }}>♥</button>
-                          </div>
-                          {/* 담기 버튼 — 썸네일 바로 아래 전체폭 */}
-                          <button onClick={() => openOptionDrawer(p.id)}
-                            style={{ margin:'10px 0 0', padding:'9px 0', border:'1px solid #DDDDD9', borderRadius:8, background:'#fff', fontSize:13, fontWeight:600, color:'#1A1A1A', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5, fontFamily:'inherit' }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/></svg>
-                            담기
-                          </button>
-                          <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
-                            <div className="mp-wish-body" style={{ padding:'8px 2px 4px' }}>
-                              {p.short_desc && <div style={{ fontSize:12, color:'#999', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.short_desc}</div>}
-                              <div className="mp-wish-name">{p.name}</div>
-                              {p.discount_rate > 0 && (
-                                <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:1 }}>
-                                  <span style={{ fontSize:14, fontWeight:800, color:'#E53E3E' }}>{Math.round(p.discount_rate)}%</span>
-                                  <span style={{ fontSize:12, color:'#bbb', textDecoration:'line-through' }}>{fmtPrice(p.price)}원</span>
-                                </div>
-                              )}
-                              <div className="mp-wish-price" style={{ fontSize:18 }}>{fmtPrice(price)}원</div>
-                              {p.avg_rating > 0 && (
-                                <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:13, color:'#888' }}>
-                                  <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
-                                  {p.review_count != null && <span style={{ color:'#bbb' }}>({p.review_count.toLocaleString()})</span>}
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                        </div>
-                      );
-                    })}
+                  <div className="mob-pv-grid">
+                    {wishlist.map(w => w.products ? (
+                      <ProductCard key={w.id} p={w.products}
+                        onWishChange={(wished) => { if (!wished) setWishlist(prev => prev.filter(x => x.id !== w.id)); }} />
+                    ) : null)}
                   </div>
                 )}
               </div>
