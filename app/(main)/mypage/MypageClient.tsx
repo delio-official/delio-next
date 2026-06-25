@@ -2907,7 +2907,7 @@ export default function MypageClient() {
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
                 <div className="mp-section-header">
-                  <span className="mp-section-title">친구 초대</span>
+                  <span className="mp-section-title" style={{ fontSize:16 }}>친구 초대</span>
                 </div>
                 <div style={{ paddingTop:28, maxWidth:400, margin:'0 auto' }}>
                   {/* 헤더 텍스트 */}
