@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -432,6 +432,13 @@ export default function MypageClient() {
     setActivePanel(panel ?? 'order');
     setShowMobileMenu(!panel); // 패널 없으면 모바일 메뉴, 있으면 해당 패널
   }, [searchParams]);
+
+  /* 패널/메뉴가 바뀌면 화면을 맨 위로 — 페인트 직전(useLayoutEffect)에 맞춰
+     "메뉴가 최상단으로 튀었다가 전환"되는 점프가 눈에 보이지 않게 한다. */
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.scrollTo(0, 0);
+  }, [activePanel, showMobileMenu]);
 
   /* toast helper */
   function showToastMsg(msg: string) {
@@ -916,7 +923,6 @@ export default function MypageClient() {
   /* 패널 전환 (모바일: 메뉴 → 패널) — URL 변경으로 히스토리 기록 */
   function goPanel(panel: PanelType) {
     router.push(`/mypage?panel=${panel}`, { scroll: false });
-    window.scrollTo(0, 0);
   }
   /* 주문처리현황 단계 클릭 → 해당 상태로 필터 + 목록으로 스크롤 (같은 단계 재클릭 시 해제) */
   function selectStatusFilter(key: string) {
@@ -1005,12 +1011,10 @@ export default function MypageClient() {
   /* 패널 → 메뉴 복귀 (모바일) */
   function goBackMenu() {
     router.push('/mypage', { scroll: false });
-    window.scrollTo(0, 0);
   }
   /* PC용 패널 전환 (사이드바 클릭) — URL 변경으로 히스토리 기록 */
   function switchPanel(panel: PanelType) {
     router.push(`/mypage?panel=${panel}`, { scroll: false });
-    window.scrollTo(0, 0);
   }
 
   /* ── 회원정보 수정 ── */
