@@ -915,7 +915,7 @@ export default function MypageClient() {
 
   /* 패널 전환 (모바일: 메뉴 → 패널) — URL 변경으로 히스토리 기록 */
   function goPanel(panel: PanelType) {
-    router.push(`/mypage?panel=${panel}`);
+    router.push(`/mypage?panel=${panel}`, { scroll: false });
     window.scrollTo(0, 0);
   }
   /* 주문처리현황 단계 클릭 → 해당 상태로 필터 + 목록으로 스크롤 (같은 단계 재클릭 시 해제) */
@@ -1004,12 +1004,13 @@ export default function MypageClient() {
 
   /* 패널 → 메뉴 복귀 (모바일) */
   function goBackMenu() {
-    router.push('/mypage');
+    router.push('/mypage', { scroll: false });
     window.scrollTo(0, 0);
   }
   /* PC용 패널 전환 (사이드바 클릭) — URL 변경으로 히스토리 기록 */
   function switchPanel(panel: PanelType) {
-    router.push(`/mypage?panel=${panel}`);
+    router.push(`/mypage?panel=${panel}`, { scroll: false });
+    window.scrollTo(0, 0);
   }
 
   /* ── 회원정보 수정 ── */
