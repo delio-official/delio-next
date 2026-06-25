@@ -117,7 +117,7 @@ interface CsInquiry {
 }
 
 const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false, delivery_request:'' };
-const DELIVERY_REQ_PRESETS = ['문 앞에 놓아주세요', '경비실에 맡겨주세요', '택배함에 넣어주세요', '배송 전 미리 연락 주세요'];
+const DELIVERY_REQ_PRESETS = ['배송 전에 미리 연락주세요', '부재 시 전화 주시거나 문자 남겨주세요', '부재 시 경비실에 맡겨주세요'];
 
 /* ─── Constants ─── */
 const STATUS_LABEL: Record<string, string> = {
@@ -3195,30 +3195,42 @@ export default function MypageClient() {
                     {/* 배송 요청사항 */}
                     <div style={{ marginBottom:18 }}>
                       <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
-                      <div className="opt-dd">
-                        <button type="button" className={`opt-dd-btn${addrReqOpen ? ' open' : ''}`} onClick={() => setAddrReqOpen(o => !o)}>
-                          <span className={(!addrReqCustom && !addrForm.delivery_request) ? 'ph' : ''}>{addrReqCustom ? '직접 입력' : (addrForm.delivery_request || '배송요청사항 없음')}</span>
-                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                        </button>
-                        {addrReqOpen && (
-                          <>
-                            <div className="opt-dd-backdrop" onClick={() => setAddrReqOpen(false)} />
-                            <div className="opt-dd-list">
-                              <button type="button" className={`opt-dd-item${!addrReqCustom && !addrForm.delivery_request ? ' sel' : ''}`} onClick={() => { setAddrForm(f => ({ ...f, delivery_request:'' })); setAddrReqCustom(false); setAddrReqOpen(false); }}>배송요청사항 없음</button>
-                              {DELIVERY_REQ_PRESETS.map(p => (
-                                <button type="button" key={p} className={`opt-dd-item${!addrReqCustom && addrForm.delivery_request === p ? ' sel' : ''}`} onClick={() => { setAddrForm(f => ({ ...f, delivery_request:p })); setAddrReqCustom(false); setAddrReqOpen(false); }}>{p}</button>
-                              ))}
-                              <button type="button" className={`opt-dd-item${addrReqCustom ? ' sel' : ''}`} onClick={() => { setAddrReqCustom(true); setAddrForm(f => ({ ...f, delivery_request:'' })); setAddrReqOpen(false); }}>직접 입력</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {addrReqCustom && (
-                        <input maxLength={50} placeholder="요청사항을 입력해주세요 (최대 50자)" value={addrForm.delivery_request}
-                          onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
-                          style={{ marginTop:8, width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
-                      )}
+                      <button type="button" className="req-box" onClick={() => setAddrReqOpen(true)}>
+                        <span className="req-box-tag">일반</span>
+                        <span className={`req-box-val${(!addrReqCustom && !addrForm.delivery_request) ? ' ph' : ''}`}>{addrForm.delivery_request || '배송요청사항 없음'}</span>
+                        <span className="req-box-change">변경</span>
+                      </button>
                     </div>
+                    {/* 배송 요청사항 선택 모달 (풀스크린) */}
+                    {addrReqOpen && (
+                      <div className="req-modal">
+                        <div className="req-modal-header">
+                          <span>배송요청사항</span>
+                          <button type="button" onClick={() => setAddrReqOpen(false)} aria-label="닫기">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                          </button>
+                        </div>
+                        <div className="req-modal-body">
+                          <div className="req-modal-subtitle">일반배송 요청사항</div>
+                          {DELIVERY_REQ_PRESETS.map(p => (
+                            <button type="button" key={p} className="req-radio" onClick={() => { setAddrForm(f => ({ ...f, delivery_request:p })); setAddrReqCustom(false); }}>
+                              <span className={`req-radio-dot${!addrReqCustom && addrForm.delivery_request === p ? ' on' : ''}`} />
+                              {p}
+                            </button>
+                          ))}
+                          <button type="button" className="req-radio" onClick={() => { setAddrReqCustom(true); setAddrForm(f => ({ ...f, delivery_request:'' })); }}>
+                            <span className={`req-radio-dot${addrReqCustom ? ' on' : ''}`} />
+                            직접입력
+                          </button>
+                          {addrReqCustom && (
+                            <input maxLength={50} autoFocus placeholder="요청사항을 입력해주세요 (최대 50자)" value={addrForm.delivery_request}
+                              onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
+                              className="req-modal-input" />
+                          )}
+                        </div>
+                        <button type="button" className="req-modal-save" onClick={() => setAddrReqOpen(false)}>저장</button>
+                      </div>
+                    )}
                     {/* 기본 배송지 체크 */}
                     <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', cursor:'pointer', marginBottom:22 }}>
                       <input type="checkbox" checked={addrForm.is_default}
