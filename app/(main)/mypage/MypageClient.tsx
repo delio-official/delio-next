@@ -10,7 +10,7 @@ import { signOut } from '@/lib/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
@@ -981,6 +981,14 @@ export default function MypageClient() {
     const next = recentProducts.filter(p => p.id !== id);
     setRecentProducts(next);
     try { localStorage.setItem('delio_recent_products', JSON.stringify(next)); } catch {}
+  }
+
+  /* 상품 찜하기(최근 본 상품 카드용) */
+  async function addProductWish(id: string) {
+    if (!user) { router.push('/login?next=/mypage'); return; }
+    const { error } = await createClient().from('wishlist').insert({ user_id: user.id, product_id: id });
+    if (error && !/duplicate|unique/i.test(error.message)) { showToastMsg('찜 실패: ' + error.message); return; }
+    showToastMsg('찜 목록에 담았어요 ♥');
   }
 
   /* 패널 → 메뉴 복귀 (모바일) */
@@ -2443,7 +2451,7 @@ export default function MypageClient() {
                     <>
                       <div className="mp-wish-grid">
                         {paged.map(p => (
-                          <div key={p.id} className="mp-wish-item" style={{ position:'relative' }}>
+                          <div key={p.id} className="mp-wish-item" style={{ position:'relative', display:'flex', flexDirection:'column' }}>
                             <div className="mp-wish-img">
                               {p.thumbnail_url
                                 ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
@@ -2451,8 +2459,8 @@ export default function MypageClient() {
                               <button className="mp-wish-del" style={{ color:'#1A1A1A' }}
                                 onClick={e => { e.stopPropagation(); removeRecentProduct(p.id); }}>✕</button>
                             </div>
-                            <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit' }}>
-                              <div className="mp-wish-body">
+                            <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
+                              <div className="mp-wish-body" style={{ paddingBottom:8 }}>
                                 <div className="mp-wish-name">{p.name}</div>
                                 <div style={{ display:'flex', alignItems:'baseline', gap:5 }}>
                                   {p.discount_rate > 0 && (
@@ -2462,8 +2470,25 @@ export default function MypageClient() {
                                   )}
                                   <span className="mp-wish-price">{fmtPrice(p.price)}원</span>
                                 </div>
+                                {p.avg_rating > 0 && (
+                                  <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:12, color:'#888' }}>
+                                    <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
+                                  </div>
+                                )}
                               </div>
                             </Link>
+                            {/* 하단 찜 / 담기 (퀵가이드 카드처럼) */}
+                            <div style={{ display:'flex', alignItems:'center', borderTop:'1px solid #F0F0F0', marginTop:'auto' }}>
+                              <button onClick={() => addProductWish(p.id)}
+                                style={{ flex:1, padding:'10px 0', background:'none', border:'none', cursor:'pointer', fontSize:12.5, fontWeight:600, color:'#888', display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontFamily:'inherit' }}>
+                                ♡ 찜
+                              </button>
+                              <span style={{ width:1, height:16, background:'#EEE' }} />
+                              <button onClick={() => openOptionDrawer(p.id)}
+                                style={{ flex:1, padding:'10px 0', background:'none', border:'none', cursor:'pointer', fontSize:12.5, fontWeight:600, color:'#1A1A1A', display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontFamily:'inherit' }}>
+                                🛒 담기
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
