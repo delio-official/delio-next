@@ -60,9 +60,9 @@ export function FarmCard({ farm, onRemove }: { farm: FarmCardItem; onRemove?: ()
       </div>
 
       {/* 정보 */}
-      <div style={{ padding: '18px 20px' }}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{farm.name}</div>
+      <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{farm.name}</div>
           {farm.region && (
             <span style={{ display: 'inline-block', fontSize: 11, color: '#888', background: '#F5F5F5',
               padding: '2px 7px', borderRadius: 10 }}>📍 {farm.region}</span>
@@ -75,7 +75,7 @@ export function FarmCard({ farm, onRemove }: { farm: FarmCardItem; onRemove?: ()
             {farm.intro}
           </p>
         )}
-        <div style={{ marginTop: 14, fontSize: 13, fontWeight: 700, color: '#1A1A1A',
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A',
           display: 'flex', alignItems: 'center', gap: 4 }}>
           농가 스토리 보기
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
