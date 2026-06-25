@@ -8,10 +8,7 @@
  * @param quality 1~100 (기본 70)
  */
 export function imgThumb(url: string | null | undefined, width = 400, quality = 70): string {
-  if (!url) return '';
-  if (url.includes('/storage/v1/object/public/')) {
-    const t = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
-    return `${t}${t.includes('?') ? '&' : '?'}width=${width}&quality=${quality}`;
-  }
-  return url; // 외부 URL 등은 그대로
+  // 임시: 변환 비활성화(원본 반환) — 화질 확인 후 재적용 예정
+  void width; void quality;
+  return url || '';
 }
