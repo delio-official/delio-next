@@ -29,6 +29,13 @@ export default function OptionDrawer() {
   const [qty, setQty]         = useState(1);
   const [loading, setLoading] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // 열린 드롭다운 버튼의 화면상 위치 — 목록을 fixed 레이어로 띄워 드로어 밖으로 안 잘리게
+  const [ddRect, setDdRect] = useState<{ left: number; top: number; bottom: number; width: number } | null>(null);
+  useEffect(() => {
+    if (!openGroup) { setDdRect(null); return; }
+    const btn = document.querySelector(`[data-ddgroup="${CSS.escape(openGroup)}"]`);
+    if (btn) { const r = btn.getBoundingClientRect(); setDdRect({ left: r.left, top: r.top, bottom: r.bottom, width: r.width }); }
+  }, [openGroup]);
 
   useEffect(() => {
     async function handler(e: Event) {
@@ -162,7 +169,7 @@ export default function OptionDrawer() {
           <div style={{ padding:'60px 0', textAlign:'center', color:'#aaa', fontSize:14 }}>불러오는 중...</div>
         ) : product ? (
           <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-            <div style={{ flex:1, overflowY:'auto', padding:'18px 20px' }}>
+            <div style={{ flex:1, overflowY:'auto', overscrollBehavior:'contain', WebkitOverflowScrolling:'touch', padding:'18px 20px' }}>
               {/* 상품 정보 */}
               <div style={{ display:'flex', gap:12, marginBottom:22 }}>
                 <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>
@@ -202,7 +209,7 @@ export default function OptionDrawer() {
                     };
                     return (
                       <div className="opt-dd">
-                        <button type="button" className={`opt-dd-btn${isOpen ? ' open' : ''}`} disabled={locked}
+                        <button type="button" data-ddgroup={g} className={`opt-dd-btn${isOpen ? ' open' : ''}`} disabled={locked}
                           onClick={() => setOpenGroup(isOpen ? null : g)}>
                           <span className={selOpt ? '' : 'ph'}>
                             {locked ? '상위 옵션을 먼저 선택'
@@ -214,7 +221,13 @@ export default function OptionDrawer() {
                         {isOpen && !locked && (
                           <>
                             <div className="opt-dd-backdrop" onClick={() => setOpenGroup(null)} />
-                            <div className="opt-dd-list">
+                            <div className="opt-dd-list" style={ddRect ? (() => {
+                              const below = window.innerHeight - ddRect.bottom;
+                              const openUp = below < 260 && ddRect.top > below;
+                              return openUp
+                                ? { position: 'fixed' as const, left: ddRect.left, width: ddRect.width, bottom: window.innerHeight - ddRect.top + 6, top: 'auto' as const, maxHeight: Math.max(160, ddRect.top - 24) }
+                                : { position: 'fixed' as const, left: ddRect.left, width: ddRect.width, top: ddRect.bottom + 6, maxHeight: Math.max(160, below - 24) };
+                            })() : undefined}>
                               {groupOpts.map(o => {
                                 const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
                                 return (
@@ -373,7 +386,7 @@ export default function OptionDrawer() {
           .option-drawer {
             top: auto; right: 0; left: 0; bottom: 0;
             width: 100%; max-width: 100%;
-            max-height: 85vh;
+            max-height: 90vh; height: 90vh;
             border-radius: 18px 18px 0 0;
             box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
             animation: slideUp .28s cubic-bezier(.4,0,.2,1);
