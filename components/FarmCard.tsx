@@ -61,10 +61,10 @@ export function FarmCard({ farm, onRemove }: { farm: FarmCardItem; onRemove?: ()
 
       {/* 정보 */}
       <div style={{ padding: '18px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 16, fontWeight: 800 }}>{farm.name}</span>
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{farm.name}</div>
           {farm.region && (
-            <span style={{ fontSize: 11, color: '#888', background: '#F5F5F5',
+            <span style={{ display: 'inline-block', fontSize: 11, color: '#888', background: '#F5F5F5',
               padding: '2px 7px', borderRadius: 10 }}>📍 {farm.region}</span>
           )}
         </div>
