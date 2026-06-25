@@ -54,6 +54,20 @@ body { background: #fff; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
 
+/* 농가 상세 히어로 — 모바일: 풀폭 / PC: container 폭 박스 */
+.farm-hero { width: 100%; background: #F2F0EC; }
+.farm-hero img { width: 100%; max-height: 560px; object-fit: cover; display: block; }
+.farm-hero-empty {
+  height: 340px; background: linear-gradient(135deg,#2d5a27,#3d7a35);
+  display: flex; align-items: center; justify-content: center;
+}
+.farm-hero-empty span { font-size: 84px; }
+@media (min-width: 769px) {
+  .farm-hero { max-width: 1120px; margin: 28px auto 0; padding: 0 32px; background: transparent; }
+  .farm-hero img { aspect-ratio: 2 / 1; max-height: none; border-radius: 16px; }
+  .farm-hero-empty { max-width: 1120px; margin: 28px auto 0; height: auto; aspect-ratio: 2 / 1; border-radius: 16px; }
+}
+
 /* ══════════════════════════════════════════════
    PC 뷰 — 카테고리 탭 / 필터
 ══════════════════════════════════════════════ */

@@ -253,17 +253,15 @@ export default function FarmClient() {
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
-      {/* ── 상단: 풀폭 히어로 사진 ── */}
+      {/* ── 상단: 히어로 사진 (모바일 풀폭 / PC는 container 폭) ── */}
       {(() => {
         const heroImg = farm.hero_image_url || farm.farmer_image_url || farm.thumbnail_url;
         return heroImg ? (
-          <div style={{ width:'100%', background:'#F2F0EC' }}>
-            <img src={imgThumb(heroImg, 1400)} alt={farm.name}
-              style={{ width:'100%', maxHeight:560, objectFit:'cover', display:'block' }} />
+          <div className="farm-hero">
+            <img src={imgThumb(heroImg, 1400)} alt={farm.name} />
           </div>
         ) : (
-          <div style={{ width:'100%', height:360, background:'linear-gradient(135deg,#2d5a27,#3d7a35)',
-            display:'flex', alignItems:'center', justifyContent:'center', fontSize:84 }}>{emoji}</div>
+          <div className="farm-hero farm-hero-empty"><span>{emoji}</span></div>
         );
       })()}
 
