@@ -3139,19 +3139,20 @@ export default function MypageClient() {
               <div className="mp-section mp-addr-section">
 
                 {/* 타이틀 */}
-                {addrFormOpen ? (
-                  <div style={{ textAlign:'center', padding:'8px 0 18px', borderBottom:'1px solid #E8E8E8', marginBottom:18 }}>
-                    <div style={{ fontSize:16, fontWeight:700, color:'#111' }}>{addrEditing ? '배송지 수정' : '배송지 추가'}</div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize:18, fontWeight:800, color:'#111', marginBottom:18 }}>배송지 관리</div>
-                )}
+                <div style={{ fontSize:18, fontWeight:800, color:'#111', marginBottom:18 }}>배송지 관리</div>
 
                 {addrLoading ? (
                   <div className="mp-empty">불러오는 중...</div>
                 ) : addrFormOpen ? (
-                  /* ════ 추가/수정 폼 ════ */
-                  <div>
+                  /* ════ 추가/수정 폼 (풀스크린 모달) ════ */
+                  <div className="addr-modal">
+                    <div className="addr-modal-header">
+                      <span>{addrEditing ? '배송지 수정' : '배송지 추가'}</span>
+                      <button type="button" onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrReqCustom(false); }} aria-label="닫기">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+                      </button>
+                    </div>
+                    <div className="addr-modal-body">
                     {/* 배송명 */}
                     <div style={{ marginBottom:16 }}>
                       <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송지명 <span style={{ color:'#CB1D11' }}>*</span></label>
@@ -3238,17 +3239,9 @@ export default function MypageClient() {
                         style={{ width:16, height:16, accentColor:'#1A1A1A', cursor:'pointer' }} />
                       기본 배송지로 저장
                     </label>
-                    {/* 버튼 */}
-                    <div style={{ display:'flex', gap:10 }}>
-                      <button onClick={() => { setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrReqCustom(false); }}
-                        style={{ flex:1, padding:'15px', border:'1px solid #DDD', borderRadius:8, background:'#fff', fontSize:15, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
-                        취소
-                      </button>
-                      <button onClick={saveAddress}
-                        style={{ flex:2, padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                        확인
-                      </button>
                     </div>
+                    {/* 하단 고정 등록 버튼 */}
+                    <button type="button" className="addr-modal-save" onClick={saveAddress}>등록</button>
                   </div>
                 ) : (
                   /* ════ 배송지 목록 ════ */
