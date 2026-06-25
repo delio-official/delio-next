@@ -271,9 +271,13 @@ export default function FarmClient() {
       <div className="container" style={{ paddingTop:24, paddingBottom:28 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:18 }}>
           {farm.region ? (
-            <span style={{ display:'inline-flex', alignItems:'center', gap:4,
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5,
               background:'#E53935', color:'#fff', fontSize:13, fontWeight:600,
-              padding:'6px 14px', borderRadius:999 }}>📍 {farm.region}</span>
+              padding:'6px 14px', borderRadius:999 }}>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden>
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+              </svg>
+              {farm.region}</span>
           ) : <span />}
           <button onClick={toggleFarmWish} aria-label="농가 찜"
             style={{ display:'inline-flex', alignItems:'center', gap:6, background:'none',
