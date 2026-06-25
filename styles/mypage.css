@@ -573,6 +573,11 @@ body { background: #fff; }
       transition: box-shadow .15s;
     }
     .mp-wish-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    /* 최근 본 상품 카드: 그림자 hover 대신 이미지 확대 hover */
+    .mp-recent-card, .mp-recent-card:hover { box-shadow: none !important; }
+    .mp-recent-card .mp-wish-img { overflow: hidden; border-radius: 10px; }
+    .mp-recent-card .mp-wish-img img { transition: transform .35s ease; }
+    .mp-recent-card:hover .mp-wish-img img { transform: scale(1.08); }
     .mp-wish-img {
       aspect-ratio: 1; background: #f7f7f5;
       display: flex; align-items: center; justify-content: center;

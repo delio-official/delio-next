@@ -2464,7 +2464,7 @@ export default function MypageClient() {
                         {paged.map(p => {
                           const sell = p.discounted_price ?? p.price;
                           return (
-                          <div key={p.id} className="mp-wish-item" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
+                          <div key={p.id} className="mp-wish-item mp-recent-card" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
                             <div className="mp-wish-img">
                               {/* 배송 배지 */}
                               <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
