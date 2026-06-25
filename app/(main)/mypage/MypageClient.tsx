@@ -57,6 +57,7 @@ interface WishItem {
     id: string; name: string; price: number; discounted_price: number;
     discount_rate: number; thumbnail_url: string | null; category: string; badge: string | null;
     is_dawn: boolean; is_new: boolean; is_best: boolean; avg_rating: number; review_count: number;
+    short_desc?: string | null;
   } | null;
 }
 interface MyReview {
@@ -582,7 +583,7 @@ export default function MypageClient() {
 
       // 관심상품 미리보기용 위시리스트 프리로드 (모바일 메뉴 하단)
       const { data: wishData } = await supabase.from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc)')
         .eq('user_id', user!.id).limit(20);
       setWishlist((wishData as unknown as WishItem[]) || []);
     }
@@ -899,7 +900,7 @@ export default function MypageClient() {
       const supabase = createClient();
       const [{ data }, { data: farmData }] = await Promise.all([
         supabase.from('wishlist')
-          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count)')
+          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc)')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
           .select('id, farms(id,slug,name,region,farm_type,intro,thumbnail_url,hero_image_url,logo_url)')
@@ -2896,37 +2897,39 @@ export default function MypageClient() {
                       const emoji = EMOJI_MAP[p.category] || EMOJI_MAP.default;
                       const price = p.discounted_price ?? p.price;
                       return (
-                        <div key={w.id} className="mp-wish-item">
+                        <div key={w.id} className="mp-wish-item mp-recent-card" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
                           <div className="mp-wish-img">
-                            {p.thumbnail_url
-                              ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                              : emoji}
                             <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
                               style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
                               {p.is_dawn ? '산지직송' : '자사배송'}
                             </span>
+                            {p.thumbnail_url
+                              ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                              : <span>{emoji}</span>}
                             <button className="mp-wish-del"
                               onClick={e => { e.stopPropagation(); removeWish(w.id); }}>♥</button>
                           </div>
-                          <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit' }}>
-                            <div className="mp-wish-body">
+                          {/* 담기 버튼 — 썸네일 바로 아래 전체폭 */}
+                          <button onClick={() => openOptionDrawer(p.id)}
+                            style={{ margin:'10px 0 0', padding:'9px 0', border:'1px solid #DDDDD9', borderRadius:8, background:'#fff', fontSize:13, fontWeight:600, color:'#1A1A1A', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:5, fontFamily:'inherit' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/></svg>
+                            담기
+                          </button>
+                          <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
+                            <div className="mp-wish-body" style={{ padding:'8px 2px 4px' }}>
+                              {p.short_desc && <div style={{ fontSize:12, color:'#999', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.short_desc}</div>}
                               <div className="mp-wish-name">{p.name}</div>
-                              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                                {p.discount_rate > 0 && (
-                                  <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>{Math.round(p.discount_rate)}%</span>
-                                )}
-                                <span className="mp-wish-price">{fmtPrice(price)}원</span>
-                              </div>
-                              {(p.is_new || p.is_best || p.avg_rating > 0) && (
-                                <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5, flexWrap:'wrap' }}>
-                                  {(p.is_new || p.is_best) && (
-                                    <span className={`product-badge ${p.is_new ? 'badge-new' : 'badge-best'}`}>{p.is_new ? 'NEW' : '인기'}</span>
-                                  )}
-                                  {p.avg_rating > 0 && (
-                                    <span style={{ fontSize:13, color:'#888', display:'flex', alignItems:'center', gap:2 }}>
-                                      <span style={{ color:'#FFB300' }}>★</span>{p.avg_rating.toFixed(1)} ({p.review_count})
-                                    </span>
-                                  )}
+                              {p.discount_rate > 0 && (
+                                <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:1 }}>
+                                  <span style={{ fontSize:14, fontWeight:800, color:'#E53E3E' }}>{Math.round(p.discount_rate)}%</span>
+                                  <span style={{ fontSize:12, color:'#bbb', textDecoration:'line-through' }}>{fmtPrice(p.price)}원</span>
+                                </div>
+                              )}
+                              <div className="mp-wish-price" style={{ fontSize:18 }}>{fmtPrice(price)}원</div>
+                              {p.avg_rating > 0 && (
+                                <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:13, color:'#888' }}>
+                                  <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
+                                  {p.review_count != null && <span style={{ color:'#bbb' }}>({p.review_count.toLocaleString()})</span>}
                                 </div>
                               )}
                             </div>
