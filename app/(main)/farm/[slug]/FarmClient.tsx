@@ -9,6 +9,7 @@ import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
+import { useAuth } from '@/hooks/useAuth';
 import { SingleStar } from '@/components/StarRating';
 import '@/styles/category.css';
 
@@ -148,8 +149,11 @@ function Pagination({ total, perPage, page, onChange }: {
 export default function FarmClient() {
   const { slug } = useParams() as { slug: string };
   const router = useRouter();
+  const { user } = useAuth();
 
   const [farm, setFarm] = useState<Farm | null>(null);
+  const [farmWished, setFarmWished] = useState(false);
+  const [farmWishCount, setFarmWishCount] = useState(0);
   const [certs, setCerts] = useState<Certification[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -212,6 +216,31 @@ export default function FarmClient() {
     load();
   }, [slug, router]);
 
+  /* 농가 찜 상태/카운트 */
+  useEffect(() => {
+    if (!farm) return;
+    const supabase = createClient();
+    supabase.from('farm_wishlist').select('id', { count: 'exact', head: true }).eq('farm_id', farm.id)
+      .then(({ count }) => setFarmWishCount(count || 0));
+    if (user) {
+      supabase.from('farm_wishlist').select('id').eq('farm_id', farm.id).eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => setFarmWished(!!data));
+    } else { setFarmWished(false); }
+  }, [farm, user]);
+
+  async function toggleFarmWish() {
+    if (!user) { router.push('/login'); return; }
+    if (!farm) return;
+    const supabase = createClient();
+    if (farmWished) {
+      await supabase.from('farm_wishlist').delete().eq('farm_id', farm.id).eq('user_id', user.id);
+      setFarmWished(false); setFarmWishCount(c => Math.max(0, c - 1));
+    } else {
+      await supabase.from('farm_wishlist').insert({ farm_id: farm.id, user_id: user.id });
+      setFarmWished(true); setFarmWishCount(c => c + 1);
+    }
+  }
+
   if (loading || !farm) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
@@ -224,29 +253,42 @@ export default function FarmClient() {
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
-      {/* ── 상단: 좌 농가명·설명 / 우 썸네일 (카드) ── */}
-      <div className="container" style={{ paddingTop:36, paddingBottom:28 }}>
-        <div style={{ display:'flex', gap:28, flexWrap:'wrap', alignItems:'center',
-          border:'1px solid #EEECE7', borderRadius:18, padding:'24px 26px', background:'#fff' }}>
-          <div style={{ flex:'1 1 300px', minWidth:0 }}>
-            <p style={{ fontSize:12.5, color:'#9A8F7E', fontWeight:600, marginBottom:10 }}>{farm.region ? `${farm.region} · ` : ''}파트너 농가</p>
-            <h1 style={{ fontSize:'clamp(22px,2.6vw,30px)', fontWeight:800, marginBottom:16, lineHeight:1.3 }}>{farm.name}</h1>
-            {farm.intro && (
-              <p style={{ fontSize:14.5, lineHeight:1.85, color:'#555', whiteSpace:'pre-line' }}>{farm.intro}</p>
-            )}
-            {farm.farmer_name && (
-              <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
-            )}
+      {/* ── 상단: 풀폭 히어로 사진 ── */}
+      {(() => {
+        const heroImg = farm.hero_image_url || farm.farmer_image_url || farm.thumbnail_url;
+        return heroImg ? (
+          <div style={{ width:'100%', background:'#F2F0EC' }}>
+            <img src={imgThumb(heroImg, 1400)} alt={farm.name}
+              style={{ width:'100%', maxHeight:560, objectFit:'cover', display:'block' }} />
           </div>
-          <div style={{ flex:'1.3 1 360px', minWidth:0 }}>
-            {farm.thumbnail_url ? (
-              <img src={imgThumb(farm.thumbnail_url, 700)} alt={farm.name}
-                style={{ width:'100%', aspectRatio:'16/10', objectFit:'cover', borderRadius:14, display:'block' }} />
-            ) : (
-              <div style={{ width:'100%', aspectRatio:'16/10', borderRadius:14, background:'linear-gradient(135deg,#2d5a27,#3d7a35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{emoji}</div>
-            )}
-          </div>
+        ) : (
+          <div style={{ width:'100%', height:360, background:'linear-gradient(135deg,#2d5a27,#3d7a35)',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:84 }}>{emoji}</div>
+        );
+      })()}
+
+      {/* ── 위치 배지 · 하트 / 농가명 / 소개 ── */}
+      <div className="container" style={{ paddingTop:24, paddingBottom:28 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:18 }}>
+          {farm.region ? (
+            <span style={{ display:'inline-flex', alignItems:'center', gap:4,
+              background:'#E53935', color:'#fff', fontSize:13, fontWeight:600,
+              padding:'6px 14px', borderRadius:999 }}>📍 {farm.region}</span>
+          ) : <span />}
+          <button onClick={toggleFarmWish} aria-label="농가 찜"
+            style={{ display:'inline-flex', alignItems:'center', gap:6, background:'none',
+              border:'none', cursor:'pointer', fontSize:15, color:'#666', fontFamily:'inherit' }}>
+            <span style={{ fontSize:23, lineHeight:1, color: farmWished ? '#E53935' : '#CFCFCF' }}>{farmWished ? '♥' : '♡'}</span>
+            {farmWishCount}
+          </button>
         </div>
+        <h1 style={{ fontSize:'clamp(24px,3vw,32px)', fontWeight:800, marginBottom:16, lineHeight:1.3 }}>{farm.name}</h1>
+        {farm.intro && (
+          <p style={{ fontSize:15, lineHeight:1.85, color:'#555', whiteSpace:'pre-line' }}>{farm.intro}</p>
+        )}
+        {farm.farmer_name && (
+          <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
+        )}
       </div>
 
       {/* ── 랜딩 이미지 (상세설명 · 긴 이미지) ── */}
