@@ -1066,15 +1066,12 @@ export default function MypageClient() {
       }).catch(() => {});
     }
   }
-  /* 마케팅 수신동의 저장 */
-  async function saveMarketing() {
-    setMktSaving(true);
+  /* 마케팅 수신동의 — 토글 켜고 끌 때 즉시 저장 */
+  async function saveMktField(field: 'marketing_email' | 'marketing_sms' | 'push_enabled', value: boolean) {
     const supabase = createClient();
-    const payload = { marketing_email: mEmail, marketing_sms: mSms, push_enabled: mPush };
-    const { error } = await supabase.from('profiles').update(payload).eq('id', user!.id);
-    setMktSaving(false);
+    const { error } = await supabase.from('profiles').update({ [field]: value }).eq('id', user!.id);
     if (error) { showToastMsg('저장 실패: ' + error.message); return; }
-    setProfile(prev => prev ? { ...prev, ...payload } : prev);
+    setProfile(prev => prev ? { ...prev, [field]: value } : prev);
     showToastMsg('수신 설정이 변경되었습니다');
   }
 
@@ -3076,7 +3073,7 @@ export default function MypageClient() {
                                 <span>{profile?.phone || '미등록'}</span>
                                 <button className="mp-info-btn"
                                   onClick={startPhoneVerify}>
-                                  {profile?.phone ? '변경하기' : '인증하기'}
+                                  {profile?.phone ? '재인증' : '인증하기'}
                                 </button>
                               </div>
                             </div>
@@ -3094,7 +3091,7 @@ export default function MypageClient() {
                         <div className="mp-info-actions">
                           <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setOtpToken(''); setOtpInput(''); setOtpVerified(false); setOtpPhoneMasked(''); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                           <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
-                            {infoSaving ? '저장 중...' : '저장'}
+                            {infoSaving ? '변경 중...' : '변경하기'}
                           </button>
                         </div>
 
@@ -3103,19 +3100,16 @@ export default function MypageClient() {
                           <div className="mp-mkt-title">마케팅 수신동의 설정</div>
                           <p className="mp-mkt-desc">이벤트 및 혜택에 대한 다양한 정보를<br />받으실 수 있어요</p>
                           {([
-                            ['메일 수신동의', mEmail, setMEmail],
-                            ['SMS 수신 동의', mSms, setMSms],
-                          ] as [string, boolean, (v:(p:boolean)=>boolean)=>void][]).map(([label, on, set]) => (
+                            ['메일 수신동의', mEmail, setMEmail, 'marketing_email'],
+                            ['SMS 수신 동의', mSms, setMSms, 'marketing_sms'],
+                          ] as [string, boolean, (v:(p:boolean)=>boolean)=>void, 'marketing_email'|'marketing_sms'|'push_enabled'][]).map(([label, on, set, field]) => (
                             <div key={label} className="mp-mkt-row">
                               <span>{label}</span>
-                              <span className={`mp-toggle${on ? ' on' : ''}`} onClick={() => set(v => !v)}>
+                              <span className={`mp-toggle${on ? ' on' : ''}`} onClick={() => { const nv = !on; set(() => nv); saveMktField(field, nv); }}>
                                 <span className="mp-toggle-knob" />
                               </span>
                             </div>
                           ))}
-                          <button className="mp-mkt-save" onClick={saveMarketing} disabled={mktSaving}>
-                            {mktSaving ? '변경 중...' : '변경하기'}
-                          </button>
                         </div>
                       </>
                     );

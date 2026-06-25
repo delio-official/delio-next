@@ -368,10 +368,15 @@ body { background: #fff; }
         padding: 0 14px; font-size: 14px; color: #999;
       }
       .mp-info-btn { height: 48px; padding: 0 16px; border-radius: 8px; font-size: 13px; }
-      /* 저장 / 탈퇴 — 저장은 하단 풀폭 블랙 */
-      .mp-info-actions { flex-direction: column-reverse; gap: 14px; margin-top: 26px; }
-      .mp-info-save { width: 100%; padding: 15px; border-radius: 10px; font-size: 16px; }
-      .mp-info-withdraw { align-self: center; }
+      /* 변경하기 = 하단 고정 풀폭(탭바 덮음), 탈퇴는 그 위 가운데 텍스트 */
+      .mp-info-actions { display: block; margin-top: 18px; text-align: center; }
+      .mp-info-withdraw { margin: 0 auto; }
+      .mp-info-save {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 3100;
+        width: 100%; padding: 17px; border-radius: 0; font-size: 16px;
+      }
+      /* 고정 변경하기 버튼에 마지막 콘텐츠가 가리지 않도록 여백 */
+      .mp-mkt { padding-bottom: 84px; }
     }
 
     /* 마케팅 수신동의 */
