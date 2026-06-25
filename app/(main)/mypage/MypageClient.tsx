@@ -2454,9 +2454,9 @@ export default function MypageClient() {
                             <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit' }}>
                               <div className="mp-wish-body">
                                 <div className="mp-wish-name">{p.name}</div>
-                                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                                <div style={{ display:'flex', alignItems:'baseline', gap:5 }}>
                                   {p.discount_rate > 0 && (
-                                    <span style={{ fontSize:11, fontWeight:700, color:'var(--color-accent)' }}>
+                                    <span style={{ fontSize:13.5, fontWeight:800, color:'var(--color-accent)' }}>
                                       {Math.round(p.discount_rate)}%
                                     </span>
                                   )}

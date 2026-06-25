@@ -859,7 +859,7 @@ body { background: #fff; }
 .mp-benefit-row-top .mp-benefit-item:first-child .mp-benefit-num { font-size: 30px; color: var(--color-accent); }
 
 /* section-sub 위시 카운트 */
-.mp-wish-count { margin-left: auto; font-size: 13px; color: #111; font-weight: 600; }
+.mp-wish-count { margin-left: auto; font-size: 14px; color: #111; font-weight: 600; }
 
 /* 혜택 패널 바디 */
 .mp-panel-benefit-body { padding-top: 20px; }
