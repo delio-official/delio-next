@@ -15,6 +15,7 @@ import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
+import { imgThumb } from '@/lib/img';
 import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
@@ -1474,7 +1475,7 @@ export default function MypageClient() {
                   {o.order_items?.map((item, i) => (
                     <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 }}>
                       <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
+                        {item.thumbnail_url ? <img src={imgThumb(item.thumbnail_url, 200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
@@ -1545,7 +1546,7 @@ export default function MypageClient() {
                   {o.order_items?.map((item, i) => (
                     <div key={i} style={{ display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 }}>
                       <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        {item.thumbnail_url ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
+                        {item.thumbnail_url ? <img src={imgThumb(item.thumbnail_url, 200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:24 }}>🍑</span>}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
@@ -1715,7 +1716,7 @@ export default function MypageClient() {
               <input type="file" accept="image/*" onChange={handleAvatarUpload} hidden disabled={avatarUploading} />
               <div className={`mp-mb-avatar${profile?.avatar_url ? ' has-img' : ''}`}>
                 {profile?.avatar_url
-                  ? <img src={profile.avatar_url} alt="프로필" />
+                  ? <img src={imgThumb(profile.avatar_url, 120)} alt="프로필" />
                   : (profile?.name || user.email || '?').trim().charAt(0).toUpperCase()}
               </div>
               <span className="mp-mb-avatar-cam">
@@ -1826,7 +1827,7 @@ export default function MypageClient() {
                   <button key={w.id} className="mp-mb-wishprev-item" onClick={() => router.push(`/product/${w.products!.id}`)}>
                     <div className="mp-mb-wishprev-thumb">
                       {w.products!.thumbnail_url
-                        ? <img src={w.products!.thumbnail_url} alt={w.products!.name} />
+                        ? <img src={imgThumb(w.products!.thumbnail_url, 150)} alt={w.products!.name} />
                         : <div className="mp-mb-wishprev-noimg">🍎</div>}
                     </div>
                     <span className="mp-mb-wishprev-name">{w.products!.name}</span>
@@ -2082,7 +2083,7 @@ export default function MypageClient() {
                             <>
                               <div style={{ width:100, height:100, borderRadius:10, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                 {item.thumbnail_url
-                                  ? <img src={item.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                  ? <img src={imgThumb(item.thumbnail_url, 200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                   : <span style={{ fontSize:34 }}>🍑</span>}
                               </div>
                               <div style={{ flex:1, minWidth:0, paddingTop:2 }}>
@@ -2445,7 +2446,7 @@ export default function MypageClient() {
                           <div key={p.id} className="mp-wish-item" style={{ position:'relative' }}>
                             <div className="mp-wish-img">
                               {p.thumbnail_url
-                                ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                 : <span>{EMOJI_MAP[p.category] || EMOJI_MAP.default}</span>}
                               <button className="mp-wish-del" style={{ color:'#1A1A1A' }}
                                 onClick={e => { e.stopPropagation(); removeRecentProduct(p.id); }}>✕</button>
@@ -2518,7 +2519,7 @@ export default function MypageClient() {
                           <div onClick={() => router.push(`/product/${w.id}`)}
                             style={{ display:'flex', gap:12, alignItems:'center', marginBottom:12, cursor:'pointer' }}>
                             <div style={{ width:52, height:52, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              {w.thumb ? <img src={w.thumb} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:22 }}>🍑</span>}
+                              {w.thumb ? <img src={imgThumb(w.thumb, 150)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:22 }}>🍑</span>}
                             </div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</div>
@@ -2550,7 +2551,7 @@ export default function MypageClient() {
                             display:'flex', alignItems:'center', justifyContent:'center',
                             flexShrink:0, overflow:'hidden' }}>
                             {r.products?.thumbnail_url
-                              ? <img src={r.products.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                              ? <img src={imgThumb(r.products.thumbnail_url, 150)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                               : <span style={{ fontSize:22 }}>🍑</span>}
                           </div>
                           <div style={{ flex:1, minWidth:0 }}>
@@ -2790,7 +2791,7 @@ export default function MypageClient() {
                             onClick={() => router.push(`/farm/${f.slug}`)}>
                             <div className="mp-wish-img">
                               {banner
-                                ? <img src={banner} alt={f.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                ? <img src={imgThumb(banner, 400)} alt={f.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                 : <span style={{ fontSize:34 }}>🍊</span>}
                               <button className="mp-wish-del"
                                 onClick={e => { e.stopPropagation(); removeFarmWish(fw.id); }}>♥</button>
@@ -2798,7 +2799,7 @@ export default function MypageClient() {
                             <div className="mp-wish-body">
                               <div style={{ display:'flex', alignItems:'center', gap:7 }}>
                                 <div style={{ width:24, height:24, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F4EFE6', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>
-                                  {logo ? <img src={logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
+                                  {logo ? <img src={imgThumb(logo, 120)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍊'}
                                 </div>
                                 <span className="mp-wish-name" style={{ margin:0 }}>{f.name}</span>
                               </div>
@@ -2822,7 +2823,7 @@ export default function MypageClient() {
                         <div key={w.id} className="mp-wish-item">
                           <div className="mp-wish-img">
                             {p.thumbnail_url
-                              ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                              ? <img src={imgThumb(p.thumbnail_url, 200)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                               : emoji}
                             <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
                               style={{ position:'absolute', top:8, left:8, zIndex:2 }}>

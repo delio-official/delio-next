@@ -1,5 +1,6 @@
 'use client';
 
+import { imgThumb } from '@/lib/img';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -77,7 +78,7 @@ function FarmProductCard({ p }: { p: Product }) {
     <Link href={`/product/${p.id}`} className="product-card">
       <div className="product-card-img">
         {p.thumbnail_url
-          ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
@@ -239,7 +240,7 @@ export default function FarmClient() {
           </div>
           <div style={{ flex:'1.3 1 360px', minWidth:0 }}>
             {farm.thumbnail_url ? (
-              <img src={farm.thumbnail_url} alt={farm.name}
+              <img src={imgThumb(farm.thumbnail_url, 700)} alt={farm.name}
                 style={{ width:'100%', aspectRatio:'16/10', objectFit:'cover', borderRadius:14, display:'block' }} />
             ) : (
               <div style={{ width:'100%', aspectRatio:'16/10', borderRadius:14, background:'linear-gradient(135deg,#2d5a27,#3d7a35)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:72 }}>{emoji}</div>
@@ -347,7 +348,7 @@ export default function FarmClient() {
                   background:'#F7F7F5', display:'flex', alignItems:'center', justifyContent:'center',
                 }}>
                   {g.image_url
-                    ? <img src={g.image_url} alt={g.caption || ''} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    ? <img src={imgThumb(g.image_url, 500)} alt={g.caption || ''} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     : <span style={{ fontSize:40 }}>{emoji}</span>
                   }
                 </div>

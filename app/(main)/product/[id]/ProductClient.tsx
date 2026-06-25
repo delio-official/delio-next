@@ -15,6 +15,7 @@ import { Heart } from 'lucide-react';
 import '@/styles/product.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
+import { imgThumb } from '@/lib/img';
 import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 
@@ -1178,7 +1179,7 @@ export default function ProductClient() {
                           <video src={selItem.videoUrl} controls
                             style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
                         ) : selItem.url ? (
-                          <img src={selItem.url} alt=""
+                          <img src={imgThumb(selItem.url, 800)} alt=""
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{
@@ -1235,7 +1236,7 @@ export default function ProductClient() {
                                 background: thumbUrl ? '#EEE' : `linear-gradient(135deg,${selItem.color},#fff)`,
                               }}>
                               {thumbUrl
-                                ? <img src={thumbUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ? <img src={imgThumb(thumbUrl, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{emoji}</div>
                               }
                             </div>
@@ -1364,7 +1365,7 @@ export default function ProductClient() {
                             </div>
                           </>
                         ) : item.url ? (
-                          <img src={item.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={imgThumb(item.url, 250)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'clamp(14px,3vw,24px)' }}>{emoji}</div>
                         )}
@@ -1405,7 +1406,7 @@ export default function ProductClient() {
                 onTouchStart={onImgTouchStart} onTouchEnd={onImgTouchEnd}
                 style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 65%)` }}>
                 {productImages[selThumb]
-                  ? <img src={productImages[selThumb]!} alt={product.name}
+                  ? <img src={imgThumb(productImages[selThumb]!, 800)} alt={product.name}
                       style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:16 }} />
                   : <span>{emoji}</span>
                 }
@@ -1451,7 +1452,7 @@ export default function ProductClient() {
                         opacity: 1,
                       }}>
                       {imgUrl
-                        ? <img src={imgUrl} alt=""
+                        ? <img src={imgThumb(imgUrl, 300)} alt=""
                             style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:4 }} />
                         : null}
                     </div>
@@ -1466,7 +1467,7 @@ export default function ProductClient() {
                   <Link href={`/farm/${farm.slug}`} className="brand-card">
                     <div className="brand-card-logo">
                       {farm.thumbnail_url
-                        ? <img src={farm.thumbnail_url} alt={farm.name} />
+                        ? <img src={imgThumb(farm.thumbnail_url, 250)} alt={farm.name} />
                         : emoji}
                     </div>
                     <div className="brand-card-body">
@@ -2264,7 +2265,7 @@ export default function ProductClient() {
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
                           border:'1px solid rgba(0,0,0,0.06)', overflow:'hidden' }}>
                         {item.url
-                          ? <img src={item.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          ? <img src={imgThumb(item.url, 250)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                           : emoji}
                         {isLastMore && (
                           <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)',
@@ -2733,7 +2734,7 @@ export default function ProductClient() {
               borderBottom:'1px solid #F0F0F0', marginBottom:20 }}>
               <div style={{ width:56, height:56, borderRadius:8, overflow:'hidden', flexShrink:0,
                 background:'#F4F4F2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>
-                {product.thumbnail_url ? <img src={product.thumbnail_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : emoji}
+                {product.thumbnail_url ? <img src={imgThumb(product.thumbnail_url, 200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : emoji}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13.5, fontWeight:600, color:'#222', lineHeight:1.4,

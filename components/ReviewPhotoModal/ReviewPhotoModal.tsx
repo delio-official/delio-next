@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { imgThumb } from '@/lib/img';
 import { StarRating, SingleStar } from '@/components/StarRating';
 
 /* 정규화된 리뷰/상품 데이터 — 세 곳(메인·리뷰페이지·상품상세)에서 이 형태로 맞춰 넘긴다 */
@@ -105,7 +106,7 @@ export default function ReviewPhotoModal({
       {cur
         ? (cur.video
             ? <video src={cur.url} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
-            : <img src={cur.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)
+            : <img src={imgThumb(cur.url, 800)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
       {/* 미디어 넘기기 — PC는 hover 시 사진 내부 화살표, 모바일은 스와이프 */}
       {multi && !isMobile && activeImg > 0 && (
@@ -130,7 +131,7 @@ export default function ReviewPhotoModal({
         <button key={i} onClick={() => setActiveImg(i)} style={{ width: 56, height: 56, borderRadius: 7, overflow: 'hidden', border: `2px solid ${i === activeImg ? '#1A1A1A' : 'transparent'}`, padding: 0, cursor: 'pointer', flexShrink: 0, background: m.video ? '#222' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {m.video
             ? <span style={{ color: '#fff', fontSize: 18 }}>▶</span>
-            : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            : <img src={imgThumb(m.url, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
         </button>
       ))}
     </div>
@@ -139,7 +140,7 @@ export default function ReviewPhotoModal({
     <Link href={`/product/${product.id}`} onClick={onClose} style={{ textDecoration: 'none', color: 'inherit', display: 'block', margin: '12px 16px 4px' }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: '12px 14px', border: '1px solid #EEE', display: 'flex', gap: 12, alignItems: 'center' }}>
         <div style={{ width: 54, height: 54, borderRadius: 9, flexShrink: 0, background: bg, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-          {product.thumbnail ? <img src={product.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji}
+          {product.thumbnail ? <img src={imgThumb(product.thumbnail, 150)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : emoji}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 700, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4 }}>{product.name}</div>

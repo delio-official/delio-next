@@ -1,5 +1,6 @@
 'use client';
 
+import { imgThumb } from '@/lib/img';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -86,7 +87,7 @@ function SearchProductCard({ p }: { p: Product }) {
     <Link href={`/product/${p.id}`} className="product-card">
       <div className="product-card-img">
         {p.thumbnail_url
-          ? <img src={p.thumbnail_url} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
