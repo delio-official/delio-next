@@ -259,7 +259,7 @@ body { background: #fff; }
       font-family: inherit; outline: none; padding: 4px 2px;
     }
     .mp-addr-card {
-      border: 1px solid #E5E5E5; border-radius: 12px; padding: 18px; margin-bottom: 12px;
+      border: 1px solid #E5E5E5; border-radius: 4px; padding: 18px; margin-bottom: 12px;
     }
     .mp-addr-card.selected { border: 1.5px solid #1A1A1A; padding: 17.5px; }
     .mp-addr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -271,12 +271,13 @@ body { background: #fff; }
     .mp-addr-recipient { font-size: 14px; color: #1A1A1A; margin-bottom: 5px; }
     .mp-addr-addr { font-size: 13px; color: #777; line-height: 1.5; }
     .mp-addr-addr .zip { color: #AAA; }
-    .mp-addr-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .mp-addr-actions { display: flex; align-items: center; gap: 0; margin-top: 14px; }
     .mp-addr-btn {
-      padding: 8px 18px; border: 1px solid #DCDCDC; border-radius: 7px;
-      background: #fff; font-size: 13px; font-weight: 600; color: #444; cursor: pointer; font-family: inherit;
+      padding: 1px 12px; border: none; background: none; line-height: 1.2;
+      font-size: 13px; font-weight: 500; color: #999; cursor: pointer; font-family: inherit;
     }
-    .mp-addr-btn:active { background: #F5F5F5; }
+    .mp-addr-btn:first-child { padding-left: 0; border-right: 1px solid #DDD; }
+    .mp-addr-btn:active { color: #555; }
     .mp-addr-add-wrap { display: flex; justify-content: center; margin-top: 28px; }
     .mp-addr-add {
       padding: 15px 48px; border: none; border-radius: 999px;
