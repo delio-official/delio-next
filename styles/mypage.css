@@ -891,6 +891,7 @@ body { background: #fff; }
   font-size: 13.5px; color: #888; white-space: nowrap;
 }
 .mp-reauth-go svg { width: 16px; height: 16px; }
+.mp-reauth-note { margin: 14px 2px 0; font-size: 12.5px; color: #999; line-height: 1.55; }
 
 /* 모달 공통 */
 .modal-header-row {

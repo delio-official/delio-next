@@ -3042,6 +3042,7 @@ export default function MypageClient() {
                         <span className="mp-reauth-label">휴대폰 본인인증</span>
                         <span className="mp-reauth-go">{reauthLoading ? '진행 중…' : '인증하기'} <IconArrowRight /></span>
                       </button>
+                      <p className="mp-reauth-note">중복 계정 차단을 위해 현재는 휴대폰 본인인증만 지원하고 있습니다.</p>
                     </div>
                   ) : (() => {
                     const email = profile?.email || user.email || '';
