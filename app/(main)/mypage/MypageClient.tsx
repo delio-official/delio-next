@@ -3148,7 +3148,7 @@ export default function MypageClient() {
                   <div>
                     {/* 배송명 */}
                     <div style={{ marginBottom:16 }}>
-                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
+                      <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송지명 <span style={{ color:'#CB1D11' }}>*</span></label>
                       <input maxLength={6} placeholder="최대 6자" value={addrForm.label}
                         onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
                         style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
