@@ -440,6 +440,11 @@ export default function MypageClient() {
     window.scrollTo(0, 0);
   }, [activePanel, showMobileMenu]);
 
+  /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작 */
+  useEffect(() => {
+    if (activePanel === 'info') setInfoStep('verify');
+  }, [activePanel]);
+
   /* toast helper */
   function showToastMsg(msg: string) {
     setToast(msg);
@@ -1074,18 +1079,19 @@ export default function MypageClient() {
   }
 
   /* 휴대폰 본인인증 (등록/변경) — 버튼 클릭에서 바로 다날 인증창 호출 (팝업차단 회피) */
-  async function startPhoneVerify() {
-    if (!user) { showToastMsg('로그인이 필요합니다.'); return; }
+  /* PortOne(다날) 본인인증 공통 실행 — 성공 시 { ok: true } */
+  async function runIdentityVerification(): Promise<boolean> {
+    if (!user) { showToastMsg('로그인이 필요합니다.'); return false; }
     const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
     const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
-    if (!storeId || !channelKey) { showToastMsg('본인인증 설정이 없습니다. 관리자에게 문의해주세요.'); return; }
+    if (!storeId || !channelKey) { showToastMsg('본인인증 설정이 없습니다. 관리자에게 문의해주세요.'); return false; }
     try {
       const PortOne = await import('@portone/browser-sdk/v2');
       const id = `verify-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const response = await PortOne.requestIdentityVerification({ storeId, channelKey, identityVerificationId: id });
       if (!response || (response as { code?: string }).code !== undefined) {
         showToastMsg((response as { message?: string })?.message || '본인인증이 취소되었습니다.');
-        return;
+        return false;
       }
       const r = await fetch('/api/verify/confirm', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1096,14 +1102,28 @@ export default function MypageClient() {
         alert(j.error || '이미 가입된 본인인증 정보입니다.');
         await createClient().auth.signOut();
         router.replace('/login');
-        return;
+        return false;
       }
-      if (!j.ok) { showToastMsg(j.error || '본인인증에 실패했습니다.'); return; }
-      // 갱신된 번호 반영
-      const { data: prof } = await createClient().from('profiles').select('phone, birth, gender').eq('id', user.id).maybeSingle();
-      if (prof) { setProfile(prev => prev ? { ...prev, ...(prof as Partial<Profile>) } : prev); setEditPhone((prof as { phone?: string | null }).phone || ''); }
-      showToastMsg('본인인증이 완료되었습니다.');
-    } catch { showToastMsg('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'); }
+      if (!j.ok) { showToastMsg(j.error || '본인인증에 실패했습니다.'); return false; }
+      return true;
+    } catch { showToastMsg('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'); return false; }
+  }
+  /* 휴대폰번호 변경/등록용 본인인증 — 성공 시 갱신된 번호 반영 */
+  async function startPhoneVerify() {
+    const ok = await runIdentityVerification();
+    if (!ok) return;
+    const { data: prof } = await createClient().from('profiles').select('phone, birth, gender').eq('id', user!.id).maybeSingle();
+    if (prof) { setProfile(prev => prev ? { ...prev, ...(prof as Partial<Profile>) } : prev); setEditPhone((prof as { phone?: string | null }).phone || ''); }
+    showToastMsg('본인인증이 완료되었습니다.');
+  }
+  /* 회원정보 수정 진입 게이트 — 본인인증 성공 시 수정 폼(edit)으로 */
+  const [reauthLoading, setReauthLoading] = useState(false);
+  async function reauthForEdit() {
+    if (reauthLoading) return;
+    setReauthLoading(true);
+    const ok = await runIdentityVerification();
+    setReauthLoading(false);
+    if (ok) { setInfoStep('edit'); showToastMsg('본인인증이 완료되었습니다 ✓'); }
   }
   /* 회원 탈퇴 → 사유 선택 → 혜택소멸 안내·동의 → 소프트 탈퇴 처리 */
   const [withdrawing, setWithdrawing] = useState(false);
@@ -3013,7 +3033,17 @@ export default function MypageClient() {
                   <span className="mp-section-title">회원정보 수정</span>
                 </div>
                 <div style={{ paddingTop:16 }} data-info-body>
-                  {(() => {
+                  {infoStep !== 'edit' ? (
+                    <div className="mp-reauth">
+                      <p className="mp-reauth-greet"><b>{profile?.name || (user.email || '').split('@')[0]}</b> 고객님</p>
+                      <p className="mp-reauth-desc">개인 정보 보호를 위한 확인 절차이오니<br />회원 인증을 한번 더 진행해주시기 바랍니다.</p>
+                      <button className="mp-reauth-card" onClick={reauthForEdit} disabled={reauthLoading}>
+                        <span className="mp-reauth-ic" aria-hidden>📱</span>
+                        <span className="mp-reauth-label">휴대폰 본인인증</span>
+                        <span className="mp-reauth-go">{reauthLoading ? '진행 중…' : '인증하기'} <IconArrowRight /></span>
+                      </button>
+                    </div>
+                  ) : (() => {
                     const email = profile?.email || user.email || '';
                     const [emLocal, emDomain] = email.includes('@') ? email.split('@') : [email, ''];
                     return (
