@@ -349,11 +349,11 @@ body { background: #fff; }
         padding: 0; font-size: 14px; font-weight: 700; color: #1A1A1A;
       }
       .mp-info-value { padding: 0; display: block; }
-      .mp-info-input { width: 100%; height: 48px; padding: 0 14px; font-size: 14px; border-radius: 8px; }
+      .mp-info-input { width: 100%; height: 48px; padding: 0 14px; font-size: 14px; border-radius: 4px; }
       /* 회원아이디(b 텍스트) → 비활성 박스 모양 */
       .mp-info-value > b {
         display: block; width: 100%; height: 48px; line-height: 48px;
-        background: #F5F6F8; border: 1px solid #E5E5E5; border-radius: 8px;
+        background: #F5F6F8; border: 1px solid #E5E5E5; border-radius: 4px;
         padding: 0 14px; font-size: 14px; font-weight: 500; color: #999;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
@@ -364,10 +364,10 @@ body { background: #fff; }
       .mp-info-phone { display: flex; width: 100%; gap: 8px; align-items: stretch; }
       .mp-info-phone > span {
         flex: 1; min-width: 0; display: flex; align-items: center;
-        height: 48px; background: #F5F6F8; border: 1px solid #E5E5E5; border-radius: 8px;
+        height: 48px; background: #F5F6F8; border: 1px solid #E5E5E5; border-radius: 4px;
         padding: 0 14px; font-size: 14px; color: #999;
       }
-      .mp-info-btn { height: 48px; padding: 0 16px; border-radius: 8px; font-size: 13px; }
+      .mp-info-btn { height: 48px; padding: 0 16px; border-radius: 4px; font-size: 13px; }
       /* 변경하기 = 하단 고정 풀폭(탭바 덮음), 탈퇴는 그 위 가운데 텍스트 */
       .mp-info-actions { display: block; margin-top: 18px; text-align: center; }
       .mp-info-withdraw { margin: 0 auto; }
