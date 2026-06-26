@@ -435,20 +435,6 @@ export default function FarmClient() {
           </section>
         )}
 
-        {/* ── 입점 문의 ── */}
-        <section style={{
-          background:'#F7F7F5', borderRadius:16, padding:'28px 24px', textAlign:'center',
-        }}>
-          <p style={{ fontSize:14, color:'#666', marginBottom:20 }}>
-            파트너 농가 협업 및 입점 문의는 아래 버튼을 통해 접수해주세요.
-          </p>
-          <Link href="/inquiry"
-            style={{ display:'inline-block', padding:'12px 28px',
-              background:'#1A1A1A', color:'#fff', borderRadius:8,
-              fontWeight:700, textDecoration:'none', fontSize:14 }}>
-            협업 문의하기
-          </Link>
-        </section>
       </div>
     </div>
   );
