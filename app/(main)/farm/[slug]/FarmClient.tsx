@@ -1,7 +1,7 @@
 'use client';
 
 import { imgThumb } from '@/lib/img';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -159,6 +159,7 @@ export default function FarmClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [prodPage, setProdPage] = useState(0);
+  const prodScrollRef = useRef<HTMLDivElement>(null);
   const [farmSort, setFarmSort] = useState('');
   const [sortOpen, setSortOpen] = useState(false);
   const farmSortLabel = FARM_SORT_OPTS.find(o => o.value === farmSort)?.label || '정렬';
@@ -426,12 +427,21 @@ export default function FarmClient() {
                 </ul>
               </div>
             </div>
-            <div className="product-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-              {sortedProducts.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
-                <FarmProductCard key={p.id} p={p} />
-              ))}
+            <div className="farm-prod-wrap">
+              <button className="farm-prod-arrow prev" aria-label="이전"
+                onClick={() => prodScrollRef.current?.scrollBy({ left: -prodScrollRef.current.clientWidth * 0.8, behavior: 'smooth' })}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <div className="farm-prod-carousel" ref={prodScrollRef}>
+                {sortedProducts.map(p => (
+                  <FarmProductCard key={p.id} p={p} />
+                ))}
+              </div>
+              <button className="farm-prod-arrow next" aria-label="다음"
+                onClick={() => prodScrollRef.current?.scrollBy({ left: prodScrollRef.current.clientWidth * 0.8, behavior: 'smooth' })}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </div>
-            <Pagination total={sortedProducts.length} perPage={PROD_PER_PAGE} page={prodPage} onChange={setProdPage} />
           </section>
         )}
 

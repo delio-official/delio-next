@@ -54,6 +54,27 @@ body { background: #fff; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
 
+/* 농가 상세 상품 — 모바일: 2열 그리드 / PC: 가로 캐러셀 + 좌우 화살표 */
+.farm-prod-wrap { position: relative; }
+.farm-prod-carousel { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.farm-prod-arrow { display: none; }
+@media (min-width: 769px) {
+  .farm-prod-carousel {
+    display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory;
+    scrollbar-width: none; padding-bottom: 4px;
+  }
+  .farm-prod-carousel::-webkit-scrollbar { display: none; }
+  .farm-prod-carousel > * { flex: 0 0 calc((100% - 48px) / 4); scroll-snap-align: start; }
+  .farm-prod-arrow {
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 38%; transform: translateY(-50%); z-index: 5;
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid #EAEAEA;
+    background: #fff; color: #333; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  }
+  .farm-prod-arrow.prev { left: -14px; }
+  .farm-prod-arrow.next { right: -14px; }
+}
+
 /* 농가 상세 히어로 — 모바일: 풀폭 / PC: container 폭 박스 */
 .farm-hero { width: 100%; background: #F2F0EC; }
 .farm-hero img { width: 100%; max-height: 560px; object-fit: cover; display: block; }
