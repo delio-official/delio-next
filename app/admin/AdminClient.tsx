@@ -1505,6 +1505,9 @@ export default function AdminClient() {
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [memberTab, setMemberTab] = useState<'list'|'withdrawn'>('list');
+  const [withdrawnList, setWithdrawnList] = useState<{ id:string; email:string|null; phone:string|null; reason:string|null; withdrawn_at:string }[]>([]);
+  const [withdrawnLoading, setWithdrawnLoading] = useState(false);
   const [memberSearch, setMemberSearch] = useState('');
   const [memberGradeFilter, setMemberGradeFilter] = useState('');
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
@@ -2543,6 +2546,17 @@ export default function AdminClient() {
       .limit(300);
     setMembers((data as AdminProfile[]) || []);
     setMembersLoading(false);
+  }
+  async function loadWithdrawn() {
+    setWithdrawnLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('withdrawn_users')
+      .select('id, email, phone, reason, withdrawn_at')
+      .order('withdrawn_at', { ascending: false })
+      .limit(500);
+    setWithdrawnList((data as typeof withdrawnList) || []);
+    setWithdrawnLoading(false);
   }
 
   async function openMemberDetail(m: AdminProfile) {
@@ -7792,6 +7806,17 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 회원 관리 ===== */}
           {panel === 'members' && (
             <div className="adm-content">
+              {/* 서브탭: 회원 목록 / 탈퇴 사유 */}
+              <div style={{ display:'flex', gap:4, marginBottom:18, borderBottom:'1px solid #E2E8F0' }}>
+                {([['list','회원 목록'],['withdrawn','탈퇴 사유']] as const).map(([k, label]) => (
+                  <button key={k} onClick={() => { setMemberTab(k); if (k === 'withdrawn') loadWithdrawn(); }}
+                    style={{ padding:'10px 18px', background:'none', border:'none',
+                      borderBottom:`2px solid ${memberTab===k?'#1A1A1A':'transparent'}`,
+                      fontWeight:memberTab===k?700:500, color:memberTab===k?'#1A1A1A':'#94A3B8',
+                      cursor:'pointer', fontFamily:'inherit', fontSize:14, marginBottom:-1 }}>{label}</button>
+                ))}
+              </div>
+              {memberTab === 'list' ? (<>
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
                   ['전체 회원수',  stats ? `${stats.totalMembers.toLocaleString()}명` : '...'],
@@ -7868,6 +7893,53 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 )}
               </div>
               <Pager page={memCur} pageSize={memSize} total={filteredMembers.length} onPage={setMemPage} onPageSize={setMemSize} />
+              </>) : (<>
+              {/* 탈퇴 사유 집계 */}
+              {(() => {
+                const counts: Record<string, number> = {};
+                withdrawnList.forEach(w => { const k = (w.reason || '기타').split(/[—:]/)[0].trim() || '기타'; counts[k] = (counts[k] || 0) + 1; });
+                const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+                return top.length === 0 ? null : (
+                  <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                    {top.map(([k, v]) => (
+                      <div key={k} className="adm-kpi-card">
+                        <div className="adm-kpi-label">{k}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt">{v}건</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="adm-toolbar">
+                <div className="adm-toolbar-left">
+                  <span style={{ fontSize:13, color:'#64748B' }}>총 <strong>{withdrawnList.length}</strong>건의 탈퇴 이력</span>
+                </div>
+                <div className="adm-toolbar-right">
+                  <button className="adm-btn adm-btn-outline" onClick={loadWithdrawn}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                </div>
+              </div>
+              <div className="adm-card">
+                {withdrawnLoading ? <PanelLoading /> : (
+                  <div className="adm-table-wrap">
+                    <table className="adm-table">
+                      <thead><tr><th>탈퇴일</th><th>이메일</th><th>연락처</th><th>탈퇴 사유</th></tr></thead>
+                      <tbody>
+                        {withdrawnList.length === 0 ? (
+                          <tr><td colSpan={4} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>탈퇴 이력이 없습니다.</td></tr>
+                        ) : withdrawnList.map(w => (
+                          <tr key={w.id}>
+                            <td className="adm-muted">{fmtDateShort(w.withdrawn_at)}</td>
+                            <td className="adm-muted" style={{ fontSize:12 }}>{w.email || '-'}</td>
+                            <td className="adm-muted" style={{ fontSize:12 }}>{w.phone || '-'}</td>
+                            <td style={{ fontSize:13 }}>{w.reason || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              </>)}
             </div>
           )}
 
