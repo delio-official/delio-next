@@ -272,9 +272,7 @@ body { background: #fff; }
 .product-card-name {
   font-size: 15px; font-weight: 600; color: var(--color-ink);
   line-height: 1.4; margin-bottom: 2px;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
-  overflow-wrap: anywhere; word-break: break-word;   /* 긴 단어 줄바꿈 */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;   /* 한 줄 표기, 넘치면 … */
 }
 .product-card-desc {
   font-size: 13px; color: var(--color-ink-mute); margin-bottom: 6px;
