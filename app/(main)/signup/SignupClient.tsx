@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signUp, signIn } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 import '@/styles/signup.css';
@@ -44,6 +44,8 @@ function CircleCheck({ on, onClick, sm }: { on: boolean; onClick: (e?: React.Mou
 
 export default function SignupClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get('next') || '/';
 
   /* ── 기본 필드 ── */
   const [name, setName] = useState('');
@@ -466,8 +468,8 @@ export default function SignupClient() {
           <button className="done-btn done-btn-dark" onClick={() => router.push('/survey')}>
             내 과일 취향 확인하기
           </button>
-          <button className="done-btn done-btn-light" onClick={() => router.push('/')}>
-            쇼핑하러 가기
+          <button className="done-btn done-btn-light" onClick={() => router.push(nextUrl)}>
+            {nextUrl !== '/' ? '이어서 쇼핑하기' : '쇼핑하러 가기'}
           </button>
         </div>
       </div>

@@ -104,7 +104,7 @@ export default function LoginClient() {
           {loading ? '로그인 중...' : '로그인'}
         </button>
 
-        <Link href="/signup" className="login-btn login-btn-outline">
+        <Link href={`/signup${nextUrl && nextUrl !== '/' ? `?next=${encodeURIComponent(nextUrl)}` : ''}`} className="login-btn login-btn-outline">
           회원가입
         </Link>
 
