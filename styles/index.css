@@ -1284,8 +1284,8 @@
     }
 
     /* ===== 통합 배너 (멀티카드 무한루프) ===== */
-    .main-banner { position: relative; padding: 20px 0 0; transition: background-color .35s ease; }
-    @media(max-width:640px) { .main-banner { padding: 14px 0 22px; border-radius: 0; } }
+    .main-banner { position: relative; padding: 0; transition: background-color .35s ease; }
+    @media(max-width:640px) { .main-banner { padding: 0 0 22px; border-radius: 0; } }
 
     .main-banner-inner { position: relative; z-index: 2; }
 
