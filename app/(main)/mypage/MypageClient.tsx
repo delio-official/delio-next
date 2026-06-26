@@ -1648,10 +1648,8 @@ export default function MypageClient() {
       {withdrawStep > 0 && (() => {
         const REASONS = ['앱 사용이 불편해요','상품 탐색이 어려워요','상품 배송이 느려요','구매할 만한 상품이 없어요','광고성 알림이 너무 많이 와요','상품의 질이 좋지 않아요','쓰지 않는 앱이에요','재가입할 거예요','기타'];
         return (
-          <div onClick={() => setWithdrawStep(0)}
-            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-            <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:440, maxHeight:'88vh', overflowY:'auto', padding:'24px 22px 22px' }}>
+          <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, display:'flex', flexDirection:'column' }}>
+            <div style={{ background:'#fff', width:'100%', flex:1, minHeight:0, overflowY:'auto', padding:'24px 22px 28px', maxWidth:560, margin:'0 auto' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
                 <h3 style={{ fontSize:17, fontWeight:800, lineHeight:1.4 }}>
                   {withdrawStep === 1 ? '탈퇴하는 이유를 알려주세요' : `${profile?.name || '회원'}님의 혜택이 모두 사라져요!`}
