@@ -426,7 +426,7 @@ export default function FarmClient() {
                 </ul>
               </div>
             </div>
-            <div className="product-grid">
+            <div className="product-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
               {sortedProducts.slice(prodPage * PROD_PER_PAGE, (prodPage + 1) * PROD_PER_PAGE).map(p => (
                 <FarmProductCard key={p.id} p={p} />
               ))}
