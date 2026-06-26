@@ -37,11 +37,11 @@ body { background: #fff; }
       margin-bottom: 20px;
     }
     .login-find-row a {
-      font-size: 13px; color: var(--color-ink-mute);
+      font-size: 14px; color: var(--color-ink-mute);
       text-decoration: none;
     }
     .login-find-row a:hover { color: var(--color-ink-mute); }
-    .login-find-sep { font-size: 12px; color: #DCDCDC; margin: 0 6px; }
+    .login-find-sep { font-size: 13px; color: #DCDCDC; margin: 0 6px; }
 
     /* 버튼 공통 */
     .login-btn {

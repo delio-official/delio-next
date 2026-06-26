@@ -71,7 +71,7 @@ export default function LoginClient() {
         />
 
         {/* 아이디 저장 / 로그인 유지 */}
-        <div style={{ display:'flex', gap:18, margin:'2px 2px 10px', fontSize:13, color:'#555' }}>
+        <div style={{ display:'flex', gap:18, margin:'2px 2px 10px', fontSize:14, color:'#555' }}>
           <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
             <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
               style={{ width:15, height:15, accentColor:'#1A1A1A', cursor:'pointer' }} />
