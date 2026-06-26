@@ -97,7 +97,7 @@ body { background: #fff; }
     .su-at { font-size: 15px; color: var(--color-ink-soft); flex-shrink: 0; }
     .su-domain-select {
       flex: 1; min-width: 0;
-      padding: 10px 8px;
+      height: 50px; padding: 0 14px;
       border: 1px solid #DCDCDC;
       border-radius: 4px;
       font-size: 14px;
