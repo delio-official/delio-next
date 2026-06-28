@@ -1267,7 +1267,7 @@ function OptionTreeEditor({ options, setOptions }: {
       {modeBar}
       <span style={{ fontSize:11, color:'#94A3B8' }}>옵션 하나만 고르는 상품입니다 (예: <b>중량</b> 1kg/2kg/3kg). 품종별로 가격이 다르면 <b>2단계</b>를 쓰세요.</span>
       {(() => {
-        const g = groups[0] || '옵션';
+        const g = groups[0] ?? '';
         const gReq = options.find(o => o.group === g)?.required !== false;
         const gOpts = idx.filter(o => o.group === g);
         return (
