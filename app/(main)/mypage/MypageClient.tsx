@@ -198,7 +198,7 @@ export default function MypageClient() {
   const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
   const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null; thumbnail_url: string|null; hero_image_url: string|null; logo_url: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
-  const [reviewRewardPhoto, setReviewRewardPhoto] = useState(500); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
+  const [reviewRewardPhoto, setReviewRewardPhoto] = useState(150); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
   const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
   // 상품 문의 작성 모달(배송조회에서 바로 띄움) — 주문 내 상품 목록 + 선택된 상품
   const [askModal, setAskModal] = useState<{ items: { productId: string; productName: string; thumb: string | null }[]; selectedId: string } | null>(null);
@@ -546,7 +546,7 @@ export default function MypageClient() {
           .limit(30),
         supabase.from('site_settings').select('key,value').in('key', ['review_point_photo']),
       ]);
-      { const rp = ((rpSettings as { key: string; value: string }[]) || []).find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 500); }
+      { const rp = ((rpSettings as { key: string; value: string }[]) || []).find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150); }
       setProfile(prof as Profile);
       if ((prof as Profile & { referral_code?: string })?.referral_code) {
         setReferralCode((prof as Profile & { referral_code?: string }).referral_code!);

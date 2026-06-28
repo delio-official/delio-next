@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const map: Record<string, string> = {};
   ((settings as { key: string; value: string }[]) || []).forEach(s => { map[s.key] = s.value; });
   const hasMedia = (review.image_urls && review.image_urls.length > 0) || !!review.video_url;
-  const amount = Math.max(0, parseInt((hasMedia ? map.review_point_photo : map.review_point_text) || (hasMedia ? '500' : '100')) || 0);
+  const amount = Math.max(0, parseInt((hasMedia ? map.review_point_photo : map.review_point_text) || (hasMedia ? '150' : '50')) || 0);
 
   /* 멱등 마킹 먼저 (동시요청 방지) */
   const { data: marked } = await admin

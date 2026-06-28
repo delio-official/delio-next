@@ -681,8 +681,8 @@ export default function ProductClient() {
         const m: Record<string, string> = {};
         ((data as { key: string; value: string }[]) || []).forEach(s => { m[s.key] = s.value; });
         setReviewPt({
-          text: parseInt(m.review_point_text || '100') || 0,
-          photo: parseInt(m.review_point_photo || '500') || 0,
+          text: parseInt(m.review_point_text || '50') || 0,
+          photo: parseInt(m.review_point_photo || '150') || 0,
         });
       });
   }, []);

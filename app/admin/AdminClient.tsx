@@ -9474,14 +9474,14 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <div className="adm-form-row">
                     <label className="adm-label">리뷰 작성 적립 포인트</label>
                     <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_text ?? '100'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_text: e.target.value }))} />
+                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_text ?? '50'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_text: e.target.value }))} />
                       <span className="adm-muted">P (일반 리뷰)</span>
                     </div>
                   </div>
                   <div className="adm-form-row">
                     <label className="adm-label">사진·영상 리뷰 적립 포인트</label>
                     <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_photo ?? '500'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_photo: e.target.value }))} />
+                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_photo ?? '150'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_photo: e.target.value }))} />
                       <span className="adm-muted">P (사진·영상 첨부 시)</span>
                     </div>
                   </div>
