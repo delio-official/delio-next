@@ -30,6 +30,7 @@ interface OrderItem {
   thumbnail_url: string | null;
   option_label?: string | null;
   farm_name?: string | null;
+  courier?: string | null; tracking_number?: string | null; ship_status?: string | null;
   products?: { origin: string | null; category: string | null } | null;
 }
 const ORIGIN_LABEL: Record<string, string> = { domestic: '국산과일', import: '수입과일' };
@@ -133,6 +134,26 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_GROUP_LABEL: Record<string, string> = {
   pending:'입금전', preparing:'배송준비중', shipped:'배송중', delivered:'배송완료',
 };
+/* 상품(농가)별 배송상태 라벨 */
+const SHIP_LABEL: Record<string, string> = { preparing:'상품 준비중', shipped:'배송중', delivered:'배송완료' };
+/* 주문의 농가(상품)별 송장 단위 — tracking_number 기준 distinct */
+interface ShipUnit { carrierId: string; trackingNumber: string; label: string; ship_status: string | null; }
+function shipUnits(o: Order): ShipUnit[] {
+  const items = (o.order_items || []).filter(it => it.tracking_number);
+  const map = new Map<string, { carrierId: string; names: string[]; farm: string | null; ship_status: string | null }>();
+  for (const it of items) {
+    const tno = it.tracking_number!;
+    const e = map.get(tno) || { carrierId: it.courier || o.courier || 'kr.cjlogistics', names: [], farm: it.farm_name ?? null, ship_status: it.ship_status ?? null };
+    e.names.push(it.product_name);
+    map.set(tno, e);
+  }
+  return [...map.entries()].map(([tno, e]) => ({
+    carrierId: e.carrierId,
+    trackingNumber: tno,
+    ship_status: e.ship_status,
+    label: (e.farm ? `[${e.farm}] ` : '') + e.names[0] + (e.names.length > 1 ? ` 외 ${e.names.length - 1}건` : ''),
+  }));
+}
 const EMOJI_MAP: Record<string, string> = {
   apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
   kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
@@ -194,6 +215,7 @@ export default function MypageClient() {
   const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
   const [expandedOrder,  setExpandedOrder]  = useState<string | null>(null);
   const [trackingTarget, setTrackingTarget] = useState<{ carrierId: string; trackingNumber: string } | null>(null);
+  const [trackPick, setTrackPick] = useState<{ orderNo: string; units: ShipUnit[] } | null>(null);
   const [wishlist,       setWishlist]       = useState<WishItem[]>([]);
   const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
   const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null; thumbnail_url: string|null; hero_image_url: string|null; logo_url: string|null } | null }[]>([]);
@@ -535,7 +557,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,farm_name,products(origin,category))')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,farm_name,courier,tracking_number,ship_status,products(origin,category))')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1475,6 +1497,30 @@ export default function MypageClient() {
         />
       )}
 
+      {/* 농가별 배송조회 선택 시트 (한 주문에 송장 여러 개) */}
+      {trackPick && (
+        <div onClick={() => setTrackPick(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:3200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width:'100%', maxWidth:480, background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px calc(24px + env(safe-area-inset-bottom))' }}>
+            <div style={{ width:36, height:4, background:'#E5E5E2', borderRadius:2, margin:'0 auto 16px' }} />
+            <div style={{ fontSize:16, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>배송조회</div>
+            <div style={{ fontSize:12.5, color:'#999', marginBottom:14 }}>농가별로 배송이 나뉘어 있어요. 조회할 상품을 선택하세요.</div>
+            {trackPick.units.map((u, i) => (
+              <button key={i}
+                onClick={() => { setTrackingTarget({ carrierId: u.carrierId, trackingNumber: u.trackingNumber }); setTrackPick(null); }}
+                style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'14px 4px', background:'none', border:'none', borderBottom:'1px solid #F0F0F0', cursor:'pointer', textAlign:'left', fontFamily:'inherit' }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{u.label}</div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{u.ship_status ? (SHIP_LABEL[u.ship_status] || '') + ' · ' : ''}{u.trackingNumber}</div>
+                </div>
+                <span style={{ fontSize:18, color:'#CCC', flexShrink:0 }}>›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 주문 상세보기 모달 */}
       {detailOrder && (() => {
         const o = detailOrder;
@@ -1540,6 +1586,22 @@ export default function MypageClient() {
                         <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
                         {item.option_label && <div style={{ fontSize:12.5, color:'#999', marginTop:3 }}>{item.option_label}</div>}
                         <div style={{ fontSize:13, color:'#555', marginTop:5 }}>{fmtPrice(item.unit_price)}원 · {item.quantity}개</div>
+                        {(item.ship_status || item.tracking_number) && (
+                          <div style={{ marginTop:7, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                            {item.ship_status && (
+                              <span style={{ fontSize:11.5, fontWeight:700, color: item.ship_status === 'delivered' ? '#1A1A1A' : 'var(--color-accent)' }}>
+                                {SHIP_LABEL[item.ship_status] || ''}
+                              </span>
+                            )}
+                            {item.tracking_number && (
+                              <button
+                                onClick={() => setTrackingTarget({ carrierId: item.courier || o.courier || 'kr.cjlogistics', trackingNumber: item.tracking_number! })}
+                                style={{ fontSize:11.5, color:'#666', background:'none', border:'1px solid #DDD', borderRadius:6, padding:'3px 8px', cursor:'pointer', fontFamily:'inherit' }}>
+                                배송조회
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2154,8 +2216,13 @@ export default function MypageClient() {
                             type Btn = { key: string; label: string; onClick?: () => void; muted?: boolean };
                             const btns: Btn[] = [];
                             const askBtn: Btn = { key:'ask', label:'상품문의', onClick: openAsk };
-                            const trackBtn: Btn | null = o.tracking_number
-                              ? { key:'track', label:'배송조회', onClick: () => setTrackingTarget({ carrierId: o.courier || 'kr.cjlogistics', trackingNumber: o.tracking_number! }) }
+                            const units = shipUnits(o);
+                            const trackBtn: Btn | null = (units.length > 0 || o.tracking_number)
+                              ? { key:'track', label:'배송조회', onClick: () => {
+                                  if (units.length > 1) setTrackPick({ orderNo: o.order_no, units });
+                                  else if (units.length === 1) setTrackingTarget({ carrierId: units[0].carrierId, trackingNumber: units[0].trackingNumber });
+                                  else setTrackingTarget({ carrierId: o.courier || 'kr.cjlogistics', trackingNumber: o.tracking_number! });
+                                } }
                               : null;
                             const cartBtn: Btn = { key:'cart', label:'장바구니', onClick: () => startItemAction('cart', o) };
 
