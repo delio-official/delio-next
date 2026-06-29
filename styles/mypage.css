@@ -754,11 +754,14 @@ body { background: #fff; }
         align-items: center;
         justify-content: space-between;
         width: 100%;
-        padding: 15px 20px;
+        min-height: 54px;
+        box-sizing: border-box;
+        padding: 0 20px;
         background: #fff;
         border: none;
         font-size: 15px;
         font-weight: 500;
+        line-height: 1.4;
         color: #1A1A1A;
         cursor: pointer;
         text-align: left;
