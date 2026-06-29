@@ -733,7 +733,7 @@ body { background: #fff; }
         margin-left: calc(-1 * var(--space-4));
         margin-right: calc(-1 * var(--space-4));
       }
-      .mp-layout { display: none; padding-top: 0; }
+      .mp-layout { display: none; padding-top: 10px; }
 
       .mp-menu-section {
         margin-bottom: 0;
