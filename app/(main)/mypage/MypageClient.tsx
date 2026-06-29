@@ -2983,7 +2983,6 @@ export default function MypageClient() {
 
                         {/* 탈퇴 / 저장 */}
                         <div className="mp-info-actions">
-                          <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setOtpToken(''); setOtpInput(''); setOtpVerified(false); setOtpPhoneMasked(''); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                           <button className="mp-info-save" onClick={saveInfo} disabled={infoSaving}>
                             {infoSaving ? '변경 중...' : '변경하기'}
                           </button>
@@ -3004,6 +3003,10 @@ export default function MypageClient() {
                               </span>
                             </div>
                           ))}
+                        </div>
+                        {/* 탈퇴하기 — 마케팅 수신동의 아래 */}
+                        <div className="mp-withdraw-wrap" style={{ textAlign:'center', marginTop:18 }}>
+                          <button className="mp-info-withdraw" onClick={() => { setWithdrawReason(''); setWithdrawDetail(''); setWithdrawAgree(false); setOtpToken(''); setOtpInput(''); setOtpVerified(false); setOtpPhoneMasked(''); setWithdrawStep(1); }} disabled={withdrawing}>{withdrawing ? '처리 중...' : '탈퇴하기'}</button>
                         </div>
                       </>
                     );

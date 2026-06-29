@@ -377,7 +377,7 @@ body { background: #fff; }
         width: 100%; padding: 17px; border-radius: 0; font-size: 16px;
       }
       /* 고정 변경하기 버튼에 마지막 콘텐츠가 가리지 않도록 여백 */
-      .mp-mkt { padding-bottom: 84px; }
+      .mp-withdraw-wrap { padding-bottom: 84px; }
     }
 
     /* 마케팅 수신동의 */
