@@ -35,6 +35,7 @@ interface DashboardStats {
 }
 
 interface OrderItem {
+  id?: string;
   product_name: string;
   quantity: number;
   unit_price: number;
@@ -3735,8 +3736,8 @@ export default function AdminClient() {
 
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
      (배송시작 알림톡·추적 웹훅은 다음 단계에서 송장별로 연결) */
-  async function saveItemTracking(farmId: string, courier: string, tracking: string) {
-    if (!selectedOrder) return;
+  async function saveItemTracking(itemIds: string[], courier: string, tracking: string) {
+    if (!selectedOrder || itemIds.length === 0) return;
     setSavingTracking(true);
     const supabase = createClient();
     const patch = {
@@ -3745,13 +3746,12 @@ export default function AdminClient() {
       ship_status: tracking ? 'shipped' : 'preparing',
       shipped_at: tracking ? new Date().toISOString() : null,
     };
-    let q = supabase.from('order_items').update(patch).eq('order_id', selectedOrder.id);
-    q = farmId === '__none' ? q.is('farm_id', null) : q.eq('farm_id', farmId);
-    const { error } = await q;
+    const { error } = await supabase.from('order_items').update(patch).in('id', itemIds);
     if (error) { setSavingTracking(false); alert('저장 실패: ' + error.message); return; }
-    // 로컬 반영
+    // 로컬 반영 (해당 상품 줄들)
+    const idSet = new Set(itemIds);
     const newItems = (selectedOrder.order_items || []).map(i =>
-      (i.farm_id || '__none') === farmId ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
+      (i.id && idSet.has(i.id)) ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
     );
     setSelectedOrder(s => s ? { ...s, order_items: newItems } : s);
     // 모든 농가 송장 등록 완료 시 주문 상태 배송중 전환
@@ -5620,7 +5620,7 @@ export default function AdminClient() {
                           <input placeholder="운송장번호" value={cur.tracking_number}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
                             style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' }} />
-                          <button onClick={() => saveItemTracking(fid, cur.courier, cur.tracking_number)} disabled={savingTracking}
+                          <button onClick={() => saveItemTracking(fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
                             className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
                             {savingTracking ? '저장 중...' : '저장'}
                           </button>
