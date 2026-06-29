@@ -264,13 +264,12 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 후기 탭 위치로 부드럽게 스크롤 — 콘텐츠 로드 안정 후 1회(+보정) */
-    const jump = () => {
+    /* 후기 탭 위치로 부드럽게 스크롤 — 콘텐츠 로드 안정 후 1회만(여러 번 호출 시 smooth가 끊김) */
+    const t = window.setTimeout(() => {
       const el = document.getElementById('productTabsAnchor');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    const timers = [350, 900].map(d => window.setTimeout(jump, d));
-    return () => timers.forEach(clearTimeout);
+    }, 450);
+    return () => clearTimeout(t);
   }, [product?.id]);
 
   /* 어드민 여부 */
