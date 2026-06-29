@@ -393,8 +393,8 @@ input, select, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   width: 100%;
-  justify-content: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 0;
 }
 .header-nav a {
   font-size: 20px;
