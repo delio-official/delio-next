@@ -250,15 +250,18 @@ export default function ProductClient() {
   /* 같은 페이지에서 상단 별점(후기) 클릭 → 후기 탭 전환 + 탭 위치로 스크롤 */
   function goReviewTab() {
     setActiveTab(2);
-    setTimeout(() => {
+    const jump = () => {
       const el = document.getElementById('productTabsAnchor');
       if (!el) return;
       const html = document.documentElement;
       const prev = html.style.scrollBehavior;
       html.style.scrollBehavior = 'auto';
-      window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 60));
+      const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 60);
+      window.scrollTo(0, y);
+      document.body.scrollTop = y; // 일부 모바일 브라우저 fallback
       html.style.scrollBehavior = prev;
-    }, 60);
+    };
+    [0, 80, 200, 400, 700].forEach(d => setTimeout(jump, d));
   }
 
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
@@ -1535,7 +1538,7 @@ export default function ProductClient() {
                 {product.avg_rating > 0 && (
                   <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
                     <SingleStar size={13} />
-                    <button onClick={goReviewTab}
+                    <button type="button" onClick={goReviewTab}
                       style={{ fontSize:12, color:'var(--color-ink-mute)',
                         background:'none', border:'none', cursor:'pointer', padding:0 }}>
                       {product.avg_rating.toFixed(1)} ({product.review_count.toLocaleString()})
