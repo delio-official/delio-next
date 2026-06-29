@@ -253,15 +253,10 @@ export default function ProductClient() {
     const jump = () => {
       const el = document.getElementById('productTabsAnchor');
       if (!el) return;
-      const html = document.documentElement;
-      const prev = html.style.scrollBehavior;
-      html.style.scrollBehavior = 'auto';
-      const y = Math.max(0, el.getBoundingClientRect().top + window.scrollY - 60);
-      window.scrollTo(0, y);
-      document.body.scrollTop = y; // 일부 모바일 브라우저 fallback
-      html.style.scrollBehavior = prev;
+      // scrollIntoView (anchor의 scroll-margin-top:60 으로 헤더 보정) — 모바일에서 안정적
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
-    [0, 80, 200, 400, 700].forEach(d => setTimeout(jump, d));
+    [60, 220, 450].forEach(d => setTimeout(jump, d));
   }
 
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
