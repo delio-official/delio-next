@@ -1575,7 +1575,7 @@ export default function ProductClient() {
                   <div className="signup-coupon-banner-left">
                     <span className="signup-coupon-icon">🎁</span>
                     <span className="signup-coupon-text">
-                      회원가입하고 <span>{fmtPrice(signupCoupon)}원 쿠폰</span> 받기
+                      회원가입하고 <span>10,000원 쿠폰팩</span> 받기
                     </span>
                   </div>
                   <span className="signup-coupon-arrow">›</span>
