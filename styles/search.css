@@ -71,7 +71,7 @@
 .search-popular-label { font-size: 13px; font-weight: 700; color: var(--color-ink); margin-bottom: 12px; }
 .search-popular-pills { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 /* 인기검색어 순위 목록 너비를 검색창(480px)과 동일하게 */
-.search-popular-section .search-popular-grid { max-width: 480px; margin: 0 auto; text-align: left; }
+.search-popular-section .search-popular-grid { display: inline-grid; grid-template-columns: auto auto; gap: 6px 40px; text-align: left; }
 .search-recent-section { display: none; margin-bottom: 20px; }
 .search-recent-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .search-recent-title { font-size: 14px; font-weight: 700; }
