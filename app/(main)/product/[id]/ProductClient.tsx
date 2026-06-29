@@ -250,9 +250,12 @@ export default function ProductClient() {
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
   const didJumpReviewRef = useRef(false);
   useEffect(() => {
-    if (didJumpReviewRef.current || !product) return;
+    if (!product) return;
     const sp = new URLSearchParams(window.location.search);
     const tabParam = sp.get('tab');
+    // 진단: 상품상세 진입 시 tab 값 표시 (원인 파악 후 제거)
+    { let dd = document.getElementById('__diag'); if (!dd) { dd = document.createElement('div'); dd.id = '__diag'; dd.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#d00;color:#fff;font-size:12px;padding:8px;font-family:monospace;'; document.body.appendChild(dd); } dd.textContent = `진입 tab=${tabParam} search=${window.location.search}`; }
+    if (didJumpReviewRef.current) return;
     if (tabParam !== 'review' && tabParam !== 'qna') return;
     didJumpReviewRef.current = true;
     setActiveTab(tabParam === 'qna' ? 3 : 2);
