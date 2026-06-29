@@ -439,10 +439,10 @@ input, select, textarea { font-family: inherit; }
   .header-nav-row { top: 60px; z-index: 1000; background: #fff; border-bottom: 1px solid #EBEBEB; }
   .header-nav-row .container { overflow-x: auto; scrollbar-width: none; padding: 0 8px; }
   .header-nav-row .container::-webkit-scrollbar { display: none; }
-  .header-nav { justify-content: flex-start; gap: 0; width: 100%; }
+  .header-nav { justify-content: space-between; gap: 0; width: 100%; }
   .header-nav .mega-nav-wrap { display: none; }
   .header-nav-link {
-    flex: 1;
+    flex: 0 0 auto;
     min-width: fit-content;
     text-align: center;
     font-size: 14px !important;
