@@ -1,6 +1,6 @@
 body { background: #fff; }
 
-.event-page { padding: 15px 0 80px; }
+.event-page { padding: 5px 0 80px; }
 
 /* ══════════════════════════════════
    탭 (진행중 / 종료)
@@ -13,7 +13,7 @@ body { background: #fff; }
 .event-tab-btn {
   flex: 1;
   text-align: center;
-  padding: 3px 20px 14px;
+  padding: 0 20px 14px;
   font-size: 15px;
   font-weight: 600;
   color: #aaa;
