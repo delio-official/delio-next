@@ -1999,60 +1999,6 @@ export default function MypageClient() {
                 </div>
               </div>
 
-              {/* 환불 신청 내역 (상태·거부사유) */}
-              {myRefundReqs.length > 0 && (
-                <div className="mp-section">
-                  <div className="mp-section-header">
-                    <span className="mp-section-title">취소 · 환불 신청 내역</span>
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                    {myRefundReqs.map(r => {
-                      const isCancel = r.type === 'cancel';
-                      const w = isCancel ? '취소' : '환불';
-                      const stMap: Record<string, { t:string; c:string; bg:string }> = {
-                        pending:    { t:`${w}요청 접수`, c:'#C8841C', bg:'#FFF3E0' },
-                        processing: { t:`${w} 진행중`,   c:'#2563EB', bg:'#EFF6FF' },
-                        completed:  { t:`${w} 완료`,     c:'#2D7A4D', bg:'#E8F5E9' },
-                        rejected:   { t:`${w} 불가`,     c:'#DC2626', bg:'#FEF2F2' },
-                        hold:       { t:`${w} 보류`,     c:'#64748B', bg:'#F1F5F9' },
-                      };
-                      const st = stMap[r.status] || { t:r.status, c:'#64748B', bg:'#F1F5F9' };
-                      return (
-                        <div key={r.id} style={{ border:'1px solid #EEE', borderRadius:12, padding:'14px 16px' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:6 }}>
-                            <span style={{ fontSize:13, color:'#888' }}>{r.orders?.order_no ? `주문 ${r.orders.order_no}` : '주문번호 미연결'} · {new Date(r.created_at).toLocaleDateString('ko-KR')}</span>
-                            <span style={{ fontSize:12, fontWeight:700, color:st.c, background:st.bg, borderRadius:6, padding:'3px 10px', whiteSpace:'nowrap' }}>{st.t}</span>
-                          </div>
-                          <div style={{ fontSize:14, color:'#333' }}>신청 사유: {r.reason}{r.detail ? ` — ${r.detail}` : ''}</div>
-                          {r.status === 'rejected' && r.reject_reason && (
-                            <div style={{ marginTop:10, padding:'11px 13px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, fontSize:13, color:'#991B1B', lineHeight:1.65 }}>
-                              <strong>{w} 불가 사유</strong><br />{r.reject_reason}
-                            </div>
-                          )}
-                          {(() => {
-                            /* 반려·보류 + 진행중 신청 없음 + 주문이 아직 해당 유형 신청 가능 상태 → 다시 신청 */
-                            if (r.status !== 'rejected' && r.status !== 'hold') return null;
-                            if (r.order_id && activeReqByOrder.has(r.order_id)) return null;
-                            const o = orders.find(x => x.id === r.order_id);
-                            const eligible = o && (
-                              (isCancel && o.status === 'preparing') ||
-                              (!isCancel && ['shipped','delivered','confirmed'].includes(o.status))
-                            );
-                            if (!eligible) return null;
-                            return (
-                              <button onClick={() => reapplyReq(r)}
-                                style={{ marginTop:12, fontSize:13, fontWeight:700, padding:'9px 16px', border:'1.5px solid var(--color-accent)', color:'var(--color-accent)', background:'#fff', borderRadius:8, cursor:'pointer', fontFamily:'inherit' }}>
-                                다시 신청하기
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* 주문내역 목록 */}
               <div className="mp-section" ref={orderListRef}>
                 <div className="mp-section-header">
