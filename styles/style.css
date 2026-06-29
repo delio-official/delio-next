@@ -445,9 +445,9 @@ input, select, textarea { font-family: inherit; }
     flex: 0 0 auto;
     min-width: fit-content;
     text-align: center;
-    font-size: 14px !important;
+    font-size: 13px !important;
     font-weight: 500 !important;
-    padding: 11px 14px 12px !important;
+    padding: 11px 8px 12px !important;
     color: #1A1A1A !important;
     border-bottom: 2px solid transparent;
   }
