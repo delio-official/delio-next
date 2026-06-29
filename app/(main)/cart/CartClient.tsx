@@ -418,7 +418,7 @@ export default function CartClient() {
             <div className="summary-row" style={{ borderBottom:'none' }}><span>배송비</span><span style={{ color:'#1A1A1A', fontWeight:600 }}>무료</span></div>
             <div className="summary-row total"><span>결제 예정금액</span><span>{fmtPrice(total)}원</span></div>
             {user && (
-              <div style={{ fontSize:12, color:'#aaa', textAlign:'right', marginTop:4 }}>최대할인 쿠폰 반영가 · 포인트는 결제 단계에서 사용 가능</div>
+              <div style={{ fontSize:12, color:'#aaa', textAlign:'left', marginTop:4 }}>최대할인 쿠폰 반영가 · 포인트는 결제 단계에서 사용 가능</div>
             )}
 
             <div className="cta-group">
