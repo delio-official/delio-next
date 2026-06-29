@@ -250,13 +250,17 @@ export default function ProductClient() {
   /* 같은 페이지에서 상단 별점(후기) 클릭 → 후기 탭 전환 + 탭 위치로 스크롤 */
   function goReviewTab() {
     setActiveTab(2);
-    const jump = () => {
+    setTimeout(() => {
       const el = document.getElementById('productTabsAnchor');
-      if (!el) return;
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-    jump();
-    [80, 250, 500].forEach(d => setTimeout(jump, d));
+      const before = window.scrollY;
+      const top = el ? Math.round(el.getBoundingClientRect().top) : null;
+      el?.scrollIntoView({ behavior: 'auto', block: 'start' });
+      const after = window.scrollY;
+      const docH = document.documentElement.scrollHeight;
+      const winH = window.innerHeight;
+      // 진단용 — 원인 파악 후 제거
+      alert(`el:${!!el} top:${top} scrollY:${before}→${after} 스크롤가능:${docH - winH}px (docH:${docH}, winH:${winH})`);
+    }, 120);
   }
 
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
