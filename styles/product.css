@@ -402,7 +402,7 @@
     @media(max-width:768px) {
       .pd-info-table tr,
       .pd-info-table tr:first-child { border: none; }
-      .pd-info-table th, .pd-info-table td { padding: 6px 0; }
+      .pd-info-table th, .pd-info-table td { padding: 7px 0; vertical-align: middle; line-height: 1.5; }
     }
 
     /* 장바구니 버튼 테두리를 선물하기(#DDDDD9)와 통일 */
