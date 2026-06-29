@@ -264,24 +264,21 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 상단 이미지 로드 완료 후 한 번만 부드럽게 스크롤 — 로드 중 높이 변동으로 끊기는 것 방지 */
-    let scrolled = false;
-    const jump = () => {
-      if (scrolled) return;
-      scrolled = true;
-      document.getElementById('productTabsAnchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    /* 후기 탭으로 부드럽게 스크롤 — 매 프레임 목표 위치를 재계산해 이미지 로드로 높이가 변해도 따라감(끊김 방지) */
+    const html = document.documentElement;
+    let raf = 0;
+    const animate = () => {
+      const el = document.getElementById('productTabsAnchor');
+      if (!el) { raf = requestAnimationFrame(animate); return; }
+      const target = window.scrollY + el.getBoundingClientRect().top - 60; // 헤더 보정
+      const diff = target - window.scrollY;
+      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(우리가 직접 보간)
+      if (Math.abs(diff) < 2) { window.scrollTo(0, target); html.style.scrollBehavior = ''; return; }
+      window.scrollTo(0, window.scrollY + diff * 0.18); // ease-out 보간
+      raf = requestAnimationFrame(animate);
     };
-    const imgs = Array.from(document.querySelectorAll('.pd-above img')) as HTMLImageElement[];
-    const pending = imgs.filter(im => !im.complete);
-    if (pending.length === 0) {
-      window.setTimeout(jump, 120);
-    } else {
-      let remaining = pending.length;
-      const onDone = () => { remaining -= 1; if (remaining <= 0) window.setTimeout(jump, 120); };
-      pending.forEach(im => { im.addEventListener('load', onDone, { once: true }); im.addEventListener('error', onDone, { once: true }); });
-    }
-    const fallback = window.setTimeout(jump, 2500); // 안전장치
-    return () => clearTimeout(fallback);
+    const startT = window.setTimeout(() => { raf = requestAnimationFrame(animate); }, 180);
+    return () => { clearTimeout(startT); cancelAnimationFrame(raf); html.style.scrollBehavior = ''; };
   }, [product?.id]);
 
   /* 어드민 여부 */
