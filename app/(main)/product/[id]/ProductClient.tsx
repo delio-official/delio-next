@@ -264,21 +264,28 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 후기 탭으로 부드럽게 스크롤 — 매 프레임 목표 위치를 재계산해 이미지 로드로 높이가 변해도 따라감(끊김 방지) */
+    /* 후기 탭으로 부드럽게 스크롤 — 도착하거나(최대 800ms·사용자 스크롤 시) 끝. 한 번만 이동 */
     const html = document.documentElement;
     let raf = 0;
-    const animate = () => {
+    let startTime = 0;
+    let stopped = false;
+    const stop = () => { stopped = true; html.style.scrollBehavior = ''; cancelAnimationFrame(raf); };
+    window.addEventListener('wheel', stop, { passive: true, once: true });
+    window.addEventListener('touchstart', stop, { passive: true, once: true });
+    const animate = (now: number) => {
+      if (stopped) return;
+      if (!startTime) startTime = now;
       const el = document.getElementById('productTabsAnchor');
       if (!el) { raf = requestAnimationFrame(animate); return; }
       const target = window.scrollY + el.getBoundingClientRect().top - 60; // 헤더 보정
       const diff = target - window.scrollY;
-      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(우리가 직접 보간)
-      if (Math.abs(diff) < 2) { window.scrollTo(0, target); html.style.scrollBehavior = ''; return; }
+      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(직접 보간)
+      if (Math.abs(diff) < 2 || now - startTime > 800) { window.scrollTo(0, target); stop(); return; }
       window.scrollTo(0, window.scrollY + diff * 0.18); // ease-out 보간
       raf = requestAnimationFrame(animate);
     };
     const startT = window.setTimeout(() => { raf = requestAnimationFrame(animate); }, 180);
-    return () => { clearTimeout(startT); cancelAnimationFrame(raf); html.style.scrollBehavior = ''; };
+    return () => { clearTimeout(startT); stop(); window.removeEventListener('wheel', stop); window.removeEventListener('touchstart', stop); };
   }, [product?.id]);
 
   /* 어드민 여부 */
