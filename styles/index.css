@@ -1355,6 +1355,10 @@
     /* 스냅(끝→처음 순간 복귀) 시점에는 오버레이/밝기 전환을 꺼 검은 깜빡임 방지 */
     .main-banner-inner.snap-mode .main-banner-slide::after,
     .main-banner-inner.snap-mode .main-banner-slide { transition: none !important; }
+    /* 모바일: 한 장만 보이므로 비활성 딤(회색 오버레이) 제거 — 넘길 때 회색 방지 */
+    @media(max-width:640px) {
+      .main-banner-slide::after { background: transparent; }
+    }
     @media(max-width:640px) {
       .main-banner-slide { border-radius: 0; }
       .main-banner-track { padding: 0; gap: 0; }
