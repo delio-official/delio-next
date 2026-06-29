@@ -142,7 +142,7 @@ export default function ProductClient() {
   const [reportReason,     setReportReason]     = useState('');
   const [reportDetail,     setReportDetail]     = useState('');
   const [reportSaving,     setReportSaving]     = useState(false);
-  const [newRating,        setNewRating]        = useState(5);
+  const [newRating,        setNewRating]        = useState(0);
   const [newContent,       setNewContent]       = useState('');
   const [reviewPolicyAgree, setReviewPolicyAgree] = useState(false);
   const [reviewPolicyOpen,  setReviewPolicyOpen]  = useState(false);
@@ -838,7 +838,7 @@ export default function ProductClient() {
 
     alert(earnedPt > 0 ? `리뷰가 등록됐습니다. ${earnedPt.toLocaleString()}P 적립! 감사합니다 🎉` : '리뷰가 등록됐습니다. 감사합니다!');
     setReviewModalOpen(false);
-    setNewRating(5);
+    setNewRating(0);
     setNewContent('');
     setNewTaste({});
     setNewImages([]);
@@ -3017,7 +3017,7 @@ export default function ProductClient() {
                 </div>
               )}
               {(() => {
-                const blocked = submitting || mediaUploading || newContent.trim().length < 10 || !reviewPolicyAgree;
+                const blocked = submitting || mediaUploading || newRating < 1 || newContent.trim().length < 10 || !reviewPolicyAgree;
                 return (
                   <button onClick={handleSubmitReview} disabled={blocked}
                     style={{ width:'100%', height:50, background:'#1A1A1A',
