@@ -264,12 +264,24 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 후기 탭 위치로 부드럽게 스크롤 — 콘텐츠 로드 안정 후 1회만(여러 번 호출 시 smooth가 끊김) */
-    const t = window.setTimeout(() => {
-      const el = document.getElementById('productTabsAnchor');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 450);
-    return () => clearTimeout(t);
+    /* 상단 이미지 로드 완료 후 한 번만 부드럽게 스크롤 — 로드 중 높이 변동으로 끊기는 것 방지 */
+    let scrolled = false;
+    const jump = () => {
+      if (scrolled) return;
+      scrolled = true;
+      document.getElementById('productTabsAnchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    const imgs = Array.from(document.querySelectorAll('.pd-above img')) as HTMLImageElement[];
+    const pending = imgs.filter(im => !im.complete);
+    if (pending.length === 0) {
+      window.setTimeout(jump, 120);
+    } else {
+      let remaining = pending.length;
+      const onDone = () => { remaining -= 1; if (remaining <= 0) window.setTimeout(jump, 120); };
+      pending.forEach(im => { im.addEventListener('load', onDone, { once: true }); im.addEventListener('error', onDone, { once: true }); });
+    }
+    const fallback = window.setTimeout(jump, 2500); // 안전장치
+    return () => clearTimeout(fallback);
   }, [product?.id]);
 
   /* 어드민 여부 */
