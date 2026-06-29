@@ -267,7 +267,13 @@ export default function ProductClient() {
     /* 후기 탭 위치로 스크롤 — 이미지 로드/진입 경쟁 대비 여러 시점 재시도 */
     const jump = () => {
       const el = document.getElementById('productTabsAnchor');
-      if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' }); // anchor의 scroll-margin-top:60 으로 헤더 보정
+      const before = window.scrollY;
+      if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' });
+      const after = window.scrollY;
+      // 진단 바 (원인 파악 후 제거)
+      let d = document.getElementById('__diag');
+      if (!d) { d = document.createElement('div'); d.id = '__diag'; d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#d00;color:#fff;font-size:12px;padding:8px;font-family:monospace;'; document.body.appendChild(d); }
+      d.textContent = `el:${!!el} top:${el ? Math.round(el.getBoundingClientRect().top) : '-'} scrollY:${before}→${after} 스크롤가능:${document.documentElement.scrollHeight - window.innerHeight} (docH:${document.documentElement.scrollHeight} winH:${window.innerHeight})`;
     };
     const timers = [60, 250, 500, 850, 1300].map(d => window.setTimeout(jump, d));
     return () => timers.forEach(clearTimeout);
