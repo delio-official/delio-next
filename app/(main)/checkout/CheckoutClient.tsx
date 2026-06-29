@@ -611,7 +611,7 @@ export default function CheckoutClient() {
                 onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))} placeholder="0"
                 style={{ ...inS, flex:1, textAlign:'right' }} />
               <button onClick={() => setPointUsed(maxPoint)}
-                style={{ padding:'0 16px', height:46, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap' }}>전액사용</button>
+                style={{ padding:'0 16px', height:46, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:14, fontWeight:700, color:'#1A1A1A', cursor:'pointer', whiteSpace:'nowrap' }}>전액사용</button>
             </div>
             <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
           </Section>
