@@ -394,7 +394,7 @@
     /* ===== 배송 정보 테이블 ===== */
     .pd-info-table {
       width: 100%; border-collapse: collapse;
-      font-size: 14px; margin-bottom: 20px;
+      font-size: 14px; margin-bottom: 0;
     }
     .pd-info-table tr { border-bottom: 1px solid #DDDDD9; }
     .pd-info-table tr:first-child { border-top: 1px solid #DDDDD9; }
