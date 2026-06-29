@@ -1576,7 +1576,9 @@ export default function ProductClient() {
                     <span className="signup-coupon-icon" aria-hidden>
                       <svg viewBox="0 0 24 24" width="28" height="28">
                         <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" fill="currentColor"/>
-                        <text x="12" y="12.5" textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize="9" fontWeight="800">%</text>
+                        <line x1="15" y1="8.2" x2="9" y2="15.8" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+                        <circle cx="9.2" cy="9" r="1.7" fill="#fff"/>
+                        <circle cx="14.8" cy="15" r="1.7" fill="#fff"/>
                       </svg>
                     </span>
                     <span className="signup-coupon-text">
