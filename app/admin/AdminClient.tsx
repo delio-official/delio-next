@@ -3785,9 +3785,9 @@ export default function AdminClient() {
       }).catch(() => {});
     }
 
-    // 모든 농가 송장 등록 완료 시 주문 상태 배송중 전환
-    const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
-    if (allShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
+    // 하나라도 송장 등록되면 주문 상태 배송중 전환 (부분 배송 포함)
+    const anyShipped = newItems.some(i => !!i.tracking_number);
+    if (anyShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
       await supabase.from('orders').update({ status: 'shipped' }).eq('id', selectedOrder.id);
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'shipped' } : o));
       setSelectedOrder(s => s ? { ...s, status: 'shipped' } : s);
