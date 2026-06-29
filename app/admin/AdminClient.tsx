@@ -4325,11 +4325,12 @@ export default function AdminClient() {
       : filteredOrders;
 
     // 주문항목을 농가별로 평탄화
-    type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number };
+    type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number; courierName: string; tracking: string; shipStatus: string };
+    const SHIP_LABEL: Record<string, string> = { preparing:'상품 준비중', shipped:'배송중', delivered:'배송완료' };
     const all: Row[] = [];
     targetOrders.forEach(o => {
       (o.order_items || []).forEach(it => {
-        const i = it as typeof it & { supply_price?: number|null; option_label?: string|null; carrier?: string|null };
+        const i = it as typeof it & { supply_price?: number|null; option_label?: string|null; carrier?: string|null; courier?: string|null; tracking_number?: string|null; ship_status?: string|null };
         if (farmId && i.farm_id !== farmId) return;
         all.push({
           farmId: (i.farm_id as string) || '__none__',
@@ -4339,6 +4340,9 @@ export default function AdminClient() {
           address: o.address1 + (o.address2 ? ' ' + o.address2 : ''), memo: o.delivery_memo || '',
           product: i.product_name, option: (i.option_label as string) || '', qty: Number(i.quantity) || 0,
           supply: Number(i.supply_price) || 0,
+          courierName: i.courier ? (COURIER_NAMES[i.courier] || i.courier) : '',
+          tracking: (i.tracking_number as string) || '',
+          shipStatus: i.ship_status ? (SHIP_LABEL[i.ship_status] || i.ship_status) : '',
         });
       });
     });
@@ -4356,9 +4360,9 @@ export default function AdminClient() {
       aoa.push([`${f.farmName} 주문서 / 발주서`, '', '', '', `지정 택배사: ${f.carrier}`]);
       aoa.push([`출력일: ${new Date().toISOString().slice(0,10)}`]);
       aoa.push([]);
-      // 배송용 행 (택배사 업로드)
-      aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '공급단가', '공급가 소계', '배송메시지']);
-      rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.supply, r.supply * r.qty, r.memo]));
+      // 배송용 행 (택배사 업로드) — 택배사/운송장번호/배송상태 포함
+      aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '공급단가', '공급가 소계', '배송메시지', '택배사', '운송장번호', '배송상태']);
+      rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.supply, r.supply * r.qty, r.memo, r.courierName, r.tracking, r.shipStatus]));
       // 발주 합계
       const totalQty = rows.reduce((s, r) => s + r.qty, 0);
       const totalSupply = rows.reduce((s, r) => s + r.supply * r.qty, 0);
@@ -4372,7 +4376,7 @@ export default function AdminClient() {
       aoa.push(['농가 발주 합계', '', totalQty, totalSupply]);
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 20 }];
+      ws['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 12 }];
       // 시트명: 농가명(31자, 특수문자 제거, 중복방지)
       let nm = f.farmName.replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || '농가';
       let n = nm; let c = 2; while (usedNames.has(n)) { n = `${nm}_${c++}`; } usedNames.add(n);
