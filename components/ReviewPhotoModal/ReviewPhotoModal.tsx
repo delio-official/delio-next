@@ -34,11 +34,6 @@ export interface RPProduct {
 const fmtPrice = (n: number) => n.toLocaleString('ko-KR');
 const fmtDate = (s: string) => { const d = new Date(s); return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; };
 
-const navMobile = (side: 'left' | 'right'): React.CSSProperties => ({
-  position: 'fixed', top: '50%', transform: 'translateY(-50%)', [side]: 8,
-  width: 42, height: 42, borderRadius: '50%', background: 'rgba(0,0,0,0.4)', color: '#fff', border: 'none',
-  cursor: 'pointer', fontSize: 26, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3600,
-});
 const navPC = (side: 'left' | 'right'): React.CSSProperties => ({
   position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 3600,
   width: 52, height: 52, background: 'rgba(0,0,0,0.32)', color: '#fff', border: 'none', borderRadius: '50%',
@@ -90,7 +85,7 @@ export default function ReviewPhotoModal({
     position: 'absolute', top: '50%', transform: 'translateY(-50%)', [side]: 8,
     width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,0,0,0.42)', color: '#fff', border: 'none',
     cursor: 'pointer', fontSize: 18, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    opacity: photoHover ? 1 : 0, transition: 'opacity .15s', zIndex: 2,
+    opacity: isMobile ? 1 : (photoHover ? 1 : 0), transition: 'opacity .15s', zIndex: 2,
   });
   const photo = (
     <div
@@ -108,12 +103,12 @@ export default function ReviewPhotoModal({
             ? <video src={cur.url} controls playsInline style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
             : <img src={imgThumb(cur.url, 800)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />)
         : <span style={{ fontSize: 72 }}>{emoji}</span>}
-      {/* 미디어 넘기기 — PC는 hover 시 사진 내부 화살표, 모바일은 스와이프 */}
-      {multi && !isMobile && activeImg > 0 && (
-        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg - 1); }} aria-label="이전" style={photoArrow('left')}>‹</button>
+      {/* 미디어(사진) 넘기기 — PC는 hover 화살표, 모바일은 항상 보이는 화살표 + 스와이프 */}
+      {multi && activeImg > 0 && (
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg - 1); }} aria-label="이전 사진" style={photoArrow('left')}>‹</button>
       )}
-      {multi && !isMobile && activeImg < media.length - 1 && (
-        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg + 1); }} aria-label="다음" style={photoArrow('right')}>›</button>
+      {multi && activeImg < media.length - 1 && (
+        <button onClick={e => { e.stopPropagation(); setActiveImg(activeImg + 1); }} aria-label="다음 사진" style={photoArrow('right')}>›</button>
       )}
       {/* 위치 점 인디케이터 */}
       {multi && (
@@ -196,6 +191,27 @@ export default function ReviewPhotoModal({
         : <Link href={`/product/${product.id}`} onClick={onClose} style={buyStyle}>구매하기</Link>}
     </div>
   );
+  /* 리뷰 ↔ 리뷰 이동 바 (모바일: 구매하기 바 위) */
+  const chevron = (dir: 'left' | 'right') => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points={dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
+    </svg>
+  );
+  const navBtn = (enabled: boolean): React.CSSProperties => ({
+    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+    padding: '13px 0', background: 'none', border: 'none', fontSize: 13.5, fontWeight: 600,
+    color: enabled ? '#444' : '#CCC', cursor: enabled ? 'pointer' : 'default', fontFamily: 'inherit',
+  });
+  const reviewNav = (onPrev || onNext) && (
+    <div style={{ flexShrink: 0, display: 'flex', borderTop: '1px solid #EFEFEF', background: '#fff' }}>
+      <button onClick={onPrev} disabled={!onPrev} style={{ ...navBtn(!!onPrev), borderRight: '1px solid #EFEFEF' }}>
+        {chevron('left')} 이전 리뷰
+      </button>
+      <button onClick={onNext} disabled={!onNext} style={navBtn(!!onNext)}>
+        다음 리뷰 {chevron('right')}
+      </button>
+    </div>
+  );
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 12px', borderBottom: '1px solid #EBEBEB', flexShrink: 0 }}>
       {isMobile
@@ -215,10 +231,9 @@ export default function ReviewPhotoModal({
         <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {header}
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
+          {reviewNav}
           {footerNode ?? footer}
         </div>
-        {onPrev && <button onClick={e => { e.stopPropagation(); onPrev(); }} aria-label="이전 리뷰" style={navMobile('left')}>‹</button>}
-        {onNext && <button onClick={e => { e.stopPropagation(); onNext(); }} aria-label="다음 리뷰" style={navMobile('right')}>›</button>}
       </div>
     );
   }
