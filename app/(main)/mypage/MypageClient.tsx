@@ -3342,7 +3342,7 @@ export default function MypageClient() {
                         <div style={{ textAlign:'center', padding:'40px 0', color:'#aaa', fontSize:13, borderBottom:'1px solid #EEE' }}>불러오는 중...</div>
                       ) : (() => {
                         const view = qnaFilter === 'all' ? myQna : myQna.filter(q => qnaFilter === 'answered' ? !!q.answer : !q.answer);
-                        if (myQna.length === 0) return <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>등록된 상품 Q&A가 없습니다.</div>;
+                        if (myQna.length === 0) return <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13 }}>등록된 상품 Q&A가 없습니다.</div>;
                         if (view.length === 0) return <div style={{ textAlign:'center', padding:'40px 0', color:'#888', fontSize:13, borderBottom:'1px solid #EEE' }}>해당 상태의 문의가 없습니다.</div>;
                         return view.map((q, i) => {
                           const isOpen = qnaOpenId === q.id;
