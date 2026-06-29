@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK } from '@/lib/tracker';
+import { applyTrackingStatusByItems } from '@/lib/order-shipping';
 import { notifyAlimtalk } from '@/lib/sms';
 
 /**
@@ -21,8 +22,26 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
     return NextResponse.json({ ok: true, skipped: true, code }, { status: 202 });
   }
 
-  // 2. 해당 운송장의 주문들 조회 (중복 가능성 대비, 단건 가정 X)
   const supabase = createAdminSupabaseClient();
+
+  // 2. 농가(상품)별 송장 우선 — order_items.tracking_number 로 매칭되면 상품 줄 단위로 갱신 + 주문 재집계
+  const { matched, deliveredOrders } = await applyTrackingStatusByItems(supabase, trackingNumber, mapped);
+  if (matched > 0) {
+    for (const o of deliveredOrders) {
+      if (!o.phone) continue;
+      try {
+        await notifyAlimtalk('delivery_complete', o.phone, {
+          recipient: o.recipient || '고객',
+          orderNo: o.order_no || '',
+          productName: o.productName,
+          completedAt: new Date().toLocaleString('ko-KR'),
+        });
+      } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
+    }
+    return NextResponse.json({ ok: true, scope: 'items', matched, updated: mapped, code }, { status: 202 });
+  }
+
+  // 3. (구버전 호환) 주문 단위 송장 — orders.tracking_number 로 매칭
   const { data: orders, error: qErr } = await supabase
     .from('orders')
     .select('id, status, phone, recipient, order_no, order_items(product_name)')

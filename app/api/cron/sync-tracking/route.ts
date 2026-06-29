@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK } from '@/lib/tracker';
+import { applyTrackingStatusByItems } from '@/lib/order-shipping';
 import { notifyAlimtalk } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
@@ -74,6 +75,47 @@ export async function GET(req: NextRequest) {
           });
         } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
       }
+    }
+  }
+
+  // ── 농가(상품)별 송장 폴링 — order_items.tracking_number 기준 (위 orders 블록은 구버전 주문용) ──
+  // distinct 운송장만 1회씩 조회 → applyTrackingStatusByItems 로 상품 줄 갱신 + 주문 재집계.
+  const { data: itemRows } = await admin
+    .from('order_items')
+    .select('courier, tracking_number, orders!inner(created_at)')
+    .not('tracking_number', 'is', null)
+    .not('courier', 'is', null)
+    .in('ship_status', ['preparing', 'shipped'])
+    .gte('orders.created_at', since)
+    .limit(500);
+
+  const seen = new Set<string>();
+  for (const r of (itemRows || []) as Array<{ courier: string | null; tracking_number: string | null }>) {
+    const courier = r.courier, tno = r.tracking_number;
+    if (!courier || !tno) continue;
+    const k = `${courier}|${tno}`;
+    if (seen.has(k)) continue; // 같은 송장 중복 폴링 방지
+    seen.add(k);
+    checked++;
+    let mapped: ReturnType<typeof mapTrackerCodeToOrderStatus> = null;
+    try {
+      mapped = mapTrackerCodeToOrderStatus(await fetchLastStatusCode(courier, tno));
+    } catch { continue; }
+    if (!mapped) continue;
+
+    const { deliveredOrders } = await applyTrackingStatusByItems(admin, tno, mapped);
+    advanced++;
+    for (const o of deliveredOrders) {
+      delivered++;
+      if (!o.phone) continue;
+      try {
+        await notifyAlimtalk('delivery_complete', o.phone, {
+          recipient: o.recipient || '고객',
+          orderNo: o.order_no || '',
+          productName: o.productName,
+          completedAt: new Date().toLocaleString('ko-KR'),
+        });
+      } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
     }
   }
 

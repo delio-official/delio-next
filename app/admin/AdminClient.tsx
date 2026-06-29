@@ -3735,7 +3735,7 @@ export default function AdminClient() {
   ];
 
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
-     (배송시작 알림톡·추적 웹훅은 다음 단계에서 송장별로 연결) */
+     + 해당 농가 배송시작 알림톡 발송 + 추적 웹훅 구독 등록(송장별 각각) */
   async function saveItemTracking(itemIds: string[], courier: string, tracking: string) {
     if (!selectedOrder || itemIds.length === 0) return;
     setSavingTracking(true);
@@ -3754,6 +3754,37 @@ export default function AdminClient() {
       (i.id && idSet.has(i.id)) ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
     );
     setSelectedOrder(s => s ? { ...s, order_items: newItems } : s);
+
+    // 송장이 새로 입력된 경우: 그 농가 배송시작 알림톡 + 추적 웹훅 구독 등록
+    if (tracking) {
+      const cid = courier || 'kr.cjlogistics';
+      const its = newItems.filter(i => i.id && idSet.has(i.id));
+      const names = its.map(i => i.product_name).filter(Boolean) as string[];
+      const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
+      // 배송시작 알림톡 (해당 농가 상품명)
+      if (selectedOrder.phone) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'shipping_started',
+            phone: selectedOrder.phone,
+            recipient: selectedOrder.recipient,
+            orderNo: selectedOrder.order_no,
+            productName,
+            courierName: COURIER_NAMES[courier] || courier || '택배사',
+            trackingNumber: tracking,
+          }),
+        }).catch(() => {});
+      }
+      // tracker.delivery 웹훅 구독 등록 → 이후 상태 변경 자동 동기화(배포 환경)
+      fetch('/api/tracking/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carrierId: cid, trackingNumber: tracking }),
+      }).catch(() => {});
+    }
+
     // 모든 농가 송장 등록 완료 시 주문 상태 배송중 전환
     const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
     if (allShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
