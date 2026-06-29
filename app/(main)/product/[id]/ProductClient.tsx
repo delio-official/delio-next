@@ -250,12 +250,9 @@ export default function ProductClient() {
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
   const didJumpReviewRef = useRef(false);
   useEffect(() => {
-    if (!product) return;
+    if (didJumpReviewRef.current || !product) return;
     const sp = new URLSearchParams(window.location.search);
     const tabParam = sp.get('tab');
-    // 진단: 상품상세 진입 시 tab 값 표시 (원인 파악 후 제거)
-    { let dd = document.getElementById('__diag'); if (!dd) { dd = document.createElement('div'); dd.id = '__diag'; dd.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#d00;color:#fff;font-size:12px;padding:8px;font-family:monospace;'; document.body.appendChild(dd); } dd.textContent = `진입 tab=${tabParam} search=${window.location.search}`; }
-    if (didJumpReviewRef.current) return;
     if (tabParam !== 'review' && tabParam !== 'qna') return;
     didJumpReviewRef.current = true;
     setActiveTab(tabParam === 'qna' ? 3 : 2);
@@ -270,17 +267,11 @@ export default function ProductClient() {
     /* 후기 탭 위치로 스크롤 — 이미지 로드/진입 경쟁 대비 여러 시점 재시도 */
     const jump = () => {
       const el = document.getElementById('productTabsAnchor');
-      const before = window.scrollY;
       if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' });
-      const after = window.scrollY;
-      // 진단 바 (원인 파악 후 제거)
-      let d = document.getElementById('__diag');
-      if (!d) { d = document.createElement('div'); d.id = '__diag'; d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#d00;color:#fff;font-size:12px;padding:8px;font-family:monospace;'; document.body.appendChild(d); }
-      d.textContent = `el:${!!el} top:${el ? Math.round(el.getBoundingClientRect().top) : '-'} scrollY:${before}→${after} 스크롤가능:${document.documentElement.scrollHeight - window.innerHeight} (docH:${document.documentElement.scrollHeight} winH:${window.innerHeight})`;
     };
     const timers = [60, 250, 500, 850, 1300].map(d => window.setTimeout(jump, d));
     return () => timers.forEach(clearTimeout);
-  }, [product]);
+  }, [product?.id]);
 
   /* 어드민 여부 */
   useEffect(() => {
