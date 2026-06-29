@@ -1535,13 +1535,12 @@ export default function ProductClient() {
                   </span>
                 )}
                 {product.avg_rating > 0 && (
-                  <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
+                  <div onClick={goReviewTab} role="button" tabIndex={0}
+                    style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
                     <SingleStar size={13} />
-                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); goReviewTab(); }}
-                      style={{ fontSize:12, color:'var(--color-ink-mute)',
-                        background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                    <span style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
                       {product.avg_rating.toFixed(1)} ({product.review_count.toLocaleString()})
-                    </button>
+                    </span>
                   </div>
                 )}
               </div>
