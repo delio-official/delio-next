@@ -1943,14 +1943,9 @@ export default function MypageClient() {
               </div>
               <div className="mp-mb-wishprev-scroll">
                 {wishlist.filter(w => w.products).slice(0, 12).map(w => (
-                  <button key={w.id} className="mp-mb-wishprev-item" onClick={() => router.push(`/product/${w.products!.id}`)}>
-                    <div className="mp-mb-wishprev-thumb">
-                      {w.products!.thumbnail_url
-                        ? <img src={imgThumb(w.products!.thumbnail_url, 150)} alt={w.products!.name} />
-                        : <div className="mp-mb-wishprev-noimg">🍎</div>}
-                    </div>
-                    <span className="mp-mb-wishprev-name">{w.products!.name}</span>
-                  </button>
+                  <div key={w.id} className="mp-mb-wishprev-card">
+                    <ProductCard p={w.products!} />
+                  </div>
                 ))}
               </div>
             </div>

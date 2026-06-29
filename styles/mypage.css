@@ -869,6 +869,7 @@ body { background: #fff; }
         padding: 0 20px 6px;
       }
       .mp-mb-wishprev-scroll::-webkit-scrollbar { display: none; }
+      .mp-mb-wishprev-card { flex: 0 0 auto; width: 150px; }
       .mp-mb-wishprev-item {
         flex: 0 0 auto; width: 88px; background: none; border: none; padding: 0;
         cursor: pointer; text-align: left;
