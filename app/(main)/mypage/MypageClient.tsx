@@ -2568,10 +2568,6 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='myreviews'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">나의 리뷰</span>
-                </div>
-
                 {/* 탭: 리뷰 남기기 / 내가 남긴 리뷰 */}
                 <div style={{ display:'flex', borderBottom:'1px solid #EEE', marginBottom:8 }}>
                   <button type="button" onClick={() => setReviewTab('writable')}
