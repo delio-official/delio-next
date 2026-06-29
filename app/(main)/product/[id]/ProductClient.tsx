@@ -247,22 +247,6 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
-  /* 같은 페이지에서 상단 별점(후기) 클릭 → 후기 탭 전환 + 탭 위치로 스크롤 */
-  function goReviewTab() {
-    setActiveTab(2);
-    setTimeout(() => {
-      const el = document.getElementById('productTabsAnchor');
-      const before = window.scrollY;
-      const top = el ? Math.round(el.getBoundingClientRect().top) : null;
-      el?.scrollIntoView({ behavior: 'auto', block: 'start' });
-      const after = window.scrollY;
-      const docH = document.documentElement.scrollHeight;
-      const winH = window.innerHeight;
-      // 진단용 — 원인 파악 후 제거
-      alert(`el:${!!el} top:${top} scrollY:${before}→${after} 스크롤가능:${docH - winH}px (docH:${docH}, winH:${winH})`);
-    }, 120);
-  }
-
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
   const didJumpReviewRef = useRef(false);
   useEffect(() => {
@@ -1535,12 +1519,13 @@ export default function ProductClient() {
                   </span>
                 )}
                 {product.avg_rating > 0 && (
-                  <div onClick={goReviewTab} role="button" tabIndex={0}
-                    style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
+                  <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
                     <SingleStar size={13} />
-                    <span style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
+                    <button onClick={() => setActiveTab(2)}
+                      style={{ fontSize:12, color:'var(--color-ink-mute)',
+                        background:'none', border:'none', cursor:'pointer', padding:0 }}>
                       {product.avg_rating.toFixed(1)} ({product.review_count.toLocaleString()})
-                    </span>
+                    </button>
                   </div>
                 )}
               </div>
