@@ -1510,7 +1510,7 @@ export default function MypageClient() {
                 <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#333', lineHeight:1, padding:0 }}>✕</button>
                 <span style={{ flex:1, textAlign:'center', fontSize:16, fontWeight:700, marginRight:20 }}>주문상세</span>
               </div>
-              <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
+              <div style={{ fontSize:12.5, color:'#999', padding:'14px 20px 16px' }}>
                 {new Date(o.created_at).toLocaleDateString('ko-KR')} 주문 · 주문번호 {o.order_no}
               </div>
 
@@ -1594,7 +1594,7 @@ export default function MypageClient() {
                 <button onClick={() => setCancelDetail(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:20, color:'#333', lineHeight:1, padding:0 }}>✕</button>
                 <span style={{ flex:1, textAlign:'center', fontSize:16, fontWeight:700, marginRight:20 }}>{isRefund ? '환불상세' : '취소상세'}</span>
               </div>
-              <div style={{ fontSize:12.5, color:'#999', padding:'0 20px 16px' }}>
+              <div style={{ fontSize:12.5, color:'#999', padding:'14px 20px 16px' }}>
                 {new Date(req?.created_at || o.created_at).toLocaleDateString('ko-KR')} {isRefund ? '환불요청' : '취소요청'}
               </div>
 
