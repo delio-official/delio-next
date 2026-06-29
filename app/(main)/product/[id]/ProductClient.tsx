@@ -1585,7 +1585,11 @@ export default function ProductClient() {
                       회원가입하고 <span>10,000원 쿠폰팩</span> 받기
                     </span>
                   </div>
-                  <span className="signup-coupon-arrow">›</span>
+                  <span className="signup-coupon-arrow" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </span>
                 </Link>
               )}
 

@@ -163,7 +163,7 @@
     }
     .signup-coupon-text { font-family: 'Pretendard', -apple-system, sans-serif; font-size: 13px; font-weight: 600; color: #7A5800; }
     .signup-coupon-text span { color: var(--color-accent); }
-    .signup-coupon-arrow { font-size: 22px; line-height: 1; color: #B8860B; }
+    .signup-coupon-arrow { display: inline-flex; align-items: center; color: #B8860B; flex-shrink: 0; }
 
     /* 브랜드 카드 */
     .brand-section { margin-top: 18px; }
