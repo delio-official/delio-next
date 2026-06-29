@@ -2759,7 +2759,7 @@ export default function ProductClient() {
               }}>
                 <span style={{ fontSize:18, lineHeight:1 }}>✨</span>
                 <div style={{ fontSize:12.5, lineHeight:1.6, color:'var(--color-ink-soft)' }}>
-                  리뷰를 남기면 포인트를 드려요!{' '}
+                  리뷰를 남기면 포인트를 드려요!<br />
                   <b style={{ color:'var(--color-accent)' }}>리뷰 작성 +{reviewPt.text.toLocaleString()}P</b>
                   {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>사진·영상 첨부 시 +{reviewPt.photo.toLocaleString()}P</b></>}
                 </div>
