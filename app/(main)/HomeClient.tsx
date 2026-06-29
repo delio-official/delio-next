@@ -402,7 +402,6 @@ function QuickGuide() {
             <small>원하는 과일을 태그로 빠르게 찾아보세요</small>
             <div className="g-title-main">
               <span>퀵 가이드</span>
-              <Link href="/category" className="g-section-link">전체보기</Link>
             </div>
           </h2>
         </div>
@@ -920,7 +919,6 @@ export default function HomeClient() {
               <small>델리오가 엄선한 이번 주 추천 상품</small>
               <div className="g-title-main">
                 <span>델리오 픽</span>
-                <Link href="/category" className="g-section-link">전체보기</Link>
               </div>
             </h2>
           </div>
