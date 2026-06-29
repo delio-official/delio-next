@@ -53,7 +53,7 @@ export function ProductCard({ p, onWishChange }: { p: ProductCardItem; onWishCha
   function handleReviewClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/product/${p.id}?tab=review#productTabsAnchor`);
+    router.push(`/product/${p.id}?tab=review`);
   }
 
   function handleCart(e: React.MouseEvent) {

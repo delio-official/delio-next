@@ -68,7 +68,7 @@ function FarmProductCard({ p }: { p: Product }) {
   function handleReviewClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/product/${p.id}?tab=review#productTabsAnchor`);
+    router.push(`/product/${p.id}?tab=review`);
   }
 
   const reviewCount = p.review_count > 9999

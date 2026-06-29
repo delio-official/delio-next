@@ -87,7 +87,7 @@ function ProductCard({ p }: { p: Product }) {
   function handleReviewClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    router.push(`/product/${p.id}?tab=review#productTabsAnchor`);
+    router.push(`/product/${p.id}?tab=review`);
   }
 
   function handleCart(e: React.MouseEvent) {

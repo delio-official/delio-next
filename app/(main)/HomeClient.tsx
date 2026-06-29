@@ -475,7 +475,7 @@ function QuickGuide() {
                           <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
                         </div>
                         {p.avg_rating > 0 && (
-                          <div className="qg-card-rating" onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review#productTabsAnchor`); }}>
+                          <div className="qg-card-rating" onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="#FFB400" stroke="none" aria-hidden="true">
                               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                             </svg>
@@ -1009,7 +1009,7 @@ export default function HomeClient() {
                                   <div className="product-rating-row">
                                     <div className="rating-stars" role="link" title="후기 보기"
                                       style={{ cursor:'pointer' }}
-                                      onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review#productTabsAnchor`); }}>
+                                      onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
                                       <StarRating rating={p.avg_rating} size={12} />
                                       <span>{p.avg_rating.toFixed(1)} ({p.review_count.toLocaleString()})</span>
                                     </div>
