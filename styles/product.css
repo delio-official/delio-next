@@ -157,7 +157,11 @@
     }
     .signup-coupon-banner:hover { background: #FFF3CD; }
     .signup-coupon-banner-left { display: flex; align-items: center; gap: 10px; }
-    .signup-coupon-icon { display: inline-flex; align-items: center; color: var(--color-accent); }
+    .signup-coupon-icon {
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 22px; height: 22px; border-radius: 6px;
+      background: #8B5CF6; color: #fff; font-size: 13px; font-weight: 800; line-height: 1;
+    }
     .signup-coupon-text { font-family: 'Pretendard', -apple-system, sans-serif; font-size: 13px; font-weight: 600; color: #7A5800; }
     .signup-coupon-text span { color: var(--color-accent); }
     .signup-coupon-arrow { font-size: 16px; color: #B8860B; }
