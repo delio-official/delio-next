@@ -2808,7 +2808,7 @@ export default function MypageClient() {
                 ) : wishlist.length === 0 ? (
                   <div className="mp-empty">찜한 상품이 없습니다.</div>
                 ) : (
-                  <div className="mob-pv-grid" style={{ padding: 0 }}>
+                  <div className="mob-pv-grid wish-pick-grid" style={{ padding: 0 }}>
                     {wishlist.map(w => w.products ? (
                       <ProductCard key={w.id} p={w.products}
                         onWishChange={(wished) => { if (!wished) setWishlist(prev => prev.filter(x => x.id !== w.id)); }} />

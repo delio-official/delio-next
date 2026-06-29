@@ -54,6 +54,10 @@ body { background: #fff; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
 }
 
+/* 위시리스트 상품 — 델리오 픽처럼 NEW 배지·정가 취소선 숨김(별점은 유지) */
+.wish-pick-grid .product-brix-wrap { display: none !important; }
+.wish-pick-grid .price-original { display: none; }
+
 /* 농가 상세 상품 — 모바일: 2열 그리드 / PC: 가로 캐러셀 + 좌우 화살표 */
 .farm-prod-wrap { position: relative; }
 .farm-prod-carousel { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
