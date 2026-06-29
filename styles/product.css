@@ -157,8 +157,8 @@
     }
     .signup-coupon-banner:hover { background: #FFF3CD; }
     .signup-coupon-banner-left { display: flex; align-items: center; gap: 10px; }
-    .signup-coupon-icon { font-size: 22px; }
-    .signup-coupon-text { font-size: 13px; font-weight: 600; color: #7A5800; }
+    .signup-coupon-icon { display: inline-flex; align-items: center; color: var(--color-accent); }
+    .signup-coupon-text { font-family: 'Pretendard', -apple-system, sans-serif; font-size: 13px; font-weight: 600; color: #7A5800; }
     .signup-coupon-text span { color: var(--color-accent); }
     .signup-coupon-arrow { font-size: 16px; color: #B8860B; }
 
