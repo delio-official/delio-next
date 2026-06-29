@@ -264,30 +264,13 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 비-sticky 부모 섹션으로 스크롤(sticky 탭바는 사파리 scrollIntoView 버그).
-       모바일 사파리는 behavior:'instant'를 무시하고 CSS scroll-behavior:smooth로 처리하므로,
-       매 프레임 호출하면 smooth가 매번 재시작돼 멈춘다 → 띄엄띄엄 한 번씩만 호출해 각 스크롤이 완료될 시간을 준다.
-       이미지 로드/Next 진입 scroll-top 경쟁 대비해 여러 시점 재시도. 사용자가 스크롤하면 중단. */
-    let userInterrupted = false;
-    const onUser = () => { userInterrupted = true; };
-    window.addEventListener('wheel', onUser, { passive: true });
-    window.addEventListener('touchmove', onUser, { passive: true });
-    window.addEventListener('keydown', onUser);
+    /* 후기 탭 위치로 스크롤 — 이미지 로드/진입 경쟁 대비 여러 시점 재시도 */
     const jump = () => {
-      if (userInterrupted) return;
       const el = document.getElementById('productTabsAnchor');
-      if (!el) return;
-      el.scrollIntoView({ behavior: 'auto', block: 'start' }); // anchor의 scroll-margin-top:60 으로 헤더 보정
+      if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' }); // anchor의 scroll-margin-top:60 으로 헤더 보정
     };
     const timers = [60, 250, 500, 850, 1300].map(d => window.setTimeout(jump, d));
-    const cleanup = () => {
-      timers.forEach(clearTimeout);
-      window.removeEventListener('wheel', onUser);
-      window.removeEventListener('touchmove', onUser);
-      window.removeEventListener('keydown', onUser);
-    };
-    const finalTimer = window.setTimeout(cleanup, 1700);
-    return () => { cleanup(); clearTimeout(finalTimer); };
+    return () => timers.forEach(clearTimeout);
   }, [product]);
 
   /* 어드민 여부 */
