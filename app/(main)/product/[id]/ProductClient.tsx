@@ -247,6 +247,20 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
+  /* 같은 페이지에서 상단 별점(후기) 클릭 → 후기 탭 전환 + 탭 위치로 스크롤 */
+  function goReviewTab() {
+    setActiveTab(2);
+    setTimeout(() => {
+      const el = document.getElementById('productTabsAnchor');
+      if (!el) return;
+      const html = document.documentElement;
+      const prev = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      window.scrollTo(0, Math.max(0, el.getBoundingClientRect().top + window.scrollY - 60));
+      html.style.scrollBehavior = prev;
+    }, 60);
+  }
+
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
   const didJumpReviewRef = useRef(false);
   useEffect(() => {
@@ -1521,7 +1535,7 @@ export default function ProductClient() {
                 {product.avg_rating > 0 && (
                   <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
                     <SingleStar size={13} />
-                    <button onClick={() => setActiveTab(2)}
+                    <button onClick={goReviewTab}
                       style={{ fontSize:12, color:'var(--color-ink-mute)',
                         background:'none', border:'none', cursor:'pointer', padding:0 }}>
                       {product.avg_rating.toFixed(1)} ({product.review_count.toLocaleString()})
