@@ -13,7 +13,7 @@ body { background: #fff; }
 .event-tab-btn {
   flex: 1;
   text-align: center;
-  padding: 8px 20px 14px;
+  padding: 3px 20px 14px;
   font-size: 15px;
   font-weight: 600;
   color: #aaa;
