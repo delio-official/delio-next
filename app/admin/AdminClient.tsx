@@ -5563,10 +5563,10 @@ export default function AdminClient() {
       )}
 
       {/* ===== 배송추적 모달 ===== */}
-      {showTrackingModal && selectedOrder?.tracking_number && (
+      {showTrackingModal && trackingInput.tracking_number && (
         <TrackingModal
-          carrierId={selectedOrder.courier || 'kr.cjlogistics'}
-          trackingNumber={selectedOrder.tracking_number}
+          carrierId={trackingInput.courier || 'kr.cjlogistics'}
+          trackingNumber={trackingInput.tracking_number}
           onClose={() => setShowTrackingModal(false)}
         />
       )}
