@@ -42,6 +42,10 @@ interface OrderItem {
   thumbnail_url: string | null;
   farm_id?: string | null;
   farm_name?: string | null;
+  carrier?: string | null;          // 농가 지정 택배사
+  courier?: string | null;          // 등록된 택배사 코드
+  tracking_number?: string | null;  // 송장번호
+  ship_status?: string | null;      // preparing | shipped | delivered
 }
 interface Order {
   id: string;
@@ -1478,6 +1482,7 @@ export default function AdminClient() {
   const [orderPage, setOrderPage] = useState(1);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
+  const [farmTracking, setFarmTracking] = useState<Record<string, { courier: string; tracking_number: string }>>({}); // 농가별 송장 입력
   const [savingTracking, setSavingTracking] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
 
@@ -2047,7 +2052,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let query = supabase
       .from('orders')
-      .select('*,order_items(product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,products(farm_id,farms(name,carrier)))')
+      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
       .order(basis, { ascending: false })
       .limit(1000);
     /* 조회 기준(주문일/결제일) + 기간 필터 */
@@ -2062,7 +2067,7 @@ export default function AdminClient() {
         const farm = prod?.farms as Record<string, unknown> | null;
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { products: _p, ...rest } = item;
-        return { ...rest, farm_id: prod?.farm_id ?? null, farm_name: farm?.name ?? null, carrier: farm?.carrier ?? null };
+        return { ...rest, farm_id: (item.farm_id as string) ?? prod?.farm_id ?? null, farm_name: farm?.name ?? null, carrier: farm?.carrier ?? null };
       }),
     }));
     setOrders(orders as unknown as Order[]);
@@ -3715,6 +3720,49 @@ export default function AdminClient() {
     'kr.logen': '로젠택배', 'kr.lotteglogis': '롯데글로벌로지스',
     'kr.coupang': '쿠팡로켓배송', 'kr.cupost': 'CU편의점택배',
   };
+
+  const COURIER_OPTIONS = [
+    { value:'', label:'택배사 선택' },
+    { value:'kr.cjlogistics', label:'CJ대한통운' },
+    { value:'kr.lotte', label:'롯데택배' },
+    { value:'kr.hanjin', label:'한진택배' },
+    { value:'kr.epost', label:'우체국택배' },
+    { value:'kr.logen', label:'로젠택배' },
+    { value:'kr.lotteglogis', label:'롯데글로벌로지스' },
+    { value:'kr.coupang', label:'쿠팡로켓배송' },
+    { value:'kr.cupost', label:'CU편의점택배' },
+  ];
+
+  /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
+     (배송시작 알림톡·추적 웹훅은 다음 단계에서 송장별로 연결) */
+  async function saveItemTracking(farmId: string, courier: string, tracking: string) {
+    if (!selectedOrder) return;
+    setSavingTracking(true);
+    const supabase = createClient();
+    const patch = {
+      courier: courier || null,
+      tracking_number: tracking || null,
+      ship_status: tracking ? 'shipped' : 'preparing',
+      shipped_at: tracking ? new Date().toISOString() : null,
+    };
+    let q = supabase.from('order_items').update(patch).eq('order_id', selectedOrder.id);
+    q = farmId === '__none' ? q.is('farm_id', null) : q.eq('farm_id', farmId);
+    const { error } = await q;
+    if (error) { setSavingTracking(false); alert('저장 실패: ' + error.message); return; }
+    // 로컬 반영
+    const newItems = (selectedOrder.order_items || []).map(i =>
+      (i.farm_id || '__none') === farmId ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
+    );
+    setSelectedOrder(s => s ? { ...s, order_items: newItems } : s);
+    // 모든 농가 송장 등록 완료 시 주문 상태 배송중 전환
+    const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
+    if (allShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
+      await supabase.from('orders').update({ status: 'shipped' }).eq('id', selectedOrder.id);
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'shipped' } : o));
+      setSelectedOrder(s => s ? { ...s, status: 'shipped' } : s);
+    }
+    setSavingTracking(false);
+  }
 
   async function saveTracking() {
     if (!selectedOrder) return;
@@ -5547,48 +5595,44 @@ export default function AdminClient() {
                 </div>
               )}
 
-              {/* 배송 추적 정보 입력 */}
+              {/* 배송 추적 정보 입력 — 농가(상품)별 송장 */}
               <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적</div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                  <AdmSelect
-                    value={trackingInput.courier}
-                    onChange={v => setTrackingInput(p => ({ ...p, courier: v }))}
-                    style={{ minWidth:140 }}
-                    options={[
-                      { value:'', label:'택배사 선택' },
-                      { value:'kr.cjlogistics', label:'CJ대한통운' },
-                      { value:'kr.lotte', label:'롯데택배' },
-                      { value:'kr.hanjin', label:'한진택배' },
-                      { value:'kr.epost', label:'우체국택배' },
-                      { value:'kr.logen', label:'로젠택배' },
-                      { value:'kr.lotteglogis', label:'롯데글로벌로지스' },
-                      { value:'kr.coupang', label:'쿠팡로켓배송' },
-                      { value:'kr.cupost', label:'CU편의점택배' },
-                    ]} />
-                  <input
-                    placeholder="운송장번호"
-                    value={trackingInput.tracking_number}
-                    onChange={e => setTrackingInput(p => ({ ...p, tracking_number: e.target.value }))}
-                    style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0',
-                      borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' }}
-                  />
-                  <button
-                    onClick={saveTracking}
-                    disabled={savingTracking}
-                    className="adm-btn adm-btn-primary"
-                    style={{ height:36, padding:'0 14px', fontSize:13 }}>
-                    {savingTracking ? '저장 중...' : '저장'}
-                  </button>
-                  {selectedOrder.tracking_number && (
-                    <button
-                      onClick={() => setShowTrackingModal(true)}
-                      className="adm-btn adm-btn-outline"
-                      style={{ height:36, padding:'0 14px', fontSize:13 }}>
-                      🚚 배송추적
-                    </button>
-                  )}
-                </div>
+                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (농가별 송장)</div>
+                {(() => {
+                  const items = selectedOrder.order_items || [];
+                  const farmIds = [...new Set(items.map(i => i.farm_id || '__none'))];
+                  return farmIds.map(fid => {
+                    const fItems = items.filter(i => (i.farm_id || '__none') === fid);
+                    const first = fItems[0];
+                    const carrier = first?.carrier || '';
+                    const cur = farmTracking[fid] ?? { courier: first?.courier || carrier || '', tracking_number: first?.tracking_number || '' };
+                    const shipped = fItems.every(i => !!i.tracking_number);
+                    return (
+                      <div key={fid} style={{ marginBottom:10, padding:'10px 12px', border:'1px solid #E2E8F0', borderRadius:8 }}>
+                        <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
+                          {first?.farm_name || '농가 미지정'}
+                          {carrier && <span style={{ fontSize:11, color:'#94A3B8', fontWeight:500, marginLeft:6 }}>지정: {COURIER_NAMES[carrier] || carrier}</span>}
+                          {shipped && <span style={{ fontSize:11, color:'#2D7A4D', fontWeight:700, marginLeft:6 }}>✓ 발송</span>}
+                        </div>
+                        <div style={{ fontSize:12, color:'#64748B', marginBottom:8 }}>{fItems.map(i => i.product_name).join(', ')}</div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                          <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} style={{ minWidth:140 }} options={COURIER_OPTIONS} />
+                          <input placeholder="운송장번호" value={cur.tracking_number}
+                            onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
+                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                          <button onClick={() => saveItemTracking(fid, cur.courier, cur.tracking_number)} disabled={savingTracking}
+                            className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
+                            {savingTracking ? '저장 중...' : '저장'}
+                          </button>
+                          {first?.tracking_number && (
+                            <button onClick={() => { setTrackingInput({ courier: first.courier || '', tracking_number: first.tracking_number || '' }); setShowTrackingModal(true); }}
+                              className="adm-btn adm-btn-outline" style={{ height:36, padding:'0 14px', fontSize:13 }}>🚚 배송추적</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {/* 배송 지연 안내 발송 */}
@@ -5921,7 +5965,7 @@ export default function AdminClient() {
                     <div className="adm-card-head"><span className="adm-card-title">최근 주문 현황</span></div>
                     <div className="adm-pending-list">
                       {orders.slice(0, 5).map(o => (
-                        <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer' }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); }}>
+                        <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer' }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
                           <span className="adm-muted" style={{ fontSize:12 }}>{o.recipient}</span>
                           <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`} style={{ fontSize:10 }}>
                             {STATUS_LABEL[o.status] || o.status}
@@ -6054,7 +6098,7 @@ export default function AdminClient() {
                             <td>
                               <button className="adm-row-btn" onClick={() => {
                                 setSelectedOrder(o);
-                                setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' });
+                                setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({});
                               }}>상세</button>
                             </td>
                           </tr>
