@@ -412,9 +412,9 @@
     .mobile-cta-bar .btn-secondary:hover { border-color: #DDDDD9 !important; }
     .pd-info-table th {
       padding: 11px 0; width: 72px; font-weight: 600;
-      color: var(--color-ink-mute); text-align: left; vertical-align: top; white-space: nowrap;
+      color: var(--color-ink-mute); text-align: left; vertical-align: middle; line-height: 1.5; white-space: nowrap;
     }
-    .pd-info-table td { padding: 11px 0 11px 8px; color: var(--color-ink); line-height: 1.5; }
+    .pd-info-table td { padding: 11px 0 11px 8px; color: var(--color-ink); line-height: 1.5; vertical-align: middle; }
 
     /* ===== 출발 안내 ===== */
     .pd-dispatch-notice {
