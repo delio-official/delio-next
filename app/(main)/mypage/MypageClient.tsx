@@ -3632,7 +3632,7 @@ export default function MypageClient() {
                       <form onSubmit={submitCsInquiry}>
                         {/* 유형 선택 — 필 탭 */}
                         <div style={{ marginBottom:16 }}>
-                          <div style={{ fontSize:13, fontWeight:700, color:'#aaa', marginBottom:10,
+                          <div style={{ fontSize: isMobileView ? 13 : 15, fontWeight:700, color:'#aaa', marginBottom:10,
                             textTransform:'uppercase', letterSpacing:'0.4px' }}>문의 유형</div>
                           <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                             {CS_CATEGORIES.map(c => {
@@ -3654,7 +3654,7 @@ export default function MypageClient() {
 
                         {/* 제목 */}
                         <div style={{ marginBottom:12 }}>
-                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize: isMobileView ? 13 : 15, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
                             제목 <span style={{ color:'#1A1A1A', fontSize:11.5 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
@@ -3667,7 +3667,7 @@ export default function MypageClient() {
 
                         {/* 내용 */}
                         <div style={{ marginBottom:16 }}>
-                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize: isMobileView ? 13 : 15, fontWeight:700, color:'#aaa',
                             marginBottom:5, textTransform:'uppercase', letterSpacing:'0.4px' }}>
                             문의 내용 <span style={{ color:'#1A1A1A', fontSize:11.5 }}><span style={{ color:'#CB1D11' }}>*</span>필수</span>
                           </label>
@@ -3690,7 +3690,7 @@ export default function MypageClient() {
 
                         {/* 파일 첨부 */}
                         <div style={{ marginBottom:16 }}>
-                          <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#aaa',
+                          <label style={{ display:'block', fontSize: isMobileView ? 13 : 15, fontWeight:700, color:'#aaa',
                             marginBottom:8, textTransform:'uppercase', letterSpacing:'0.4px' }}>
                             파일 첨부 <span style={{ fontWeight:400, color:'#bbb', fontSize:11.5 }}>선택 · 최대 5개</span>
                           </label>
@@ -3739,7 +3739,7 @@ export default function MypageClient() {
                                 display:'flex', flexDirection:'column', alignItems:'center',
                                 justifyContent:'center', cursor:'pointer', gap:3, flexShrink:0 }}>
                                 <span style={{ fontSize:28, color:'#aaa', lineHeight:1 }}>＋</span>
-                                <span style={{ fontSize:11, color:'#bbb' }}>파일추가</span>
+                                <span style={{ fontSize: isMobileView ? 11 : 13, color:'#bbb' }}>파일추가</span>
                                 <input type="file" multiple hidden
                                   accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx"
                                   onChange={e => {
