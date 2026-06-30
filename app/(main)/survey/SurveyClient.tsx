@@ -373,7 +373,7 @@ export default function SurveyClient() {
     const ok = shareKakaoFeed({
       title: `내 과일 취향유형 · ${r?.name ?? '취향진단'}`,
       description: r?.tagline ?? '델리오 취향진단으로 내 과일 유형을 확인해보세요!',
-      imageUrl: `${window.location.origin}/KakaoThumbnail.png`,
+      imageUrl: `${window.location.origin}/KakaoThumbnail.png?v=2`,
       linkUrl: url,
       buttonTitle: '내 결과 보기',
     });
