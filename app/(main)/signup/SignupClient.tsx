@@ -6,6 +6,36 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signUp, signIn } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
 import '@/styles/signup.css';
+import { ARTICLES as TERMS_ARTICLES } from '@/lib/legal_terms';
+import { SECTIONS as PRIVACY_SECTIONS } from '@/lib/legal_privacy';
+import { SECTIONS as MKT_SECTIONS } from '@/lib/legal_marketing';
+
+/* 약관 전문 (이용약관·개인정보·마케팅) — 회원가입 인라인 펼침용. 약관 페이지 데이터 재사용 */
+const TERM_DOCS: { title: string; lines: string[] }[][] = [
+  TERMS_ARTICLES.map(a => ({ title: a.title, lines: a.clauses })),
+  PRIVACY_SECTIONS.map(s => ({ title: s.title, lines: s.lines })),
+  MKT_SECTIONS.map(s => ({ title: s.title, lines: s.clauses })),
+];
+function TermsDoc({ idx }: { idx: number }) {
+  return (
+    <div className="su-terms-doc">
+      {TERM_DOCS[idx].map((sec, i) => (
+        <div key={i} className="su-terms-doc-sec">
+          <div className="su-terms-doc-title">{sec.title}</div>
+          {sec.lines.map((l, j) => <p key={j} className="su-terms-doc-line">{l}</p>)}
+        </div>
+      ))}
+    </div>
+  );
+}
+function TermChevron({ open }: { open: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
 
 /* 비밀번호 보기/숨기기 눈 토글 (입력칸 우측) */
 function PwEye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
@@ -84,6 +114,7 @@ export default function SignupClient() {
   }, []);
 
   /* ── 약관 ── */
+  const [openTerm, setOpenTerm] = useState<number | null>(null); // 약관 펼침 (0:이용약관 1:개인정보 2:마케팅)
   const [t1, setT1] = useState(false);  // 이용약관 (필수)
   const [t2, setT2] = useState(false);  // 개인정보 (필수)
   const [t3, setT3] = useState(false);  // 마케팅 (선택)
@@ -405,24 +436,27 @@ export default function SignupClient() {
                   <CircleCheck on={t1} onClick={() => { setT1(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">이용약관 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
-                <a href="/terms" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
+                <button type="button" className="su-terms-view" onClick={() => setOpenTerm(v => v === 0 ? null : 0)}>약관보기 <TermChevron open={openTerm === 0} /></button>
               </div>
+              {openTerm === 0 && <TermsDoc idx={0} />}
 
               <div className="su-terms-item">
                 <div className="su-terms-left">
                   <CircleCheck on={t2} onClick={() => { setT2(v => !v); if (fieldErrors.terms) setFieldErrors(p => ({ ...p, terms: '' })); }} />
                   <span className="su-terms-txt">개인정보 수집·이용 동의 <span className="su-terms-badge su-terms-required">(필수)</span></span>
                 </div>
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
+                <button type="button" className="su-terms-view" onClick={() => setOpenTerm(v => v === 1 ? null : 1)}>약관보기 <TermChevron open={openTerm === 1} /></button>
               </div>
+              {openTerm === 1 && <TermsDoc idx={1} />}
 
               <div className="su-terms-item">
                 <div className="su-terms-left">
                   <CircleCheck on={t3} onClick={() => setT3(v => !v)} />
                   <span className="su-terms-txt">마케팅 광고 활용을 위한 수집 및 이용 동의 <span className="su-terms-badge">(선택)</span></span>
                 </div>
-                <a href="/terms/marketing" target="_blank" rel="noopener noreferrer" className="su-terms-view">약관보기 ›</a>
+                <button type="button" className="su-terms-view" onClick={() => setOpenTerm(v => v === 2 ? null : 2)}>약관보기 <TermChevron open={openTerm === 2} /></button>
               </div>
+              {openTerm === 2 && <TermsDoc idx={2} />}
 
               <div className="su-terms-item su-terms-item-wrap">
                 <div className="su-terms-left">
