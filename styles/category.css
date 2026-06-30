@@ -276,7 +276,7 @@ body { background: #fff; }
   .product-card .product-card-desc { font-size: 12px; }
   .product-card .price-current  { font-size: 15px; }
   .product-card .price-discount { font-size: 15px; }
-  .product-card .price-original { font-size: 11px; }
+  .product-card .price-original { font-size: 12px; }
 }
 
 /* 카드 본문 */
@@ -301,7 +301,7 @@ body { background: #fff; }
 .badge-best { background: #1A1A1A; color: #fff; font-weight: 800; }
 
 .product-card-name {
-  font-size: 15px; font-weight: 600; color: var(--color-ink);
+  font-size: 17px; font-weight: 600; color: var(--color-ink);
   line-height: 1.4; margin-bottom: 2px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; min-height: 2.8em;   /* 두 줄까지 표기, 넘치면 …, 카드 높이 통일 */
@@ -317,9 +317,9 @@ body { background: #fff; }
   flex-wrap: wrap; margin-bottom: 4px;
   margin-top: auto;   /* 가격·별점을 카드 하단으로 밀어 정렬 통일 */
 }
-.price-discount  { font-size: 15px; font-weight: 800; color: #E53E3E; }
-.price-current   { font-size: 18px; font-weight: 800; color: var(--color-ink); }
-.price-original  { font-size: 12px; color: #bbb; text-decoration: line-through; }
+.price-discount  { font-size: 19px; font-weight: 800; color: #E53E3E; }
+.price-current   { font-size: 19px; font-weight: 800; color: var(--color-ink); }
+.price-original  { font-size: 14px; color: #bbb; text-decoration: line-through; }
 
 /* 배송 태그 (카드 본문 하단) */
 .product-delivery-tag {
