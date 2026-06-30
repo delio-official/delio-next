@@ -1343,18 +1343,16 @@ export default function MypageClient() {
   };
   const filteredOrders = (() => {
     let list = orders;
-    // PC 탭: 주문내역조회 / 취소·반품·교환
-    if (!isMobileView) {
-      list = orderTab === 'cancel'
-        ? list.filter(o => CANCEL_STATUSES.includes(o.status))
-        : list.filter(o => !CANCEL_STATUSES.includes(o.status));
-    }
+    // 탭: 주문내역조회 / 취소·반품·교환 (PC·모바일 공통)
+    list = orderTab === 'cancel'
+      ? list.filter(o => CANCEL_STATUSES.includes(o.status))
+      : list.filter(o => !CANCEL_STATUSES.includes(o.status));
     if (orderStatusFilter && STATUS_GROUPS[orderStatusFilter]) {
       const allow = STATUS_GROUPS[orderStatusFilter];
       list = list.filter(o => allow.includes(o.status));
     }
-    // PC 날짜범위 (조회 적용 시)
-    if (!isMobileView && appliedRange) {
+    // 날짜범위 (기간 버튼/조회 적용 시)
+    if (appliedRange) {
       list = list.filter(o => { const d = (o.created_at || '').slice(0, 10); return d >= appliedRange.from && d <= appliedRange.to; });
     }
     const q = orderSearch.trim().toLowerCase();
@@ -2117,55 +2115,59 @@ export default function MypageClient() {
                 </div>
 
                 {/* PC 전용: 탭 + 기간/상태 필터 + 안내 (모바일은 기존 검색만) */}
-                {!isMobileView && (
-                  <>
-                    <div className="mp-otab-row">
-                      <button type="button" className={`mp-otab${orderTab==='order'?' active':''}`}
-                        onClick={() => { setOrderTab('order'); setOrderStatusFilter(null); setOrderPage(0); }}>
-                        주문내역조회 ({orders.filter(o => !CANCEL_STATUSES.includes(o.status)).length})
-                      </button>
-                      <button type="button" className={`mp-otab${orderTab==='cancel'?' active':''}`}
-                        onClick={() => { setOrderTab('cancel'); setOrderStatusFilter(null); setOrderPage(0); }}>
-                        취소/반품/교환 내역 ({orders.filter(o => CANCEL_STATUSES.includes(o.status)).length})
-                      </button>
-                    </div>
+                <>
+                  <div className="mp-otab-row">
+                    <button type="button" className={`mp-otab${orderTab==='order'?' active':''}`}
+                      onClick={() => { setOrderTab('order'); setOrderStatusFilter(null); setOrderPage(0); }}>
+                      주문내역조회 ({orders.filter(o => !CANCEL_STATUSES.includes(o.status)).length})
+                    </button>
+                    <button type="button" className={`mp-otab${orderTab==='cancel'?' active':''}`}
+                      onClick={() => { setOrderTab('cancel'); setOrderStatusFilter(null); setOrderPage(0); }}>
+                      취소/반품/교환 내역 ({orders.filter(o => CANCEL_STATUSES.includes(o.status)).length})
+                    </button>
+                  </div>
 
-                    <div className="mp-ofilter">
-                      <div className="mp-ofilter-dd">
-                        <button type="button" className="mp-ofilter-dd-btn" onClick={() => setOrderStatusOpen(o => !o)}>
-                          <span>{orderStatusFilter ? STATUS_GROUP_LABEL[orderStatusFilter] : '전체 주문처리상태'}</span>
-                          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                        </button>
-                        {orderStatusOpen && (
-                          <div className="mp-ofilter-dd-list">
-                            {([['', '전체 주문처리상태'], ['pending', '입금전'], ['preparing', '배송준비중'], ['shipped', '배송중'], ['delivered', '배송완료']] as const).map(([v, label]) => (
-                              <button key={v} type="button" className={(orderStatusFilter || '') === v ? 'active' : ''}
-                                onClick={() => { setOrderStatusFilter(v || null); setOrderStatusOpen(false); setOrderPage(0); }}>{label}</button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="mp-ofilter-periods">
-                        <button type="button" onClick={() => applyPeriod('today')}>오늘</button>
-                        <button type="button" onClick={() => applyPeriod(1)}>1개월</button>
-                        <button type="button" onClick={() => applyPeriod(3)}>3개월</button>
-                        <button type="button" onClick={() => applyPeriod(6)}>6개월</button>
-                      </div>
-                      <div className="mp-ofilter-dates">
-                        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-                        <span className="mp-ofilter-tilde">~</span>
-                        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-                      </div>
-                      <button type="button" className="mp-ofilter-go"
-                        onClick={() => { if (dateFrom && dateTo) setAppliedRange({ from: dateFrom, to: dateTo }); setOrderPage(0); orderListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>조회</button>
+                  <div className="mp-ofilter">
+                    <div className="mp-ofilter-dd">
+                      <button type="button" className="mp-ofilter-dd-btn" onClick={() => setOrderStatusOpen(o => !o)}>
+                        <span>{orderStatusFilter ? STATUS_GROUP_LABEL[orderStatusFilter] : '전체 주문처리상태'}</span>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                      </button>
+                      {orderStatusOpen && (
+                        <div className="mp-ofilter-dd-list">
+                          {([['', '전체 주문처리상태'], ['pending', '입금전'], ['preparing', '배송준비중'], ['shipped', '배송중'], ['delivered', '배송완료']] as const).map(([v, label]) => (
+                            <button key={v} type="button" className={(orderStatusFilter || '') === v ? 'active' : ''}
+                              onClick={() => { setOrderStatusFilter(v || null); setOrderStatusOpen(false); setOrderPage(0); }}>{label}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    <div className="mp-ofilter-periods">
+                      <button type="button" onClick={() => applyPeriod('today')}>오늘</button>
+                      <button type="button" onClick={() => applyPeriod(1)}>1개월</button>
+                      <button type="button" onClick={() => applyPeriod(3)}>3개월</button>
+                      <button type="button" onClick={() => applyPeriod(6)}>6개월</button>
+                    </div>
+                    {!isMobileView && (
+                      <>
+                        <div className="mp-ofilter-dates">
+                          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                          <span className="mp-ofilter-tilde">~</span>
+                          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                        </div>
+                        <button type="button" className="mp-ofilter-go"
+                          onClick={() => { if (dateFrom && dateTo) setAppliedRange({ from: dateFrom, to: dateTo }); setOrderPage(0); orderListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>조회</button>
+                      </>
+                    )}
+                  </div>
 
+                  {!isMobileView && (
                     <ul className="mp-onotice">
                       <li>기본적으로 최근 3개월간의 자료가 조회되며, 기간 검색 시 최대 36개월 이내의 주문내역을 조회하실 수 있습니다.</li>
                       <li>취소/교환/반품 신청은 배송완료일 기준 6일까지 가능합니다.</li>
                     </ul>
-                  </>
-                )}
+                  )}
+                </>
                 {/* 주문내역 검색 */}
                 <div className="mp-order-search">
                   <input

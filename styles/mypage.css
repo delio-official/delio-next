@@ -187,6 +187,16 @@ body { background: #fff; }
     .mp-onotice { margin: 0 0 20px; padding: 0; list-style: none; }
     .mp-onotice li { position: relative; padding-left: 12px; font-size: 13px; color: #888; line-height: 1.9; }
     .mp-onotice li::before { content: '-'; position: absolute; left: 0; }
+    /* 모바일: 탭 절반씩 + 필터바 줄바꿈(상태 한 줄 / 기간 한 줄), 날짜·조회는 미노출 */
+    @media (max-width: 768px) {
+      .mp-otab-row { margin: 4px 0 16px; }
+      .mp-otab { flex: 1; padding: 12px 4px; text-align: center; font-size: 13.5px; }
+      .mp-ofilter { flex-wrap: wrap; justify-content: flex-start; gap: 8px; padding: 12px; }
+      .mp-ofilter-dd { width: 100%; }
+      .mp-ofilter-dd-btn { width: 100%; min-width: 0; font-size: 14px; padding: 11px 13px; }
+      .mp-ofilter-periods { width: 100%; gap: 6px; }
+      .mp-ofilter-periods button { flex: 1; padding: 10px 0; font-size: 13.5px; }
+    }
     .mp-flow-num { font-size: 30px; font-weight: 800; color: #1A1A1A; line-height: 1; }
     .mp-flow-label { font-size: 13px; color: #888; }
     .mp-order-filter-chip {
