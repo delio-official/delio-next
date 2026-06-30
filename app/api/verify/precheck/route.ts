@@ -33,5 +33,13 @@ export async function POST(req: Request) {
     .select('withdrawn_at').eq('ci', ci).gte('withdrawn_at', since).maybeSingle();
   if (wd) return NextResponse.json({ ok: false, code: 'REJOIN', error: '탈퇴 후 30일 이내에는 재가입(본인인증)이 제한됩니다.' }, { status: 409 });
 
-  return NextResponse.json({ ok: true });
+  // 통과 — 가입 폼 자동채움용 정보 반환 (CI/DI 는 노출하지 않음)
+  const vc = data.verifiedCustomer || {};
+  return NextResponse.json({
+    ok: true,
+    name: vc.name ?? '',
+    phone: vc.phoneNumber ?? '',
+    birth: vc.birthDate ?? '',           // YYYY-MM-DD
+    gender: vc.gender === 'MALE' ? 'male' : vc.gender === 'FEMALE' ? 'female' : '',
+  });
 }

@@ -115,6 +115,12 @@ export default function SignupClient() {
 
   /* ── 약관 ── */
   const [openTerm, setOpenTerm] = useState<number | null>(null); // 약관 펼침 (0:이용약관 1:개인정보 2:마케팅)
+  // 본인인증 게이트(가입 진입 시 인증 먼저)
+  const gateOn = process.env.NEXT_PUBLIC_IDENTITY_GATE === '1'
+    && !!process.env.NEXT_PUBLIC_PORTONE_STORE_ID && !!process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+  const [verified, setVerified] = useState(false);
+  const [verifyId, setVerifyId] = useState('');
+  const [verifyLoading, setVerifyLoading] = useState(false);
   const [t1, setT1] = useState(false);  // 이용약관 (필수)
   const [t2, setT2] = useState(false);  // 개인정보 (필수)
   const [t3, setT3] = useState(false);  // 마케팅 (선택)
@@ -218,6 +224,46 @@ export default function SignupClient() {
   }
   const pwStrength = getPwStrength(pw);
 
+  /* 가입 진입 본인인증 — PASS 인증 → CI 중복 사전검사 → 통과 시 이름·생일·번호 자동채움 + 가입 폼 노출 */
+  async function startVerify() {
+    if (verifyLoading) return;
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+    if (!storeId || !channelKey) { setError('본인인증 설정이 없습니다. 관리자에게 문의해주세요.'); return; }
+    setVerifyLoading(true);
+    setError('');
+    try {
+      const PortOne = await import('@portone/browser-sdk/v2');
+      const vid = `signup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const response = await PortOne.requestIdentityVerification({ storeId, channelKey, identityVerificationId: vid });
+      if (!response || (response as { code?: string }).code !== undefined) {
+        setVerifyLoading(false);
+        setError('본인인증이 취소되었습니다. 다시 시도해주세요.');
+        return;
+      }
+      const pc = await fetch('/api/verify/precheck', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityVerificationId: vid }),
+      }).then(r => r.json()).catch(() => null);
+      if (!pc?.ok) {
+        setVerifyLoading(false);
+        setError(pc?.error || '본인인증 확인에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
+      // 인증 정보 자동채움
+      if (pc.name) setName(pc.name);
+      if (pc.phone) setPhone(pc.phone);
+      if (pc.birth) { const [y, m, d] = String(pc.birth).split('-'); if (y) setBirthY(y); if (m) setBirthM(m); if (d) setBirthD(d); }
+      if (pc.gender) setGender(pc.gender);
+      setVerifyId(vid);
+      setVerified(true);
+      setVerifyLoading(false);
+    } catch {
+      setVerifyLoading(false);
+      setError('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  }
+
   async function completeSignup() {
     const email = getEmail();
     const errs: Record<string, string> = {};
@@ -260,39 +306,6 @@ export default function SignupClient() {
     setLoading(true);
     setError('');
 
-    // ── 본인인증 게이트 ON 이면: 회원가입 클릭 → PASS 인증 → CI 중복 사전검사 → (통과 시에만) 가입 진행 ──
-    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
-    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
-    const gateOn = process.env.NEXT_PUBLIC_IDENTITY_GATE === '1' && !!storeId && !!channelKey;
-    let verifyId = '';
-
-    if (gateOn) {
-      try {
-        const PortOne = await import('@portone/browser-sdk/v2');
-        verifyId = `signup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const response = await PortOne.requestIdentityVerification({ storeId: storeId!, channelKey: channelKey!, identityVerificationId: verifyId });
-        if (!response || (response as { code?: string }).code !== undefined) {
-          setLoading(false);
-          setError('본인인증을 완료해야 회원가입이 가능합니다. 다시 시도해주세요.');
-          return;
-        }
-      } catch {
-        setLoading(false);
-        setError('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-        return;
-      }
-      // CI 중복/재가입 사전 검사 (계정 만들기 전에 차단)
-      const pc = await fetch('/api/verify/precheck', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identityVerificationId: verifyId }),
-      }).then(r => r.json()).catch(() => null);
-      if (!pc?.ok) {
-        setLoading(false);
-        setError(pc?.error || '본인인증 확인에 실패했습니다. 다시 시도해주세요.');
-        return;
-      }
-    }
-
     const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined, phone.trim() || undefined, t4s, t4e);
     if (err) {
       setLoading(false);
@@ -313,6 +326,33 @@ export default function SignupClient() {
     fetch('/api/auth/welcome', { method: 'POST' }).catch(() => {});
     setLoading(false);
     setDone(true);
+  }
+
+  // 게이트 ON + 미인증 → 가입 폼 대신 본인인증 화면 먼저
+  if (gateOn && !verified && !done) {
+    return (
+      <div className="su-wrap">
+        <h1 className="su-title">회원가입</h1>
+        <div style={{ maxWidth: 460, margin: '40px auto 0', textAlign: 'center', padding: '0 20px' }}>
+          <div style={{ fontSize: 44, marginBottom: 18 }}>🔒</div>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1A1A1A', marginBottom: 10 }}>휴대폰 본인인증</h2>
+          <p style={{ fontSize: 14, color: '#888', lineHeight: 1.7, marginBottom: 28 }}>
+            안전한 가입을 위해 휴대폰 본인인증을 먼저 진행합니다.<br />
+            1인 1계정 확인을 위한 절차예요.
+          </p>
+          <button onClick={startVerify} disabled={verifyLoading}
+            style={{ width: '100%', padding: '16px 0', borderRadius: 10, border: 'none',
+              background: verifyLoading ? '#C8C8C8' : '#1A1A1A', color: '#fff', fontSize: 16, fontWeight: 700,
+              cursor: verifyLoading ? 'default' : 'pointer', fontFamily: 'inherit' }}>
+            {verifyLoading ? '인증 진행 중...' : '휴대폰 본인인증하고 시작하기'}
+          </button>
+          {error && <p style={{ color: '#E53935', fontSize: 13, marginTop: 16 }}>{error}</p>}
+          <p style={{ fontSize: 12, color: '#bbb', marginTop: 20, lineHeight: 1.6 }}>
+            인증 정보(이름·생년월일·연락처)는 본인확인 목적으로만 사용되며 안전하게 보관됩니다.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
