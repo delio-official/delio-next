@@ -264,6 +264,16 @@ export default function SignupClient() {
     }
   }
 
+  // 게이트 ON 이면 회원가입 진입 즉시 PASS 인증 자동 실행 (팝업 차단 시 화면의 버튼으로 수동 진행)
+  const autoVerifyRef = useRef(false);
+  useEffect(() => {
+    if (gateOn && !verified && !autoVerifyRef.current) {
+      autoVerifyRef.current = true;
+      startVerify();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function completeSignup() {
     const email = getEmail();
     const errs: Record<string, string> = {};
