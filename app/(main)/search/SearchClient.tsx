@@ -376,9 +376,9 @@ export default function SearchClient() {
             {/* 실시간 인기 검색어 — 제목 + 기준시각 / 1~10위 2열 */}
             <div className="search-popular-section">
               <div className="rt-pop-head">
-                <span className="rt-pop-title">인기 검색어</span>
+                <span className="rt-pop-title">실시간 인기 검색어</span>
               </div>
-              <div className="rt-pop-grid">
+              <div className="rt-pop-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.ceil(Math.min(popularKeywords.length, 10) / 2))}, auto)` }}>
                 {popularKeywords.slice(0, 10).map((kw, i) => (
                   <button key={i} className="rt-pop-item" onClick={() => handleSearch(kw)}>
                     <span className="rt-pop-num">{i + 1}</span>
