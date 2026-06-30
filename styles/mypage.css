@@ -518,12 +518,7 @@ body { background: #fff; }
       font-size: 12px; font-weight: 700; color: #AAA; white-space: nowrap;
     }
     .mp-cp-side-exp.soon { color: #CB1D11; }
-    .mp-cp-side::before, .mp-cp-side::after {
-      content: ''; position: absolute; left: -7px; width: 12px; height: 12px;
-      border-radius: 50%; background: #fff;
-    }
-    .mp-cp-side::before { top: -7px; }
-    .mp-cp-side::after { bottom: -7px; }
+    .mp-cp-side::before, .mp-cp-side::after { display: none; }
     .mp-cp-side-use {
       font-size: 13px; font-weight: 500; color: #888; text-decoration: none;
       text-align: center; line-height: 1.4; white-space: nowrap;
