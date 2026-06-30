@@ -714,7 +714,7 @@ export default function MypageClient() {
     const ok = shareKakaoFeed({
       title: `내 과일 취향유형 · ${info?.name ?? '취향진단'}`,
       description: info?.tagline ?? '델리오 취향진단으로 내 과일 유형을 확인해보세요!',
-      imageUrl: `${window.location.origin}/DelioLogo.png`,
+      imageUrl: `${window.location.origin}/KakaoThumbnail.png`,
       linkUrl: url,
       buttonTitle: '내 결과 보기',
     });
@@ -2944,7 +2944,7 @@ export default function MypageClient() {
                         const ok = shareKakaoFeed({
                           title: '델리오 초대 — 친구 추천 혜택',
                           description: `추천코드 ${referralCode} · 가입하면 둘 다 5,000원 쿠폰을 받아요!`,
-                          imageUrl: `${window.location.origin}/DelioLogo.png`,
+                          imageUrl: `${window.location.origin}/KakaoThumbnail.png`,
                           linkUrl: url,
                           buttonTitle: '델리오 가입하기',
                         });
