@@ -128,12 +128,17 @@ export default function SignupClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  /* 완료 오버레이가 뜨면 뒤 페이지 스크롤 잠금 (스크롤바 중복 방지) */
+  /* 완료 오버레이가 뜨면 뒤 페이지(html·body) 스크롤 잠금 (스크롤바 중복 방지) */
   useEffect(() => {
     if (!done) return;
-    const prev = document.body.style.overflow;
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
+    };
   }, [done]);
 
   /* ── 필드별 에러 ── */
