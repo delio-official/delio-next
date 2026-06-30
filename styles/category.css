@@ -271,6 +271,12 @@ body { background: #fff; }
     align-items: center; justify-content: center; cursor: pointer; padding: 0;
   }
   .product-card-cart-mob svg { width: 18px; height: 18px; color: #1A1A1A; }
+  /* 모바일 글자 크기를 메인 '델리오 픽' 카드와 동일하게 통일 */
+  .product-card .product-card-name { font-size: 14px; line-height: 1.35; min-height: 2.7em; }
+  .product-card .product-card-desc { font-size: 12px; }
+  .product-card .price-current  { font-size: 15px; }
+  .product-card .price-discount { font-size: 15px; }
+  .product-card .price-original { font-size: 11px; }
 }
 
 /* 카드 본문 */
