@@ -3781,9 +3781,6 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='survey'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                <div className="mp-section-header">
-                  <span className="mp-section-title">내 취향 프로필</span>
-                </div>
 
                 {/* 로딩 중 */}
                 {surveyResult === 'none' && (
