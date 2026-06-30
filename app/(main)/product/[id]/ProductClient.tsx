@@ -247,13 +247,39 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
-  /* 별점 클릭 → 후기 탭 전환 + 후기 섹션으로 스크롤 */
+  /* 후기 탭 앵커로 rAF 직접 보간 스크롤 (전역 smooth와 충돌 방지) — 메인 진입/별점 클릭 공용.
+     도착하거나(최대 800ms·사용자 스크롤 시) 끝. stop 함수 반환. */
+  function smoothScrollToTabs() {
+    const html = document.documentElement;
+    let raf = 0;
+    let startTime = 0;
+    let stopped = false;
+    const stop = () => {
+      stopped = true; html.style.scrollBehavior = ''; cancelAnimationFrame(raf);
+      window.removeEventListener('wheel', stop); window.removeEventListener('touchstart', stop);
+    };
+    window.addEventListener('wheel', stop, { passive: true, once: true });
+    window.addEventListener('touchstart', stop, { passive: true, once: true });
+    const animate = (now: number) => {
+      if (stopped) return;
+      if (!startTime) startTime = now;
+      const el = document.getElementById('productTabsAnchor');
+      if (!el) { raf = requestAnimationFrame(animate); return; }
+      const target = window.scrollY + el.getBoundingClientRect().top - 60; // 헤더 보정
+      const diff = target - window.scrollY;
+      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(직접 보간)
+      if (Math.abs(diff) < 2 || now - startTime > 800) { window.scrollTo(0, target); stop(); return; }
+      window.scrollTo(0, window.scrollY + diff * 0.18); // ease-out 보간
+      raf = requestAnimationFrame(animate);
+    };
+    raf = requestAnimationFrame(animate);
+    return stop;
+  }
+
+  /* 별점 클릭 → 후기 탭 전환 + 후기 섹션으로 부드럽게 스크롤 */
   function goToReviews() {
     setActiveTab(2);
-    requestAnimationFrame(() => {
-      const el = document.getElementById('productTabsAnchor');
-      if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: 'smooth' });
-    });
+    window.setTimeout(() => { smoothScrollToTabs(); }, 60);
   }
 
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
@@ -273,28 +299,10 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 후기 탭으로 부드럽게 스크롤 — 도착하거나(최대 800ms·사용자 스크롤 시) 끝. 한 번만 이동 */
-    const html = document.documentElement;
-    let raf = 0;
-    let startTime = 0;
-    let stopped = false;
-    const stop = () => { stopped = true; html.style.scrollBehavior = ''; cancelAnimationFrame(raf); };
-    window.addEventListener('wheel', stop, { passive: true, once: true });
-    window.addEventListener('touchstart', stop, { passive: true, once: true });
-    const animate = (now: number) => {
-      if (stopped) return;
-      if (!startTime) startTime = now;
-      const el = document.getElementById('productTabsAnchor');
-      if (!el) { raf = requestAnimationFrame(animate); return; }
-      const target = window.scrollY + el.getBoundingClientRect().top - 60; // 헤더 보정
-      const diff = target - window.scrollY;
-      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(직접 보간)
-      if (Math.abs(diff) < 2 || now - startTime > 800) { window.scrollTo(0, target); stop(); return; }
-      window.scrollTo(0, window.scrollY + diff * 0.18); // ease-out 보간
-      raf = requestAnimationFrame(animate);
-    };
-    const startT = window.setTimeout(() => { raf = requestAnimationFrame(animate); }, 180);
-    return () => { clearTimeout(startT); stop(); window.removeEventListener('wheel', stop); window.removeEventListener('touchstart', stop); };
+    /* 후기 탭으로 부드럽게 스크롤 (메인 진입) — 별점 클릭과 동일한 공용 보간 함수 사용 */
+    let stopFn: (() => void) | undefined;
+    const startT = window.setTimeout(() => { stopFn = smoothScrollToTabs(); }, 180);
+    return () => { clearTimeout(startT); stopFn?.(); };
   }, [product?.id]);
 
   /* 어드민 여부 */
