@@ -193,6 +193,9 @@ export default function SignupClient() {
     if (!email) {
       errs.email = '이메일을 입력해주세요.';
       if (!firstRef) firstRef = rowEmailRef;
+    } else if (!emailChecked) {
+      errs.email = '이메일 중복확인을 해주세요.';
+      if (!firstRef) firstRef = rowEmailRef;
     }
     if (!pwOk) {
       errs.pw = '비밀번호를 8자 이상 입력해주세요.';
