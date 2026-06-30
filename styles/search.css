@@ -76,8 +76,8 @@
 .rt-pop-head { display: flex; align-items: center; justify-content: space-between; max-width: 480px; margin: 0 auto 16px; padding: 0 4px; }
 .rt-pop-title { font-size: 15px; font-weight: 800; color: #1A1A1A; }
 .rt-pop-time { font-size: 11px; color: #aaa; }
-.rt-pop-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 16px 32px; max-width: 480px; margin: 0 auto; }
-.rt-pop-item { display: flex; align-items: center; gap: 12px; background: none; border: none; cursor: pointer; padding: 0; text-align: left; width: 100%; font-family: inherit; }
+.rt-pop-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(5, auto); grid-auto-flow: column; gap: 0 40px; max-width: 480px; margin: 0 auto; }
+.rt-pop-item { display: flex; align-items: center; gap: 12px; background: none; border: none; border-bottom: 1px solid #EFEFEF; cursor: pointer; padding: 12px 2px; text-align: left; width: 100%; font-family: inherit; }
 .rt-pop-num { font-size: 15px; font-weight: 800; color: #1A1A1A; width: 16px; flex-shrink: 0; text-align: center; }
 .rt-pop-text { font-size: 14px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rt-pop-item:hover .rt-pop-text { text-decoration: underline; }
