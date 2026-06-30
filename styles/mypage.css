@@ -162,8 +162,8 @@ body { background: #fff; }
       background: none; border: none; font-family: inherit; cursor: pointer;
       padding: 8px 4px; border-radius: 12px; transition: background .15s;
     }
-    .mp-flow-step.active .mp-flow-num { color: var(--color-accent); }
-    .mp-flow-step.active .mp-flow-label { color: var(--color-accent); font-weight: 700; }
+    .mp-flow-step.active .mp-flow-num { color: #1A1A1A; }
+    .mp-flow-step.active .mp-flow-label { color: #1A1A1A; font-weight: 700; }
     .mp-flow-num { font-size: 30px; font-weight: 800; color: #1A1A1A; line-height: 1; }
     .mp-flow-label { font-size: 13px; color: #888; }
     .mp-order-filter-chip {
