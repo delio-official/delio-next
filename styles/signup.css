@@ -94,6 +94,13 @@ body { background: #fff; }
     /* ── Email ── */
     .su-email-row { display: flex; align-items: center; gap: 8px; }
     .su-email-row .su-input { flex: 1; min-width: 0; }
+    .su-email-check {
+      flex-shrink: 0; height: 50px; padding: 0 16px;
+      background: #1A1A1A; color: #fff; border: none; border-radius: 6px;
+      font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+      font-family: inherit;
+    }
+    .su-email-check:disabled { opacity: .6; cursor: default; }
     .su-at { font-size: 15px; color: var(--color-ink-soft); flex-shrink: 0; }
     .su-domain-select {
       flex: 1; min-width: 0;

@@ -51,6 +51,8 @@ export default function SignupClient() {
   const [name, setName] = useState('');
   const [emailUser, setEmailUser] = useState('');
   const [emailDomain, setEmailDomain] = useState('');
+  const [emailChecked, setEmailChecked] = useState(false);
+  const [emailCheckMsg, setEmailCheckMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [emailDirect, setEmailDirect] = useState('');
   const [showDirect, setShowDirect] = useState(false);
   const [pw, setPw] = useState('');
@@ -139,6 +141,25 @@ export default function SignupClient() {
     const domain = showDirect ? emailDirect.trim() : emailDomain;
     if (!emailUser.trim() || !domain) return '';
     return `${emailUser.trim()}@${domain}`;
+  }
+
+  /* 이메일 입력 변경 시 중복확인 상태 초기화 */
+  function resetEmailCheck() {
+    if (emailChecked || emailCheckMsg) { setEmailChecked(false); setEmailCheckMsg(null); }
+  }
+
+  /* 이메일 중복확인 */
+  const [emailChecking, setEmailChecking] = useState(false);
+  async function checkEmailDup() {
+    const full = getEmail();
+    if (!full || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(full)) {
+      setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '이메일을 정확히 입력해주세요.' }); return;
+    }
+    setEmailChecking(true);
+    const { data } = await createClient().from('profiles').select('id').eq('email', full).maybeSingle();
+    setEmailChecking(false);
+    if (data) { setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '이미 가입된 이메일입니다.' }); }
+    else { setEmailChecked(true); setEmailCheckMsg({ ok: true, text: '사용 가능한 이메일입니다.' }); }
   }
 
   /* 유효성 */
@@ -237,10 +258,10 @@ export default function SignupClient() {
             <div className="su-ctrl">
               <div className="su-email-row">
                 <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`} placeholder="예: delio"
-                  value={emailUser} onChange={e => { setEmailUser(e.target.value); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
+                  value={emailUser} onChange={e => { setEmailUser(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 <span className="su-at">@</span>
                 <select className="su-domain-select" defaultValue=""
-                  onChange={e => onDomainChange(e.target.value)}>
+                  onChange={e => { onDomainChange(e.target.value); resetEmailCheck(); }}>
                   <option value="">선택하기</option>
                   <option value="gmail.com">gmail.com</option>
                   <option value="naver.com">naver.com</option>
@@ -251,13 +272,17 @@ export default function SignupClient() {
                   <option value="icloud.com">icloud.com</option>
                   <option value="direct">직접입력</option>
                 </select>
+                <button type="button" className="su-email-check" onClick={checkEmailDup} disabled={emailChecking}>
+                  {emailChecking ? '확인중' : '중복확인'}
+                </button>
               </div>
               {showDirect && (
                 <div className="su-email-direct-wrap">
                   <input type="text" className="su-input" placeholder="도메인을 직접 입력해주세요"
-                    value={emailDirect} onChange={e => { setEmailDirect(e.target.value); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
+                    value={emailDirect} onChange={e => { setEmailDirect(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 </div>
               )}
+              {emailCheckMsg && <div className={`su-hint ${emailCheckMsg.ok ? 'ok' : 'err'}`}>{emailCheckMsg.text}</div>}
               {fieldErrors.email && <div className="su-field-error">{fieldErrors.email}</div>}
             </div>
           </div>
