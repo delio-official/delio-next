@@ -104,10 +104,14 @@ function FarmProductCard({ p }: { p: Product }) {
         </div>
         <div className="product-card-name">{p.name}</div>
         {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
-        <div className="product-price-row">
-          {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
-          <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
-          {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
+        <div className="price-block">
+          {p.discount_rate > 0 && (
+            <div className="price-top-row"><span className="price-original">{fmtPrice(p.price)}원</span></div>
+          )}
+          <div className="product-price-row">
+            {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
+            <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
+          </div>
         </div>
         {p.review_count > 0 && (
           <div className="product-rating-row">

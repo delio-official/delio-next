@@ -110,10 +110,14 @@ function SearchProductCard({ p }: { p: Product }) {
           {p.is_best && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
-        <div className="product-price-row">
-          {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
-          <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
-          {p.discount_rate > 0 && <span className="price-original">{fmtPrice(p.price)}원</span>}
+        <div className="price-block">
+          {p.discount_rate > 0 && (
+            <div className="price-top-row"><span className="price-original">{fmtPrice(p.price)}원</span></div>
+          )}
+          <div className="product-price-row">
+            {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
+            <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
+          </div>
         </div>
         <div>
           <span className={`product-delivery-tag${p.is_dawn ? ' farm' : ''}`}>
