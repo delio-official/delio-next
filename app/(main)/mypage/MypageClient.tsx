@@ -3615,7 +3615,7 @@ export default function MypageClient() {
                           영업일 기준 1~2일 이내 답변드립니다.<br/>
                           아래 문의 내역에서 확인 가능합니다.
                         </p>
-                        <div style={{ display:'flex', gap:8 }}>
+                        <div style={{ display:'flex', gap:16 }}>
                           <button onClick={() => setCsFormOpen(false)}
                             style={{ flex:1, padding:'12px', border:'1.5px solid #EBEBEB', borderRadius:10,
                               background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', color:'#555' }}>
