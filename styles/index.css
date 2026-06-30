@@ -1467,7 +1467,7 @@
       }
       .qg-card-tag { display: none !important; }
       .qg-card-name {
-        font-size: 13px !important; font-weight: 600 !important;
+        font-size: 14px !important; font-weight: 600 !important;
         line-height: 1.35 !important; margin-bottom: 2px !important;
         display: -webkit-box !important; -webkit-line-clamp: 2 !important; -webkit-box-orient: vertical !important;
         overflow: hidden !important; min-height: 2.7em !important;
@@ -1475,8 +1475,8 @@
       }
       .qg-card-original { display: block !important; font-size: 11px !important; color: #aaa !important; text-decoration: line-through !important; margin-bottom: 1px !important; }
       .qg-card-price-row { gap: 3px !important; margin-bottom: 4px !important; align-items: baseline !important; flex-wrap: wrap !important; }
-      .qg-card-discount { font-size: 13px !important; font-weight: 700 !important; color: var(--color-accent) !important; display: inline !important; }
-      .qg-card-price { font-size: 13px !important; font-weight: 700 !important; color: var(--color-ink) !important; }
+      .qg-card-discount { font-size: 15px !important; font-weight: 800 !important; color: var(--color-accent) !important; display: inline !important; }
+      .qg-card-price { font-size: 15px !important; font-weight: 800 !important; color: var(--color-ink) !important; }
       .qg-card-img-r { display: none !important; }
       /* 담기 버튼 단독 — 이미지 바로 아래(본문 최상단)로 (어글리어스/사진2 스타일) */
       .qg-body-actions { order: -2 !important; margin: 0 0 9px !important; padding-top: 0 !important; gap: 0 !important; }
