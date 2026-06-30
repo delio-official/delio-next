@@ -2104,11 +2104,6 @@ export default function MypageClient() {
               <div className="mp-section" ref={orderListRef}>
                 <div className="mp-section-header">
                   <span className="mp-section-title">주문내역 조회</span>
-                  {orderStatusFilter && (
-                    <button type="button" className="mp-order-filter-chip" onClick={() => setOrderStatusFilter(null)}>
-                      {STATUS_GROUP_LABEL[orderStatusFilter]} ✕
-                    </button>
-                  )}
                   {orderCount > 0 && (
                     <span className="mp-section-sub" style={{ marginLeft:'auto' }}>{orderCount}건</span>
                   )}
