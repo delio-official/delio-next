@@ -3603,15 +3603,15 @@ export default function MypageClient() {
                     {csDone ? (
                       /* 완료 메시지 */
                       <div style={{ textAlign:'center', padding:'32px 0' }}>
-                        <div style={{ width:56, height:56, borderRadius:'50%', background:'#22C55E',
+                        <div style={{ width:44, height:44, borderRadius:'50%', background:'#22C55E',
                           display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff"
+                          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff"
                             strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"/>
                           </svg>
                         </div>
                         <div style={{ fontSize:16, fontWeight:800, marginBottom:8 }}>문의가 접수되었습니다!</div>
-                        <p style={{ fontSize:13, color:'#888', lineHeight:1.8, marginBottom:20 }}>
+                        <p style={{ fontSize:13, color:'#888', lineHeight:1.8, marginBottom:32 }}>
                           영업일 기준 1~2일 이내 답변드립니다.<br/>
                           아래 문의 내역에서 확인 가능합니다.
                         </p>
