@@ -997,7 +997,6 @@ export default function MypageClient() {
     setOrderStatusFilter(prev => (prev === key ? null : key));
     setOrderSearch('');
     setOrderPage(0);
-    setTimeout(() => orderListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   }
   /* ── 리뷰 삭제 ── */
   async function handleDeleteReview(id: string) {
