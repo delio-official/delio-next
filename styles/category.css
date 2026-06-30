@@ -297,7 +297,8 @@ body { background: #fff; }
 .product-card-name {
   font-size: 15px; font-weight: 600; color: var(--color-ink);
   line-height: 1.4; margin-bottom: 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;   /* 한 줄 표기, 넘치면 … */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-height: 2.8em;   /* 두 줄까지 표기, 넘치면 …, 카드 높이 통일 */
 }
 .product-card-desc {
   font-size: 13px; color: var(--color-ink-mute); margin-bottom: 6px;
