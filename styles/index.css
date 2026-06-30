@@ -1492,10 +1492,10 @@
       }
       /* 가격: 할인%+원가 한 줄(작게) / 최종가 한 줄(크게) — 표준카드 스타일 */
       .qg-card-discrow { display: flex !important; align-items: baseline !important; gap: 4px !important; margin-bottom: 1px !important; }
-      .qg-card-discount { font-size: 14px !important; font-weight: 800 !important; color: #E53E3E !important; display: inline !important; }
+      .qg-card-discount { font-size: 15px !important; font-weight: 800 !important; color: var(--color-accent) !important; display: inline !important; }
       .qg-card-original { display: inline !important; font-size: 12px !important; color: #bbb !important; text-decoration: line-through !important; margin: 0 !important; }
       .qg-card-price-row { margin-bottom: 0 !important; }
-      .qg-card-price { font-size: 18px !important; font-weight: 800 !important; color: var(--color-ink) !important; }
+      .qg-card-price { font-size: 15px !important; font-weight: 800 !important; color: var(--color-ink) !important; }
       /* 별점 (가격 아래) */
       .qg-card-rating {
         display: flex !important; align-items: center !important; gap: 4px !important;
