@@ -356,6 +356,10 @@ export default function MypageClient() {
   useEffect(() => {
     const f = () => setIsMobileView(window.innerWidth <= 768);
     f(); window.addEventListener('resize', f);
+    // 날짜칸 기본값(최근 3개월) — 빈 '연도-월-일' 대신 날짜 표시
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const to = new Date(); const from = new Date(); from.setMonth(from.getMonth() - 3);
+    setDateFrom(fmt(from)); setDateTo(fmt(to));
     return () => window.removeEventListener('resize', f);
   }, []);
   /* 취소/반품/교환 상태 집합 */
