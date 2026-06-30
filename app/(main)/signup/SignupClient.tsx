@@ -259,19 +259,60 @@ export default function SignupClient() {
     setFieldErrors({});
     setLoading(true);
     setError('');
+
+    // ── 본인인증 게이트 ON 이면: 회원가입 클릭 → PASS 인증 → CI 중복 사전검사 → (통과 시에만) 가입 진행 ──
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+    const gateOn = process.env.NEXT_PUBLIC_IDENTITY_GATE === '1' && !!storeId && !!channelKey;
+    let verifyId = '';
+
+    if (gateOn) {
+      try {
+        const PortOne = await import('@portone/browser-sdk/v2');
+        verifyId = `signup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const response = await PortOne.requestIdentityVerification({ storeId: storeId!, channelKey: channelKey!, identityVerificationId: verifyId });
+        if (!response || (response as { code?: string }).code !== undefined) {
+          setLoading(false);
+          setError('본인인증을 완료해야 회원가입이 가능합니다. 다시 시도해주세요.');
+          return;
+        }
+      } catch {
+        setLoading(false);
+        setError('본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      // CI 중복/재가입 사전 검사 (계정 만들기 전에 차단)
+      const pc = await fetch('/api/verify/precheck', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityVerificationId: verifyId }),
+      }).then(r => r.json()).catch(() => null);
+      if (!pc?.ok) {
+        setLoading(false);
+        setError(pc?.error || '본인인증 확인에 실패했습니다. 다시 시도해주세요.');
+        return;
+      }
+    }
+
     const { error: err } = await signUp(email, pw, name.trim(), refCode.trim() || undefined, phone.trim() || undefined, t4s, t4e);
     if (err) {
       setLoading(false);
       if (err.message.includes('already')) setError('이미 가입된 이메일입니다.');
       else setError(err.message);
-    } else {
-      // 가입 성공 → 자동 로그인 (세션 확실히 확보)
-      await signIn(email, pw);
-      // 가입 환영 알림톡 1회 발송 (세션 확보 후)
-      fetch('/api/auth/welcome', { method: 'POST' }).catch(() => {});
-      setLoading(false);
-      setDone(true);
+      return;
     }
+    // 가입 성공 → 자동 로그인 (세션 확실히 확보)
+    await signIn(email, pw);
+    // 본인인증 정보(CI/DI/성별/생일/번호) 저장 — 가입 시점에 인증 완료 처리 (이후 게이트 안 뜸)
+    if (gateOn && verifyId) {
+      await fetch('/api/verify/confirm', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identityVerificationId: verifyId }),
+      }).catch(() => {});
+    }
+    // 가입 환영 알림톡 1회 발송 (세션 확보 후)
+    fetch('/api/auth/welcome', { method: 'POST' }).catch(() => {});
+    setLoading(false);
+    setDone(true);
   }
 
   return (
