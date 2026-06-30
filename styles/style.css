@@ -1064,6 +1064,7 @@ input, select, textarea { font-family: inherit; }
 .rating-stars svg, .review-stars svg { vertical-align: middle; }
 #section-pick .product-card-name { font-size: 17px; }
 #section-pick .product-card-desc { font-size: 13px; }
+#section-pick .price-block { margin-top: 0; }  /* 가격을 하단으로 밀지 않음 — 부제~원가 간격을 퀵가이드와 동일하게 */
 #section-pick .product-brix { font-size: 14px; }
 
 #section-pick .rating-stars { font-size: 13px; }
