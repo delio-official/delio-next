@@ -346,6 +346,12 @@ export default function MypageClient() {
   const [addrReqCustom, setAddrReqCustom] = useState(false); // 직접 입력 모드
   const [addrSort,     setAddrSort]     = useState<'recent_use'|'recent_reg'|'name'>('recent_use');
   const [isMobileView, setIsMobileView] = useState(false);
+  const [orderPage, setOrderPage] = useState(0); // PC 주문내역 페이지네이션
+  useEffect(() => {
+    const f = () => setIsMobileView(window.innerWidth <= 768);
+    f(); window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
   const [editQnaId, setEditQnaId] = useState<string | null>(null);
   const [editQnaText, setEditQnaText] = useState('');
   const [editCsId, setEditCsId] = useState<string | null>(null);
@@ -968,6 +974,7 @@ export default function MypageClient() {
   function selectStatusFilter(key: string) {
     setOrderStatusFilter(prev => (prev === key ? null : key));
     setOrderSearch('');
+    setOrderPage(0);
     setTimeout(() => orderListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   }
   /* ── 리뷰 삭제 ── */
@@ -1330,6 +1337,13 @@ export default function MypageClient() {
       );
     });
   })();
+  /* PC 주문내역 페이지네이션 (모바일은 전체 표시 — 모바일 동작 변경 없음) */
+  const ORDER_PER_PAGE = 10;
+  const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDER_PER_PAGE));
+  const orderSafePage = Math.min(orderPage, orderTotalPages - 1);
+  const pagedOrders = isMobileView
+    ? filteredOrders
+    : filteredOrders.slice(orderSafePage * ORDER_PER_PAGE, (orderSafePage + 1) * ORDER_PER_PAGE);
   /* 작성 가능한 리뷰 = 배송완료(delivered/confirmed) 주문 중 아직 리뷰 안 쓴 상품 (상품별 1건) */
   const writableReviews = (() => {
     const reviewedPids = new Set(myReviews.map(r => r.products?.id).filter(Boolean) as string[]);
@@ -2073,7 +2087,7 @@ export default function MypageClient() {
                 <div className="mp-order-search">
                   <input
                     value={orderSearch}
-                    onChange={e => setOrderSearch(e.target.value)}
+                    onChange={e => { setOrderSearch(e.target.value); setOrderPage(0); }}
                     placeholder="주문번호 · 상품명 · 날짜로 검색" />
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -2114,7 +2128,8 @@ export default function MypageClient() {
                 ) : filteredOrders.length === 0 ? (
                   <div className="mp-empty">검색 결과가 없습니다.</div>
                 ) : (
-                  filteredOrders.map(o => {
+                  <>
+                  {pagedOrders.map(o => {
                     const isExpanded = expandedOrder === o.id;
                     const displayItems = isExpanded ? o.order_items : o.order_items?.slice(0, 2);
                     const hiddenCount = (o.order_items?.length ?? 0) - 2;
@@ -2259,7 +2274,19 @@ export default function MypageClient() {
                         </div>
                       </div>
                     );
-                  })
+                  })}
+                  {!isMobileView && orderTotalPages > 1 && (
+                    <div className="pagination" style={{ marginTop:24 }}>
+                      <button className="page-btn" onClick={() => setOrderPage(0)} disabled={orderSafePage === 0}>«</button>
+                      <button className="page-btn" onClick={() => setOrderPage(p => Math.max(0, p - 1))} disabled={orderSafePage === 0}>‹</button>
+                      {Array.from({ length: orderTotalPages }, (_, n) => n).map(n => (
+                        <button key={n} className={`page-btn page-num${orderSafePage === n ? ' active' : ''}`} onClick={() => setOrderPage(n)}>{n + 1}</button>
+                      ))}
+                      <button className="page-btn" onClick={() => setOrderPage(p => Math.min(orderTotalPages - 1, p + 1))} disabled={orderSafePage === orderTotalPages - 1}>›</button>
+                      <button className="page-btn" onClick={() => setOrderPage(orderTotalPages - 1)} disabled={orderSafePage === orderTotalPages - 1}>»</button>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             </div>
