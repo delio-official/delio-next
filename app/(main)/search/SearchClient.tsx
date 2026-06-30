@@ -180,12 +180,6 @@ export default function SearchClient() {
 
   /* ── 인기 검색어 ── */
   const [popularKeywords, setPopularKeywords] = useState<string[]>(POPULAR_FALLBACK);
-  const [popularTime, setPopularTime] = useState('');
-  useEffect(() => {
-    const d = new Date();
-    const p = (n: number) => String(n).padStart(2, '0');
-    setPopularTime(`${d.getFullYear()}. ${p(d.getMonth() + 1)}. ${p(d.getDate())} ${p(d.getHours())}:00`);
-  }, []);
 
   useEffect(() => {
     createClient()
@@ -382,8 +376,7 @@ export default function SearchClient() {
             {/* 실시간 인기 검색어 — 제목 + 기준시각 / 1~10위 2열 */}
             <div className="search-popular-section">
               <div className="rt-pop-head">
-                <span className="rt-pop-title">실시간 인기 검색어</span>
-                {popularTime && <span className="rt-pop-time">{popularTime} 기준</span>}
+                <span className="rt-pop-title">인기 검색어</span>
               </div>
               <div className="rt-pop-grid">
                 {popularKeywords.slice(0, 10).map((kw, i) => (
