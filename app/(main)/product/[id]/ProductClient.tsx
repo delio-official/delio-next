@@ -247,6 +247,15 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
+  /* 별점 클릭 → 후기 탭 전환 + 후기 섹션으로 스크롤 */
+  function goToReviews() {
+    setActiveTab(2);
+    requestAnimationFrame(() => {
+      const el = document.getElementById('productTabsAnchor');
+      if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: 'smooth' });
+    });
+  }
+
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
   const didJumpReviewRef = useRef(false);
   useEffect(() => {
@@ -1511,13 +1520,12 @@ export default function ProductClient() {
                   </span>
                 )}
                 {product.avg_rating > 0 && (
-                  <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
+                  <div onClick={goToReviews} role="button" title="후기 보기"
+                    style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
                     <SingleStar size={13} />
-                    <button onClick={() => setActiveTab(2)}
-                      style={{ fontSize:12, color:'var(--color-ink-mute)',
-                        background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                    <span style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
                       {product.avg_rating.toFixed(1)} ({product.review_count.toLocaleString()})
-                    </button>
+                    </span>
                   </div>
                 )}
               </div>
