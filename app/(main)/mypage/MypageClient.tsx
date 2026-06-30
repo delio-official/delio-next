@@ -3580,15 +3580,15 @@ export default function MypageClient() {
                 <div className="mp-cs-summary">
                   <button type="button" className={`mp-cs-sum-col${inqFilter==='all'?' active':''}`} onClick={() => setInqFilter('all')}>
                     <span className="mp-cs-sum-label">전체문의</span>
-                    <span className="mp-cs-sum-num">{csInquiries.length}개</span>
+                    <span className="mp-cs-sum-num">{csInquiries.length}<span className="mp-cs-sum-unit">개</span></span>
                   </button>
                   <button type="button" className={`mp-cs-sum-col${inqFilter==='answered'?' active':''}`} onClick={() => setInqFilter(f => f==='answered'?'all':'answered')}>
                     <span className="mp-cs-sum-label">답변완료</span>
-                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status === 'answered').length}개</span>
+                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status === 'answered').length}<span className="mp-cs-sum-unit">개</span></span>
                   </button>
                   <button type="button" className={`mp-cs-sum-col${inqFilter==='waiting'?' active':''}`} onClick={() => setInqFilter(f => f==='waiting'?'all':'waiting')}>
                     <span className="mp-cs-sum-label">답변대기</span>
-                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status !== 'answered').length}개</span>
+                    <span className="mp-cs-sum-num">{csInquiries.filter(q => q.status !== 'answered').length}<span className="mp-cs-sum-unit">개</span></span>
                   </button>
                 </div>
                 {/* 문의하기 토글 버튼 */}
