@@ -520,7 +520,7 @@ body { background: #fff; }
     .mp-cp-side-exp.soon { color: #CB1D11; }
     .mp-cp-side::before, .mp-cp-side::after {
       content: ''; position: absolute; left: -7px; width: 12px; height: 12px;
-      border-radius: 50%; background: #fff; border: 1px solid #ECECEC;
+      border-radius: 50%; background: #fff;
     }
     .mp-cp-side::before { top: -7px; }
     .mp-cp-side::after { bottom: -7px; }
