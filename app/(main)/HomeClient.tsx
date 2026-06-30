@@ -998,10 +998,16 @@ export default function HomeClient() {
                                 </div>
                                 <div className="product-card-name">{p.name}</div>
                                 {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
-                                <div className="product-price-row">
-                                  {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
-                                  <span className="price-current">{basePrice.toLocaleString()}원</span>
-                                  {p.discount_rate > 0 && <span className="price-original">{p.price.toLocaleString()}원</span>}
+                                <div className="price-block">
+                                  {p.discount_rate > 0 && (
+                                    <div className="price-top-row">
+                                      <span className="price-original">{p.price.toLocaleString()}원</span>
+                                    </div>
+                                  )}
+                                  <div className="product-price-row">
+                                    {p.discount_rate > 0 && <span className="price-discount">{Math.round(p.discount_rate)}%</span>}
+                                    <span className="price-current">{basePrice.toLocaleString()}원</span>
+                                  </div>
                                 </div>
                                 {p.avg_rating > 0 && (
                                   <div className="product-rating-row">

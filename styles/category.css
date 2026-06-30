@@ -312,10 +312,11 @@ body { background: #fff; }
   line-height: 1.5;
 }
 
+.price-block { margin-top: auto; display: flex; flex-direction: column; }  /* 가격 블록을 카드 하단으로 */
+.price-top-row { display: flex; align-items: baseline; margin-bottom: 1px; line-height: 1.2; }  /* 위: 정상가(삭제선) */
 .product-price-row {
   display: flex; align-items: baseline; gap: 4px;
-  flex-wrap: wrap; margin-bottom: 4px;
-  margin-top: auto;   /* 가격·별점을 카드 하단으로 밀어 정렬 통일 */
+  flex-wrap: wrap; margin-bottom: 4px;   /* 아래: 할인% + 판매가 */
 }
 .price-discount  { font-size: 19px; font-weight: 800; color: #E53E3E; }
 .price-current   { font-size: 19px; font-weight: 800; color: var(--color-ink); }
