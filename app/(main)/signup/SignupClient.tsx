@@ -156,9 +156,10 @@ export default function SignupClient() {
       setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '이메일을 정확히 입력해주세요.' }); return;
     }
     setEmailChecking(true);
-    const { data } = await createClient().from('profiles').select('id').eq('email', full).maybeSingle();
+    const { data, error } = await createClient().rpc('email_exists', { p_email: full });
     setEmailChecking(false);
-    if (data) { setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '이미 가입된 이메일입니다.' }); }
+    if (error) { setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }); return; }
+    if (data === true) { setEmailChecked(false); setEmailCheckMsg({ ok: false, text: '이미 가입된 이메일입니다.' }); }
     else { setEmailChecked(true); setEmailCheckMsg({ ok: true, text: '사용 가능한 이메일입니다.' }); }
   }
 
