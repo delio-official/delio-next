@@ -263,6 +263,10 @@ export default function SignupClient() {
                 <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`} placeholder="예: delio"
                   value={emailUser} onChange={e => { setEmailUser(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 <span className="su-at">@</span>
+                {showDirect && (
+                  <input type="text" className="su-input su-domain-direct" placeholder="직접 입력"
+                    value={emailDirect} onChange={e => { setEmailDirect(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
+                )}
                 <select className="su-domain-select" defaultValue=""
                   onChange={e => { onDomainChange(e.target.value); resetEmailCheck(); }}>
                   <option value="">선택하기</option>
@@ -279,12 +283,6 @@ export default function SignupClient() {
                   {emailChecking ? '확인중' : '중복확인'}
                 </button>
               </div>
-              {showDirect && (
-                <div className="su-email-direct-wrap">
-                  <input type="text" className="su-input" placeholder="도메인을 직접 입력해주세요"
-                    value={emailDirect} onChange={e => { setEmailDirect(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
-                </div>
-              )}
               {emailCheckMsg && <div className={`su-hint ${emailCheckMsg.ok ? 'ok' : 'err'}`}>{emailCheckMsg.text}</div>}
               {fieldErrors.email && <div className="su-field-error">{fieldErrors.email}</div>}
             </div>
