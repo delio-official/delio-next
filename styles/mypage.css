@@ -167,23 +167,23 @@ body { background: #fff; }
 
     /* PC 주문조회: 탭 + 기간/상태 필터 + 안내 */
     .mp-otab-row { display: flex; border-bottom: 1px solid #DDD; margin: 6px 0 24px; }
-    .mp-otab { padding: 15px 52px; background: #F7F7F7; border: 1px solid #DDD; border-bottom: none; border-radius: 8px 8px 0 0; margin-right: 4px; margin-bottom: -1px; font-size: 15px; font-weight: 600; color: #999; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .mp-otab { padding: 15px 52px; background: #F7F7F7; border: 1px solid #DDD; border-bottom: none; border-radius: 0; margin-right: 4px; margin-bottom: -1px; font-size: 15px; font-weight: 600; color: #999; cursor: pointer; font-family: inherit; white-space: nowrap; }
     .mp-otab.active { background: #fff; color: #1A1A1A; font-weight: 800; border-bottom: 1px solid #fff; }
-    .mp-ofilter { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; background: #F7F7F5; border-radius: 10px; padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+    .mp-ofilter { display: flex; align-items: center; gap: 7px; flex-wrap: nowrap; background: #F7F7F5; border-radius: 10px; padding: 13px; margin-bottom: 16px; }
     .mp-ofilter > *, .mp-ofilter-periods button { flex-shrink: 0; }
     .mp-ofilter button, .mp-ofilter input { white-space: nowrap; }
     .mp-ofilter-dd { position: relative; }
-    .mp-ofilter-dd-btn { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 170px; padding: 11px 14px; background: #fff; border: 1px solid #DDD; border-radius: 8px; font-size: 14px; color: #333; cursor: pointer; font-family: inherit; }
+    .mp-ofilter-dd-btn { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 132px; padding: 9px 11px; background: #fff; border: 1px solid #DDD; border-radius: 8px; font-size: 13px; color: #333; cursor: pointer; font-family: inherit; }
     .mp-ofilter-dd-list { position: absolute; top: calc(100% + 4px); left: 0; min-width: 190px; background: #fff; border: 1px solid #DDD; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 20; overflow: hidden; }
     .mp-ofilter-dd-list button { display: block; width: 100%; text-align: left; padding: 11px 14px; background: none; border: none; font-size: 14px; color: #333; cursor: pointer; font-family: inherit; }
     .mp-ofilter-dd-list button:hover, .mp-ofilter-dd-list button.active { background: #F4F4F2; font-weight: 700; }
-    .mp-ofilter-periods { display: flex; gap: 6px; }
-    .mp-ofilter-periods button { padding: 11px 16px; background: #fff; border: 1px solid #DDD; border-radius: 8px; font-size: 14px; color: #333; cursor: pointer; font-family: inherit; }
+    .mp-ofilter-periods { display: flex; gap: 5px; }
+    .mp-ofilter-periods button { padding: 9px 12px; background: #fff; border: 1px solid #DDD; border-radius: 8px; font-size: 13px; color: #333; cursor: pointer; font-family: inherit; }
     .mp-ofilter-periods button:hover { border-color: #1A1A1A; }
-    .mp-ofilter-dates { display: flex; align-items: center; gap: 8px; }
-    .mp-ofilter-dates input { padding: 10px 12px; border: 1px solid #DDD; border-radius: 8px; font-size: 14px; color: #333; font-family: inherit; }
+    .mp-ofilter-dates { display: flex; align-items: center; gap: 5px; }
+    .mp-ofilter-dates input { padding: 8px 8px; border: 1px solid #DDD; border-radius: 8px; font-size: 12.5px; color: #333; font-family: inherit; }
     .mp-ofilter-tilde { color: #999; }
-    .mp-ofilter-go { padding: 11px 24px; background: #1A1A1A; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .mp-ofilter-go { padding: 9px 18px; background: #1A1A1A; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
     .mp-onotice { margin: 0 0 20px; padding: 0; list-style: none; }
     .mp-onotice li { position: relative; padding-left: 12px; font-size: 13px; color: #888; line-height: 1.9; }
     .mp-onotice li::before { content: '-'; position: absolute; left: 0; }
