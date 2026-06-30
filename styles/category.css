@@ -271,6 +271,8 @@ body { background: #fff; }
     align-items: center; justify-content: center; cursor: pointer; padding: 0;
   }
   .product-card-cart-mob svg { width: 18px; height: 18px; color: #1A1A1A; }
+  /* 모바일: 뱃지 줄 숨김 → 주제목 맨 위 (델리오픽·퀵가이드와 동일 순서) */
+  .product-card .product-brix-wrap { display: none; }
   /* 모바일 글자 크기를 메인 '델리오 픽' 카드와 동일하게 통일 */
   .product-card .product-card-name { font-size: 14px; line-height: 1.35; min-height: 2.7em; }
   .product-card .product-card-desc { font-size: 12px; }

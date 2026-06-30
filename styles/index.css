@@ -1487,7 +1487,7 @@
       .qg-card-desc {
         display: -webkit-box !important; -webkit-line-clamp: 1 !important; line-clamp: 1 !important;
         -webkit-box-orient: vertical !important; overflow: hidden !important;
-        order: -1 !important; font-size: 12px !important; color: #9A958E !important;
+        order: 0 !important; font-size: 12px !important; color: #9A958E !important;
         line-height: 1.4 !important; margin-bottom: 2px !important;
       }
       /* 가격: 할인%+원가 한 줄(작게) / 최종가 한 줄(크게) — 표준카드 스타일 */
