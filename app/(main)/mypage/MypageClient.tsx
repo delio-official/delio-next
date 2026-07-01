@@ -3475,7 +3475,7 @@ export default function MypageClient() {
                     { key:'qna',     label:'상품 Q&A' },
                     { key:'inquiry', label:'1:1 문의' },
                   ] as const).map(t => (
-                    <button key={t.key} onClick={() => setCsMainTab(t.key)}
+                    <button key={t.key} onClick={() => { setCsMainTab(t.key); setCsFormOpen(false); }}
                       style={{ flex:1, textAlign:'center', padding:'14px 0', background:'none', border:'none',
                         fontFamily:'inherit', cursor:'pointer', fontSize:15,
                         fontWeight: csMainTab===t.key ? 700 : 500,
