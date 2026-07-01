@@ -2626,7 +2626,7 @@ export default function MypageClient() {
 
                   return (
                     <>
-                      <div className="mp-wish-grid">
+                      <div className="product-grid">
                         {paged.map(p => {
                           const sell = p.discounted_price ?? p.price;
                           return (
@@ -2651,15 +2651,16 @@ export default function MypageClient() {
                             </button>
                             <Link href={`/product/${p.id}`} style={{ textDecoration:'none', color:'inherit', flex:1 }}>
                               <div className="mp-wish-body" style={{ padding:'8px 2px 4px' }}>
-                                {p.short_desc && <div style={{ fontSize:12, color:'#999', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.short_desc}</div>}
+                                {/* 메인 카드와 동일: 주제목 → 부제목 → 원가(삭제선) → 할인%+판매가 → 별점 */}
                                 <div className="mp-wish-name">{p.name}</div>
+                                {p.short_desc && <div style={{ fontSize:12, color:'#999', margin:'2px 0 5px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.short_desc}</div>}
                                 {p.discount_rate > 0 && (
-                                  <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:1 }}>
-                                    <span style={{ fontSize:14, fontWeight:800, color:'#E53E3E' }}>{Math.round(p.discount_rate)}%</span>
-                                    <span style={{ fontSize:12, color:'#bbb', textDecoration:'line-through' }}>{fmtPrice(p.price)}원</span>
-                                  </div>
+                                  <div style={{ fontSize:12, color:'#bbb', textDecoration:'line-through', marginBottom:1 }}>{fmtPrice(p.price)}원</div>
                                 )}
-                                <div className="mp-wish-price" style={{ fontSize:18 }}>{fmtPrice(sell)}원</div>
+                                <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
+                                  {p.discount_rate > 0 && <span style={{ fontSize:16, fontWeight:800, color:'#E53E3E' }}>{Math.round(p.discount_rate)}%</span>}
+                                  <span className="mp-wish-price" style={{ fontSize:18 }}>{fmtPrice(sell)}원</span>
+                                </div>
                                 {p.avg_rating > 0 && (
                                   <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:5, fontSize:13, color:'#888' }}>
                                     <span style={{ color:'#FFB400' }}>★</span>{p.avg_rating.toFixed(1)}
