@@ -2631,7 +2631,7 @@ export default function MypageClient() {
                           const sell = p.discounted_price ?? p.price;
                           return (
                           <div key={p.id} className="mp-wish-item mp-recent-card" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
-                            <div className="mp-wish-img">
+                            <div className="mp-wish-img" onClick={() => router.push(`/product/${p.id}`)} style={{ cursor:'pointer' }}>
                               {/* 배송 배지 */}
                               <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
                                 style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
