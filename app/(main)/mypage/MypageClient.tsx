@@ -970,7 +970,7 @@ export default function MypageClient() {
     const supabase = createClient();
     await supabase.from('farm_wishlist').delete().eq('id', rowId);
     setFarmWishlist(prev => prev.filter(f => f.id !== rowId));
-    showToastMsg('농가 찜을 해제했습니다');
+    showToastMsg('찜 목록에서 삭제했습니다');
   }
 
   /* 로그아웃 */
