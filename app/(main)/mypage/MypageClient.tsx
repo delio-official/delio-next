@@ -22,7 +22,13 @@ import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
 
-const REVIEW_PER_PAGE = 5; // 리뷰 목록 한 페이지당 개수
+const REVIEW_PER_PAGE = 5;    // 리뷰 목록 한 페이지당 개수
+const REVIEW_WINDOW_DAYS = 30; // 리뷰 작성 가능 기간(배송완료일 기준)
+/* 배송완료일 기준 30일 이내인지 — delivered_at 없으면(과거 데이터) 제한하지 않음 */
+function withinReviewWindow(deliveredAt?: string | null): boolean {
+  if (!deliveredAt) return true;
+  return Date.now() - new Date(deliveredAt).getTime() <= REVIEW_WINDOW_DAYS * 86400000;
+}
 
 /* ─── Types ─── */
 interface OrderItem {
@@ -1393,7 +1399,7 @@ export default function MypageClient() {
     const seen = new Set<string>();
     const list: { id: string; name: string; thumb: string | null }[] = [];
     orders.forEach(o => {
-      if (o.status === 'delivered' || o.status === 'confirmed') {
+      if ((o.status === 'delivered' || o.status === 'confirmed') && withinReviewWindow(o.delivered_at)) {
         o.order_items?.forEach(it => {
           if (it.product_id && !reviewedPids.has(it.product_id) && !seen.has(it.product_id)) {
             seen.add(it.product_id);
@@ -2192,7 +2198,7 @@ export default function MypageClient() {
                   const reviewedPids = new Set(myReviews.map(r => r.products?.id).filter(Boolean) as string[]);
                   const pids = new Set<string>();
                   orders.forEach(o => {
-                    if (o.status === 'delivered' || o.status === 'confirmed') {
+                    if ((o.status === 'delivered' || o.status === 'confirmed') && withinReviewWindow(o.delivered_at)) {
                       o.order_items?.forEach(it => { if (it.product_id && !reviewedPids.has(it.product_id)) pids.add(it.product_id); });
                     }
                   });
@@ -2344,7 +2350,7 @@ export default function MypageClient() {
                               else btns.push({ key:'refund', label:'환불신청', onClick: () => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); } });
                               btns.push(cartBtn);
                             } else if (o.status === 'confirmed') {
-                              btns.push({ key:'review', label:'리뷰 쓰기', onClick: () => startItemAction('review', o) });
+                              if (withinReviewWindow(o.delivered_at)) btns.push({ key:'review', label:'리뷰 쓰기', onClick: () => startItemAction('review', o) });
                               btns.push(askBtn);
                               btns.push({ key:'repurchase', label:'재구매', onClick: () => startItemAction('repurchase', o) });
                               btns.push(cartBtn);

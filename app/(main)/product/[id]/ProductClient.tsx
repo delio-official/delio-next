@@ -667,18 +667,25 @@ export default function ProductClient() {
     return () => document.body.classList.remove('has-mobile-cta');
   }, []);
 
-  /* 이 상품 구매 여부 (리뷰 작성 권한) — 결제완료/배송/구매확정 주문에 포함 */
+  /* 이 상품 구매 여부 + 리뷰 작성 권한 — 배송완료(delivered/confirmed)는 배송완료일 기준 30일 이내만 */
   useEffect(() => {
     if (!user || !product?.id) { setHasPurchased(false); return; }
     (async () => {
       const { data } = await createClient()
         .from('order_items')
-        .select('order_id, orders!inner(user_id, status)')
+        .select('order_id, orders!inner(user_id, status, delivered_at)')
         .eq('product_id', product.id)
         .eq('orders.user_id', user.id)
-        .in('orders.status', ['paid', 'delivered', 'confirmed'])
-        .limit(1);
-      setHasPurchased(!!data && data.length > 0);
+        .in('orders.status', ['paid', 'delivered', 'confirmed']);
+      const LIMIT = 30 * 86400000; // 리뷰 작성 가능 기간(30일)
+      const rows = (data as unknown as { orders: { status: string; delivered_at: string | null } }[]) || [];
+      const ok = rows.some(r => {
+        const o = r.orders;
+        if (o.status === 'paid') return true;          // 배송 전 — 기존 정책 유지
+        if (!o.delivered_at) return true;              // 배송완료일 미상(과거 데이터) — 제한 안 함
+        return Date.now() - new Date(o.delivered_at).getTime() <= LIMIT;
+      });
+      setHasPurchased(ok);
     })();
   }, [user, product?.id]);
 
