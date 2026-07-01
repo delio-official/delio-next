@@ -44,15 +44,18 @@ function Section({ title, sk, open, onToggle, right, children }: {
    (미승인 수단을 임의 노출하면 PG 입점 심사에서 반려됨) */
 const PAYMENT_METHODS = [
   { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined,  enabled: true  },
-  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: false },
+  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: true  },
   { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: false },
   { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY',  enabled: false },
   { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined, enabled: true  },
 ] as const;
 const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter(m => m.enabled);
 
-/* 채널 키 — 현재는 단일 채널 사용 (결제 수단별 계약 후 분리 가능) */
-function getChannelKey(): string {
+/* 채널 키 — 결제수단별 분리. 카카오페이는 전용 채널(실연동) 사용.
+   채널키는 공개키라 클라 노출 무방(결제 검증은 서버 시크릿으로 수행). */
+const KAKAO_CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAO || 'channel-key-f7a8c262-8438-4a74-9a68-a532cbb1a2f4';
+function getChannelKey(method?: string): string {
+  if (method === 'kakao') return KAKAO_CHANNEL_KEY;
   return process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY || '';
 }
 
@@ -417,7 +420,7 @@ export default function CheckoutClient() {
       } else {
         /* ── 포트원 결제창 호출 ── */
         const storeId    = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
-        const channelKey = getChannelKey();
+        const channelKey = getChannelKey(payMethod);
         if (!storeId || !channelKey) {
           alert('포트원 설정이 없습니다.\n.env.local에 NEXT_PUBLIC_PORTONE_STORE_ID, NEXT_PUBLIC_PORTONE_CHANNEL_KEY를 입력해주세요.');
           setLoading(false);
