@@ -1067,6 +1067,14 @@ export default function MypageClient() {
     setRecentProducts(next);
     try { localStorage.setItem('delio_recent_products', JSON.stringify(next)); } catch {}
   }
+  /* 최근 본 상품 전체 삭제 */
+  function clearRecentProducts() {
+    if (!confirm('최근 본 상품을 모두 삭제할까요?')) return;
+    setRecentProducts([]);
+    setRecentPage(0);
+    try { localStorage.removeItem('delio_recent_products'); } catch {}
+    showToastMsg('최근 본 상품을 모두 삭제했습니다');
+  }
 
   /* 상품 찜하기(최근 본 상품 카드용) */
   async function addProductWish(id: string) {
@@ -2598,7 +2606,13 @@ export default function MypageClient() {
                 <div className="mp-section-header">
                   <span className="mp-section-title">최근 본 상품</span>
                   {recentProducts.length > 0 && (
-                    <span className="mp-section-sub mp-wish-count">{recentProducts.length}개</span>
+                    <>
+                      <span className="mp-section-sub mp-wish-count">{recentProducts.length}개</span>
+                      <button type="button" onClick={clearRecentProducts}
+                        style={{ marginLeft:'auto', background:'none', border:'none', fontSize:13, color:'#999', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>
+                        전체 삭제
+                      </button>
+                    </>
                   )}
                 </div>
                 {recentProducts.length === 0 ? (
