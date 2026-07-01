@@ -2607,11 +2607,11 @@ export default function MypageClient() {
                   <span className="mp-section-title">최근 본 상품</span>
                   {recentProducts.length > 0 && (
                     <>
-                      <span className="mp-section-sub mp-wish-count">{recentProducts.length}개</span>
                       <button type="button" onClick={clearRecentProducts}
-                        style={{ marginLeft:'auto', background:'none', border:'none', fontSize:13, color:'#999', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>
+                        style={{ marginLeft:12, background:'none', border:'none', fontSize:13, color:'#999', cursor:'pointer', textDecoration:'underline', fontFamily:'inherit' }}>
                         전체 삭제
                       </button>
+                      <span className="mp-section-sub mp-wish-count" style={{ marginLeft:'auto' }}>{recentProducts.length}개</span>
                     </>
                   )}
                 </div>
