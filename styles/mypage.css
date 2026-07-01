@@ -1103,3 +1103,79 @@ body { background: #fff; }
 .opt-dd-item:last-child { border-bottom: none; }
 .opt-dd-item:hover { background: #F7F7F5; }
 .opt-dd-item.sel { background: #F2F2F0; font-weight: 700; }
+
+/* ─── 내가 쓴 리뷰: 적립 혜택 안내 ─── */
+.mp-review-benefit {
+  display: flex;
+  align-items: stretch;
+  background: #FAFAF8;
+  border: 1px solid #EEE;
+  border-radius: 10px;
+  padding: 16px 12px;
+  margin-bottom: 12px;
+}
+.mp-review-benefit-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.mp-review-benefit-item + .mp-review-benefit-item {
+  border-left: 1px solid #E6E6E6;
+}
+.mp-review-benefit-label {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+.mp-review-benefit-amt {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+.mp-review-notice {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.mp-review-notice li {
+  position: relative;
+  padding-left: 12px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.7;
+}
+.mp-review-notice li::before {
+  content: '·';
+  position: absolute;
+  left: 3px;
+  color: #bbb;
+}
+/* ─── 리뷰 목록 페이지네이션 ─── */
+.mp-review-pager {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 0 4px;
+}
+.mp-review-pager-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  background: #fff;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+}
+.mp-review-pager-btn:hover { background: #F7F7F5; }
+.mp-review-pager-btn.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+  font-weight: 700;
+}

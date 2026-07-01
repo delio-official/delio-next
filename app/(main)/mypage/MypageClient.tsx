@@ -22,6 +22,8 @@ import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
 import '@/styles/category.css';
 
+const REVIEW_PER_PAGE = 5; // 리뷰 목록 한 페이지당 개수
+
 /* ─── Types ─── */
 interface OrderItem {
   product_id?: string | null;
@@ -220,8 +222,10 @@ export default function MypageClient() {
   const [wishTab,        setWishTab]        = useState<'product'|'farm'>('product');
   const [farmWishlist,   setFarmWishlist]   = useState<{ id: string; farms: { id: string; slug: string; name: string; region: string|null; farm_type: string|null; intro: string|null; thumbnail_url: string|null; hero_image_url: string|null; logo_url: string|null } | null }[]>([]);
   const [myReviews,      setMyReviews]      = useState<MyReview[]>([]);
-  const [reviewRewardPhoto, setReviewRewardPhoto] = useState(150); // 포토 리뷰 적립포인트(받을 수 있는 포인트 배너 계산용)
-  const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 리뷰 남기기 / 내가 남긴 리뷰
+  const [reviewRewardPhoto, setReviewRewardPhoto] = useState(150); // 포토 리뷰 적립포인트
+  const [reviewRewardText, setReviewRewardText] = useState(50);    // 일반(텍스트) 리뷰 적립포인트
+  const [reviewPage, setReviewPage] = useState(0);                 // 리뷰 목록 페이지네이션
+  const [reviewTab, setReviewTab] = useState<'writable' | 'written'>('writable'); // 나의 리뷰: 작성가능 / 작성한
   // 상품 문의 작성 모달(배송조회에서 바로 띄움) — 주문 내 상품 목록 + 선택된 상품
   const [askModal, setAskModal] = useState<{ items: { productId: string; productName: string; thumb: string | null }[]; selectedId: string } | null>(null);
   const [askCategory, setAskCategory] = useState('문의');
@@ -594,9 +598,11 @@ export default function MypageClient() {
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(30),
-        supabase.from('site_settings').select('key,value').in('key', ['review_point_photo']),
+        supabase.from('site_settings').select('key,value').in('key', ['review_point_photo', 'review_point_text']),
       ]);
-      { const rp = ((rpSettings as { key: string; value: string }[]) || []).find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150); }
+      { const arr = (rpSettings as { key: string; value: string }[]) || [];
+        const rp = arr.find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150);
+        const rt = arr.find(s => s.key === 'review_point_text');  if (rt?.value) setReviewRewardText(Number(rt.value) || 50); }
       setProfile(prof as Profile);
       if ((prof as Profile & { referral_code?: string })?.referral_code) {
         setReferralCode((prof as Profile & { referral_code?: string }).referral_code!);
@@ -2697,15 +2703,30 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='myreviews'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                {/* 탭: 리뷰 남기기 / 내가 남긴 리뷰 */}
+                {/* 리뷰 적립 혜택 안내 박스 */}
+                <div className="mp-review-benefit">
+                  <div className="mp-review-benefit-item">
+                    <span className="mp-review-benefit-label">포토리뷰 혜택</span>
+                    <span className="mp-review-benefit-amt">적립금 {fmtPrice(reviewRewardPhoto)}원</span>
+                  </div>
+                  <div className="mp-review-benefit-item">
+                    <span className="mp-review-benefit-label">리뷰 작성 혜택</span>
+                    <span className="mp-review-benefit-amt">적립금 {fmtPrice(reviewRewardText)}원</span>
+                  </div>
+                </div>
+                <ul className="mp-review-notice">
+                  <li>리뷰는 구매 확정일(배송완료일) 기준 30일까지 작성하실 수 있습니다.</li>
+                  <li>작성하신 리뷰의 적립금은 등록 완료 시 즉시 지급됩니다.</li>
+                </ul>
+                {/* 탭: 작성가능 리뷰 / 작성한 리뷰 */}
                 <div style={{ display:'flex', borderBottom:'1px solid #EEE', marginBottom:8 }}>
-                  <button type="button" onClick={() => setReviewTab('writable')}
+                  <button type="button" onClick={() => { setReviewTab('writable'); setReviewPage(0); }}
                     style={{ flex:1, padding:'12px 0', background:'none', border:'none', borderBottom:`2px solid ${reviewTab==='writable'?'#1A1A1A':'transparent'}`, cursor:'pointer', fontFamily:'inherit', fontSize:15, fontWeight: reviewTab==='writable'?800:500, color: reviewTab==='writable'?'#1A1A1A':'#999' }}>
-                    리뷰 남기기 {writableReviews.length}
+                    작성가능 리뷰 ({writableReviews.length})
                   </button>
-                  <button type="button" onClick={() => setReviewTab('written')}
+                  <button type="button" onClick={() => { setReviewTab('written'); setReviewPage(0); }}
                     style={{ flex:1, padding:'12px 0', background:'none', border:'none', borderBottom:`2px solid ${reviewTab==='written'?'#1A1A1A':'transparent'}`, cursor:'pointer', fontFamily:'inherit', fontSize:15, fontWeight: reviewTab==='written'?800:500, color: reviewTab==='written'?'#1A1A1A':'#999' }}>
-                    내가 남긴 리뷰 {myReviews.length}
+                    작성한 리뷰 ({myReviews.length})
                   </button>
                 </div>
 
@@ -2715,7 +2736,7 @@ export default function MypageClient() {
                     <div className="mp-empty">작성 가능한 리뷰가 없습니다.</div>
                   ) : (
                     <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-                      {writableReviews.map(w => (
+                      {writableReviews.slice(reviewPage*REVIEW_PER_PAGE, (reviewPage+1)*REVIEW_PER_PAGE).map(w => (
                         <div key={w.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
                           {/* 사진·제목·배경 클릭 → 상품 상세 */}
                           <div onClick={() => router.push(`/product/${w.id}`)}
@@ -2736,6 +2757,14 @@ export default function MypageClient() {
                           </button>
                         </div>
                       ))}
+                      {writableReviews.length > REVIEW_PER_PAGE && (
+                        <div className="mp-review-pager">
+                          {Array.from({ length: Math.ceil(writableReviews.length / REVIEW_PER_PAGE) }, (_, i) => (
+                            <button key={i} type="button" onClick={() => setReviewPage(i)}
+                              className={`mp-review-pager-btn${reviewPage === i ? ' active' : ''}`}>{i + 1}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )
                 )}
@@ -2745,7 +2774,7 @@ export default function MypageClient() {
                   <div className="mp-empty">작성한 리뷰가 없습니다.</div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-                    {myReviews.map(r => (
+                    {myReviews.slice(reviewPage*REVIEW_PER_PAGE, (reviewPage+1)*REVIEW_PER_PAGE).map(r => (
                       <div key={r.id} style={{ padding:'16px 0', borderBottom:'1px solid #f2f2f2' }}>
                         <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
                           {/* 상품 썸네일 */}
@@ -2952,6 +2981,14 @@ export default function MypageClient() {
                         </div>
                       </div>
                     ))}
+                    {myReviews.length > REVIEW_PER_PAGE && (
+                      <div className="mp-review-pager">
+                        {Array.from({ length: Math.ceil(myReviews.length / REVIEW_PER_PAGE) }, (_, i) => (
+                          <button key={i} type="button" onClick={() => setReviewPage(i)}
+                            className={`mp-review-pager-btn${reviewPage === i ? ' active' : ''}`}>{i + 1}</button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
