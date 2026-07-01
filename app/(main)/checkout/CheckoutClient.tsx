@@ -417,6 +417,43 @@ export default function CheckoutClient() {
         gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
         router.push(`/order-complete?order=${order.order_no}&point=${Math.floor(total * 0.01)}`);
         return;
+      } else if (payMethod === 'vbank') {
+        /* ── 무통장입금: 결제창 없이 '입금대기(pending)' 주문 생성 + 계좌 안내 (관리자 수동 입금확인) ── */
+        const supabase = createClient();
+        const { data: order, error: orderErr } = await supabase
+          .from('orders')
+          .insert({
+            user_id: user.id, status: 'pending',
+            total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
+            coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
+            used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
+            recipient, phone, zipcode, address1: addr1, address2: addr2,
+            delivery_type: 'parcel', delivery_memo: memo,
+            payment_method: 'vbank', paid_at: null,
+          })
+          .select()
+          .single();
+        if (orderErr || !order) { alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`); setLoading(false); return; }
+        await supabase.from('order_items').insert(
+          items.map(i => ({
+            order_id: order.id, product_id: i.id,
+            product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
+            quantity: i.quantity ?? 1, subtotal: i.price * (i.quantity ?? 1),
+            thumbnail_url: i.thumbnail || null,
+          }))
+        );
+        // 쿠폰·포인트 선점 (입금 미완료 취소 시 기존 취소 로직이 복원). 적립은 입금확인(결제완료) 시 지급.
+        if (coupon) await supabase.from('user_coupons').update({ is_used: true, used_at: new Date().toISOString() }).eq('id', coupon.ucId);
+        if (appliedPoint > 0) {
+          const { data: prof } = await supabase.from('profiles').select('point_balance').eq('id', user.id).single();
+          if (prof) {
+            await supabase.from('profiles').update({ point_balance: Math.max(0, (prof.point_balance || 0) - appliedPoint) }).eq('id', user.id);
+            try { await supabase.from('point_logs').insert([{ user_id: user.id, amount: -appliedPoint, description: '주문 사용' }]); } catch { /* 무시 */ }
+          }
+        }
+        clearCart(); clearOrderPrefs();
+        router.push(`/order-complete?order=${order.order_no}&vbank=1`);
+        return;
       } else {
         /* ── 포트원 결제창 호출 ── */
         const storeId    = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;

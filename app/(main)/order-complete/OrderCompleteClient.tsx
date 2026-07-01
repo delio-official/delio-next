@@ -8,13 +8,14 @@ export default function OrderCompleteClient() {
   const sp = useSearchParams();
   const orderNo     = sp.get('order') || '';
   const earnedPoint = Number(sp.get('point') || 0);
+  const isVbank     = sp.get('vbank') === '1';
 
   return (
     <div style={{ minHeight:'calc(100dvh - 64px)', display:'flex', flexDirection:'column',
       alignItems:'center', justifyContent:'center', textAlign:'center',
       padding:'40px 20px 96px', boxSizing:'border-box' }}>
       <h1 style={{ fontSize:'clamp(22px,4vw,32px)', fontWeight:800, marginBottom:10 }}>
-        주문이 완료되었습니다!
+        {isVbank ? '주문이 접수되었습니다!' : '주문이 완료되었습니다!'}
       </h1>
       {orderNo && (
         <p style={{ fontSize:13, color:'#888', marginBottom:6 }}>주문번호: {orderNo}</p>
@@ -25,9 +26,23 @@ export default function OrderCompleteClient() {
         </p>
       )}
       <p style={{ fontSize:15, color:'#555', lineHeight:1.8, marginBottom:32 }}>
-        주문이 정상 접수되었습니다.<br />
-        배송 정보는 마이페이지에서 확인하실 수 있습니다.
+        {isVbank
+          ? <>아래 계좌로 입금해주시면 확인 후 배송이 시작됩니다.<br />입금 전까지는 <b>‘입금대기’</b> 상태로 표시됩니다.</>
+          : <>주문이 정상 접수되었습니다.<br />배송 정보는 마이페이지에서 확인하실 수 있습니다.</>}
       </p>
+
+      {isVbank && (
+        <div style={{ marginBottom:24, background:'#FFF9E6', border:'1.5px solid #FFE082', borderRadius:12,
+          padding:'18px 22px', maxWidth:380, width:'100%', textAlign:'left' }}>
+          <div style={{ fontSize:13, fontWeight:800, marginBottom:8, color:'#7A5800' }}>입금 계좌 안내</div>
+          <p style={{ fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>국민은행 469901-04-404587</p>
+          <p style={{ fontSize:13, color:'#666', lineHeight:1.7 }}>
+            예금주: 델리오<br />
+            입금자명을 주문자명(<b>{orderNo}</b> 주문)과 맞춰주시면 확인이 빠릅니다.<br />
+            입금 확인은 영업일 기준 순차 처리됩니다.
+          </p>
+        </div>
+      )}
 
       <div style={{ display:'flex', gap:12, flexWrap:'wrap', justifyContent:'center' }}>
         <Link href="/mypage"
