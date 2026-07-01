@@ -638,6 +638,10 @@ body { background: #fff; }
       display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
       gap: 12px; padding-top: 16px;
     }
+    /* 위시리스트 농가 그리드 (마이페이지엔 index.css의 farms-grid가 없어 여기 정의) */
+    .farms-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    @media (max-width: 1024px) { .farms-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px)  { .farms-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
     .mp-wish-item {
       border-radius: 10px; overflow: hidden;
       border: 1px solid #eee; cursor: pointer;
