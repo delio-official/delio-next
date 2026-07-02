@@ -153,6 +153,10 @@ body { background: #fff; }
 /* ══════════════════════════════════
    반응형
 ══════════════════════════════════ */
+/* PC: 상단 네비바와 탭바가 너무 붙지 않도록 여백 */
+@media (min-width: 581px) {
+  .event-page { padding-top: 28px; }
+}
 @media (max-width: 900px) {
   .event-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
