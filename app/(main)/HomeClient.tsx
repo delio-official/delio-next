@@ -1284,13 +1284,13 @@ export default function HomeClient() {
             </div>
 
             {/* 입금 계좌 */}
-            <div style={{ display:'flex', flexDirection:'column', gap:12, fontSize:13.5, color:'#999', lineHeight:1.9 }}>
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', gap:12, fontSize:14.5, color:'#999', lineHeight:1.9 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>국민은행 469901-04-404587</div>
                 <div>예금주 : 송민창(델리오)</div>
               </div>
-              <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize:13, padding:'9px 16px', borderRadius:6 }}>
+              <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize:13.5, padding:'9px 16px', borderRadius:6 }}>
                 입금 시 주문자 성함 기재
               </div>
             </div>
