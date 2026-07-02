@@ -211,12 +211,14 @@
 
     /* ===== 옵션 ===== */
     /* 가격↔배송 구분선: PC는 컬럼 내부, 모바일은 화면 끝까지(full-bleed) */
-    .pd-price-divider { border-top: 1px solid #EDEDED; margin: 18px 0 4px; }
+    /* PC: 위 선 제거(배송 테이블 상단선과 겹침 방지), 간격만 유지 */
+    .pd-price-divider { margin: 18px 0 4px; }
     .option-section {
       padding-top: 20px; margin-top: 4px;
     }
     @media (max-width: 768px) {
       .pd-price-divider {
+        border-top: 1px solid #EDEDED;
         width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw);
       }
       .option-section {
