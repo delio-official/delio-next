@@ -75,6 +75,9 @@ export default function ReviewClient() {
   const [modalReview,  setModalReview]  = useState<Review | null>(null);
   useBodyScrollLock(!!modalReview || galleryIdx !== null);
 
+  /* 페이지 진입 시 항상 최상단부터 (이미지 지연로드로 스크롤이 밀리는 것 방지) */
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
