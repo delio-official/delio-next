@@ -857,17 +857,17 @@ export default function HomeClient() {
       type FRow = { id: string; name: string; slug: string; thumbnail_url: string | null; hero_image_url: string | null; logo_url: string | null };
       let farmsData: FRow[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
-        const { data } = await supabase.from('farms').select(fcols).in('id', cfg.ids);
+        const { data } = await supabase.from('farms').select(fcols).eq('is_own', false).in('id', cfg.ids);
         farmsData = orderByIds((data as FRow[]) || [], cfg.ids);
       } else if (cfg.mode === 'popular') {
-        const { data } = await supabase.from('farms').select(fcols);
+        const { data } = await supabase.from('farms').select(fcols).eq('is_own', false);
         const { data: wl } = await supabase.from('farm_wishlist').select('farm_id');
         const cnt: Record<string, number> = {};
         ((wl as { farm_id: string }[]) || []).forEach(w => { cnt[w.farm_id] = (cnt[w.farm_id] || 0) + 1; });
         farmsData = ((data as FRow[]) || []).sort((a, b) => (cnt[b.id] || 0) - (cnt[a.id] || 0));
       } else {
         const ord = orderColumn('brand', cfg.mode === 'manual' ? 'latest' : cfg.mode);
-        const { data } = await supabase.from('farms').select(fcols).order(ord.col, { ascending: ord.asc });
+        const { data } = await supabase.from('farms').select(fcols).eq('is_own', false).order(ord.col, { ascending: ord.asc });
         farmsData = (data as FRow[]) || [];
       }
       if (!farmsData || farmsData.length === 0) { setBrandCards([]); setBrandLoaded(true); return; }

@@ -110,6 +110,7 @@ interface AdminProductFull extends AdminProduct {
 interface AdminFarmSimple {
   id: string;
   name: string;
+  is_own?: boolean;
 }
 
 interface AdminFarm {
@@ -2349,7 +2350,7 @@ export default function AdminClient() {
   async function loadFarmList() {
     if (farmList.length > 0) return;
     const supabase = createClient();
-    const { data } = await supabase.from('farms').select('id, name').order('name');
+    const { data } = await supabase.from('farms').select('id, name, is_own').order('name');
     setFarmList((data as AdminFarmSimple[]) || []);
   }
 
@@ -2469,7 +2470,8 @@ export default function AdminClient() {
       is_dawn:        Boolean(pForm.is_dawn),
       is_active:      Boolean(pForm.is_active),
       show_stat_pill: Boolean(pForm.show_stat_pill),
-      farm_id:        pForm.farm_id               || null,
+      // 자사배송(is_dawn=false) 상품은 자사센터(델리오)에 자동 연결 — 발주서용
+      farm_id:        (pForm.is_dawn ? pForm.farm_id : (farmList.find(fm => fm.is_own)?.id ?? pForm.farm_id)) || null,
       sort_order:     Number(pForm.sort_order)    || 0,
       seller_score:   pForm.seller_score && Object.keys(pForm.seller_score).length > 0 ? pForm.seller_score : null,
     };
@@ -4906,6 +4908,7 @@ export default function AdminClient() {
                     )}
                   </div>
                 </div>
+                {pForm.is_dawn ? (
                 <div>
                   <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
                   <div style={{ position:'relative' }}>
@@ -4932,6 +4935,14 @@ export default function AdminClient() {
                     })()}
                   </div>
                 </div>
+                ) : (
+                <div>
+                  <label className="adm-label">연결 농가</label>
+                  <div style={{ padding:'11px 12px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:13, color:'#475569', background:'#F8FAFC' }}>
+                    자사배송 상품은 <b>델리오(자사센터)</b>로 자동 연결돼요. <span style={{ color:'#94A3B8' }}>(발주서용 · 파트너농가 페이지엔 노출 안 됨)</span>
+                  </div>
+                </div>
+                )}
                 <div>
                   <label className="adm-label">정렬 순서</label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.sort_order || ''}
