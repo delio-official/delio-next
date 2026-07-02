@@ -395,7 +395,7 @@ export default function MypageClient() {
   const [editCsId, setEditCsId] = useState<string | null>(null);
   const [editCsText, setEditCsText] = useState('');
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!detailOrder || !!cancelDetail || !!editingId || !!reviewPhotoModal || !!reqModal || addrFormOpen || !!askModal || !!picker);
+  useBodyScrollLock(!!detailOrder || !!cancelDetail || !!editingId || !!reviewPhotoModal || !!reqModal || (isMobileView && addrFormOpen) || !!askModal || !!picker);
 
   /* ── 상품 문의 작성 제출(배송조회 → 바로 모달) ── */
   async function submitAsk() {
@@ -941,8 +941,9 @@ export default function MypageClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, user]);
 
-  /* 배송지 — 패널 열릴 때 로드 */
+  /* 배송지 — 패널 열릴 때 로드 + 추가/수정 폼은 항상 접힌 상태로 초기화 */
   useEffect(() => {
+    setAddrFormOpen(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrReqCustom(false);
     if (activePanel === 'address' && user) loadAddresses();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, user]);
