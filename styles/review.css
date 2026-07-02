@@ -8,8 +8,8 @@ body { background: #fff; }
 /* ===== 필터 행 (1열 가로 스크롤) ===== */
 .lounge-filters-row {
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: 20px;
+  justify-content: center;
+  margin-bottom: 28px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;          /* Firefox */
@@ -21,7 +21,7 @@ body { background: #fff; }
   display: flex;
   gap: 8px;
   flex-wrap: nowrap;
-  justify-content: flex-start;
+  justify-content: center;
 }
 .lounge-filter { flex: 0 0 auto; }
 
@@ -43,8 +43,8 @@ body { background: #fff; }
   transition: all .15s;
 }
 .lounge-filter.active {
-  background: #1A1A1A;
-  border-color: #1A1A1A;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: #fff;
   font-weight: 700;
 }
@@ -133,15 +133,16 @@ body { background: #fff; }
 }
 .lounge-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: transparent;
-  border: 1.5px solid #1A1A1A;
-  color: #1A1A1A;
+  padding: 3px 9px;
+  border-radius: 5px;
+  background: #FDECEA;
+  border: none;
+  color: var(--color-accent);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   flex-shrink: 0;
 }
+.lounge-badge:empty { display: none; }
 .lounge-card-date {
   font-size: 12px;
   color: var(--color-ink-mute);
@@ -198,6 +199,9 @@ body { background: #fff; }
     flex-direction: column;
     align-items: flex-start;
   }
+  /* 모바일: 필터가 한 줄을 넘칠 수 있어 좌측정렬 + 가로 스크롤 유지 */
+  .lounge-filters-row,
+  .lounge-filters { justify-content: flex-start; }
 }
 
 /* ===== 페이지네이션 ===== */
