@@ -370,6 +370,7 @@ export default function MypageClient() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedRange, setAppliedRange] = useState<{ from: string; to: string } | null>(null);
+  const [periodSel, setPeriodSel] = useState<'today' | 1 | 3 | 6 | null>(null); // 기간 버튼 선택 표시
   useEffect(() => {
     const f = () => setIsMobileView(window.innerWidth <= 768);
     f(); window.addEventListener('resize', f);
@@ -2255,10 +2256,10 @@ export default function MypageClient() {
                       )}
                     </div>
                     <div className="mp-ofilter-periods">
-                      <button type="button" onClick={() => applyPeriod('today')}>오늘</button>
-                      <button type="button" onClick={() => applyPeriod(1)}>1개월</button>
-                      <button type="button" onClick={() => applyPeriod(3)}>3개월</button>
-                      <button type="button" onClick={() => applyPeriod(6)}>6개월</button>
+                      <button type="button" className={periodSel==='today'?'active':''} onClick={() => { setPeriodSel('today'); applyPeriod('today'); }}>오늘</button>
+                      <button type="button" className={periodSel===1?'active':''} onClick={() => { setPeriodSel(1); applyPeriod(1); }}>1개월</button>
+                      <button type="button" className={periodSel===3?'active':''} onClick={() => { setPeriodSel(3); applyPeriod(3); }}>3개월</button>
+                      <button type="button" className={periodSel===6?'active':''} onClick={() => { setPeriodSel(6); applyPeriod(6); }}>6개월</button>
                     </div>
                     {!isMobileView && (
                       <>

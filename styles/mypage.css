@@ -180,6 +180,7 @@ body { background: #fff; }
     .mp-ofilter-periods { display: flex; gap: 5px; }
     .mp-ofilter-periods button { padding: 9px 12px; background: #fff; border: 1px solid #DDD; border-radius: 8px; font-size: 13px; color: #333; cursor: pointer; font-family: inherit; }
     .mp-ofilter-periods button:hover { border-color: #1A1A1A; }
+    .mp-ofilter-periods button.active { border-color: #1A1A1A; color: #1A1A1A; font-weight: 700; }
     .mp-ofilter-dates { display: flex; align-items: center; gap: 5px; }
     .mp-ofilter-dates input { padding: 8px 8px; border: 1px solid #DDD; border-radius: 8px; font-size: 12.5px; color: #333; font-family: inherit; }
     .mp-ofilter-tilde { color: #999; }
