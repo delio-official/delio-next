@@ -228,7 +228,7 @@ export default function CartClient() {
     const item = items.find(i => i.idx === idx);
     const max = item?.stockOptionId ? stockMap[item.stockOptionId] : undefined;
     if (max != null && qty > max) {
-      alert(`죄송합니다. 재고가 ${max}개뿐이라 더 늘릴 수 없습니다.`);
+      alert(`현재 구매 가능한 수량은 ${max}개까지입니다.`);
       return;
     }
     updateQty(idx, qty);

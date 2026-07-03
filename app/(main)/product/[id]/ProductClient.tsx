@@ -645,7 +645,7 @@ export default function ProductClient() {
       const already = cart.filter(c => c.stockOptionId === leaf.id).reduce((s, c) => s + (c.quantity || 0), 0);
       if (already + p.qty > leaf.stock) {
         alert(leaf.stock > 0
-          ? `죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 담을 수 없습니다.${already > 0 ? `\n(이미 장바구니에 ${already}개 담겨 있습니다)` : ''}`
+          ? `현재 구매 가능한 수량은 ${leaf.stock}개까지입니다.${already > 0 ? `\n(이미 장바구니에 ${already}개 담겨 있습니다)` : ''}`
           : '죄송합니다. 품절된 상품입니다.');
         return false;
       }
@@ -1767,7 +1767,7 @@ export default function ProductClient() {
                                     const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
                                     const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
                                     if (leaf && p.qty >= leaf.stock) {
-                                      alert(`죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 늘릴 수 없습니다.`);
+                                      alert(`현재 구매 가능한 수량은 ${leaf.stock}개까지입니다.`);
                                       return;
                                     }
                                     setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x));
