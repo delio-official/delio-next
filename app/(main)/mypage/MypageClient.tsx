@@ -2358,7 +2358,6 @@ export default function MypageClient() {
                               btns.push(askBtn);
                               if (active) btns.push({ key:'reqst', label:`환불 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
                               else if (withinReturnWindow(o.delivered_at)) btns.push({ key:'refund', label:'환불신청', onClick: () => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); } });
-                              else btns.push({ key:'refund', label:'반품기간 종료', muted:true });
                               btns.push(cartBtn);
                             } else if (o.status === 'confirmed') {
                               if (withinReviewWindow(o.delivered_at)) btns.push({ key:'review', label:'리뷰 쓰기', onClick: () => startItemAction('review', o) });
