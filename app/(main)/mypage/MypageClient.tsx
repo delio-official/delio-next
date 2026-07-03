@@ -2865,7 +2865,7 @@ export default function MypageClient() {
                           {/* 리뷰 작성 버튼 → 그 자리에서 작성 모달 */}
                           <button onClick={() => setReviewWriteTarget({ id: w.id, name: w.name, thumb: w.thumb, star: 0 })}
                             style={{ display:'block', width:'100%', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', background:'#fff', cursor:'pointer', fontFamily:'inherit' }}>
-                            리뷰 작성하고 최대 {fmtPrice(reviewRewardPhoto)}P 받기
+                            리뷰 작성하고 최대 {fmtPrice(reviewRewardText + reviewRewardPhoto)}P 받기
                           </button>
                         </div>
                       ))}
