@@ -172,7 +172,9 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
                   <p style={{ fontSize: 14, color: '#999' }}>업로드 중...</p>
                 ) : (
                   <>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>🖼</div>
+                    <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+                      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#999" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </div>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#333', margin: '0 0 4px' }}>
                       클릭하거나 이미지를 여기에 드래그하세요
                     </p>
