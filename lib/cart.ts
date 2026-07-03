@@ -8,6 +8,7 @@ export interface CartItem {
   thumbnail: string;
   deliveryType?: '산지직송' | '자사배송'; // 배송 구분
   optionId?: string;
+  stockOptionId?: string; // 재고 차감 대상 옵션(leaf, 예: 무농약 2kg) id
   // 구 필드 (호환성 유지)
   qty?: number;
   icon?: string;

@@ -343,6 +343,7 @@ export default function CheckoutClient() {
           quantity:  i.quantity ?? 1,
           thumbnail: i.thumbnail,
           options:   i.options,
+          stockOptionId: i.stockOptionId,
         })),
       };
 
@@ -370,10 +371,23 @@ export default function CheckoutClient() {
           return;
         }
 
+        /* 재고 차감(동시성 안전). 부족 시 주문 롤백 + 차단 (전액할인이라 결제취소 불필요) */
+        {
+          const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
+          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
+          if (decErr) {
+            await supabase.from('orders').delete().eq('id', order.id);
+            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
+            setLoading(false);
+            return;
+          }
+        }
+
         await supabase.from('order_items').insert(
           items.map(i => ({
             order_id: order.id, product_id: i.id,
             product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
+            option_label: i.options || null, option_id: i.stockOptionId || null,
             quantity: i.quantity ?? 1,
             subtotal: i.price * (i.quantity ?? 1),
             thumbnail_url: i.thumbnail || null,
@@ -434,10 +448,22 @@ export default function CheckoutClient() {
           .select()
           .single();
         if (orderErr || !order) { alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`); setLoading(false); return; }
+        /* 재고 차감(무통장도 주문 즉시 선점). 부족 시 주문 롤백 + 차단 */
+        {
+          const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
+          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
+          if (decErr) {
+            await supabase.from('orders').delete().eq('id', order.id);
+            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
+            setLoading(false);
+            return;
+          }
+        }
         await supabase.from('order_items').insert(
           items.map(i => ({
             order_id: order.id, product_id: i.id,
             product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
+            option_label: i.options || null, option_id: i.stockOptionId || null,
             quantity: i.quantity ?? 1, subtotal: i.price * (i.quantity ?? 1),
             thumbnail_url: i.thumbnail || null,
           }))

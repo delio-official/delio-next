@@ -57,5 +57,8 @@ export async function POST(req: Request) {
     } catch { /* 원장 실패 무시 */ }
   }
 
+  /* 재고 복원 (멱등: orders.stock_restored 가드, refund_restored와 독립) */
+  try { await admin.rpc('restore_order_stock', { p_order_id: orderId }); } catch { /* 복원 실패는 무시(관리자 확인) */ }
+
   return NextResponse.json({ ok: true, restored: true, refundedPoint: pointUsed, clawback: earned, couponRestored });
 }

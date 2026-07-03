@@ -12,7 +12,7 @@ export interface OrderData {
   recipient: string; phone: string; zipcode: string;
   addr1: string; addr2: string; memo: string;
   payMethod: string;
-  items: { id: string; name: string; price: number; quantity: number; thumbnail?: string; options?: string }[];
+  items: { id: string; name: string; price: number; quantity: number; thumbnail?: string; options?: string; stockOptionId?: string | null }[];
 }
 
 export interface FinalizeResult {
@@ -102,6 +102,29 @@ export async function finalizeOrder(
     return { success: false, error: `주문 저장 실패: ${oe?.message || ''}${oe?.code ? ` (${oe.code})` : ''}${oe?.details ? ` · ${oe.details}` : ''}`, status: 500 };
   }
 
+  /* 재고 차감 (동시성 안전 RPC). 재고 부족이면 결제취소(자동 환불) + 주문 롤백 */
+  {
+    const stockItems = orderData.items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity }));
+    const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
+    if (decErr) {
+      // 이미 승인된 결제면 자동 환불
+      if (!bypass && paymentId) {
+        const apiSecret = process.env.PORTONE_API_SECRET;
+        if (apiSecret) {
+          await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`, {
+            method: 'POST',
+            headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: '재고 부족으로 인한 자동 취소' }),
+          }).catch(() => {});
+        }
+      }
+      // 쿠폰/포인트는 아직 미처리(아래에서 처리 전)이므로 주문만 삭제하면 됨
+      await supabase.from('orders').delete().eq('id', order.id);
+      console.error('[finalize] out of stock, order rolled back:', decErr.message);
+      return { success: false, error: '죄송합니다. 방금 재고가 소진되어 주문이 취소되었습니다. 결제하신 금액은 자동으로 환불됩니다.', status: 409 };
+    }
+  }
+
   /* 농가 정산용: 판매 시점 공급가 스냅샷 */
   const productIds = [...new Set(orderData.items.map(i => i.id).filter(Boolean))];
   const supplyMap: Record<string, number> = {};
@@ -115,6 +138,8 @@ export async function finalizeOrder(
       order_id:      order.id,
       product_id:    i.id,
       product_name:  i.name + (i.options ? ` (${i.options})` : ''),
+      option_label:  i.options || null,
+      option_id:     i.stockOptionId || null,
       unit_price:    i.price,
       quantity:      i.quantity,
       subtotal:      i.price * i.quantity,

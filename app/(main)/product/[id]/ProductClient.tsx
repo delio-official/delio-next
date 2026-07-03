@@ -635,9 +635,12 @@ export default function ProductClient() {
     const base = product.discounted_price ?? product.price;
     // 옵션 상품: 누적 목록(picks) 각각을 담음 / 옵션 없는 상품: 단일 수량
     const list = options.length > 0 ? picks : [{ opts: [] as ProductOption[], qty }];
+    // 재고 차감 대상(leaf) = 선택 옵션 중 다른 옵션의 부모(parent_label)가 아닌 최하위 옵션
+    const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
     list.forEach(p => {
       const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
       const unitPrice = base + addP;
+      const leafOpt = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
       addToCart({
         id: product.id,
         name: product.name,
@@ -646,6 +649,7 @@ export default function ProductClient() {
         thumbnail: product.thumbnail_url || '',
         quantity: p.qty,
         optionId: p.opts.map(o => o.id).join(',') || undefined,
+        stockOptionId: leafOpt?.id,
         options: p.opts.map(o => o.label).join(' / ') || undefined,
         deliveryType: product.is_dawn ? '산지직송' : '자사배송',
       });

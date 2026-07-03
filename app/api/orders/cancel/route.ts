@@ -71,6 +71,9 @@ export async function POST(req: Request) {
     }
   }
 
+  /* 재고 복원 (멱등: stock_restored 가드) */
+  try { await admin.rpc('restore_order_stock', { p_order_id: orderId }); } catch { /* 복원 실패는 무시(관리자 확인) */ }
+
   /* 기록용: 어드민 환불관리에 '취소완료(자동)'로 남김 */
   try {
     await admin.from('refund_requests').insert({
