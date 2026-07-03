@@ -17,6 +17,7 @@ import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { StarRating } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
+import ReviewWriteModal from '@/components/ReviewWriteModal/ReviewWriteModal';
 import { imgThumb } from '@/lib/img';
 import SurveyResultView from '@/components/SurveyResultView/SurveyResultView';
 import '@/styles/mypage.css';
@@ -225,6 +226,7 @@ export default function MypageClient() {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string | null>(null); // 주문처리현황 단계 클릭 필터
   const orderListRef = useRef<HTMLDivElement>(null);          // 단계 클릭 시 목록으로 스크롤
   const [detailOrder, setDetailOrder] = useState<Order | null>(null); // 주문 상세보기 모달
+  const [reviewWriteTarget, setReviewWriteTarget] = useState<{ id: string; name: string; thumb: string | null; star: number } | null>(null); // 마이페이지 리뷰 작성 모달
   const [cancelDetail, setCancelDetail] = useState<Order | null>(null); // 취소/환불 상세 모달
   const [pointLogs,      setPointLogs]      = useState<{ id:string; amount:number; created_at:string; description:string|null }[]>([]);
   const [pointPeriod,    setPointPeriod]    = useState<3|6|12|36>(3); // 개월 단위 필터
@@ -2857,11 +2859,11 @@ export default function MypageClient() {
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:13.5, fontWeight:600, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{w.name}</div>
                               {/* 별: hover 시 채워지고, 클릭하면 그 별점 반영된 리뷰 작성 창 */}
-                              <WritableStars onPick={s => router.push(`/product/${w.id}?tab=review&star=${s}`)} />
+                              <WritableStars onPick={s => setReviewWriteTarget({ id: w.id, name: w.name, thumb: w.thumb, star: s })} />
                             </div>
                           </div>
-                          {/* 리뷰 작성 버튼 → 작성 모달 */}
-                          <button onClick={() => router.push(`/product/${w.id}?tab=review&review=1`)}
+                          {/* 리뷰 작성 버튼 → 그 자리에서 작성 모달 */}
+                          <button onClick={() => setReviewWriteTarget({ id: w.id, name: w.name, thumb: w.thumb, star: 0 })}
                             style={{ display:'block', width:'100%', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', background:'#fff', cursor:'pointer', fontFamily:'inherit' }}>
                             리뷰 작성하고 최대 {fmtPrice(reviewRewardPhoto)}P 받기
                           </button>
@@ -4194,6 +4196,24 @@ export default function MypageClient() {
 
       </div>
       {/* /container */}
+
+      {/* 리뷰 작성 모달 (마이페이지에서 그 자리에 띄움) */}
+      {reviewWriteTarget && user && (
+        <ReviewWriteModal
+          product={{ id: reviewWriteTarget.id, name: reviewWriteTarget.name, thumbnail: reviewWriteTarget.thumb }}
+          userId={user.id}
+          initialStar={reviewWriteTarget.star}
+          rewardText={reviewRewardText}
+          rewardPhoto={reviewRewardPhoto}
+          isMobile={isMobileView}
+          onClose={() => setReviewWriteTarget(null)}
+          onSubmitted={() => {
+            // 방금 작성한 상품을 '작성가능 리뷰'에서 즉시 제거 (myReviews에 반영)
+            const pid = reviewWriteTarget.id;
+            setMyReviews(prev => [{ id: `tmp-${pid}`, rating: reviewWriteTarget.star || 5, content: '', created_at: new Date().toISOString(), image_urls: [], video_url: null, taste: null, products: { id: pid, name: reviewWriteTarget.name, thumbnail_url: reviewWriteTarget.thumb } } as unknown as MyReview, ...prev]);
+          }}
+        />
+      )}
 
       {/* ══════════════════════════════
           리뷰 사진/영상 모달
