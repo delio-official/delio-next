@@ -51,7 +51,7 @@ export default function FindIdClient() {
                 <div key={r.email} style={{ padding:'4px 0' }}>
                   <span style={{ fontSize:16, fontWeight:700, color:'#1A1A1A' }}>{r.email}</span>
                   {r.snsLabel && (
-                    <span style={{ display:'block', fontSize:12, color:'#E5793A', fontWeight:600, marginTop:2 }}>
+                    <span style={{ display:'block', fontSize:12, color:'var(--color-accent)', fontWeight:600, marginTop:2 }}>
                       {r.snsLabel} 간편로그인 계정 (비밀번호 없음 · {r.snsLabel} 로그인 이용)
                     </span>
                   )}
