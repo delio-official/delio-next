@@ -298,6 +298,7 @@ export default function CheckoutClient() {
 
   /* GA4: 결제 시작 (장바구니 항목 로드되면 1회) */
   const beganCheckoutRef = useRef(false);
+  const submittingRef = useRef(false); // 결제 이중 제출 동기 락(state 지연 없이 즉시 차단)
   useEffect(() => {
     if (!beganCheckoutRef.current && items.length > 0) {
       beganCheckoutRef.current = true;
@@ -317,6 +318,11 @@ export default function CheckoutClient() {
       alert('주문 금액을 확인해주세요. 장바구니를 다시 확인해 주세요.');
       return;
     }
+
+    /* 이중 제출 방지 — state는 리렌더 후 반영되어 빠른 더블클릭을 못 막으므로 ref로 즉시 잠금.
+       (검증 실패 return은 이 락 위에서 처리 → 락이 걸린 채 남지 않음) */
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
     setLoading(true);
 
@@ -562,6 +568,9 @@ export default function CheckoutClient() {
       console.error('결제 오류:', err);
       alert('결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
       setLoading(false);
+    } finally {
+      /* 락 해제 — 실패/취소 시 재시도 허용. 성공 경로는 clearCart+이동되어 재진입해도 금액검증에서 막힘 */
+      submittingRef.current = false;
     }
   }
 
