@@ -254,7 +254,10 @@ export default function ReviewWriteModal({
                 const imgRef = { current: null as HTMLInputElement | null };
                 return (
                   <>
-                    <button onClick={() => imgRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1.5px dashed #D0D0CC', background:'#FAFAFA', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, fontSize:10, color:'#AAA', fontWeight:600 }}>사진</button>
+                    <button onClick={() => imgRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3 }}>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{newImages.length}/5</span>
+                    </button>
                     <input ref={r => { imgRef.current = r; }} type="file" accept="image/*" multiple style={{ display:'none' }}
                       onChange={e => { if (!e.target.files) return; const files = Array.from(e.target.files).slice(0, 5 - newImages.length); setNewImages(prev => [...prev, ...files]); e.target.value = ''; }} />
                   </>
@@ -264,7 +267,10 @@ export default function ReviewWriteModal({
                 const vidRef = { current: null as HTMLInputElement | null };
                 return (
                   <>
-                    <button onClick={() => vidRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1.5px dashed #D0D0CC', background:'#FAFAFA', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, fontSize:10, color:'#AAA', fontWeight:600 }}>영상</button>
+                    <button onClick={() => vidRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3 }}>
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{newVideo ? 1 : 0}/1</span>
+                    </button>
                     <input ref={r => { vidRef.current = r; }} type="file" accept="video/*" style={{ display:'none' }}
                       onChange={e => { if (e.target.files?.[0]) { setNewVideo(e.target.files[0]); e.target.value = ''; } }} />
                   </>
