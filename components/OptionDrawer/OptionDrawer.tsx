@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { addToCart, showCartToast } from '@/lib/cart';
+import { addToCart, getCart, showCartToast } from '@/lib/cart';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
@@ -118,19 +118,22 @@ export default function OptionDrawer() {
   const totalQty = hasOpts ? picksQty : qty;
   const canAdd = hasOpts ? picks.length > 0 : true;
 
-  function addAll() {
-    if (!product) return;
+  function addAll(): boolean {
+    if (!product) return false;
     const list = hasOpts ? picks : [{ opts: [] as Option[], qty }];
     // 재고 차감 대상(leaf) = 선택 옵션 중 다른 옵션의 부모(parent_label)가 아닌 최하위
     const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
-    // 재고 초과 담기 방지
+    // 재고 초과 담기 방지 — 장바구니 기존 수량 + 이번 수량이 재고 초과면 차단
+    const cart = getCart();
     for (const p of list) {
       const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
-      if (leaf && p.qty > leaf.stock) {
+      if (!leaf) continue;
+      const already = cart.filter(c => c.stockOptionId === leaf.id).reduce((s, c) => s + (c.quantity || 0), 0);
+      if (already + p.qty > leaf.stock) {
         alert(leaf.stock > 0
-          ? `죄송합니다. 재고가 ${leaf.stock}개 남아 있어 요청하신 수량을 담을 수 없습니다.`
+          ? `죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 담을 수 없습니다.${already > 0 ? `\n(이미 장바구니에 ${already}개 담겨 있습니다)` : ''}`
           : '죄송합니다. 품절된 상품입니다.');
-        return;
+        return false;
       }
     }
     list.forEach(p => {
@@ -149,17 +152,20 @@ export default function OptionDrawer() {
         deliveryType: product.is_dawn ? '산지직송' : '자사배송' as '산지직송' | '자사배송',
       });
     });
+    return true;
   }
 
   function handleAddCart() {
     if (!requireLogin()) { close(); return; }
     if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
-    addAll(); showCartToast(); close();
+    if (!addAll()) return;   // 재고 초과 등 실패 시 드로어 유지
+    showCartToast(); close();
   }
   function handleBuyNow() {
     if (!requireLogin()) { close(); return; }
     if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
-    addAll(); close(); router.push('/cart');
+    if (!addAll()) return;   // 재고 초과면 이동하지 않음
+    close(); router.push('/cart');
   }
 
   return (

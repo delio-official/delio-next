@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
-import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
+import { addToCart, getCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { getDownloadableCoupons, claimAllPublic, type PublicCoupon } from '@/lib/coupons';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
 import { useAuth } from '@/hooks/useAuth';
@@ -630,21 +630,24 @@ export default function ProductClient() {
       return [...prev, { key, opts, qty: 1 }];
     });
   }
-  function addCartItem() {
-    if (!product) return;
+  function addCartItem(): boolean {
+    if (!product) return false;
     const base = product.discounted_price ?? product.price;
     // 옵션 상품: 누적 목록(picks) 각각을 담음 / 옵션 없는 상품: 단일 수량
     const list = options.length > 0 ? picks : [{ opts: [] as ProductOption[], qty }];
     // 재고 차감 대상(leaf) = 선택 옵션 중 다른 옵션의 부모(parent_label)가 아닌 최하위 옵션
     const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
-    // 재고 초과 담기 방지 — leaf 옵션 재고보다 많이 담으려 하면 차단
+    // 재고 초과 담기 방지 — 장바구니에 이미 담긴 같은 옵션 수량 + 이번 수량이 재고를 넘으면 차단
+    const cart = getCart();
     for (const p of list) {
       const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
-      if (leaf && p.qty > leaf.stock) {
+      if (!leaf) continue; // 옵션 없는 단품 = 재고 미관리
+      const already = cart.filter(c => c.stockOptionId === leaf.id).reduce((s, c) => s + (c.quantity || 0), 0);
+      if (already + p.qty > leaf.stock) {
         alert(leaf.stock > 0
-          ? `죄송합니다. 재고가 ${leaf.stock}개 남아 있어 요청하신 수량을 담을 수 없습니다.`
+          ? `죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 담을 수 없습니다.${already > 0 ? `\n(이미 장바구니에 ${already}개 담겨 있습니다)` : ''}`
           : '죄송합니다. 품절된 상품입니다.');
-        return;
+        return false;
       }
     }
     list.forEach(p => {
@@ -666,6 +669,7 @@ export default function ProductClient() {
     });
     const totalQ = list.reduce((s, p) => s + p.qty, 0);
     gaAddToCart({ id: product.id, name: product.name, price: base, quantity: totalQ, category: product.category });
+    return true;
   }
   /* GA4: 상품 조회 */
   useEffect(() => {
@@ -764,14 +768,15 @@ export default function ProductClient() {
   function handleAddCart() {
     if (!requireLogin()) return;
     if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
-    addCartItem();
+    if (!addCartItem()) return;   // 재고 초과 등 실패 시 상품페이지에 머무름
     showCartToast();
     setPicks([]);
   }
   function handleBuyNow() {
     if (!requireLogin()) return;
     if (options.length > 0 && picks.length === 0) { showToast('옵션을 선택해 주세요.'); return; }
-    addCartItem(); router.push('/cart');
+    if (!addCartItem()) return;   // 재고 초과면 이동하지 않고 상품페이지 유지
+    router.push('/cart');
   }
 
   async function handleSubmitReview() {
