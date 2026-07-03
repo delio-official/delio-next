@@ -381,7 +381,7 @@ export default function SearchClient() {
               <div className="rt-pop-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.ceil(Math.min(popularKeywords.length, 10) / 2))}, auto)` }}>
                 {popularKeywords.slice(0, 10).map((kw, i) => (
                   <button key={i} className="rt-pop-item" onClick={() => handleSearch(kw)}>
-                    <span className="rt-pop-num">{i + 1}</span>
+                    <span className="rt-pop-num" style={{ color: i < 3 ? 'var(--color-accent)' : undefined }}>{i + 1}</span>
                     <span className="rt-pop-text">{kw}</span>
                   </button>
                 ))}
