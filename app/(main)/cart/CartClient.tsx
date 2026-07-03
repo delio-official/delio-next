@@ -42,6 +42,7 @@ export default function CartClient() {
     if (!authLoading && !user) router.replace('/login?next=/cart');
   }, [authLoading, user, router]);
   const [items, setItems] = useState<CartItem[]>([]);
+  const [stockMap, setStockMap] = useState<Record<string, number>>({}); // 담긴 옵션(stockOptionId) → 재고
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [coupons, setCoupons] = useState<{ ucId:string; name:string; discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null; starts_at:string|null; expires_at:string|null }[]>([]);
   const [selCoupon, setSelCoupon] = useState('');
@@ -185,10 +186,14 @@ export default function CartClient() {
     }
     const base = optProduct.discounted_price ?? optProduct.price;
     const addP = chosen.reduce((s, o) => s + (o.add_price || 0), 0);
+    // 재고 차감 대상(leaf) 재계산 — 옵션변경 시 stockOptionId 유실 방지
+    const childParentLabels = new Set(optList.filter(o => o.parent_label).map(o => o.parent_label));
+    const leaf = chosen.find(o => !childParentLabels.has(o.label)) ?? chosen[chosen.length - 1];
     const patch = {
       price: base + addP,
       originalPrice: optProduct.price + addP,
       optionId: chosen.map(o => o.id).join(',') || undefined,
+      stockOptionId: leaf?.id,
       options: chosen.map(o => o.label).join(' / ') || undefined,
     };
     const cart = getCart();
@@ -207,7 +212,25 @@ export default function CartClient() {
     else setSelected(new Set(items.map(i => i.idx)));
   }
 
+  /* 담긴 옵션(stockOptionId)들의 재고 조회 — 수량 상한용 */
+  useEffect(() => {
+    const ids = [...new Set(items.map(i => i.stockOptionId).filter(Boolean))] as string[];
+    if (ids.length === 0) { setStockMap({}); return; }
+    createClient().from('product_options').select('id,stock').in('id', ids)
+      .then(({ data }) => {
+        const m: Record<string, number> = {};
+        ((data as { id: string; stock: number }[]) || []).forEach(o => { m[o.id] = o.stock; });
+        setStockMap(m);
+      });
+  }, [items]);
+
   function handleQtyChange(idx: number, qty: number) {
+    const item = items.find(i => i.idx === idx);
+    const max = item?.stockOptionId ? stockMap[item.stockOptionId] : undefined;
+    if (max != null && qty > max) {
+      alert(`죄송합니다. 재고가 ${max}개뿐이라 더 늘릴 수 없습니다.`);
+      return;
+    }
     updateQty(idx, qty);
     setItems(getCart());
   }
