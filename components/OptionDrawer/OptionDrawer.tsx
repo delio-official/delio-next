@@ -301,7 +301,15 @@ export default function OptionDrawer() {
                             <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
                               style={{ width:32, height:32, border:'none', background:'none', fontSize:16, cursor:'pointer', color:'#555' }}>−</button>
                             <span style={{ width:32, textAlign:'center', fontSize:14, fontWeight:600 }}>{p.qty}</span>
-                            <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x))}
+                            <button onClick={() => {
+                              const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
+                              const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
+                              if (leaf && p.qty >= leaf.stock) {
+                                alert(`죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 늘릴 수 없습니다.`);
+                                return;
+                              }
+                              setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x));
+                            }}
                               style={{ width:32, height:32, border:'none', background:'none', fontSize:16, cursor:'pointer', color:'#555' }}>+</button>
                           </div>
                           <span style={{ fontSize:15, fontWeight:800 }}>{(unit * p.qty).toLocaleString()}원</span>

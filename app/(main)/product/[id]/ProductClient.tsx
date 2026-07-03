@@ -1763,7 +1763,15 @@ export default function ProductClient() {
                                   <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: Math.max(1, x.qty - 1) } : x))}
                                     style={{ width:32, height:32, border:'none', borderRight:'1px solid #DDDDD9', background:'transparent', cursor:'pointer', fontSize:16, color:'var(--color-ink)', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>−</button>
                                   <span style={{ minWidth:36, textAlign:'center', fontSize:14, fontWeight:700, padding:'0 4px', lineHeight:'32px', display:'inline-block', color:'var(--color-ink)' }}>{p.qty}</span>
-                                  <button onClick={() => setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x))}
+                                  <button onClick={() => {
+                                    const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
+                                    const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
+                                    if (leaf && p.qty >= leaf.stock) {
+                                      alert(`죄송합니다. 재고가 ${leaf.stock}개뿐이라 더 늘릴 수 없습니다.`);
+                                      return;
+                                    }
+                                    setPicks(prev => prev.map((x, i) => i === idx ? { ...x, qty: x.qty + 1 } : x));
+                                  }}
                                     style={{ width:32, height:32, border:'none', borderLeft:'1px solid #DDDDD9', background:'transparent', cursor:'pointer', fontSize:16, color:'var(--color-ink)', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>+</button>
                                 </div>
                                 <span style={{ fontSize:16, fontWeight:800, color:'#1A1A1A' }}>{fmtPrice(unit * p.qty)}원</span>
