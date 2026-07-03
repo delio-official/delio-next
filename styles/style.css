@@ -1813,3 +1813,17 @@ input, select, textarea { font-family: inherit; }
 /* 바텀시트 슬라이드업 (모바일 모달 공용) */
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet-up { animation: sheetUp .3s cubic-bezier(.4,0,.2,1); }
+
+/* 브라우저 자동완성(autofill) 시 파란/노란 배경 제거 — 흰 배경 유지 */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+  box-shadow: 0 0 0 1000px #fff inset !important;
+  -webkit-text-fill-color: #1A1A1A !important;
+  caret-color: #1A1A1A;
+  transition: background-color 9999s ease-in-out 0s;
+}
