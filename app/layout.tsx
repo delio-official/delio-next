@@ -5,6 +5,10 @@ import GoogleAnalytics from '@/components/GoogleAnalytics';
 export const metadata: Metadata = {
   title: '델리오 — 프리미엄 과일 전문 쇼핑몰',
   description: '산지 직송 프리미엄 과일 전문 쇼핑몰 델리오. 농가에서 직접 받는 신선한 제철 과일.',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+  },
   openGraph: {
     title: '델리오 — 프리미엄 과일 전문 쇼핑몰',
     description: '산지 직송 프리미엄 과일 전문 쇼핑몰',
