@@ -43,6 +43,7 @@ interface OrderItem {
   unit_price: number; subtotal: number;
   thumbnail_url: string | null;
   option_label?: string | null;
+  option_id?: string | null;
   farm_name?: string | null;
   courier?: string | null; tracking_number?: string | null; ship_status?: string | null;
   products?: { origin: string | null; category: string | null } | null;
@@ -247,7 +248,7 @@ export default function MypageClient() {
   const [askCatOpen, setAskCatOpen] = useState(false);
   const [askProdOpen, setAskProdOpen] = useState(false);
   // 상품 선택 모달 (리뷰 쓰기 / 재구매 / 장바구니) — 주문 상품 2개 이상일 때
-  type PickItem = { productId: string; productName: string; thumb: string | null; unitPrice: number };
+  type PickItem = { productId: string; productName: string; thumb: string | null; unitPrice: number; stockOptionId?: string | null; optionLabel?: string | null };
   const [picker, setPicker] = useState<{ mode: 'review' | 'repurchase' | 'cart'; items: PickItem[]; selectedId: string } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingId,      setEditingId]      = useState<string | null>(null);
@@ -432,6 +433,8 @@ export default function MypageClient() {
       originalPrice: it.unitPrice,
       thumbnail: it.thumb || '',
       quantity: 1,
+      stockOptionId: it.stockOptionId || undefined,
+      options: it.optionLabel || undefined,
       deliveryType: '자사배송',
     });
     if (mode === 'cart') {
@@ -445,7 +448,7 @@ export default function MypageClient() {
   function startItemAction(mode: 'review' | 'repurchase' | 'cart', o: Order) {
     const items: PickItem[] = (o.order_items || [])
       .filter(it => it.product_id)
-      .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null, unitPrice: it.unit_price }));
+      .map(it => ({ productId: it.product_id!, productName: it.product_name, thumb: it.thumbnail_url ?? null, unitPrice: it.unit_price, stockOptionId: it.option_id ?? null, optionLabel: it.option_label ?? null }));
     if (items.length === 0) return;
     if (items.length === 1) { runItemAction(mode, items[0]); return; }
     setPicker({ mode, items, selectedId: items[0].productId });
@@ -601,7 +604,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,farm_name,courier,tracking_number,ship_status,products(origin,category))')
+          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,option_id,farm_name,courier,tracking_number,ship_status,products(origin,category))')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
