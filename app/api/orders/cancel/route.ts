@@ -22,8 +22,8 @@ export async function POST(req: Request) {
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
   if (order.user_id !== user.id) return NextResponse.json({ ok: false, error: '본인 주문이 아닙니다' }, { status: 403 });
 
-  /* 즉시취소는 결제완료(paid)에서만. 그 사이 준비중 등으로 바뀌었으면 신청 흐름으로 */
-  if (order.status !== 'paid') {
+  /* 즉시취소 = 결제완료(paid) 또는 입금대기(pending, 무통장). 그 외(준비중 등)는 신청 흐름으로 */
+  if (order.status !== 'paid' && order.status !== 'pending') {
     return NextResponse.json({ ok: false, needsRequest: true, status: order.status });
   }
 
@@ -42,9 +42,9 @@ export async function POST(req: Request) {
     }
   }
 
-  /* 주문상태 → 취소됨 (여전히 paid일 때만 = 동시성 가드) */
+  /* 주문상태 → 취소됨 (여전히 paid/pending일 때만 = 동시성 가드) */
   const { data: upd } = await admin.from('orders')
-    .update({ status: 'cancelled' }).eq('id', orderId).eq('status', 'paid').select('id').maybeSingle();
+    .update({ status: 'cancelled' }).eq('id', orderId).in('status', ['paid', 'pending']).select('id').maybeSingle();
   if (!upd) return NextResponse.json({ ok: false, needsRequest: true, status: 'changed' });
 
   /* 쿠폰·포인트 복원 (멱등) */

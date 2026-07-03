@@ -2368,6 +2368,11 @@ export default function MypageClient() {
                             } else if (o.status === 'cancelled' || o.status === 'refunded') {
                               btns.push(askBtn);
                               btns.push({ key:'detail', label: o.status === 'cancelled' ? '취소상세' : '환불상세', onClick: () => setCancelDetail(o) });
+                            } else if (o.status === 'pending') {
+                              // 입금대기(무통장 등) — 결제 전이므로 바로 취소 가능
+                              btns.push(askBtn);
+                              if (active) btns.push({ key:'reqst', label:`취소 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
+                              else btns.push({ key:'cancel', label:'주문취소', onClick: () => instantCancel(o) });
                             } else {
                               btns.push(askBtn);
                             }
