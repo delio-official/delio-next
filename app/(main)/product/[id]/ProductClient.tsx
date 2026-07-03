@@ -637,6 +637,16 @@ export default function ProductClient() {
     const list = options.length > 0 ? picks : [{ opts: [] as ProductOption[], qty }];
     // 재고 차감 대상(leaf) = 선택 옵션 중 다른 옵션의 부모(parent_label)가 아닌 최하위 옵션
     const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
+    // 재고 초과 담기 방지 — leaf 옵션 재고보다 많이 담으려 하면 차단
+    for (const p of list) {
+      const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
+      if (leaf && p.qty > leaf.stock) {
+        alert(leaf.stock > 0
+          ? `죄송합니다. 재고가 ${leaf.stock}개 남아 있어 요청하신 수량을 담을 수 없습니다.`
+          : '죄송합니다. 품절된 상품입니다.');
+        return;
+      }
+    }
     list.forEach(p => {
       const addP = p.opts.reduce((s, o) => s + (o.add_price || 0), 0);
       const unitPrice = base + addP;
