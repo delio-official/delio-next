@@ -137,7 +137,7 @@ export default function FindPasswordClient() {
           <>
             <p style={{ fontSize:13, color:'#888', lineHeight:1.6, marginBottom:14 }}>
               가입 시 등록한 휴대폰으로 본인인증을 진행하면 바로 새 비밀번호를 설정할 수 있습니다.<br />
-              <span style={{ color:'#bbb' }}>가입 시 본인인증을 하지 않은 계정은 이메일로 찾기를 이용해주세요.</span>
+              가입 시 본인인증을 하지 않은 계정은 이메일로 찾기를 이용해주세요.
             </p>
             {phoneError && <p style={{ color:'var(--color-error)', fontSize:13, marginBottom:8, whiteSpace:'pre-line' }}>{phoneError}</p>}
             <FindHelp title="비밀번호 찾기" />
