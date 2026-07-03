@@ -44,7 +44,7 @@ function Section({ title, sk, open, onToggle, right, children }: {
    (미승인 수단을 임의 노출하면 PG 입점 심사에서 반려됨) */
 const PAYMENT_METHODS = [
   { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined,  enabled: true  },
-  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: false },
+  { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: true  },
   { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: false },
   { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY',  enabled: false },
   { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined, enabled: true  },
