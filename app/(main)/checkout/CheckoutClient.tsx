@@ -357,6 +357,18 @@ export default function CheckoutClient() {
       if (bypass || total <= 0) {
         /* ── 개발 bypass: 결제창 스킵, 클라이언트에서 직접 저장 ── */
         const supabase = createClient();
+        const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
+
+        /* 재고 차감을 '주문 생성 전'에 — 부족하면 주문 자체를 만들지 않음(유령 주문 방지) */
+        {
+          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
+          if (decErr) {
+            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
+            setLoading(false);
+            return;
+          }
+        }
+
         const { data: order, error: orderErr } = await supabase
           .from('orders')
           .insert({
@@ -372,21 +384,10 @@ export default function CheckoutClient() {
           .single();
 
         if (orderErr || !order) {
+          await supabase.rpc('restore_stocks', { p_items: stockItems }); // 주문 저장 실패 → 차감분 복원
           alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`);
           setLoading(false);
           return;
-        }
-
-        /* 재고 차감(동시성 안전). 부족 시 주문 롤백 + 차단 (전액할인이라 결제취소 불필요) */
-        {
-          const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
-          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
-          if (decErr) {
-            await supabase.from('orders').delete().eq('id', order.id);
-            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
-            setLoading(false);
-            return;
-          }
         }
 
         await supabase.from('order_items').insert(
@@ -440,6 +441,18 @@ export default function CheckoutClient() {
       } else if (payMethod === 'vbank') {
         /* ── 무통장입금: 결제창 없이 '입금대기(pending)' 주문 생성 + 계좌 안내 (관리자 수동 입금확인) ── */
         const supabase = createClient();
+        const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
+
+        /* 재고 차감을 '주문 생성 전'에 (무통장도 즉시 선점). 부족하면 주문 자체를 만들지 않음 */
+        {
+          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
+          if (decErr) {
+            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
+            setLoading(false);
+            return;
+          }
+        }
+
         const { data: order, error: orderErr } = await supabase
           .from('orders')
           .insert({
@@ -453,17 +466,11 @@ export default function CheckoutClient() {
           })
           .select()
           .single();
-        if (orderErr || !order) { alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`); setLoading(false); return; }
-        /* 재고 차감(무통장도 주문 즉시 선점). 부족 시 주문 롤백 + 차단 */
-        {
-          const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
-          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
-          if (decErr) {
-            await supabase.from('orders').delete().eq('id', order.id);
-            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
-            setLoading(false);
-            return;
-          }
+        if (orderErr || !order) {
+          await supabase.rpc('restore_stocks', { p_items: stockItems }); // 주문 저장 실패 → 차감분 복원
+          alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`);
+          setLoading(false);
+          return;
         }
         await supabase.from('order_items').insert(
           items.map(i => ({
