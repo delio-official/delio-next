@@ -1621,6 +1621,94 @@ export default function MypageClient() {
         );
         const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
         const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
+        /* ══ PC: 넓은 2단 레이아웃 (모바일은 아래 기존 모달 유지) ══ */
+        if (!isMobileView) {
+          const pcSec: React.CSSProperties = { border:'1px solid #ECECEC', borderRadius:12, padding:'20px 24px', background:'#fff' };
+          const pcTitle: React.CSSProperties = { fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:14 };
+          const pcBtn: React.CSSProperties = { fontSize:13, padding:'8px 16px', border:'1px solid #DDD', borderRadius:8, background:'#fff', color:'#333', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' };
+          return (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
+              onClick={() => setDetailOrder(null)}>
+              <div style={{ maxWidth:920, margin:'0 auto', background:'#F7F7F5', borderRadius:16, overflow:'hidden' }} onClick={e => e.stopPropagation()}>
+                {/* 헤더 */}
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'26px 32px 20px', background:'#fff', borderBottom:'1px solid #F0F0F0' }}>
+                  <div>
+                    <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A' }}>주문상세</div>
+                    <div style={{ fontSize:13, color:'#999', marginTop:8 }}>{new Date(o.created_at).toLocaleDateString('ko-KR')} 주문 · 주문번호 {o.order_no}</div>
+                  </div>
+                  <button onClick={() => setDetailOrder(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#888', lineHeight:1, padding:0 }}>✕</button>
+                </div>
+                <div style={{ padding:'24px 32px 32px', display:'flex', flexDirection:'column', gap:20 }}>
+                  {/* 배송지정보 */}
+                  <section style={pcSec}>
+                    <div style={pcTitle}>배송지정보</div>
+                    {rowL('받는 사람', o.recipient || '-')}
+                    {rowL('연락처', o.phone || '-')}
+                    {rowL('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
+                    {o.delivery_memo && rowL('배송메모', o.delivery_memo)}
+                  </section>
+                  {/* 주문상품 */}
+                  <section style={pcSec}>
+                    <div style={pcTitle}>주문상품</div>
+                    <div style={{ fontSize:13, fontWeight:700, marginBottom:14 }}>
+                      <span style={{ color:statusColor }}>{STATUS_LABEL[o.status] || o.status}</span>
+                      {statusSuffix && <span style={{ color:'#555', fontWeight:600 }}>{statusSuffix}</span>}
+                    </div>
+                    {o.order_items?.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:14, alignItems:'center', padding:'12px 0', borderTop: i>0?'1px solid #F4F4F2':'none' }}>
+                        <div style={{ width:60, height:60, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {item.thumbnail_url ? <img src={imgThumb(item.thumbnail_url,200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:26 }}>🍑</span>}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
+                          {item.option_label && <div style={{ fontSize:12.5, color:'#999', marginTop:3 }}>{item.option_label}</div>}
+                          <div style={{ fontSize:13, color:'#555', marginTop:5 }}>{fmtPrice(item.unit_price)}원 · {item.quantity}개</div>
+                        </div>
+                        <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                          <button style={pcBtn} onClick={() => { setAskModal({ items:[{ productId:item.product_id||'', productName:item.product_name, thumb:item.thumbnail_url??null }], selectedId:item.product_id||'' }); setAskCategory('문의'); setAskContent(''); setAskPrivate(false); }}>문의</button>
+                          {(o.status==='cancelled'||o.status==='refunded') && (
+                            <button style={pcBtn} onClick={() => setCancelDetail(o)}>{o.status==='cancelled'?'취소상세':'환불상세'}</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ marginTop:14, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
+                      {rowL('배송비', '무료 (일반택배)')}
+                      {sellers && rowL('판매자', sellers)}
+                    </div>
+                  </section>
+                  {/* 2단: 결제정보 + 주문자정보 */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
+                    <section style={pcSec}>
+                      <div style={pcTitle}>결제정보</div>
+                      {rowR('상품금액', `${fmtPrice(o.total_amount ?? o.final_amount)}원`)}
+                      {rowR('배송비', '0원')}
+                      {(o.coupon_discount ?? 0) > 0 && rowR('쿠폰할인', `−${fmtPrice(o.coupon_discount!)}원`)}
+                      {(o.point_used ?? 0) > 0 && rowR('적립금 사용', `−${fmtPrice(o.point_used!)}원`)}
+                      <div style={{ borderTop:'1px solid #EEE', marginTop:8, paddingTop:8 }}>
+                        {rowR('주문금액', `${fmtPrice(o.final_amount)}원`, true)}
+                      </div>
+                      <div style={{ marginTop:8 }}>
+                        {rowR(`${PM[o.payment_method||'']||o.payment_method||'결제'}`, `${fmtPrice(o.final_amount)}원`)}
+                      </div>
+                      {(o.earned_point ?? 0) > 0 && <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:6 }}>적립 {fmtPrice(o.earned_point!)}P</div>}
+                    </section>
+                    <section style={pcSec}>
+                      <div style={pcTitle}>주문자정보</div>
+                      {rowL('주문자', profile?.name || '-')}
+                      {rowL('연락처', profile?.phone || o.phone || '-')}
+                      {rowL('이메일', profile?.email || '-')}
+                      <div style={{ marginTop:14, padding:'12px 14px', background:'#F7F7F5', borderRadius:8, fontSize:12.5, color:'#888' }}>
+                        문의: 델리오 고객센터 070-8064-3601
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
             <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
