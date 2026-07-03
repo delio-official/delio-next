@@ -143,7 +143,7 @@ export default function ReviewWriteModal({
       >
         {/* 헤더 */}
         <div style={{ flexShrink:0, position:'relative', display:'flex', alignItems:'center', justifyContent:'center', padding:'15px 16px', borderBottom:'1px solid #EEE' }}>
-          <button onClick={onClose} style={{ position:'absolute', left:12, background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#333', lineHeight:1, padding:'0 4px' }}>✕</button>
+          <button onClick={onClose} style={{ position:'absolute', right:12, background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#333', lineHeight:1, padding:'0 4px' }}>✕</button>
           <span style={{ fontSize:17, fontWeight:700 }}>리뷰 남기기</span>
         </div>
 
