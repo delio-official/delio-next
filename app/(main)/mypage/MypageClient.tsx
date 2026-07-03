@@ -2955,7 +2955,7 @@ export default function MypageClient() {
                                   ))}
                                   {/* 기존 영상 */}
                                   {editVideo && (
-                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                                       <video src={editVideo} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
                                       <button type="button" onClick={() => setEditVideo(null)}
                                         style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
@@ -2963,7 +2963,7 @@ export default function MypageClient() {
                                   )}
                                   {/* 새 영상 */}
                                   {editNewVideo && (
-                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                                    <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                                       <video src={URL.createObjectURL(editNewVideo)} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
                                       <button type="button" onClick={() => setEditNewVideo(null)}
                                         style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
@@ -2971,7 +2971,7 @@ export default function MypageClient() {
                                   )}
                                   {/* 사진 추가 (최대 5장) */}
                                   {(editImages.length + editNewImages.length) < 5 && (
-                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:-2 }}>
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:-1 }}>
                                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{editImages.length + editNewImages.length}/5</span>
                                       <input type="file" accept="image/*" multiple hidden
@@ -2980,7 +2980,7 @@ export default function MypageClient() {
                                   )}
                                   {/* 영상 추가 */}
                                   {!editVideo && !editNewVideo && (
-                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:-1 }}>
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:1 }}>
                                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>0/1</span>
                                       <input type="file" accept="video/*" hidden

@@ -244,7 +244,7 @@ export default function ReviewWriteModal({
                 </div>
               ))}
               {newVideo && (
-                <div style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                   <video src={URL.createObjectURL(newVideo)} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:8, border:'1px solid #E8E8E6' }} />
                   <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)', borderRadius:8 }}><span style={{ fontSize:20 }}>▶</span></div>
                   <button onClick={() => setNewVideo(null)} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>×</button>
@@ -254,7 +254,7 @@ export default function ReviewWriteModal({
                 const imgRef = { current: null as HTMLInputElement | null };
                 return (
                   <>
-                    <button onClick={() => imgRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, order:-2 }}>
+                    <button onClick={() => imgRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, order:-1 }}>
                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{newImages.length}/5</span>
                     </button>
@@ -267,7 +267,7 @@ export default function ReviewWriteModal({
                 const vidRef = { current: null as HTMLInputElement | null };
                 return (
                   <>
-                    <button onClick={() => vidRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, order:-1 }}>
+                    <button onClick={() => vidRef.current?.click()} style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, order:1 }}>
                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{newVideo ? 1 : 0}/1</span>
                     </button>
