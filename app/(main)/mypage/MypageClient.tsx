@@ -2242,12 +2242,12 @@ export default function MypageClient() {
                   <div className="mp-ofilter">
                     <div className="mp-ofilter-dd">
                       <button type="button" className="mp-ofilter-dd-btn" onClick={() => setOrderStatusOpen(o => !o)}>
-                        <span>{orderStatusFilter ? STATUS_GROUP_LABEL[orderStatusFilter] : '전체 주문처리상태'}</span>
+                        <span>{orderStatusFilter ? STATUS_GROUP_LABEL[orderStatusFilter] : '주문 전체'}</span>
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                       </button>
                       {orderStatusOpen && (
                         <div className="mp-ofilter-dd-list">
-                          {([['', '전체 주문처리상태'], ['pending', '입금전'], ['preparing', '배송준비중'], ['shipped', '배송중'], ['delivered', '배송완료']] as const).map(([v, label]) => (
+                          {([['', '주문 전체'], ['pending', '입금전'], ['preparing', '배송준비중'], ['shipped', '배송중'], ['delivered', '배송완료']] as const).map(([v, label]) => (
                             <button key={v} type="button" className={(orderStatusFilter || '') === v ? 'active' : ''}
                               onClick={() => { setOrderStatusFilter(v || null); setOrderStatusOpen(false); setOrderPage(0); }}>{label}</button>
                           ))}
@@ -2325,7 +2325,7 @@ export default function MypageClient() {
                 ) : filteredOrders.length === 0 ? (
                   <div className="mp-empty">검색 결과가 없습니다.</div>
                 ) : (
-                  <>
+                  <div style={{ minHeight: isMobileView ? undefined : 480 }}>
                   {pagedOrders.map(o => {
                     const isExpanded = expandedOrder === o.id;
                     const displayItems = isExpanded ? o.order_items : o.order_items?.slice(0, 2);
@@ -2488,7 +2488,7 @@ export default function MypageClient() {
                       <button className="page-btn" onClick={() => setOrderPage(orderTotalPages - 1)} disabled={orderSafePage === orderTotalPages - 1}>»</button>
                     </div>
                   )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>
