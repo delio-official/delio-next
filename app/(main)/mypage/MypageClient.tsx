@@ -2971,7 +2971,7 @@ export default function MypageClient() {
                                   )}
                                   {/* 사진 추가 (최대 5장) */}
                                   {(editImages.length + editNewImages.length) < 5 && (
-                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3 }}>
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:-2 }}>
                                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{editImages.length + editNewImages.length}/5</span>
                                       <input type="file" accept="image/*" multiple hidden
@@ -2980,7 +2980,7 @@ export default function MypageClient() {
                                   )}
                                   {/* 영상 추가 */}
                                   {!editVideo && !editNewVideo && (
-                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3 }}>
+                                    <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3, order:-1 }}>
                                       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                                       <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>0/1</span>
                                       <input type="file" accept="video/*" hidden
@@ -3903,7 +3903,7 @@ export default function MypageClient() {
                               <label style={{ width:82, height:82, borderRadius:10,
                                 border:'1px solid #DDD', background:'#fff',
                                 display:'flex', flexDirection:'column', alignItems:'center',
-                                justifyContent:'center', cursor:'pointer', gap:4, flexShrink:0 }}>
+                                justifyContent:'center', cursor:'pointer', gap:4, flexShrink:0, order:-1 }}>
                                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                                 <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{csFiles.length}/5</span>
                                 <input type="file" multiple hidden
