@@ -187,8 +187,7 @@ export default function ProductClient() {
   const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0, repurchasers: 0, recent7buy: 0, recent7repurchase: 0 });
   /* 구매/재구매 문구: 최근7일 10명↑일 때 '7일간 N명' vs '누적 N명' 랜덤 (접속 시 1회 고정, hydration 안전하게 마운트 후 결정) */
   const [buyMsgAlt, setBuyMsgAlt] = useState(false);
-  const [repMsgAlt, setRepMsgAlt] = useState(false);
-  useEffect(() => { setBuyMsgAlt(Math.random() < 0.5); setRepMsgAlt(Math.random() < 0.5); }, []);
+  useEffect(() => { setBuyMsgAlt(Math.random() < 0.5); }, []);
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
   const [photoGalleryOpen,    setPhotoGalleryOpen]    = useState(false);
   const [selectedGalleryIdx,  setSelectedGalleryIdx]  = useState<number | null>(null);
@@ -1961,14 +1960,22 @@ export default function ProductClient() {
                             : <>최근 <b className="hl">{buyerStats.buyers.toLocaleString()}명</b>이 구매했어요</>}</span>
                         </div>
                       )}
-                      {buyerStats.repurchasers > 0 && (
-                        <div className="tp-metric-line">
-                          <span className="tp-metric-tag">재구매</span>
-                          <span>{(buyerStats.recent7repurchase >= 10 && repMsgAlt)
-                            ? <>최근 7일 간 <b className="hl">{buyerStats.recent7repurchase.toLocaleString()}명</b>이 재구매했어요</>
-                            : <>최근 <b className="hl">{buyerStats.repurchasers.toLocaleString()}명</b>이 재구매했어요</>}</span>
-                        </div>
-                      )}
+                      {(() => {
+                        let content: React.ReactNode = null;
+                        if (buyerStats.recent7repurchase >= 5) {
+                          content = <>최근 7일 간 <b className="hl">{buyerStats.recent7repurchase.toLocaleString()}명</b>이 재구매했어요</>;
+                        } else if (buyerStats.buyers >= 10 && buyerStats.repurchase >= 20) {
+                          content = <>구매 고객 <b className="hl">{buyerStats.repurchase}%</b>가 재구매했어요</>;
+                        } else if (hasPurchased) {
+                          content = <>맛있게 드셨다면, <b className="hl">또 만나보세요</b> 😊</>;
+                        }
+                        return content && (
+                          <div className="tp-metric-line">
+                            <span className="tp-metric-tag">재구매</span>
+                            <span>{content}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div className="tp-summary-wait">만족도·재구매율은 리뷰 {TASTE_REVEAL_MIN}개 이상 모이면 공개돼요</div>
