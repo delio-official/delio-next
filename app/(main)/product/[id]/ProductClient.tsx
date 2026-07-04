@@ -184,7 +184,11 @@ export default function ProductClient() {
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
   const [tasteMore,           setTasteMore]           = useState(false);
-  const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0 });
+  const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0, repurchasers: 0, recent7buy: 0, recent7repurchase: 0 });
+  /* 구매/재구매 문구: 최근7일 10명↑일 때 '7일간 N명' vs '누적 N명' 랜덤 (접속 시 1회 고정, hydration 안전하게 마운트 후 결정) */
+  const [buyMsgAlt, setBuyMsgAlt] = useState(false);
+  const [repMsgAlt, setRepMsgAlt] = useState(false);
+  useEffect(() => { setBuyMsgAlt(Math.random() < 0.5); setRepMsgAlt(Math.random() < 0.5); }, []);
   const [photoFilterOn,       setPhotoFilterOn]       = useState(false);
   const [photoGalleryOpen,    setPhotoGalleryOpen]    = useState(false);
   const [selectedGalleryIdx,  setSelectedGalleryIdx]  = useState<number | null>(null);
@@ -746,21 +750,32 @@ export default function ProductClient() {
         .eq('product_id', product.id)
         .limit(5000);
       if (!items) return;
-      const since = Date.now() - 30 * 86400000;
-      const userOrders: Record<string, Set<string>> = {};
-      const recent = new Set<string>();
+      const now = Date.now();
+      const since30 = now - 30 * 86400000;
+      const since7  = now - 7  * 86400000;
+      /* 유저별 { order_id → 주문시각 } */
+      const userOrders: Record<string, Map<string, number>> = {};
       (items as unknown as { order_id: string; orders: { user_id: string | null; created_at: string; status: string } }[]).forEach(it => {
         const o = it.orders;
         if (!o?.user_id || !['paid', 'delivered', 'confirmed'].includes(o.status)) return;
-        (userOrders[o.user_id] ||= new Set<string>()).add(it.order_id);
-        if (new Date(o.created_at).getTime() >= since) recent.add(o.user_id);
+        (userOrders[o.user_id] ||= new Map<string, number>()).set(it.order_id, new Date(o.created_at).getTime());
       });
       const buyers = Object.keys(userOrders);
-      const repurchasers = buyers.filter(u => userOrders[u].size >= 2).length;
+      const repurchasers = buyers.filter(u => userOrders[u].size >= 2);
+      const recent30 = buyers.filter(u => [...userOrders[u].values()].some(t => t >= since30)).length;
+      const recent7buy = buyers.filter(u => [...userOrders[u].values()].some(t => t >= since7)).length;
+      /* 최근 7일 재구매자 = 2회+ 구매자 중, 2번째 이후 주문이 최근 7일 이내 */
+      const recent7repurchase = repurchasers.filter(u => {
+        const times = [...userOrders[u].values()].sort((a, b) => a - b);
+        return times.slice(1).some(t => t >= since7);
+      }).length;
       setBuyerStats({
         buyers: buyers.length,
-        repurchase: buyers.length > 0 ? Math.round(repurchasers / buyers.length * 100) : 0,
-        recent: recent.size,
+        repurchase: buyers.length > 0 ? Math.round(repurchasers.length / buyers.length * 100) : 0,
+        recent: recent30,
+        repurchasers: repurchasers.length,
+        recent7buy,
+        recent7repurchase,
       });
     })();
   }, [product?.id]);
@@ -1932,24 +1947,21 @@ export default function ProductClient() {
                     <div className="tp-summary-star"><SingleStar size={20} /><b>{product.avg_rating.toFixed(1)}</b></div>
                     <span className="tp-summary-rcount">리뷰 {product.review_count.toLocaleString()}개</span>
                   </div>
-                  {statsRevealed ? (
-                    <div className="tp-summary-metrics">
-                      <div className="tp-metric">
-                        <span className="tp-metric-label">만족도</span>
-                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${satisfiedPct}%`, background:'#1A1A1A' }} /></div>
-                        <span className="tp-metric-val">{satisfiedPct}%</span>
+                  {statsRevealed ? (() => {
+                    const buyText = (buyerStats.recent7buy >= 10 && buyMsgAlt)
+                      ? `최근 7일 간 ${buyerStats.recent7buy.toLocaleString()}명이 구매했어요`
+                      : `최근 ${buyerStats.buyers.toLocaleString()}명이 구매했어요`;
+                    const repText = (buyerStats.recent7repurchase >= 10 && repMsgAlt)
+                      ? `최근 7일 간 ${buyerStats.recent7repurchase.toLocaleString()}명이 재구매했어요`
+                      : `최근 ${buyerStats.repurchasers.toLocaleString()}명이 재구매했어요`;
+                    return (
+                      <div className="tp-summary-metrics">
+                        <div className="tp-metric-line">리뷰 {product.review_count.toLocaleString()}건 기준 <b>{satisfiedPct}%</b> 만족</div>
+                        {buyerStats.buyers > 0 && <div className="tp-metric-line">{buyText}</div>}
+                        {buyerStats.repurchasers > 0 && <div className="tp-metric-line">{repText}</div>}
                       </div>
-                      <div className="tp-metric">
-                        <span className="tp-metric-label">재구매율</span>
-                        <div className="tp-metric-track"><div className="tp-metric-fill" style={{ width:`${buyerStats.repurchase}%`, background:'#1A1A1A' }} /></div>
-                        <span className="tp-metric-val">{buyerStats.repurchase}%</span>
-                      </div>
-                      <div className="tp-metric tp-metric-badge">
-                        <span className="tp-metric-label">최근 구매자</span>
-                        <span className="tp-buyer-badge">{buyerStats.recent.toLocaleString()}명</span>
-                      </div>
-                    </div>
-                  ) : (
+                    );
+                  })() : (
                     <div className="tp-summary-wait">만족도·재구매율은 리뷰 {TASTE_REVEAL_MIN}개 이상 모이면 공개돼요</div>
                   )}
                 </div>
