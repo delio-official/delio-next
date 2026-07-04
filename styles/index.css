@@ -1477,6 +1477,7 @@
       }
       .qg-card-original { display: block !important; font-size: 11px !important; color: #aaa !important; text-decoration: line-through !important; margin-bottom: 1px !important; }
       .qg-card-price-row { gap: 3px !important; margin-bottom: 4px !important; align-items: baseline !important; flex-wrap: wrap !important; }
+      .qg-price-rating { display: none !important; }  /* 모바일은 가격옆 별점 숨김 → 기존 별점 블록 사용 */
       .qg-card-discount { font-size: 15px !important; font-weight: 800 !important; color: var(--color-accent) !important; display: inline !important; }
       .qg-card-price { font-size: 15px !important; font-weight: 800 !important; color: var(--color-ink) !important; }
       .qg-card-img-r { display: none !important; }
@@ -1532,7 +1533,9 @@
     .qg-card-name { font-size: 17px; font-weight: 700; color: var(--color-ink); line-height: 1.4; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
     .qg-card-original { font-size: 14px; color: var(--color-ink-mute); text-decoration: line-through; text-decoration-thickness: 2px; margin-bottom: 3px; }
     .qg-card-discrow { display: flex; align-items: baseline; gap: 6px; margin-bottom: 3px; }
-    .qg-card-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; }
+    .qg-card-price-row { display: flex; align-items: baseline; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+    /* PC: 별점을 가격 옆에 인라인 표시 (모바일은 기존 별점 블록 사용) */
+    .qg-price-rating { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--color-ink-mute); margin-left: 6px; cursor: pointer; white-space: nowrap; }
     .qg-card-discount { font-size: 19px; font-weight: 800; color: var(--color-accent); }
     .qg-card-price { font-size: 19px; font-weight: 800; color: var(--color-ink); }
     .qg-card-shipping { font-size: 13px; color: var(--color-ink-mute); margin-bottom: 12px; }
