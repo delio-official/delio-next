@@ -3421,16 +3421,43 @@ export default function MypageClient() {
                         style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
                     </div>
                     {/* 배송 요청사항 */}
-                    <div style={{ marginBottom:18 }}>
+                    <div style={{ marginBottom:18, position:'relative' }}>
                       <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
-                      <button type="button" className="req-box" onClick={() => setAddrReqOpen(true)}>
+                      <button type="button" className="req-box" onClick={() => setAddrReqOpen(o => !o)}>
                         <span className="req-box-tag">일반</span>
                         <span className={`req-box-val${(!addrReqCustom && !addrForm.delivery_request) ? ' ph' : ''}`}>{addrForm.delivery_request || '배송요청사항 없음'}</span>
                         <span className="req-box-change">변경</span>
                       </button>
+                      {/* PC: 인라인 드롭다운 */}
+                      {addrReqOpen && !isMobileView && (
+                        <>
+                          <div onClick={() => setAddrReqOpen(false)} style={{ position:'fixed', inset:0, zIndex:29 }} />
+                          <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, background:'#fff', border:'1px solid #E0E0DC', borderRadius:10, boxShadow:'0 8px 24px rgba(0,0,0,0.12)', overflow:'hidden' }}>
+                            {DELIVERY_REQ_PRESETS.map(p => (
+                              <button type="button" key={p} onClick={() => { setAddrForm(f => ({ ...f, delivery_request:p })); setAddrReqCustom(false); setAddrReqOpen(false); }}
+                                style={{ display:'block', width:'100%', padding:'11px 14px', textAlign:'left', background:(!addrReqCustom && addrForm.delivery_request===p)?'#F7F7F5':'#fff', border:'none', borderBottom:'1px solid #F2F2F0', cursor:'pointer', fontFamily:'inherit', fontSize:13.5, color:'#333', fontWeight:(!addrReqCustom && addrForm.delivery_request===p)?700:400 }}>
+                                {p}
+                              </button>
+                            ))}
+                            <button type="button" onClick={() => { setAddrReqCustom(true); setAddrForm(f => ({ ...f, delivery_request:'' })); }}
+                              style={{ display:'block', width:'100%', padding:'11px 14px', textAlign:'left', background: addrReqCustom?'#F7F7F5':'#fff', border:'none', cursor:'pointer', fontFamily:'inherit', fontSize:13.5, color:'#333', fontWeight: addrReqCustom?700:400 }}>
+                              직접입력
+                            </button>
+                            {addrReqCustom && (
+                              <div style={{ padding:'0 14px 12px' }}>
+                                <input maxLength={50} autoFocus placeholder="요청사항을 입력해주세요 (최대 50자)" value={addrForm.delivery_request}
+                                  onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
+                                  style={{ width:'100%', height:40, padding:'0 12px', border:'1px solid #DDD', borderRadius:8, fontSize:13, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                                <button type="button" onClick={() => setAddrReqOpen(false)}
+                                  style={{ marginTop:8, width:'100%', padding:'9px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {/* 배송 요청사항 선택 모달 (풀스크린) */}
-                    {addrReqOpen && (
+                    {/* 배송 요청사항 선택 모달 (모바일 풀스크린) */}
+                    {addrReqOpen && isMobileView && (
                       <div className="req-modal">
                         <div className="req-modal-header">
                           <span>배송요청사항</span>
