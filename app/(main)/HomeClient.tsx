@@ -309,15 +309,64 @@ function QuickGuide() {
     f(); window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, []);
-  /* PC(2행 세로우선 그리드)에서 '가로 우선'(1 2 / 3 4)으로 보이게 4개씩 [a,c,b,d] 재배열. 모바일(1행)은 원본 순서 */
-  const displayItems = isMobile ? items : (() => {
-    const out: QGProduct[] = [];
-    for (let i = 0; i < items.length; i += 4) {
-      const c = items.slice(i, i + 4);
-      [c[0], c[2], c[1], c[3]].forEach(x => { if (x) out.push(x); });
-    }
-    return out;
-  })();
+  /* PC: 4개씩 2x2 페이지로 묶어 가로로 나열(가로 우선: 1 2 / 3 4). 모바일은 1행 스와이프(원본 순서) */
+  const qgChunks: QGProduct[][] = [];
+  for (let i = 0; i < items.length; i += 4) qgChunks.push(items.slice(i, i + 4));
+  const renderCard = (p: QGProduct) => {
+    const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
+    const icon = CAT_ICONS[catKey] || '🍑';
+    const bg   = CAT_BG[catKey]   || '#F4EFE6';
+    const displayPrice = p.discounted_price ?? p.price;
+    return (
+      <div key={p.id} className="qg-card" onClick={() => router.push(`/product/${p.id}`)}>
+        <div className="qg-card-img" style={{ background: bg, position:'relative' }}>
+          <span className={`qg-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`} style={{ position:'absolute', top:10, left:10, zIndex:2 }}>
+            {p.is_dawn ? '산지직송' : '자사배송'}
+          </span>
+          {p.thumbnail_url
+            ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+            : <span className="qg-card-img-inner">{icon}</span>}
+        </div>
+        <div className="qg-card-body">
+          {(p.is_new || p.is_best) ? (
+            <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>{p.is_new ? 'NEW' : '인기'}</span>
+          ) : (
+            <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
+          )}
+          <div className="qg-card-name">{p.name}</div>
+          {p.short_desc && <div className="qg-card-desc">{p.short_desc}</div>}
+          {p.discount_rate > 0 && (
+            <div className="qg-card-discrow"><span className="qg-card-original">{p.price.toLocaleString()}원</span></div>
+          )}
+          <div className="qg-card-price-row">
+            {p.discount_rate > 0 && <span className="qg-card-discount">{Math.round(p.discount_rate)}%</span>}
+            <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
+          </div>
+          {p.avg_rating > 0 && (
+            <div className="qg-card-rating" onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="#FFB400" stroke="none" aria-hidden="true">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              <span>{p.avg_rating.toFixed(1)}({p.review_count.toLocaleString()})</span>
+            </div>
+          )}
+          <div className="qg-body-actions">
+            <button className="qg-body-wish" onClick={e => handleQGWish(e, p.id)}>
+              <span style={{ color: wishedIds.has(p.id) ? '#E53935' : undefined }}>{wishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
+            </button>
+            <span className="qg-body-actions-divider" />
+            <button className="qg-body-cart" onClick={e => { e.stopPropagation(); if (!requireLogin()) return; openOptionDrawer(p.id); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
+              </svg> 담기
+            </button>
+          </div>
+        </div>
+        <div className="qg-card-img qg-card-img-r" style={{ background: bg }}><span className="qg-card-img-inner">{icon}</span></div>
+      </div>
+    );
+  };
 
   /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
@@ -451,74 +500,12 @@ function QuickGuide() {
               ))
             : items.length === 0
               ? <div style={{ gridColumn:'1 / -1', width:'100%' }}><ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} /></div>
-              : displayItems.map(p => {
-                  const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
-                  const icon = CAT_ICONS[catKey] || '🍑';
-                  const bg   = CAT_BG[catKey]   || '#F4EFE6';
-                  const displayPrice = p.discounted_price ?? p.price;
-                  return (
-                    <div key={p.id} className="qg-card" onClick={() => router.push(`/product/${p.id}`)}>
-                      <div className="qg-card-img" style={{ background: bg, position:'relative' }}>
-                        {/* 배송 배지 (썸네일 좌상단) */}
-                        <span className={`qg-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
-                          style={{ position:'absolute', top:10, left:10, zIndex:2 }}>
-                          {p.is_dawn ? '산지직송' : '자사배송'}
-                        </span>
-                        {p.thumbnail_url
-                          ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                          : <span className="qg-card-img-inner">{icon}</span>
-                        }
-                      </div>
-                      <div className="qg-card-body">
-                        {(p.is_new || p.is_best) ? (
-                          <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>
-                            {p.is_new ? 'NEW' : '인기'}
-                          </span>
-                        ) : (
-                          <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
-                        )}
-                        <div className="qg-card-name">{p.name}</div>
-                        {p.short_desc && <div className="qg-card-desc">{p.short_desc}</div>}
-                        {p.discount_rate > 0 && (
-                          <div className="qg-card-discrow">
-                            <span className="qg-card-original">{p.price.toLocaleString()}원</span>
-                          </div>
-                        )}
-                        <div className="qg-card-price-row">
-                          {p.discount_rate > 0 && <span className="qg-card-discount">{Math.round(p.discount_rate)}%</span>}
-                          <span className="qg-card-price">{displayPrice.toLocaleString()}원</span>
-                        </div>
-                        {p.avg_rating > 0 && (
-                          <div className="qg-card-rating" onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="#FFB400" stroke="none" aria-hidden="true">
-                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
-                            <span>{p.avg_rating.toFixed(1)}({p.review_count.toLocaleString()})</span>
-                          </div>
-                        )}
-                        <div className="qg-body-actions">
-                          <button className="qg-body-wish" onClick={e => handleQGWish(e, p.id)}>
-                            <span style={{ color: wishedIds.has(p.id) ? '#E53935' : undefined }}>{wishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
-                          </button>
-                          <span className="qg-body-actions-divider" />
-                          <button className="qg-body-cart" onClick={e => {
-                            e.stopPropagation();
-                            if (!requireLogin()) return;
-                            openOptionDrawer(p.id);
-                          }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
-                              <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
-                              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
-                            </svg> 담기
-                          </button>
-                        </div>
-                      </div>
-                      <div className="qg-card-img qg-card-img-r" style={{ background: bg }}>
-                        <span className="qg-card-img-inner">{icon}</span>
-                      </div>
-                    </div>
-                  );
-                })
+              : (isMobile
+                  ? items.map(renderCard)
+                  : qgChunks.map((page, pi) => (
+                      <div key={pi} className="qg-page">{page.map(renderCard)}</div>
+                    ))
+                )
           }
         </div>
         </div>

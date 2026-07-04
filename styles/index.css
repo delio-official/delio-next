@@ -1517,7 +1517,9 @@
     .qg-nav-btn.next { right: -16px; }
     @media(max-width:768px) { .qg-nav-btn { display: none; } }
 
-    .qg-products { display: grid; grid-template-rows: repeat(2, 260px); grid-auto-flow: column; grid-auto-columns: 480px; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; padding-right: 24px; cursor: grab; user-select: none; width: 100%; }
+    .qg-products { display: flex; flex-direction: row; gap: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; padding-right: 24px; cursor: grab; user-select: none; width: 100%; }
+    /* 2x2 페이지(가로 우선: 1 2 / 3 4) — 페이지들이 가로로 이어지며 스크롤 */
+    .qg-page { display: grid; grid-template-columns: repeat(2, 480px); grid-template-rows: repeat(2, 260px); grid-auto-flow: row; gap: 14px; flex-shrink: 0; }
     .qg-products.dragging { cursor: grabbing; }
     .qg-products::-webkit-scrollbar { display: none; }
     .qg-card { display: flex; background: #fff; border: none; border-radius: 12px; overflow: hidden; cursor: pointer; text-decoration: none; color: inherit; width: 480px; min-height: 260px; }
