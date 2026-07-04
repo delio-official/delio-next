@@ -1007,7 +1007,7 @@
       #section-pick .price-original { display: inline; }
       #section-pick .price-discount { font-size: 15px; font-weight: 800; color: var(--color-accent); }
       #section-pick .price-current { font-size: 15px; font-weight: 800; }
-      #section-pick .product-rating-row { display: flex; margin-top: 4px; }
+      #section-pick .product-rating-row { display: flex; margin-top: 2px; }
     }
     .curation-tabs { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; border-bottom: 1.5px solid #EBEBEB; margin-bottom: 36px; }
     .curation-tabs::-webkit-scrollbar { display: none; }

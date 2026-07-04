@@ -318,7 +318,7 @@ body { background: #fff; }
 .price-top-row { display: flex; align-items: baseline; margin-bottom: 1px; line-height: 1.2; }  /* 위: 정상가(삭제선) */
 .product-price-row {
   display: flex; align-items: baseline; gap: 4px;
-  flex-wrap: wrap; margin-bottom: 4px;   /* 아래: 할인% + 판매가 */
+  flex-wrap: wrap; margin-bottom: 2px;   /* 아래: 할인% + 판매가 */
 }
 .price-discount  { font-size: 19px; font-weight: 800; color: #E53E3E; }
 .price-current   { font-size: 19px; font-weight: 800; color: var(--color-ink); }
@@ -335,7 +335,7 @@ body { background: #fff; }
 }
 .product-delivery-tag.farm { background: #F0FBF4; color: #1E8A4C; border-color: #7BD4A0; }
 
-.product-rating-row { display: flex; align-items: center; min-height: 18px; }   /* 별점 없어도 공간 확보 */
+.product-rating-row { display: flex; align-items: center; min-height: 15px; }   /* 별점 없어도 공간 확보 */
 .rating-stars {
   display: flex; align-items: center; gap: 3px;
   font-size: 12px; color: var(--color-ink-mute);
