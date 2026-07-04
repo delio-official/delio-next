@@ -1950,12 +1950,12 @@ export default function ProductClient() {
                   {statsRevealed ? (
                     <div className="tp-summary-metrics">
                       <div className="tp-metric-line">
-                        <span className="tp-metric-emoji">😊</span>
+                        <span className="tp-metric-tag">만족도</span>
                         <span>리뷰 <b>{product.review_count.toLocaleString()}건</b> 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
                       </div>
                       {buyerStats.buyers > 0 && (
                         <div className="tp-metric-line">
-                          <span className="tp-metric-emoji">🛒</span>
+                          <span className="tp-metric-tag">구매</span>
                           <span>{(buyerStats.recent7buy >= 10 && buyMsgAlt)
                             ? <>최근 7일 간 <b className="hl">{buyerStats.recent7buy.toLocaleString()}명</b>이 구매했어요</>
                             : <>최근 <b className="hl">{buyerStats.buyers.toLocaleString()}명</b>이 구매했어요</>}</span>
@@ -1963,7 +1963,7 @@ export default function ProductClient() {
                       )}
                       {buyerStats.repurchasers > 0 && (
                         <div className="tp-metric-line">
-                          <span className="tp-metric-emoji">🔁</span>
+                          <span className="tp-metric-tag">재구매</span>
                           <span>{(buyerStats.recent7repurchase >= 10 && repMsgAlt)
                             ? <>최근 7일 간 <b className="hl">{buyerStats.recent7repurchase.toLocaleString()}명</b>이 재구매했어요</>
                             : <>최근 <b className="hl">{buyerStats.repurchasers.toLocaleString()}명</b>이 재구매했어요</>}</span>
