@@ -588,7 +588,14 @@
       .taste5-grid { grid-template-columns: 1fr; }
       .taste5-grid.collapsed .taste5-extra { display: none; }
       .taste-more-btn { display: flex; }
-      .tp-summary-rating { min-width: 80px; }
+      /* 모바일: 별점(상) / 지표(하) 세로 배치 */
+      .tp-summary { flex-direction: column; align-items: stretch; gap: 12px; }
+      .tp-summary-rating {
+        flex: none; flex-direction: row; justify-content: center; gap: 10px;
+        padding-right: 0; padding-bottom: 12px;
+        border-right: none; border-bottom: 1px solid #EEECE7;
+      }
+      .tp-summary-metrics { flex: none; }
     }
 
     /* ===== 헤더 수정 (PC에서만 뒤로가기 숨김) ===== */
