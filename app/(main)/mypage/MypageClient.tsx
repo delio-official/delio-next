@@ -3134,9 +3134,31 @@ export default function MypageClient() {
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
                     <div className="farms-grid">
-                      {farmWishlist.map(fw => fw.farms ? (
+                      {farmWishlist.map(fw => !fw.farms ? null : isMobileView ? (
                         <FarmCard key={fw.id} farm={fw.farms} onRemove={() => removeFarmWish(fw.id)} />
-                      ) : null)}
+                      ) : (
+                        /* PC: 메인 브랜드 소개관 카드 스타일 (사진 + 로고·농가명·화살표, 상품 없음) */
+                        <Link key={fw.id} href={`/farm/${fw.farms.slug}`}
+                          style={{ display:'block', textDecoration:'none', color:'inherit', borderRadius:16, overflow:'hidden', border:'1px solid #F0F0EE', background:'#fff', transition:'box-shadow .2s' }}
+                          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
+                          <div style={{ position:'relative', width:'100%', aspectRatio:'1.4 / 1', background:'linear-gradient(135deg,#F4EFE6,#EDE8DC)', overflow:'hidden' }}>
+                            {(fw.farms.hero_image_url || fw.farms.thumbnail_url)
+                              ? <img src={imgThumb((fw.farms.hero_image_url || fw.farms.thumbnail_url)!, 600)} alt={fw.farms.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
+                              : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:52 }}>🍑</div>}
+                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); removeFarmWish(fw.id); }}
+                              aria-label="찜 해제"
+                              style={{ position:'absolute', top:12, right:12, width:34, height:34, borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.92)', color:'#E53935', fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 1px 4px rgba(0,0,0,0.15)' }}>♥</button>
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'14px 18px' }}>
+                            <div style={{ width:38, height:38, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:'#F0F0EE', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>
+                              {fw.farms.logo_url ? <img src={imgThumb(fw.farms.logo_url, 100)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍑'}
+                            </div>
+                            <span style={{ flex:1, fontSize:15, fontWeight:800, color:'#1A1A1A', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{fw.farms.name}</span>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#bbb" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
                   )
                 ) : wishlist.length === 0 ? (
