@@ -106,14 +106,16 @@
 
     /* PC: 이미지 위 오버레이 pill (좌하단) */
     .pd-beststat-pc {
-      position: absolute; left: 14px; bottom: 14px; z-index: 2;
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 2;
       display: inline-flex; align-items: center; gap: 7px;
       padding: 12px 20px;
       background: rgba(40,40,40,0.85); color: #fff; border-radius: 999px;
       font-size: 13px; font-weight: 600; line-height: 1;
       backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      max-width: calc(100% - 92px);
+      max-width: calc(100% - 28px); white-space: nowrap;
+      animation: pdBestStatFade 0.5s ease 5s forwards;   /* 5초 뒤 사라짐 */
     }
+    @keyframes pdBestStatFade { to { opacity: 0; visibility: hidden; } }
     .pd-beststat-pc svg { flex-shrink: 0; }
     .pd-beststat-pc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     @media (max-width: 768px) { .pd-beststat-pc { display: none; } }
