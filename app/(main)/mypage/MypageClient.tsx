@@ -3139,10 +3139,10 @@ export default function MypageClient() {
                       ) : (
                         /* PC: 메인 브랜드 소개관 카드 스타일 (사진 + 로고·농가명·화살표, 상품 없음) */
                         <Link key={fw.id} href={`/farm/${fw.farms.slug}`}
-                          style={{ display:'block', textDecoration:'none', color:'inherit', borderRadius:16, overflow:'hidden', border:'1px solid #F0F0EE', background:'#fff', transition:'box-shadow .2s' }}
+                          style={{ display:'block', textDecoration:'none', color:'inherit', borderRadius:8, overflow:'hidden', border:'1px solid #F0F0EE', background:'#fff', transition:'box-shadow .2s' }}
                           onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}>
-                          <div style={{ position:'relative', width:'100%', aspectRatio:'4 / 5', background:'linear-gradient(135deg,#F4EFE6,#EDE8DC)', overflow:'hidden' }}>
+                          <div style={{ position:'relative', width:'100%', aspectRatio:'1 / 1', background:'linear-gradient(135deg,#F4EFE6,#EDE8DC)', overflow:'hidden' }}>
                             {(fw.farms.hero_image_url || fw.farms.thumbnail_url)
                               ? <img src={imgThumb((fw.farms.hero_image_url || fw.farms.thumbnail_url)!, 600)} alt={fw.farms.name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                               : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:52 }}>🍑</div>}
