@@ -303,6 +303,21 @@ function QuickGuide() {
   const requireLogin = useLoginGuard();
   const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const f = () => setIsMobile(window.innerWidth <= 768);
+    f(); window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+  /* PC(2행 세로우선 그리드)에서 '가로 우선'(1 2 / 3 4)으로 보이게 4개씩 [a,c,b,d] 재배열. 모바일(1행)은 원본 순서 */
+  const displayItems = isMobile ? items : (() => {
+    const out: QGProduct[] = [];
+    for (let i = 0; i < items.length; i += 4) {
+      const c = items.slice(i, i + 4);
+      [c[0], c[2], c[1], c[3]].forEach(x => { if (x) out.push(x); });
+    }
+    return out;
+  })();
 
   /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
   useEffect(() => {
@@ -436,7 +451,7 @@ function QuickGuide() {
               ))
             : items.length === 0
               ? <div style={{ gridColumn:'1 / -1', width:'100%' }}><ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} /></div>
-              : items.map(p => {
+              : displayItems.map(p => {
                   const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
                   const icon = CAT_ICONS[catKey] || '🍑';
                   const bg   = CAT_BG[catKey]   || '#F4EFE6';
