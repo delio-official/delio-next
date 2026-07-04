@@ -509,7 +509,10 @@ function QuickGuide() {
               : (isMobile
                   ? items.map(renderCard)
                   : qgChunks.map((page, pi) => (
-                      <div key={pi} className="qg-page">{page.map(renderCard)}</div>
+                      <div key={pi} className="qg-page"
+                        style={page.length <= 2 ? { gridTemplateRows: '260px' } : undefined}>
+                        {page.map(renderCard)}
+                      </div>
                     ))
                 )
           }
