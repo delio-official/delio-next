@@ -1991,14 +1991,16 @@ export default function ProductClient() {
                   </div>
                 );
               })()}
-              <button className="taste-more-btn" onClick={() => setTasteMore(v => !v)}
-                style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
-                <span>{tasteMore ? '접기' : (tasteRevealed ? '식감·과즙·신선도 더 보기' : '과즙·식감 더 보기')}</span>
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ transform: tasteMore ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+              {isMobile && (
+                <button className="taste-more-btn" onClick={() => setTasteMore(v => !v)}
+                  style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                  <span>{tasteMore ? '접기' : (tasteRevealed ? '식감·과즙·신선도 더 보기' : '과즙·식감 더 보기')}</span>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ transform: tasteMore ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         </div>
