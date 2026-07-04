@@ -1948,10 +1948,6 @@ export default function ProductClient() {
                   </div>
                   {statsRevealed ? (
                     <div className="tp-summary-metrics">
-                      <div className="tp-metric-line">
-                        <span className="tp-metric-tag">만족도</span>
-                        <span>리뷰 {product.review_count.toLocaleString()}건 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
-                      </div>
                       {buyerStats.buyers > 0 && (
                         <div className="tp-metric-line">
                           <span className="tp-metric-tag">구매</span>
@@ -1960,6 +1956,10 @@ export default function ProductClient() {
                             : <>최근 <b className="hl">{buyerStats.buyers.toLocaleString()}명</b>이 구매했어요</>}</span>
                         </div>
                       )}
+                      <div className="tp-metric-line">
+                        <span className="tp-metric-tag">만족도</span>
+                        <span>구매자 {product.review_count.toLocaleString()}명 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
+                      </div>
                       {(() => {
                         let content: React.ReactNode = null;
                         if (buyerStats.recent7repurchase >= 5) {
