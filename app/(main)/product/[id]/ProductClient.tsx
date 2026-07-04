@@ -1950,7 +1950,7 @@ export default function ProductClient() {
                     <div className="tp-summary-metrics">
                       <div className="tp-metric-line">
                         <span className="tp-metric-tag">만족도</span>
-                        <span>리뷰 <b>{product.review_count.toLocaleString()}건</b> 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
+                        <span>리뷰 {product.review_count.toLocaleString()}건 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
                       </div>
                       {buyerStats.buyers > 0 && (
                         <div className="tp-metric-line">
