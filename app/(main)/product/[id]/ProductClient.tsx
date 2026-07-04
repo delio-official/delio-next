@@ -1947,21 +1947,30 @@ export default function ProductClient() {
                     <div className="tp-summary-star"><SingleStar size={20} /><b>{product.avg_rating.toFixed(1)}</b></div>
                     <span className="tp-summary-rcount">리뷰 {product.review_count.toLocaleString()}개</span>
                   </div>
-                  {statsRevealed ? (() => {
-                    const buyText = (buyerStats.recent7buy >= 10 && buyMsgAlt)
-                      ? `최근 7일 간 ${buyerStats.recent7buy.toLocaleString()}명이 구매했어요`
-                      : `최근 ${buyerStats.buyers.toLocaleString()}명이 구매했어요`;
-                    const repText = (buyerStats.recent7repurchase >= 10 && repMsgAlt)
-                      ? `최근 7일 간 ${buyerStats.recent7repurchase.toLocaleString()}명이 재구매했어요`
-                      : `최근 ${buyerStats.repurchasers.toLocaleString()}명이 재구매했어요`;
-                    return (
-                      <div className="tp-summary-metrics">
-                        <div className="tp-metric-line">리뷰 {product.review_count.toLocaleString()}건 기준 <b>{satisfiedPct}%</b> 만족</div>
-                        {buyerStats.buyers > 0 && <div className="tp-metric-line">{buyText}</div>}
-                        {buyerStats.repurchasers > 0 && <div className="tp-metric-line">{repText}</div>}
+                  {statsRevealed ? (
+                    <div className="tp-summary-metrics">
+                      <div className="tp-metric-line">
+                        <span className="tp-metric-emoji">😊</span>
+                        <span>리뷰 <b>{product.review_count.toLocaleString()}건</b> 기준 <b className="hl">{satisfiedPct}%</b> 만족</span>
                       </div>
-                    );
-                  })() : (
+                      {buyerStats.buyers > 0 && (
+                        <div className="tp-metric-line">
+                          <span className="tp-metric-emoji">🛒</span>
+                          <span>{(buyerStats.recent7buy >= 10 && buyMsgAlt)
+                            ? <>최근 7일 간 <b className="hl">{buyerStats.recent7buy.toLocaleString()}명</b>이 구매했어요</>
+                            : <>최근 <b className="hl">{buyerStats.buyers.toLocaleString()}명</b>이 구매했어요</>}</span>
+                        </div>
+                      )}
+                      {buyerStats.repurchasers > 0 && (
+                        <div className="tp-metric-line">
+                          <span className="tp-metric-emoji">🔁</span>
+                          <span>{(buyerStats.recent7repurchase >= 10 && repMsgAlt)
+                            ? <>최근 7일 간 <b className="hl">{buyerStats.recent7repurchase.toLocaleString()}명</b>이 재구매했어요</>
+                            : <>최근 <b className="hl">{buyerStats.repurchasers.toLocaleString()}명</b>이 재구매했어요</>}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                     <div className="tp-summary-wait">만족도·재구매율은 리뷰 {TASTE_REVEAL_MIN}개 이상 모이면 공개돼요</div>
                   )}
                 </div>
