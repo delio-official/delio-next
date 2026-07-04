@@ -1432,19 +1432,21 @@
       .qg-emoji { font-size: 14px; }
       /* 모바일 qg-products: 2열 그리드 (세로 카드) */
       .qg-products {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        grid-template-rows: unset !important; grid-auto-flow: unset !important; grid-auto-columns: unset !important;
+        display: flex !important;
+        flex-direction: row !important;
+        grid-template-columns: unset !important; grid-template-rows: unset !important; grid-auto-flow: unset !important; grid-auto-columns: unset !important;
         gap: 12px !important;
-        overflow-x: unset !important; overflow-y: unset !important;
-        scroll-snap-type: none !important; scrollbar-width: unset !important;
-        cursor: default !important; padding: 0 !important; width: 100% !important;
+        overflow-x: auto !important; overflow-y: hidden !important;
+        scroll-snap-type: x proximity !important; scrollbar-width: none !important;
+        -webkit-overflow-scrolling: touch !important;
+        cursor: default !important; padding: 0 0 4px !important; width: 100% !important;
       }
-      .qg-products::-webkit-scrollbar { display: block; }
+      .qg-products::-webkit-scrollbar { display: none; }
       .qg-page { display: none !important; }
       /* 카드: 세로 (이미지 위, 정보 아래) */
       .qg-card {
-        width: 100% !important; height: auto !important; min-height: unset !important;
+        width: 42vw !important; max-width: 190px !important; flex-shrink: 0 !important; scroll-snap-align: start !important;
+        height: auto !important; min-height: unset !important;
         flex-direction: column !important;
         border-radius: 14px !important; border: none !important;
         border-bottom: none !important;
