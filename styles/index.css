@@ -1533,8 +1533,8 @@
     .qg-card-price { font-size: 19px; font-weight: 800; color: var(--color-ink); }
     .qg-card-shipping { font-size: 13px; color: var(--color-ink-mute); margin-bottom: 12px; }
     .qg-card-img-r { display: none; }
-    /* 짧은설명·별점은 모바일 카드에서만 노출 (PC 가로카드는 기존 유지) */
-    .qg-card-desc { display: none; }
+    /* 짧은설명: PC 가로카드에도 노출 (제목 아래) */
+    .qg-card-desc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; color: #9A958E; margin: 2px 0 6px; }
     .qg-card-rating { display: none; }
     /* 카드 본문 찜/담기 바 */
     .qg-body-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; }
