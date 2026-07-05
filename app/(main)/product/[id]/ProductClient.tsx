@@ -2039,7 +2039,7 @@ export default function ProductClient() {
         <div className="pd-tab-bar" id="productTabs">
           {TABS.map((t, i) => (
             <div key={t} className={`pd-tab${activeTab === i ? ' active' : ''}`}
-              onClick={() => { setActiveTab(i); window.setTimeout(smoothScrollToTabs, 60); }}>
+              onClick={() => setActiveTab(i)}>
               <span className="pd-tab-label">{t}</span>
             </div>
           ))}

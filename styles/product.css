@@ -319,7 +319,7 @@
       transition: color .15s, border-color .15s; white-space: nowrap;
     }
     .pd-tab.active { color: #1A1A1A; border-bottom-color: #1A1A1A; }
-    .tab-content { padding: 24px 20px; background: #fff; }
+    .tab-content { padding: 24px 20px; background: #fff; min-height: 60vh; }
     @media (min-width: 769px) {
       .tab-content { padding: 32px 0; }
       /* container와 함께 쓸 때 — 이중 클래스로 우선순위 확보 */
