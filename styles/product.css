@@ -441,6 +441,10 @@
       background: #fff; padding: 20px 18px 8px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.04);
     }
+    /* PC에서 맛 프로파일(+상단 요약) 영역만 살짝 좁게 (모바일은 그대로) */
+    @media (min-width: 769px) {
+      .taste-profile-vs .container { max-width: 1000px; }
+    }
     .taste-vs-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 14px;
