@@ -2569,6 +2569,13 @@ export default function ProductClient() {
                             <span className="qna-user">{maskedName}</span>
                             <span className="qna-datetime">{q.created_at.slice(0,10)}</span>
                             <span className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</span>
+                            {isMe && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteInquiry(q.id); }}
+                                style={{ flexShrink:0, fontSize:11, fontWeight:600, color:'#B0B0B0', background:'none', border:'none', cursor:'pointer', padding:'3px 4px' }}>
+                                삭제
+                              </button>
+                            )}
                           </div>
                           <div className="qna-content">
                             {q.is_private && (
