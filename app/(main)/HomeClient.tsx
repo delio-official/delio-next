@@ -684,7 +684,7 @@ export default function HomeClient() {
   const [pickLoaded, setPickLoaded] = useState(false);
   const [loungePosts, setLoungePosts] = useState<LoungePost[]>([]);
   const [loungeLoaded, setLoungeLoaded] = useState(false);
-  const [bizOpen, setBizOpen] = useState(false); // 모바일 푸터 사업자정보 접기
+  const [bizOpen, setBizOpen] = useState(true); // 모바일 푸터 사업자정보 기본 펼침(필수정보 상시 노출)
 
   /* 메인 섹션 노출 설정 (site_settings: sec_* = 'false'면 숨김) */
   const [secOff, setSecOff] = useState<Set<string>>(new Set());
