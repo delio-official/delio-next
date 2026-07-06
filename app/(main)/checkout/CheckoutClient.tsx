@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
 import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
-import { getOrderPrefs, setOrderPrefs, clearOrderPrefs, hasOrderPrefs } from '@/lib/orderPrefs';
+import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
@@ -214,13 +214,11 @@ export default function CheckoutClient() {
           expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null };
       });
     setCoupons(list);
-    // 장바구니를 거쳐 왔으면 소비자가 고른 선택(미적용='' 포함)을 그대로 존중
+    // 이전에 체크아웃에서 고른 쿠폰(prefs)이 보유 목록에 있으면 복원, 없으면 최대할인 자동선택
     const prefs = getOrderPrefs();
-    if (hasOrderPrefs()) {
-      // 고른 쿠폰이 아직 유효하면 복원, 아니면(미적용·만료) 미적용 유지 — 최대할인 강제 적용 안 함
-      setSelCoupon(prefs.couponUcId && list.some(c => c.ucId === prefs.couponUcId) ? prefs.couponUcId : '');
+    if (prefs.couponUcId && list.some(c => c.ucId === prefs.couponUcId)) {
+      setSelCoupon(prefs.couponUcId);
     } else if (autoSelect) {
-      // 장바구니를 거치지 않은 바로구매 등 → 최대할인 자동선택
       const st = items.reduce((s, i) => s + i.price * (i.quantity ?? 1), 0);
       let best = ''; let bestDisc = 0;
       for (const c of list) {

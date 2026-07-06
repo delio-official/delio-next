@@ -47,8 +47,6 @@ export default function CartClient() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [coupons, setCoupons] = useState<{ ucId:string; name:string; discount_type:'percent'|'fixed'; discount_value:number; min_order_amount:number; max_discount_amount:number|null; starts_at:string|null; expires_at:string|null }[]>([]);
   const [selCoupon, setSelCoupon] = useState('');
-  const [couponModal, setCouponModal] = useState(false);
-  const [modalSel, setModalSel] = useState('');
   const [pointBalance, setPointBalance] = useState(0);
   const [pointUsed, setPointUsed] = useState(0);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -60,7 +58,7 @@ export default function CartClient() {
   const [optLoading, setOptLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!optItem || couponModal);
+  useBodyScrollLock(!!optItem);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
@@ -550,83 +548,6 @@ export default function CartClient() {
         </div>
       )}
 
-      {/* 쿠폰 선택 모달 (체크아웃과 동일) */}
-      {couponModal && (
-        <div onClick={() => setCouponModal(false)}
-          style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.45)', zIndex:3100,
-            display:'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', width:'100%',
-              maxWidth: isMobile ? '100%' : 460,
-              height: isMobile ? '100%' : 'auto',
-              maxHeight: isMobile ? '100%' : '86vh',
-              borderRadius: isMobile ? 0 : 14,
-              display:'flex', flexDirection:'column', overflow:'hidden' }}>
-            <div style={{ flexShrink:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #F0F0F0' }}>
-              <span style={{ fontSize:16, fontWeight:700 }}>장바구니 쿠폰 <span style={{ color:'#CB1D11', fontSize:15 }}>{coupons.length}장</span></span>
-              <button onClick={() => setCouponModal(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <div style={{ flex:1, overflowY:'auto', padding:'16px 20px 20px' }}>
-              {/* 최대할인 자동적용 — 누르면 가장 많이 할인되는 쿠폰이 선택됨 */}
-              <button disabled={!bestCouponId}
-                onClick={() => setModalSel(modalSel === bestCouponId ? '' : bestCouponId)}
-                style={{ width:'100%', textAlign:'center', padding:'13px 16px', marginBottom:14, border:`1.5px solid ${bestCouponId && modalSel === bestCouponId ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor: bestCouponId ? 'pointer' : 'not-allowed', fontSize:14, fontWeight:600, color: bestCouponId ? (modalSel === bestCouponId ? '#1A1A1A' : '#555') : '#BBB' }}>
-                최대할인 자동적용
-              </button>
-              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                {coupons.map(c => {
-                  const usable = subtotal >= c.min_order_amount;
-                  const sel = modalSel === c.ucId;
-                  const fmtD = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-                  const start = c.starts_at ? new Date(c.starts_at) : null;
-                  const exp = c.expires_at ? new Date(c.expires_at) : null;
-                  const periodStr = exp ? `${start ? fmtD(start) : ''} ~ ${fmtD(exp)}` : '상시 사용 가능';
-                  let dday: number | null = null;
-                  if (exp) { const t0 = new Date(); t0.setHours(0,0,0,0); const e0 = new Date(exp); e0.setHours(0,0,0,0); dday = Math.round((e0.getTime()-t0.getTime())/86400000); }
-                  const imminent = dday !== null && dday >= 0 && dday <= 3;
-                  const ddayStr = dday === 0 ? '오늘 만료' : `D-${dday}`;
-                  return (
-                    <button key={c.ucId} disabled={!usable} onClick={() => setModalSel(c.ucId)}
-                      style={{ textAlign:'left', padding:'18px 16px', border:`1.5px solid ${sel ? '#1A1A1A' : '#EFEFEF'}`, borderRadius:10,
-                        background: usable ? '#fff' : '#FAFAFA', cursor: usable ? 'pointer' : 'not-allowed', opacity: usable ? 1 : 0.55, position:'relative' }}>
-                      <div style={{ position:'absolute', top:14, right:14, display:'flex', gap:5 }}>
-                        {imminent && <span style={{ fontSize:10, color:'#fff', background:'#CB1D11', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:700 }}>{ddayStr}</span>}
-                        <span style={{ fontSize:10, color:'#999', border:'1px solid #E2E2E2', borderRadius:4, padding:'2px 6px', lineHeight:1, fontWeight:500 }}>1장</span>
-                      </div>
-                      <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A', lineHeight:1.1 }}>
-                        {c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}
-                      </div>
-                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', marginTop:6 }}>{c.name}</div>
-                      {c.max_discount_amount ? <div style={{ fontSize:12, color:'#CB1D11', fontWeight:600, marginTop:4 }}>최대 {fmtPrice(c.max_discount_amount)}원 할인</div> : null}
-                      <div style={{ fontSize:12, color:'#AAA', marginTop:10, lineHeight:1.6 }}>
-                        {c.min_order_amount > 0 ? `${fmtPrice(c.min_order_amount)}원 이상 구매` : '0원 이상 구매'}<br/>{periodStr}
-                      </div>
-                      {!usable && <div style={{ fontSize:12, color:'#CB1D11', fontWeight:600, marginTop:6 }}>{fmtPrice(c.min_order_amount)}원 이상 구매 시 사용 가능</div>}
-                    </button>
-                  );
-                })}
-              </div>
-              {coupons.length === 0 && <div style={{ textAlign:'center', color:'#AAA', fontSize:14, padding:'30px 0' }}>보유한 쿠폰이 없습니다</div>}
-            </div>
-            <div style={{ flexShrink:0, padding:'12px 20px 16px', borderTop:'1px solid #F0F0F0', background:'#fff' }}>
-              {(() => {
-                const selC = coupons.find(c => c.ucId === modalSel);
-                const discAmt = selC ? (selC.discount_type === 'percent'
-                  ? Math.min(Math.round(subtotal * selC.discount_value / 100), selC.max_discount_amount || Infinity)
-                  : Math.min(selC.discount_value, subtotal)) : 0;
-                return (
-                  <button onClick={() => { setSelCoupon(modalSel); setCouponModal(false); }}
-                    style={{ width:'100%', padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor:'pointer' }}>
-                    {modalSel === '' ? '쿠폰 미적용' : `${fmtPrice(discAmt)}원 할인 적용하기`}
-                  </button>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
