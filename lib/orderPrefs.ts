@@ -20,3 +20,9 @@ export function clearOrderPrefs() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(KEY);
 }
+
+/** 장바구니에서 쿠폰/적립금 선택을 저장한 적이 있는지(=장바구니를 거쳐 왔는지) */
+export function hasOrderPrefs(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(KEY) !== null;
+}
