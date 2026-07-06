@@ -38,6 +38,7 @@ interface ProductOption {
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
   intro: string | null; slug: string; thumbnail_url: string | null;
+  is_own?: boolean | null;
 }
 interface ProductInquiry {
   id: string;
@@ -1509,8 +1510,8 @@ export default function ProductClient() {
                 </div>
               )}
 
-              {/* 농가 카드 (파트너 농가) */}
-              {farm && (
+              {/* 농가 카드 (파트너 농가) — 자사센터(델리오)는 노출 안 함 */}
+              {farm && !farm.is_own && (
                 <div className="brand-section">
                   <div className="brand-section-title">파트너 농가</div>
                   <Link href={`/farm/${farm.slug}`} className="brand-card">
