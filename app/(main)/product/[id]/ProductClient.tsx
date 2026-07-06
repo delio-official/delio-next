@@ -251,21 +251,27 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
-  /* 스크롤스파이: 현재 화면 상단에 보이는 섹션의 탭을 자동 하이라이트 */
+  /* 스크롤스파이: 화면 상단 기준선을 지난 마지막 섹션을 활성화(바닥 도달 시 마지막 섹션 강제) */
   useEffect(() => {
     if (loading) return;
     const ids = ['tabDesc', 'tabInfo', 'tabReviews', 'tabQna'];
-    const obs = new IntersectionObserver((entries) => {
-      const vis = entries
-        .filter(e => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-      if (vis[0]) {
-        const idx = ids.indexOf(vis[0].target.id);
-        if (idx >= 0) setActiveTab(idx);
+    function onScroll() {
+      // 페이지 바닥 근처면 마지막 섹션 강제 활성(짧은 마지막 섹션 대응)
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+        setActiveTab(ids.length - 1);
+        return;
       }
-    }, { rootMargin: '-110px 0px -78% 0px' });
-    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
-    return () => obs.disconnect();
+      const line = window.scrollY + 140; // 헤더 + sticky 탭바 아래 기준선
+      let cur = 0;
+      ids.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top + window.scrollY <= line) cur = i;
+      });
+      setActiveTab(cur);
+    }
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [loading]);
 
   /* 상단 탭 클릭 → 해당 섹션으로 스크롤(연속 스크롤 방식) */
