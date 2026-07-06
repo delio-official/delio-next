@@ -311,7 +311,7 @@ export default function CartClient() {
           </div>
         </div>
         <div className="cart-empty-text">장바구니에 담으신 상품이 없습니다.</div>
-        <Link href="/category" className="cart-empty-btn">
+        <Link href="/category?new=true" className="cart-empty-btn">
           상품 보러가기
         </Link>
       </div>
