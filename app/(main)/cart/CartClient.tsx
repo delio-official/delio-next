@@ -15,6 +15,7 @@ function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 interface ProductOption {
   id: string; label: string; add_price: number; group_name: string | null;
   is_required: boolean | null; parent_label?: string | null; sort_order?: number;
+  stock?: number | null;
 }
 interface OptProduct { id: string; name: string; price: number; discounted_price: number | null; thumbnail_url: string | null; is_dawn: boolean | null; }
 
@@ -156,7 +157,7 @@ export default function CartClient() {
     const supabase = createClient();
     const [{ data: prod }, { data: opts }] = await Promise.all([
       supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', item.id).single(),
-      supabase.from('product_options').select('id,label,add_price,group_name,is_required,parent_label,sort_order').eq('product_id', item.id).order('sort_order'),
+      supabase.from('product_options').select('id,label,add_price,group_name,is_required,parent_label,sort_order,stock').eq('product_id', item.id).order('sort_order'),
     ]);
     setOptProduct(prod as OptProduct);
     const list = (opts as ProductOption[]) || [];
@@ -182,6 +183,7 @@ export default function CartClient() {
       const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
       const opt = avail.find(o => o.id === optSel[g]);
       if (req && !opt) { alert('필수 옵션을 모두 선택해 주세요.'); return; }
+      if (opt && opt.stock != null && opt.stock <= 0) { alert('품절된 옵션은 선택할 수 없습니다.'); return; }
       if (opt) chosen.push(opt);
     }
     const base = optProduct.discounted_price ?? optProduct.price;
@@ -516,11 +518,14 @@ export default function CartClient() {
                             onChange={e => setOptSel(prev => ({ ...prev, [g]: e.target.value }))}
                             style={{ flex:1, padding:'11px 12px', fontSize:14, border:'1px solid #DADADA', borderRadius:8, background:'#fff', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
                             <option value="">- {req ? '[필수]' : '[선택]'} 옵션을 선택해 주세요 -</option>
-                            {avail.map(o => (
-                              <option key={o.id} value={o.id}>
-                                {o.label}{o.add_price ? ` (+${fmtPrice(o.add_price)}원)` : ''}
-                              </option>
-                            ))}
+                            {avail.map(o => {
+                              const soldOut = o.stock != null && o.stock <= 0;
+                              return (
+                                <option key={o.id} value={o.id} disabled={soldOut}>
+                                  {o.label}{o.add_price ? ` (+${fmtPrice(o.add_price)}원)` : ''}{soldOut ? ' (품절)' : ''}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       );
