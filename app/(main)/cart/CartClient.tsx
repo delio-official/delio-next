@@ -177,19 +177,20 @@ export default function CartClient() {
     const groups = [...new Set(optList.map(o => o.group_name || '옵션'))];
     const parentGroup = groups[0];
     const parentLabel = optList.find(o => o.id === optSel[parentGroup])?.label || '';
+    const childParentLabels = new Set(optList.filter(o => o.parent_label).map(o => o.parent_label));
     const chosen: ProductOption[] = [];
     for (const g of groups) {
       const avail = optList.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
       const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
       const opt = avail.find(o => o.id === optSel[g]);
       if (req && !opt) { alert('필수 옵션을 모두 선택해 주세요.'); return; }
-      if (opt && opt.stock != null && opt.stock <= 0) { alert('품절된 옵션은 선택할 수 없습니다.'); return; }
+      // 재고는 leaf(자식 없는 최하위) 옵션에만 존재 — 상위 옵션은 품절 판정 제외
+      if (opt && !childParentLabels.has(opt.label) && opt.stock != null && opt.stock <= 0) { alert('품절된 옵션은 선택할 수 없습니다.'); return; }
       if (opt) chosen.push(opt);
     }
     const base = optProduct.discounted_price ?? optProduct.price;
     const addP = chosen.reduce((s, o) => s + (o.add_price || 0), 0);
     // 재고 차감 대상(leaf) 재계산 — 옵션변경 시 stockOptionId 유실 방지
-    const childParentLabels = new Set(optList.filter(o => o.parent_label).map(o => o.parent_label));
     const leaf = chosen.find(o => !childParentLabels.has(o.label)) ?? chosen[chosen.length - 1];
     const patch = {
       price: base + addP,
@@ -507,6 +508,7 @@ export default function CartClient() {
                     const groups = [...new Set(optList.map(o => o.group_name || '옵션'))];
                     const parentGroup = groups[0];
                     const parentLabel = optList.find(o => o.id === optSel[parentGroup])?.label || '';
+                    const childParentLabels = new Set(optList.filter(o => o.parent_label).map(o => o.parent_label));
                     return groups.map(g => {
                       const avail = optList.filter(o => (o.group_name || '옵션') === g && (!o.parent_label || o.parent_label === parentLabel));
                       const req = optList.find(o => (o.group_name || '옵션') === g)?.is_required !== false;
@@ -519,7 +521,7 @@ export default function CartClient() {
                             style={{ flex:1, padding:'11px 12px', paddingRight:38, fontSize:14, border:'1px solid #DADADA', borderRadius:8, backgroundColor:'#fff', backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat:'no-repeat', backgroundPosition:'right 20px center', appearance:'none', WebkitAppearance:'none', MozAppearance:'none', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
                             <option value="">- {req ? '[필수]' : '[선택]'} 옵션을 선택해 주세요 -</option>
                             {avail.map(o => {
-                              const soldOut = o.stock != null && o.stock <= 0;
+                              const soldOut = !childParentLabels.has(o.label) && o.stock != null && o.stock <= 0;
                               return (
                                 <option key={o.id} value={o.id} disabled={soldOut}>
                                   {o.label}{o.add_price ? ` (+${fmtPrice(o.add_price)}원)` : ''}{soldOut ? ' (품절)' : ''}
