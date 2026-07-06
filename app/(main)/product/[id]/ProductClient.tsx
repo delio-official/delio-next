@@ -2359,7 +2359,7 @@ export default function ProductClient() {
                         {isLastMore && (
                           <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.55)',
                             display:'flex', alignItems:'center', justifyContent:'center' }}>
-                            <span style={{ fontSize: isMobile ? 13 : 16, fontWeight:700, color:'#fff' }}>+더보기</span>
+                            <span style={{ fontSize: isMobile ? 13 : 18, fontWeight:700, color:'#fff' }}>+더보기</span>
                           </div>
                         )}
                       </div>
