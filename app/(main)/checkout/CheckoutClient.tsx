@@ -929,10 +929,11 @@ export default function CheckoutClient() {
             </div>
             {/* 리스트 */}
             <div style={{ flex:1, overflowY:'auto', padding:'16px 20px 20px' }}>
-              {/* 적용 안 함 */}
-              <button onClick={() => setModalSel('')}
-                style={{ width:'100%', textAlign:'center', padding:'13px 16px', marginBottom:14, border:`1.5px solid ${modalSel==='' ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor:'pointer', fontSize:14, fontWeight:600, color: modalSel==='' ? '#1A1A1A' : '#888' }}>
-                쿠폰 사용 안 함
+              {/* 최대할인 자동적용 — 누르면 가장 많이 할인되는 쿠폰이 선택됨 */}
+              <button disabled={!bestCouponId}
+                onClick={() => setModalSel(modalSel === bestCouponId ? '' : bestCouponId)}
+                style={{ width:'100%', textAlign:'center', padding:'13px 16px', marginBottom:14, border:`1.5px solid ${bestCouponId && modalSel === bestCouponId ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor: bestCouponId ? 'pointer' : 'not-allowed', fontSize:14, fontWeight:600, color: bestCouponId ? (modalSel === bestCouponId ? '#1A1A1A' : '#555') : '#BBB' }}>
+                최대할인 자동적용
               </button>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {coupons.map(c => {

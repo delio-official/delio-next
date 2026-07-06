@@ -569,17 +569,11 @@ export default function CartClient() {
               </button>
             </div>
             <div style={{ flex:1, overflowY:'auto', padding:'16px 20px 20px' }}>
-              <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14,
-                cursor: bestCouponId ? 'pointer' : 'not-allowed', userSelect:'none', opacity: bestCouponId ? 1 : 0.45 }}>
-                <input type="checkbox" disabled={!bestCouponId}
-                  checked={!!bestCouponId && modalSel === bestCouponId}
-                  onChange={e => setModalSel(e.target.checked ? bestCouponId : '')}
-                  style={{ width:16, height:16, accentColor:'#1A1A1A', cursor: bestCouponId ? 'pointer' : 'not-allowed' }} />
-                <span style={{ fontSize:14, color:'#333', fontWeight:600 }}>최대할인 자동적용</span>
-              </label>
-              <button onClick={() => setModalSel('')}
-                style={{ width:'100%', textAlign:'center', padding:'13px 16px', marginBottom:14, border:`1.5px solid ${modalSel==='' ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor:'pointer', fontSize:14, fontWeight:600, color: modalSel==='' ? '#1A1A1A' : '#888' }}>
-                쿠폰 사용 안 함
+              {/* 최대할인 자동적용 — 누르면 가장 많이 할인되는 쿠폰이 선택됨 */}
+              <button disabled={!bestCouponId}
+                onClick={() => setModalSel(modalSel === bestCouponId ? '' : bestCouponId)}
+                style={{ width:'100%', textAlign:'center', padding:'13px 16px', marginBottom:14, border:`1.5px solid ${bestCouponId && modalSel === bestCouponId ? '#1A1A1A' : '#EBEBEB'}`, borderRadius:10, background:'#fff', cursor: bestCouponId ? 'pointer' : 'not-allowed', fontSize:14, fontWeight:600, color: bestCouponId ? (modalSel === bestCouponId ? '#1A1A1A' : '#555') : '#BBB' }}>
+                최대할인 자동적용
               </button>
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {coupons.map(c => {
