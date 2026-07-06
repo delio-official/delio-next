@@ -239,7 +239,7 @@ export default function ProductClient() {
   const refreshInquiries = useCallback(async () => {
     const { data } = await createClient()
       .from('product_inquiries')
-      .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id, profiles(name)')
+      .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
       .eq('product_id', id)
       .order('created_at', { ascending: true })
       .limit(100);
@@ -335,7 +335,7 @@ export default function ProductClient() {
           supabase.from('product_detail_sections')
             .select('*').eq('product_id', id).eq('section_type', 'info_content').maybeSingle(),
           supabase.from('product_inquiries')
-            .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id, profiles(name)')
+            .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
             .eq('product_id', id)
             .order('created_at', { ascending: true })
             .limit(100),
