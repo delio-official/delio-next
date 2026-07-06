@@ -251,39 +251,35 @@ export default function ProductClient() {
     if (activeTab === 3) refreshInquiries();
   }, [activeTab, refreshInquiries]);
 
-  /* 후기 탭 앵커로 rAF 직접 보간 스크롤 (전역 smooth와 충돌 방지) — 메인 진입/별점 클릭 공용.
-     도착하거나(최대 800ms·사용자 스크롤 시) 끝. stop 함수 반환. */
-  function smoothScrollToTabs() {
-    const html = document.documentElement;
-    let raf = 0;
-    let startTime = 0;
-    let stopped = false;
-    const stop = () => {
-      stopped = true; html.style.scrollBehavior = ''; cancelAnimationFrame(raf);
-      window.removeEventListener('wheel', stop); window.removeEventListener('touchstart', stop);
-    };
-    window.addEventListener('wheel', stop, { passive: true, once: true });
-    window.addEventListener('touchstart', stop, { passive: true, once: true });
-    const animate = (now: number) => {
-      if (stopped) return;
-      if (!startTime) startTime = now;
-      const el = document.getElementById('productTabsAnchor');
-      if (!el) { raf = requestAnimationFrame(animate); return; }
-      const target = window.scrollY + el.getBoundingClientRect().top - 60; // 헤더 보정
-      const diff = target - window.scrollY;
-      html.style.scrollBehavior = 'auto'; // 전역 smooth와 충돌 방지(직접 보간)
-      if (Math.abs(diff) < 2 || now - startTime > 800) { window.scrollTo(0, target); stop(); return; }
-      window.scrollTo(0, window.scrollY + diff * 0.18); // ease-out 보간
-      raf = requestAnimationFrame(animate);
-    };
-    raf = requestAnimationFrame(animate);
-    return stop;
+  /* 스크롤스파이: 현재 화면 상단에 보이는 섹션의 탭을 자동 하이라이트 */
+  useEffect(() => {
+    if (loading) return;
+    const ids = ['tabDesc', 'tabInfo', 'tabReviews', 'tabQna'];
+    const obs = new IntersectionObserver((entries) => {
+      const vis = entries
+        .filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (vis[0]) {
+        const idx = ids.indexOf(vis[0].target.id);
+        if (idx >= 0) setActiveTab(idx);
+      }
+    }, { rootMargin: '-110px 0px -78% 0px' });
+    ids.forEach(id => { const el = document.getElementById(id); if (el) obs.observe(el); });
+    return () => obs.disconnect();
+  }, [loading]);
+
+  /* 상단 탭 클릭 → 해당 섹션으로 스크롤(연속 스크롤 방식) */
+  const SECTION_IDS = ['tabDesc', 'tabInfo', 'tabReviews', 'tabQna'];
+  function scrollToSection(i: number) {
+    const el = document.getElementById(SECTION_IDS[i]);
+    if (!el) return;
+    const y = window.scrollY + el.getBoundingClientRect().top - 104; // 헤더+sticky 탭바 보정
+    window.scrollTo({ top: y, behavior: 'smooth' });
   }
 
-  /* 별점 클릭 → 후기 탭 전환 + 후기 섹션으로 부드럽게 스크롤 */
+  /* 별점 클릭 → 후기 섹션으로 부드럽게 스크롤 */
   function goToReviews() {
-    setActiveTab(2);
-    window.setTimeout(() => { smoothScrollToTabs(); }, 60);
+    window.setTimeout(() => scrollToSection(2), 60);
   }
 
   /* 상품카드 별점(후기) 클릭으로 진입(?tab=review) → 후기 탭으로 이동 + 스크롤 */
@@ -303,10 +299,10 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
       else if (sp.get('review') === '1') setReviewModalOpen(true);
     }
-    /* 후기 탭으로 부드럽게 스크롤 (메인 진입) — 별점 클릭과 동일한 공용 보간 함수 사용 */
-    let stopFn: (() => void) | undefined;
-    const startT = window.setTimeout(() => { stopFn = smoothScrollToTabs(); }, 180);
-    return () => { clearTimeout(startT); stopFn?.(); };
+    /* 해당 섹션(후기/문의)으로 부드럽게 스크롤 (메인 진입) */
+    const targetIdx = tabParam === 'qna' ? 3 : 2;
+    const startT = window.setTimeout(() => { scrollToSection(targetIdx); }, 180);
+    return () => { clearTimeout(startT); };
   }, [product?.id]);
 
   /* 어드민 여부 */
@@ -2040,14 +2036,13 @@ export default function ProductClient() {
         <div className="pd-tab-bar" id="productTabs">
           {TABS.map((t, i) => (
             <div key={t} className={`pd-tab${activeTab === i ? ' active' : ''}`}
-              onClick={() => setActiveTab(i)}>
+              onClick={() => scrollToSection(i)}>
               <span className="pd-tab-label">{t}</span>
             </div>
           ))}
         </div>
 
         {/* ① 상품설명 */}
-        {activeTab === 0 && (
           <div id="tabDesc" className="tab-content container">
             {detailImages.length > 0 ? (
               /* 어드민에서 업로드한 상품설명 이미지 */
@@ -2107,10 +2102,8 @@ export default function ProductClient() {
               </div>
             )}
           </div>
-        )}
 
         {/* ② 상세정보 */}
-        {activeTab === 1 && (
           <div id="tabInfo" className="tab-content container">
 
             {/* 상품고시정보 */}
@@ -2233,10 +2226,8 @@ export default function ProductClient() {
               </div>
             )}
           </div>
-        )}
 
         {/* ③ 후기 */}
-        {activeTab === 2 && (
           <div id="tabReviews" className="tab-content container">
             <a id="reviews" />
 
@@ -2525,10 +2516,8 @@ export default function ProductClient() {
                   onClick={() => setReviewPage(reviewTotalPages - 1)}>»</button>
               </div>
           </div>
-        )}
 
         {/* ④ 문의 */}
-        {activeTab === 3 && (
           <div id="tabQna" className="tab-content container">
             <div className="qna-header">
               <div>
@@ -2688,7 +2677,6 @@ export default function ProductClient() {
               );
             })()}
           </div>
-        )}
       </div>
 
       {/* ── 상품 문의 모달 ── */}
