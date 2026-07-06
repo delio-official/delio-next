@@ -586,7 +586,7 @@ export default function CartClient() {
                   let dday: number | null = null;
                   if (exp) { const t0 = new Date(); t0.setHours(0,0,0,0); const e0 = new Date(exp); e0.setHours(0,0,0,0); dday = Math.round((e0.getTime()-t0.getTime())/86400000); }
                   const imminent = dday !== null && dday >= 0 && dday <= 3;
-                  const ddayStr = dday === 0 ? '오늘 마감' : `D-${dday}`;
+                  const ddayStr = dday === 0 ? '오늘 만료' : `D-${dday}`;
                   return (
                     <button key={c.ucId} disabled={!usable} onClick={() => setModalSel(c.ucId)}
                       style={{ textAlign:'left', padding:'18px 16px', border:`1.5px solid ${sel ? '#1A1A1A' : '#EFEFEF'}`, borderRadius:10,

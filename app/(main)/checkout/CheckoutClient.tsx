@@ -954,7 +954,7 @@ export default function CheckoutClient() {
                     dday = Math.round((e0.getTime() - t0.getTime()) / 86400000);
                   }
                   const imminent = dday !== null && dday >= 0 && dday <= 3;
-                  const ddayStr = dday === 0 ? '오늘 마감' : `D-${dday}`;
+                  const ddayStr = dday === 0 ? '오늘 만료' : `D-${dday}`;
                   return (
                     <button key={c.ucId} disabled={!usable}
                       onClick={() => setModalSel(c.ucId)}
