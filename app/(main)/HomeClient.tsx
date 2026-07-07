@@ -365,7 +365,7 @@ function QuickGuide() {
               <span style={{ color: wishedIds.has(p.id) ? '#E53935' : undefined }}>{wishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
             </button>
             <span className="qg-body-actions-divider" />
-            <button className="qg-body-cart" disabled={p.soldout} style={p.soldout ? { opacity:0.4, cursor:'not-allowed' } : undefined} onClick={e => { e.stopPropagation(); if (p.soldout) return; if (!requireLogin()) return; openOptionDrawer(p.id); }}>
+            <button className="qg-body-cart" style={p.soldout ? { opacity:0.5, cursor:'not-allowed' } : undefined} onClick={e => { e.stopPropagation(); if (p.soldout) { alert('품절 상품입니다.'); return; } if (!requireLogin()) return; openOptionDrawer(p.id); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
                 <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
                 <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
@@ -981,9 +981,9 @@ export default function HomeClient() {
                                 <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}>
                                   {p.is_dawn ? '산지직송' : '자사배송'}
                                 </span>
-                                <button className="pick-mob-cart" aria-label="담기" disabled={p.soldout} style={p.soldout ? { opacity:0.4, cursor:'not-allowed' } : undefined} onClick={e => {
+                                <button className="pick-mob-cart" aria-label="담기" style={p.soldout ? { opacity:0.5, cursor:'not-allowed' } : undefined} onClick={e => {
                                   e.stopPropagation();
-                                  if (p.soldout) return;
+                                  if (p.soldout) { alert('품절 상품입니다.'); return; }
                                   if (!requireLogin()) return;
                             openOptionDrawer(p.id);
                                 }}>
@@ -997,9 +997,9 @@ export default function HomeClient() {
                                     <span className="wish-icon" style={{ color: pickWishedIds.has(p.id) ? '#E53935' : undefined }}>{pickWishedIds.has(p.id) ? '♥' : '♡'}</span> 찜
                                   </button>
                                   <span className="product-card-actions-divider" />
-                                  <button className="cart-btn" disabled={p.soldout} style={p.soldout ? { opacity:0.4, cursor:'not-allowed' } : undefined} onClick={e => {
+                                  <button className="cart-btn" style={p.soldout ? { opacity:0.5, cursor:'not-allowed' } : undefined} onClick={e => {
                                     e.stopPropagation();
-                                    if (p.soldout) return;
+                                    if (p.soldout) { alert('품절 상품입니다.'); return; }
                                     if (!requireLogin()) return;
                             openOptionDrawer(p.id);
                                   }}>

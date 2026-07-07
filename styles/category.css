@@ -217,7 +217,7 @@ body { background: #fff; }
 
 /* 품절 오버레이 (썸네일 위 검정 반투명 + 흰 글씨) */
 .product-card-soldout {
-  position: absolute; inset: 0; z-index: 2;
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); color: #fff;
   font-size: 22px; font-weight: 600; letter-spacing: 2px;

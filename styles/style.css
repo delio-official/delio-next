@@ -938,7 +938,7 @@ input, select, textarea { font-family: inherit; }
 }
 /* 품절 오버레이 (메인/목록 공통) */
 .product-card-soldout {
-  position: absolute; inset: 0; z-index: 2;
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); color: #fff;
   font-size: 22px; font-weight: 600; letter-spacing: 2px;
