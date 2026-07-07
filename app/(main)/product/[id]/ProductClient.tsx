@@ -3050,7 +3050,7 @@ export default function ProductClient() {
               <textarea
                 value={newContent}
                 onChange={e => setNewContent(e.target.value)}
-                placeholder="상품 품질, 맛, 배송 등 솔직한 후기를 남겨주세요. (최소 10자 이상 작성해야 등록할 수 있어요)"
+                placeholder={"상품 품질, 맛, 배송 등 솔직한 후기를 남겨주세요.\n(최소 10자 이상 작성해야 등록할 수 있어요)"}
                 rows={5}
                 style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
                   borderRadius:10, fontSize:14, lineHeight:1.7, resize:'none', outline:'none',
