@@ -915,7 +915,7 @@ export default function CheckoutClient() {
                 <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>주소 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <div style={{ display:'flex', gap:8, marginBottom:8 }}>
                   <input readOnly placeholder="우편번호" value={addrForm.zipcode} onClick={openAddrFormPost}
-                    style={{ flex:1, height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
+                    style={{ flex:1, minWidth:0, height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
                   <button type="button" onClick={openAddrFormPost}
                     style={{ height:46, padding:'0 16px', border:'none', borderRadius:6, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>우편번호 찾기</button>
                 </div>
@@ -945,7 +945,7 @@ export default function CheckoutClient() {
                 기본 배송지로 저장
               </label>
               <button onClick={saveAddr}
-                style={{ width:'100%', padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
+                style={{ width:'100%', boxSizing:'border-box', padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
             </div>
           </div>
         </div>
