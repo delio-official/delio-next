@@ -18,7 +18,7 @@ export default function TermsPage() {
 
         <div style={{ background: '#F8F8F8', borderRadius: 10, padding: '16px 18px', marginBottom: 36, fontSize: 13.5, color: '#555', lineHeight: 1.9 }}>
           상호명 : 델리오 &nbsp;|&nbsp; 대표 : 송민창<br />
-          주소 : 경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 클래시아 더 퍼스트)<br />
+          주소 : 경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 클레시아 더 퍼스트)<br />
           사업자등록번호 : 288-12-02921 &nbsp;|&nbsp; 통신판매업신고 : 2026-고양덕양구-1612<br />
           개인정보관리책임자 : 송민창<br />
           고객센터 : 070-8064-3601 &nbsp;|&nbsp; 이메일 : deli_o@naver.com
