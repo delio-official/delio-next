@@ -10,6 +10,7 @@ import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { loadTabsFor, loadCategoryTabs } from '@/lib/filterTabs';
 import { fetchSectionConfig, orderColumn, orderByIds, parseBucketMap } from '@/lib/homeSections';
+import { withSoldout } from '@/lib/productCols';
 import '@/styles/index.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
@@ -50,6 +51,7 @@ interface PickProduct {
   is_new: boolean; is_best: boolean;
   avg_rating: number; review_count: number; short_desc: string | null;
   thumbnail_url: string | null; category: string;
+  soldout?: boolean;
 }
 interface QGProduct {
   id: string; name: string; price: number; discounted_price: number;
@@ -57,6 +59,7 @@ interface QGProduct {
   is_new: boolean; is_best: boolean;
   thumbnail_url: string | null; category: string;
   short_desc: string | null; avg_rating: number; review_count: number;
+  soldout?: boolean;
 }
 
 const CAT_ICONS: Record<string, string> = { apple: '🍎', citrus: '🍊', berry: '🫐', melon: '🍈', kiwi: '🥝', mango: '🥭', grape: '🍇', gift: '🎁', best: '🌟', dawn: '🚚' };
@@ -326,6 +329,7 @@ function QuickGuide() {
           {p.thumbnail_url
             ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
             : <span className="qg-card-img-inner">{icon}</span>}
+          {p.soldout && <div className="product-card-soldout">품절</div>}
         </div>
         <div className="qg-card-body">
           {(p.is_new || p.is_best) ? (
@@ -413,7 +417,7 @@ function QuickGuide() {
       setLoading(true);
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'qg');
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category,short_desc,avg_rating,review_count';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock)';
 
       /* 직접 선택: 카테고리별 지정 상품 (플래그 탭/미지정 카테고리는 자동 정렬로 폴백) */
       if (cfg.mode === 'manual') {
@@ -423,7 +427,8 @@ function QuickGuide() {
         if (picked.length > 0) {
           const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', picked);
           if (!cancelled) {
-            setItems(orderByIds((data as QGProduct[]) || [], picked).slice(0, cfg.count));
+            const mapped = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[];
+            setItems(orderByIds(mapped, picked).slice(0, cfg.count));
             setLoading(false);
           }
           return;
@@ -441,7 +446,7 @@ function QuickGuide() {
       else                           q = (q as any).eq('category', activeCat);
       const { data } = await (q as any).order(ord.col, { ascending: ord.asc }).limit(cfg.count);
       if (!cancelled) {
-        setItems((data as QGProduct[]) || []);
+        setItems(((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[]);
         setLoading(false);
       }
     }
@@ -747,17 +752,18 @@ export default function HomeClient() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'pick');
       if (cfg.count === 0) { setPickProds([]); setPickLoaded(true); return; }
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category,product_options(stock)';
 
       let rows: PickProduct[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', cfg.ids);
-        rows = orderByIds((data as PickProduct[]) || [], cfg.ids).slice(0, cfg.count);
+        const mapped = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as PickProduct[];
+        rows = orderByIds(mapped, cfg.ids).slice(0, cfg.count);
       } else {
         const ord = orderColumn('pick', cfg.mode === 'manual' ? 'popular' : cfg.mode);
         const { data } = await supabase.from('products').select(cols).eq('is_active', true)
           .order(ord.col, { ascending: ord.asc }).limit(cfg.count);
-        rows = (data as PickProduct[]) || [];
+        rows = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as PickProduct[];
       }
       setPickProds(rows);
       setPickLoaded(true);
@@ -858,7 +864,7 @@ export default function HomeClient() {
   }, []);
 
   /* 브랜드 직송관 — 농가 + 대표상품 실데이터 (없으면 섹션 숨김) */
-  const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number; farmThumb: string | null; prodThumb: string | null; bannerImg: string | null }[]>([]);
+  const [brandCards, setBrandCards] = useState<{ banner: string; logo: string; emoji: string; brand: string; brandHref: string; prodHref: string; prodName: string; prodPrice: string; discount: number; farmThumb: string | null; prodThumb: string | null; bannerImg: string | null; prodSoldout: boolean }[]>([]);
   const [brandLoaded, setBrandLoaded] = useState(false);
   useEffect(() => {
     (async () => {
@@ -883,13 +889,13 @@ export default function HomeClient() {
       }
       if (!farmsData || farmsData.length === 0) { setBrandCards([]); setBrandLoaded(true); return; }
       const { data: prods } = await supabase.from('products')
-        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order, thumbnail_url')
+        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order, thumbnail_url, product_options(stock)')
         .in('farm_id', farmsData.map(f => f.id))
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
       const SUF: Record<string, string> = { apple:'apple', citrus:'citrus', grape:'grape', berry:'berry', kiwi:'berry', melon:'citrus', mango:'citrus', gift:'citrus' };
-      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null; thumbnail_url: string | null };
+      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null; thumbnail_url: string | null; product_options?: { stock: number }[] | null };
       const byFarm: Record<string, PRow> = {};
       ((prods || []) as PRow[]).forEach(p => { if (p.farm_id && !byFarm[p.farm_id]) byFarm[p.farm_id] = p; });
       const cards = farmsData
@@ -899,6 +905,7 @@ export default function HomeClient() {
           const p = byFarm[f.id];
           const suf = SUF[p.category] || 'citrus';
           const price = p.discounted_price ?? p.price;
+          const prodSoldout = withSoldout(p as unknown as Record<string, unknown>).soldout;
           return {
             banner: `bdc-banner-${suf}`, logo: `bdc-logo-${suf}`, emoji: EMOJI[p.category] || '🍑',
             brand: f.name, brandHref: `/farm/${f.slug}`, prodHref: `/product/${p.id}`,
@@ -906,6 +913,7 @@ export default function HomeClient() {
             farmThumb: f.logo_url || f.thumbnail_url || null,
             prodThumb: p.thumbnail_url || null,
             bannerImg: f.thumbnail_url || f.hero_image_url || p.thumbnail_url || null,
+            prodSoldout,
           };
         });
       setBrandCards(cards);
@@ -969,6 +977,7 @@ export default function HomeClient() {
                                   ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                   : <div className="fruit-emoji">{icon}</div>
                                 }
+                                {p.soldout && <div className="product-card-soldout">품절</div>}
                                 <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}>
                                   {p.is_dawn ? '산지직송' : '자사배송'}
                                 </span>
@@ -1096,10 +1105,11 @@ export default function HomeClient() {
                     </svg>
                   </Link>
                   <Link href={b.prodHref} className="bdc-product-row">
-                    <div className={`bdc-product-thumb ${b.prodThumb ? '' : b.logo.replace('logo','thumb')}`} style={{ overflow:'hidden' }}>
+                    <div className={`bdc-product-thumb ${b.prodThumb ? '' : b.logo.replace('logo','thumb')}`} style={{ overflow:'hidden', position:'relative' }}>
                       {b.prodThumb
                         ? <img src={imgThumb(b.prodThumb, 150)} alt={b.prodName} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                         : b.emoji}
+                      {b.prodSoldout && <div className="product-card-soldout" style={{ fontSize:11, letterSpacing:0 }}>품절</div>}
                     </div>
                     <div className="bdc-product-info">
                       <div className="bdc-product-name">{b.prodName}</div>

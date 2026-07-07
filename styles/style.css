@@ -936,6 +936,13 @@ input, select, textarea { font-family: inherit; }
   font-size: clamp(48px, 8vw, 72px);
   background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-accent-soft) 100%);
 }
+/* 품절 오버레이 (메인/목록 공통) */
+.product-card-soldout {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.5); color: #fff;
+  font-size: 16px; font-weight: 700; letter-spacing: 1px;
+}
 .product-card-delivery {
   position: absolute;
   top: var(--space-2);
