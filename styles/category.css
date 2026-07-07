@@ -217,10 +217,10 @@ body { background: #fff; }
 
 /* 품절 오버레이 (썸네일 위 검정 반투명 + 흰 글씨) */
 .product-card-soldout {
-  position: absolute; inset: 0; z-index: 4;
+  position: absolute; inset: 0; z-index: 2;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); color: #fff;
-  font-size: 16px; font-weight: 700; letter-spacing: 1px;
+  font-size: 22px; font-weight: 800; letter-spacing: 2px;
 }
 
 /* 이모지 배경 (카테고리별 그라디언트) */
@@ -242,7 +242,7 @@ body { background: #fff; }
 
 /* hover 시 찜/담기 액션 버튼 */
 .product-card-actions {
-  position: absolute; bottom: 0; left: 0; right: 0;
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 5;
   display: flex; align-items: center;
   background: rgba(255,255,255,0.92);
   border-radius: 0 0 8px 8px; overflow: hidden;
@@ -273,7 +273,7 @@ body { background: #fff; }
 @media (max-width: 768px) {
   .product-card-actions { display: none !important; }   /* hover 액션바 숨김 */
   .product-card-cart-mob {
-    display: flex; position: absolute; right: 8px; bottom: 8px; z-index: 3;
+    display: flex; position: absolute; right: 8px; bottom: 8px; z-index: 5;
     width: 36px; height: 36px; border-radius: 50%;
     background: #fff; border: 1px solid #EEE; box-shadow: 0 2px 8px rgba(0,0,0,0.14);
     align-items: center; justify-content: center; cursor: pointer; padding: 0;

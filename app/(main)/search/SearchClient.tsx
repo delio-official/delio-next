@@ -73,6 +73,7 @@ function SearchProductCard({ p }: { p: Product }) {
   function handleCart(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (p.soldout) return;
     if (!requireLogin()) return;
     openOptionDrawer(p.id);
   }
@@ -98,7 +99,7 @@ function SearchProductCard({ p }: { p: Product }) {
             <span style={{ color: wished ? '#E53935' : undefined }}>{wished ? '♥' : '♡'}</span> 찜
           </button>
           <span className="product-card-actions-divider" />
-          <button className="cart-btn" onClick={handleCart}>
+          <button className="cart-btn" onClick={handleCart} disabled={p.soldout} style={p.soldout ? { opacity:0.4, cursor:'not-allowed' } : undefined}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
