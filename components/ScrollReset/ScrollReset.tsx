@@ -3,10 +3,9 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
-/* 스크롤 위치 관리:
-   - 새 페이지로 이동(링크 클릭 등) → 최상단
-   - 뒤로/앞으로가기(popstate) → 그 페이지에서 보던 위치로 복원
-   브라우저 기본 복원(뒤로가기 시 하단으로 튀는 문제)은 끄고 직접 제어한다. */
+/* 기본: 경로 이동 시 항상 최상단(뒤로가기 시 하단으로 튀는 문제 방지).
+   예외: 홈('/')으로 '뒤로가기'한 경우에만 보던 위치로 복원
+   → 홈 하단 푸터에서 약관 등 링크 눌렀다 돌아오면 그 자리(하단) 유지. */
 export default function ScrollReset() {
   const pathname = usePathname();
   const isPop = useRef(false);
@@ -19,11 +18,11 @@ export default function ScrollReset() {
   }, []);
 
   useEffect(() => {
-    const key = `sy:${pathname}`;
-    if (isPop.current) {
-      // 뒤로/앞으로가기 → 저장된 위치로 복원 (콘텐츠 로드될 때까지 몇 프레임 재시도)
-      isPop.current = false;
-      const y = Number(sessionStorage.getItem(key) || 0);
+    const pop = isPop.current;
+    isPop.current = false;
+    // 홈으로 뒤로가기 → 저장된 위치 복원 (콘텐츠 로드까지 몇 프레임 재시도)
+    if (pop && pathname === '/') {
+      const y = Number(sessionStorage.getItem('sy:/') || 0);
       if (y > 0) {
         let tries = 0;
         const restore = () => {
@@ -31,13 +30,17 @@ export default function ScrollReset() {
           if (++tries < 12 && Math.abs(window.scrollY - y) > 2) requestAnimationFrame(restore);
         };
         requestAnimationFrame(restore);
+        return;
       }
-    } else {
-      // 새 페이지 이동 → 최상단
-      window.scrollTo(0, 0);
     }
-    // 현재 페이지 스크롤 위치를 계속 저장 (이동 시 복원용)
-    const onScroll = () => sessionStorage.setItem(key, String(window.scrollY));
+    // 그 외 모든 이동 → 최상단 (기존 동작 그대로)
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  // 홈 스크롤 위치만 저장 (복원용)
+  useEffect(() => {
+    if (pathname !== '/') return;
+    const onScroll = () => sessionStorage.setItem('sy:/', String(window.scrollY));
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, [pathname]);
