@@ -1,4 +1,15 @@
-.checkout-section {
+/* ===== PC 2단 레이아웃 (아르르식) — 모바일은 기존 세로 그대로 ===== */
+    .co-layout { display: block; }
+    .co-side { display: none; }              /* 우측 결제박스: 모바일 숨김 */
+    @media (min-width: 1025px) {
+      .co-layout { display: flex; gap: 24px; align-items: flex-start; }
+      .co-main { flex: 1; min-width: 0; }
+      .co-side { display: block; width: 340px; flex-shrink: 0; position: sticky; top: 88px; }
+      .co-mcta { display: none; }            /* PC는 하단 고정버튼 숨김(우측 박스로 대체) */
+      .co-pc-hide { display: none; }         /* PC에서 좌측 결제예정금액·동의 중복 숨김 */
+    }
+
+    .checkout-section {
       background: var(--color-bg-white);
       border-radius: var(--radius-lg);
       padding: var(--space-5);

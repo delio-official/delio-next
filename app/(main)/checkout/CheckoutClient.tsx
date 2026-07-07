@@ -585,6 +585,8 @@ export default function CheckoutClient() {
     <div className="container" style={{ paddingTop:24, paddingBottom:100 }}>
       <h1 style={{ fontSize:22, fontWeight:700, marginBottom:24 }}>주문/결제</h1>
 
+      <div className="co-layout">
+        <div className="co-main">
       {(() => {
         const inS: React.CSSProperties = { width:'100%', height:46, padding:'0 14px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', boxSizing:'border-box' };
         const selAddr = savedAddresses.find(a => a.id === selectedAddrId);
@@ -698,7 +700,8 @@ export default function CheckoutClient() {
             <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
           </Section>
 
-          {/* ⑦ 결제 예정금액 */}
+          {/* ⑦ 결제 예정금액 (PC는 우측 박스로 대체) */}
+          <div className="co-pc-hide">
           <Section title="결제 예정금액" sk="amount" open={isOpen('amount')} onToggle={toggleSec}>
             <div style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', fontSize:14, color:'#444' }}>
               <span>상품금액</span><span>{fmtPrice(subtotal)}원</span>
@@ -714,6 +717,7 @@ export default function CheckoutClient() {
             </div>
             <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4 }}>적립 예정 +{fmtPrice(Math.floor(total*0.01))}P</div>
           </Section>
+          </div>
 
           {/* ⑧ 결제수단 */}
           <Section title="결제수단" sk="pay" open={isOpen('pay')} onToggle={toggleSec}>
@@ -730,8 +734,8 @@ export default function CheckoutClient() {
             </div>
           </Section>
 
-          {/* ⑨ 결제 동의 */}
-          <div style={{ background:'#fff', padding:'16px 18px 18px' }}>
+          {/* ⑨ 결제 동의 (PC는 우측 박스로 대체) */}
+          <div className="co-pc-hide" style={{ background:'#fff', padding:'16px 18px 18px' }}>
             <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A', marginBottom:10 }}>결제수단 안내 ⓘ</div>
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, color:'#333' }}>
               <input type="checkbox" checked={payAgree} onChange={e => setPayAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'#1A1A1A' }} />
@@ -741,9 +745,34 @@ export default function CheckoutClient() {
         </div>
         );
       })()}
+        </div>{/* /co-main */}
 
-      {/* ── 하단 고정 결제 버튼 ── */}
-      <div style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:3100, background:'#fff',
+        {/* ── 우측 결제금액 박스 (PC 전용) ── */}
+        <div className="co-side">
+          <div style={{ background:'#fff', border:'1px solid #E5E5E5', borderRadius:12, padding:20 }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:16 }}>결제 금액</div>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:14, color:'#555' }}><span>상품금액</span><span>{fmtPrice(subtotal)}원</span></div>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:14, color:'#555' }}><span>배송비</span><span style={{ color:'#2D7A4D', fontWeight:600 }}>무료</span></div>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:14, color:'#555' }}><span>할인금액</span><span style={{ color: couponDisc>0?'#CB1D11':'#888', fontWeight:600 }}>{couponDisc>0?`- ${fmtPrice(couponDisc)}원`:'0원'}</span></div>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', fontSize:14, color:'#555' }}><span>적립금/포인트 사용</span><span style={{ color: appliedPoint>0?'#CB1D11':'#888', fontWeight:600 }}>{appliedPoint>0?`- ${fmtPrice(appliedPoint)}원`:'0원'}</span></div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 0 4px', marginTop:8, borderTop:'2px solid #1A1A1A' }}>
+              <span style={{ fontSize:15, fontWeight:800 }}>총 결제 예정 금액</span><span style={{ fontSize:20, fontWeight:800 }}>{fmtPrice(total)}원</span>
+            </div>
+            <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4, marginBottom:16 }}>적립 예정 +{fmtPrice(Math.floor(total*0.01))}P</div>
+            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#333', marginBottom:12 }}>
+              <input type="checkbox" checked={payAgree} onChange={e => setPayAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'#1A1A1A', flexShrink:0 }} />
+              주문 내용을 확인하였으며, 결제에 동의합니다.
+            </label>
+            <button onClick={handleOrder} disabled={loading || !payAgree}
+              style={{ width:'100%', height:52, background:(loading||!payAgree)?'#999':'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:16, fontWeight:700, cursor:(loading||!payAgree)?'not-allowed':'pointer' }}>
+              {loading ? '결제창 열리는 중...' : `${fmtPrice(total)}원 결제하기`}
+            </button>
+          </div>
+        </div>
+      </div>{/* /co-layout */}
+
+      {/* ── 하단 고정 결제 버튼 (모바일 전용) ── */}
+      <div className="co-mcta" style={{ position:'fixed', left:0, right:0, bottom:0, zIndex:3100, background:'#fff',
         borderTop:'1px solid #EEE', padding:'10px 16px calc(10px + env(safe-area-inset-bottom))' }}>
         <button onClick={handleOrder} disabled={loading || !payAgree}
           style={{ width:'100%', height:52, background: (loading || !payAgree) ? '#999' : '#1A1A1A',
