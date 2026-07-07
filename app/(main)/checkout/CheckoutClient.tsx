@@ -944,12 +944,8 @@ export default function CheckoutClient() {
                   style={{ width:16, height:16, accentColor:'#1A1A1A', cursor:'pointer' }} />
                 기본 배송지로 저장
               </label>
-              <div style={{ display:'flex', gap:10 }}>
-                <button onClick={() => { setAddrFormModal(false); setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); }}
-                  style={{ flex:1, padding:'15px', border:'1px solid #DDD', borderRadius:8, background:'#fff', fontSize:15, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>취소</button>
-                <button onClick={saveAddr}
-                  style={{ flex:2, padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
-              </div>
+              <button onClick={saveAddr}
+                style={{ width:'100%', padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
             </div>
           </div>
         </div>
