@@ -621,6 +621,41 @@ export default function CheckoutClient() {
             })}
           </Section>
 
+          {/* ⑤ 할인혜택 */}
+          <Section title="할인혜택" sk="discount" open={isOpen('discount')} onToggle={toggleSec}>
+            <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, cursor: bestCouponId ? 'pointer' : 'not-allowed', opacity: bestCouponId ? 1 : 0.45 }}>
+              <input type="checkbox" disabled={!bestCouponId}
+                checked={!!bestCouponId && selCoupon === bestCouponId}
+                onChange={e => setSelCoupon(e.target.checked ? bestCouponId : '')}
+                style={{ width:16, height:16, accentColor:'#1A1A1A' }} />
+              <span style={{ fontSize:14, color:'#333', fontWeight:600 }}>최대할인 자동적용</span>
+            </label>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+              <span style={{ fontSize:14, fontWeight:600 }}>장바구니 쿠폰</span>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
+                  {coupon ? `−${fmtPrice(couponDisc)}원` : `${coupons.length}장`}
+                </span>
+                <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
+                  style={{ padding:'8px 14px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:6, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+                  쿠폰선택
+                </button>
+              </div>
+            </div>
+          </Section>
+
+          {/* ⑥ 포인트 */}
+          <Section title="포인트" sk="point" open={isOpen('point')} onToggle={toggleSec}>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
+                onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))} placeholder="0"
+                style={{ ...inS, flex:1, textAlign:'right' }} />
+              <button onClick={() => setPointUsed(maxPoint)}
+                style={{ padding:'0 16px', height:46, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:14, fontWeight:700, color:'#1A1A1A', cursor:'pointer', whiteSpace:'nowrap' }}>전액사용</button>
+            </div>
+            <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
+          </Section>
+
           {/* ② 주문자 */}
           <Section title="주문자" sk="orderer" open={isOpen('orderer')} onToggle={toggleSec}>
             <input value={ordererName} onChange={e => setOrdererName(e.target.value)} placeholder="주문자 이름" style={inS} />
@@ -672,41 +707,6 @@ export default function CheckoutClient() {
               <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
               <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
             </select>
-          </Section>
-
-          {/* ⑤ 할인혜택 */}
-          <Section title="할인혜택" sk="discount" open={isOpen('discount')} onToggle={toggleSec}>
-            <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, cursor: bestCouponId ? 'pointer' : 'not-allowed', opacity: bestCouponId ? 1 : 0.45 }}>
-              <input type="checkbox" disabled={!bestCouponId}
-                checked={!!bestCouponId && selCoupon === bestCouponId}
-                onChange={e => setSelCoupon(e.target.checked ? bestCouponId : '')}
-                style={{ width:16, height:16, accentColor:'#1A1A1A' }} />
-              <span style={{ fontSize:14, color:'#333', fontWeight:600 }}>최대할인 자동적용</span>
-            </label>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
-              <span style={{ fontSize:14, fontWeight:600 }}>장바구니 쿠폰</span>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
-                  {coupon ? `−${fmtPrice(couponDisc)}원` : `${coupons.length}장`}
-                </span>
-                <button type="button" onClick={() => { setModalSel(selCoupon); setCouponModal(true); }}
-                  style={{ padding:'8px 14px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:6, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                  쿠폰선택
-                </button>
-              </div>
-            </div>
-          </Section>
-
-          {/* ⑥ 포인트 */}
-          <Section title="포인트" sk="point" open={isOpen('point')} onToggle={toggleSec}>
-            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
-                onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))} placeholder="0"
-                style={{ ...inS, flex:1, textAlign:'right' }} />
-              <button onClick={() => setPointUsed(maxPoint)}
-                style={{ padding:'0 16px', height:46, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:14, fontWeight:700, color:'#1A1A1A', cursor:'pointer', whiteSpace:'nowrap' }}>전액사용</button>
-            </div>
-            <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
           </Section>
 
           {/* ⑦ 결제 예정금액 (PC는 우측 박스로 대체) */}
