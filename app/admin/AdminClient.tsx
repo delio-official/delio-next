@@ -4030,10 +4030,10 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,16), expires_at: c.expires_at ? c.expires_at.slice(0,16) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
     }
     setCouponModal(true);
   }
@@ -4041,14 +4041,14 @@ export default function AdminClient() {
   /* 신규회원 쿠폰 추가 — signup_grant·정액·유효기간 30일 프리셋 */
   function openSignupCouponModal() {
     setEditingCoupon(null);
-    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false });
+    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false });
     setCouponModal(true);
   }
 
   /* 멤버십 월발급 쿠폰 추가 — is_membership·유효기간 30일 프리셋 (등급별 월 발급 대상) */
   function openMembershipCouponModal() {
     setEditingCoupon(null);
-    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,16), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true });
+    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true });
     setCouponModal(true);
   }
 
@@ -10361,7 +10361,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
               </div>
               <div className="adm-form-row">
                 <label className="adm-label">시작일</label>
-                <input type="datetime-local" className="adm-input-text"
+                <input type="date" className="adm-input-text"
                   value={couponForm.starts_at} onChange={e => setCouponForm(p => ({ ...p, starts_at: e.target.value }))} />
               </div>
               {/* 일반 쿠폰: 고정 만료일 선택 가능 (신규회원 쿠폰은 발급일 기준이라 숨김) */}
@@ -10371,11 +10371,11 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
                       <input type="checkbox" checked={!couponForm.expires_at}
-                        onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.checked ? '' : new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,16) }))} />
+                        onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.checked ? '' : new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10) }))} />
                       무제한 (만료일 없음)
                     </label>
                     {couponForm.expires_at && (
-                      <input type="datetime-local" className="adm-input-text"
+                      <input type="date" className="adm-input-text"
                         value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
                     )}
                   </div>

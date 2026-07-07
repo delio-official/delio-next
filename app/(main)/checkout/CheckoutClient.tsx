@@ -197,13 +197,15 @@ export default function CheckoutClient() {
     const { data } = await createClient().from('user_coupons')
       .select('id, coupon_id, expires_at, coupons(name, discount_type, discount_value, min_order_amount, max_discount_amount, is_active, starts_at, expires_at)')
       .eq('user_id', user.id).eq('is_used', false);
-    const now = new Date().toISOString();
+    // 만료 판정은 '날짜' 기준 — 만료일 당일 밤 12시까지 유효(타임존 조기소멸 방지)
+    const nowD = new Date();
+    const todayStr = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
     const list: UserCoupon[] = (data || [])
       .filter((r: Record<string, unknown>) => {
         const c = r.coupons as Record<string, unknown> | null;
         // 개별 만료일(user_coupons.expires_at) 우선, 없으면 쿠폰 기본 만료일
         const exp = (r.expires_at as string) || (c?.expires_at as string);
-        return c?.is_active && (!exp || exp > now);
+        return c?.is_active && (!exp || exp.slice(0, 10) >= todayStr);
       })
       .map((r: Record<string, unknown>) => {
         const c = r.coupons as Record<string, unknown>;
