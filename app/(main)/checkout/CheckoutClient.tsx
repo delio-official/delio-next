@@ -990,8 +990,10 @@ export default function CheckoutClient() {
                   const usable = subtotal >= c.min_order_amount;
                   const sel = modalSel === c.ucId;
                   const fmtD = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-                  const start = c.starts_at ? new Date(c.starts_at) : null;
-                  const exp = c.expires_at ? new Date(c.expires_at) : null;
+                  // 만료일은 '달력일' 개념 — 앞 10자(YYYY-MM-DD)만 로컬 자정으로 파싱해 타임존 하루밀림 방지(관리자 표시와 일치)
+                  const ymd = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+                  const start = c.starts_at ? ymd(c.starts_at) : null;
+                  const exp = c.expires_at ? ymd(c.expires_at) : null;
                   // 4번: 기간 표시 / 1번: 무제한 → 상시 사용 가능
                   const periodStr = exp
                     ? `${start ? fmtD(start) : ''} ~ ${fmtD(exp)}`
