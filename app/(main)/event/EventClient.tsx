@@ -130,7 +130,7 @@ export default function EventClient() {
           </div>
         ) : filtered.length === 0 ? (
           <ComingSoon
-            title={filter === 'ongoing' ? '진행중인 이벤트를 준비중입니다.' : '종료된 이벤트가 없습니다.'}
+            title={filter === 'ongoing' ? '이벤트 준비중입니다.' : '종료된 이벤트가 없습니다.'}
             desc={filter === 'ongoing'
               ? ['알찬 이벤트를 준비하고 있어요.', '빠른 시일 내에 찾아뵙겠습니다.']
               : ['아직 종료된 이벤트가 없습니다.']}
