@@ -1837,6 +1837,68 @@ export default function MypageClient() {
         );
         const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
         const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
+        /* ══ PC: 중앙 모달 (모바일은 아래 풀스크린 유지) ══ */
+        if (!isMobileView) {
+          const pcSec: React.CSSProperties = { border:'1px solid #ECECEC', borderRadius:12, padding:'20px 24px', background:'#fff' };
+          const pcTitle: React.CSSProperties = { fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:14 };
+          return (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
+              onClick={() => setCancelDetail(null)}>
+              <div style={{ maxWidth:560, margin:'0 auto', background:'#F7F7F5', borderRadius:16, overflow:'hidden' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'26px 32px 20px', background:'#fff', borderBottom:'1px solid #F0F0F0' }}>
+                  <div>
+                    <div style={{ fontSize:22, fontWeight:800, color:'#1A1A1A' }}>{isRefund ? '환불상세' : '취소상세'}</div>
+                    <div style={{ fontSize:13, color:'#999', marginTop:8 }}>{new Date(req?.created_at || o.created_at).toLocaleDateString('ko-KR')} {isRefund ? '환불요청' : '취소요청'}</div>
+                  </div>
+                  <button onClick={() => setCancelDetail(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#888', lineHeight:1, padding:0 }}>✕</button>
+                </div>
+                <div style={{ padding:'24px 32px 32px', display:'flex', flexDirection:'column', gap:20 }}>
+                  <section style={pcSec}>
+                    <div style={pcTitle}>배송지정보</div>
+                    {rowL('받는 사람', o.recipient || '-')}
+                    {rowL('연락처', o.phone || '-')}
+                    {rowL('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
+                    {o.delivery_memo && rowL('배송메모', o.delivery_memo)}
+                  </section>
+                  <section style={pcSec}>
+                    <div style={pcTitle}>{isRefund ? '환불 상품' : '취소 상품'}</div>
+                    {o.order_items?.map((item, i) => (
+                      <div key={i} style={{ display:'flex', gap:14, alignItems:'center', padding:'12px 0', borderTop: i>0?'1px solid #F4F4F2':'none' }}>
+                        <div style={{ width:60, height:60, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {item.thumbnail_url ? <img src={imgThumb(item.thumbnail_url,200)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:26 }}>🍑</span>}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A', lineHeight:1.4 }}>{item.product_name}</div>
+                          {item.option_label && <div style={{ fontSize:12.5, color:'#999', marginTop:3 }}>{item.option_label}</div>}
+                          <div style={{ fontSize:13, color:'#555', marginTop:5 }}>{fmtPrice(item.unit_price)}원 · {item.quantity}개</div>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                  <section style={pcSec}>
+                    <div style={pcTitle}>환불 정보</div>
+                    {rowR('주문금액', `${fmtPrice(o.final_amount)}원`)}
+                    {rowR('차감금액', '0원')}
+                    <div style={{ borderTop:'1px solid #EEE', marginTop:8, paddingTop:8 }}>
+                      {rowR('환불금액', `${fmtPrice(o.final_amount)}원`, true)}
+                    </div>
+                    <div style={{ marginTop:8 }}>
+                      {rowR(`${PM[o.payment_method || ''] || o.payment_method || '결제'}`, `${fmtPrice(o.final_amount)}원`)}
+                    </div>
+                    {rowR('환불예정일', '환불 승인 후 최대 7영업일 소요')}
+                  </section>
+                  {req && (
+                    <section style={pcSec}>
+                      <div style={pcTitle}>{isRefund ? '환불 이유' : '취소 이유'}</div>
+                      <div style={{ fontSize:13.5, color:'#333', lineHeight:1.6 }}>{req.reason}</div>
+                      {req.detail && <div style={{ fontSize:13, color:'#777', marginTop:6, lineHeight:1.6 }}>{req.detail}</div>}
+                    </section>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
         return (
           <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
             <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
