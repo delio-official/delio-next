@@ -1829,6 +1829,12 @@ export default function MypageClient() {
             <span style={{ fontWeight: accent ? 800 : 500, color: accent ? '#1A1A1A' : '#333', fontSize: accent ? 15 : 13.5 }}>{value}</span>
           </div>
         );
+        const rowL = (label: string, value: React.ReactNode) => (
+          <div style={{ display:'flex', fontSize:13.5, padding:'5px 0', alignItems:'flex-start' }}>
+            <span style={{ width:76, flexShrink:0, color:'#999' }}>{label}</span>
+            <span style={{ flex:1, color:'#333', wordBreak:'keep-all' }}>{value}</span>
+          </div>
+        );
         const secTitle: React.CSSProperties = { fontSize:14, fontWeight:800, color:'#1A1A1A', marginBottom:12 };
         const sec: React.CSSProperties = { paddingBottom:18, marginBottom:18, borderBottom:'8px solid #F4F4F2' };
         return (
@@ -1844,6 +1850,14 @@ export default function MypageClient() {
               </div>
 
               <div style={{ padding:'0 20px' }}>
+                {/* 배송지 정보 */}
+                <div style={sec}>
+                  <div style={secTitle}>배송지 정보</div>
+                  {rowL('받는 사람', o.recipient || '-')}
+                  {rowL('연락처', o.phone || '-')}
+                  {rowL('주소', `${o.zipcode ? `(${o.zipcode}) ` : ''}${o.address1 || ''} ${o.address2 || ''}`.trim() || '-')}
+                  {o.delivery_memo && rowL('배송메모', o.delivery_memo)}
+                </div>
                 {/* 취소 상품 */}
                 <div style={sec}>
                   <div style={secTitle}>{isRefund ? '환불 상품' : '취소 상품'}</div>
