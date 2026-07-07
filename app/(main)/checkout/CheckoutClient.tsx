@@ -597,10 +597,6 @@ export default function CheckoutClient() {
           {/* ① 주문상품 */}
           <Section title="주문상품" sk="items" open={isOpen('items')} onToggle={toggleSec}
             right={<span style={{ fontSize:14, color:'#888', fontWeight:600 }}>{items.length}건</span>}>
-            {/* PC 테이블 헤더 */}
-            <div className="co-items-head">
-              <span>상품정보</span><span>수량</span><span>판매가</span><span>정가</span><span>배송비</span>
-            </div>
             {items.map(i => {
               const qty = i.quantity ?? 1;
               const hasOrig = i.originalPrice != null && i.originalPrice > i.price;
