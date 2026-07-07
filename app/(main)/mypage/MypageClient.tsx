@@ -31,7 +31,7 @@ function withinReviewWindow(deliveredAt?: string | null): boolean {
   if (!deliveredAt) return true;
   return Date.now() - new Date(deliveredAt).getTime() <= REVIEW_WINDOW_DAYS * 86400000;
 }
-const RETURN_WINDOW_DAYS = 6; // 취소/교환/반품(환불신청) 가능 기간(배송완료일 기준)
+const RETURN_WINDOW_DAYS = 7; // 취소/교환/반품(환불신청) 가능 기간(배송완료일 기준) — 전자상거래법 청약철회 7일
 /* 배송완료일 기준 6일 이내인지 — delivered_at 없으면(과거 데이터) 제한하지 않음 */
 function withinReturnWindow(deliveredAt?: string | null): boolean {
   if (!deliveredAt) return true;
