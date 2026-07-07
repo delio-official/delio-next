@@ -346,6 +346,7 @@ export default function MypageClient() {
 
   async function submitReq() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
+    if (reqReason === '기타' && !reqDetail.trim()) { alert('기타 사유를 직접 작성해주세요.'); return; }
     setReqSubmitting(true);
     const { error } = await createClient().from('refund_requests').insert({
       order_id: reqModal.order.id, user_id: user.id,
@@ -4464,17 +4465,19 @@ export default function MypageClient() {
               ))}
             </div>
 
-            <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>상세 내용 <span style={{ color:'#aaa', fontWeight:400 }}>(선택)</span></div>
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>상세 내용 {reqReason === '기타'
+              ? <span style={{ color:'var(--color-accent)', fontWeight:700 }}>*</span>
+              : <span style={{ color:'#aaa', fontWeight:400 }}>(선택)</span>}</div>
             <textarea value={reqDetail} onChange={e => setReqDetail(e.target.value)} rows={3}
-              placeholder="자세한 사유를 적어주시면 처리에 도움이 됩니다."
+              placeholder={reqReason === '기타' ? '기타 사유를 직접 작성해주세요.' : '자세한 사유를 적어주시면 처리에 도움이 됩니다.'}
               style={{ width:'100%', border:'1px solid #DDD', borderRadius:8, padding:'10px 12px', fontSize:14, fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:18 }} />
 
             <p style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
               신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.
             </p>
-            <button onClick={submitReq} disabled={reqSubmitting || !reqReason}
-              style={{ width:'100%', padding:'14px', background: reqReason ? 'var(--color-ink)' : '#CCC', color:'#fff',
-                border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor: reqReason ? 'pointer' : 'default' }}>
+            <button onClick={submitReq} disabled={reqSubmitting || !reqReason || (reqReason === '기타' && !reqDetail.trim())}
+              style={{ width:'100%', padding:'14px', background: (reqReason && !(reqReason === '기타' && !reqDetail.trim())) ? 'var(--color-ink)' : '#CCC', color:'#fff',
+                border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor: (reqReason && !(reqReason === '기타' && !reqDetail.trim())) ? 'pointer' : 'default' }}>
               {reqSubmitting ? '접수 중…' : (reqModal.type === 'cancel' ? '주문취소 신청하기' : '환불 신청하기')}
             </button>
           </div>
