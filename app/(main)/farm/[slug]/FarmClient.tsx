@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
+import { PRODUCT_PUBLIC_COLS_STOCK, withSoldout } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -31,6 +31,7 @@ interface Product {
   is_dawn: boolean; is_new: boolean; is_best: boolean; short_desc: string | null;
   sort_order: number | null; created_at: string | null;
   sales_count: number | null; sweet_sort: number | null; sour_sort: number | null;
+  soldout?: boolean;
 }
 
 const FARM_SORT_OPTS = [
@@ -82,6 +83,7 @@ function FarmProductCard({ p }: { p: Product }) {
           ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
+        {p.soldout && <div className="product-card-soldout">품절</div>}
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
           <button className="product-card-wish" onClick={async e => { e.preventDefault(); if (!requireLogin()) return; setWished(await toggleWishlist(p.id)); }}>
@@ -210,12 +212,12 @@ export default function FarmClient() {
       const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
         supabase.from('farm_gallery').select('*').eq('farm_id', farmData.id).order('sort_order'),
-        supabase.from('products').select(PRODUCT_PUBLIC_COLS + ', sort_order, created_at, sales_count, sweet_sort, sour_sort').eq('farm_id', farmData.id).eq('is_active', true).order('sort_order').limit(60),
+        supabase.from('products').select(PRODUCT_PUBLIC_COLS_STOCK + ', sort_order, created_at, sales_count, sweet_sort, sour_sort').eq('farm_id', farmData.id).eq('is_active', true).order('sort_order').limit(60),
       ]);
 
       setCerts((certData as Certification[]) || []);
       setGallery((gallData as GalleryItem[]) || []);
-      setProducts((prodData as unknown as Product[]) || []);
+      setProducts(((prodData as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as Product[]);
       setLoading(false);
     }
     load();

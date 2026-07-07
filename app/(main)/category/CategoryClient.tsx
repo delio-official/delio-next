@@ -9,7 +9,7 @@ import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
-import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
+import { PRODUCT_PUBLIC_COLS_STOCK, withSoldout } from '@/lib/productCols';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
 
@@ -32,6 +32,7 @@ interface Product {
   review_count: number;
   brix: number | null;
   farm_id: string | null;
+  soldout?: boolean;
 }
 
 /* ── 카테고리 탭 ── */
@@ -116,6 +117,7 @@ function ProductCard({ p }: { p: Product }) {
           ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
+        {p.soldout && <div className="product-card-soldout">품절</div>}
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
           <button className="product-card-wish" onClick={handleWish}>
@@ -237,7 +239,7 @@ export default function CategoryClient() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
-    let q = supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('is_active', true);
+    let q = supabase.from('products').select(PRODUCT_PUBLIC_COLS_STOCK).eq('is_active', true);
 
     if (catParam) {
       const row = catRows.find(t => t.tab_value === catParam);
@@ -263,7 +265,7 @@ export default function CategoryClient() {
     }
 
     const { data } = await q.limit(200);
-    setProducts((data as unknown as Product[]) || []);
+    setProducts(((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as Product[]);
     setLoading(false);
   }, [catParam, originParam, sortParam, newParam, catRows]);
 

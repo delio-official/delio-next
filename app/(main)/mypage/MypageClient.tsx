@@ -12,6 +12,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { shareKakaoFeed } from '@/lib/kakao';
 import { addToCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { ProductCard } from '@/components/ProductCard';
+import { withSoldout } from '@/lib/productCols';
 import { FarmCard } from '@/components/FarmCard';
 import { TASTE_AXES, type ReviewTaste } from '@/lib/taste';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
@@ -77,6 +78,7 @@ interface WishItem {
     discount_rate: number; thumbnail_url: string | null; category: string; badge: string | null;
     is_dawn: boolean; is_new: boolean; is_best: boolean; avg_rating: number; review_count: number;
     short_desc?: string | null;
+    soldout?: boolean;
   } | null;
 }
 interface MyReview {
@@ -659,9 +661,14 @@ export default function MypageClient() {
 
       // 관심상품 미리보기용 위시리스트 프리로드 (모바일 메뉴 하단)
       const { data: wishData } = await supabase.from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc)')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,product_options(stock))')
         .eq('user_id', user!.id).limit(20);
-      setWishlist((wishData as unknown as WishItem[]) || []);
+      setWishlist(((wishData as unknown as WishItem[]) || []).map(w => ({
+        ...w,
+        products: w.products
+          ? (withSoldout(w.products as unknown as Record<string, unknown>) as unknown as WishItem['products'])
+          : null,
+      })));
     }
 
     // 최근 본 상품 — localStorage의 id 순서로 상품 풀데이터 재조회(정가·배송·후기수 등)
@@ -977,13 +984,18 @@ export default function MypageClient() {
       const supabase = createClient();
       const [{ data }, { data: farmData }] = await Promise.all([
         supabase.from('wishlist')
-          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc)')
+          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,product_options(stock))')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
           .select('id, farms(id,slug,name,region,farm_type,intro,thumbnail_url,hero_image_url,logo_url)')
           .eq('user_id', user!.id).limit(40),
       ]);
-      setWishlist((data as unknown as WishItem[]) || []);
+      setWishlist(((data as unknown as WishItem[]) || []).map(w => ({
+        ...w,
+        products: w.products
+          ? (withSoldout(w.products as unknown as Record<string, unknown>) as unknown as WishItem['products'])
+          : null,
+      })));
       setFarmWishlist((farmData as unknown as typeof farmWishlist) || []);
       setWishLoading(false);
     }

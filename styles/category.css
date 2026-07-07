@@ -215,6 +215,14 @@ body { background: #fff; }
   box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden;
 }
 
+/* 품절 오버레이 (썸네일 위 검정 반투명 + 흰 글씨) */
+.product-card-soldout {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.5); color: #fff;
+  font-size: 16px; font-weight: 700; letter-spacing: 1px;
+}
+
 /* 이모지 배경 (카테고리별 그라디언트) */
 .fruit-emoji {
   width: 100%; height: 100%;

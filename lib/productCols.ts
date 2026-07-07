@@ -6,3 +6,17 @@ export const PRODUCT_PUBLIC_COLS =
   'sort_order, created_at, sku, origin, origin_region, short_desc, ' +
   'thumbnail_url, image_urls, dispatch_cutoff, brix, badge, badge_color, ' +
   'is_new, is_best, is_dawn, avg_rating, review_count, seller_score, show_stat_pill';
+
+/* 위 컬럼 + 재고(옵션 stock) 조인. 품절 표시가 필요한 목록 조회에 사용. */
+export const PRODUCT_PUBLIC_COLS_STOCK = PRODUCT_PUBLIC_COLS + ', product_options(stock)';
+
+/* 옵션 stock 합으로 품절 판정 (관리자와 동일 로직).
+   옵션이 0개인 단품은 재고 미관리(null) → 품절로 보지 않음.
+   product_options 필드를 제거하고 soldout 불리언을 붙인 객체를 반환한다. */
+export function withSoldout<T extends Record<string, unknown>>(row: T): T & { soldout: boolean } {
+  const opts = (row.product_options as { stock: number }[] | undefined) || [];
+  const total = opts.length > 0 ? opts.reduce((s, o) => s + (o.stock || 0), 0) : null;
+  const rest = { ...row };
+  delete (rest as Record<string, unknown>).product_options;
+  return { ...(rest as T), soldout: total != null && total <= 0 };
+}

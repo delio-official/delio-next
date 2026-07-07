@@ -25,6 +25,7 @@ export interface ProductCardItem {
   is_dawn: boolean;
   avg_rating: number;
   review_count: number;
+  soldout?: boolean;
 }
 
 const EMOJI_MAP: Record<string, string> = {
@@ -84,6 +85,7 @@ export function ProductCard({ p, onWishChange }: { p: ProductCardItem; onWishCha
           ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
+        {p.soldout && <div className="product-card-soldout">품절</div>}
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
           <button className="product-card-wish" onClick={handleWish}>

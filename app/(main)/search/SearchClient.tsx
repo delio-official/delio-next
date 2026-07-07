@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
-import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
+import { PRODUCT_PUBLIC_COLS_STOCK, withSoldout } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -19,6 +19,7 @@ interface Product {
   thumbnail_url: string | null; badge: string | null;
   is_dawn: boolean; is_best: boolean; avg_rating: number; review_count: number;
   brix: number | null;
+  soldout?: boolean;
 }
 
 const EMOJI_MAP: Record<string, string> = {
@@ -90,6 +91,7 @@ function SearchProductCard({ p }: { p: Product }) {
           ? <img src={imgThumb(p.thumbnail_url, 400)} alt={p.name} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
           : <div className="fruit-emoji" style={{ background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>
         }
+        {p.soldout && <div className="product-card-soldout">품절</div>}
         <span className={`product-card-delivery ${deliveryClass}`}>{deliveryLabel}</span>
         <div className="product-card-actions">
           <button className="product-card-wish" onClick={handleWish}>
@@ -207,7 +209,7 @@ export default function SearchClient() {
     setLoading(true);
     const supabase = createClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let req: any = supabase.from('products').select(PRODUCT_PUBLIC_COLS)
+    let req: any = supabase.from('products').select(PRODUCT_PUBLIC_COLS_STOCK)
       .eq('is_active', true)
       .ilike('name', `%${q.trim()}%`);
 
@@ -233,7 +235,7 @@ export default function SearchClient() {
     }
 
     const { data } = await req.limit(40);
-    const results = (data as unknown as Product[]) || [];
+    const results = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as Product[];
     setProducts(results);
     setLoading(false);
 
