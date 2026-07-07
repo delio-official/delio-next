@@ -888,46 +888,46 @@ export default function CheckoutClient() {
         <div onClick={() => setAddrFormModal(false)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
               <span style={{ fontSize:16, fontWeight:700 }}>{addrEditing ? '배송지 수정' : '배송지 추가'}</span>
               <button onClick={() => setAddrFormModal(false)} style={{ position:'absolute', right:18, background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:0 }}>
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div style={{ overflowY:'auto', padding:'22px' }}>
-              <div style={{ marginBottom:16 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
+            <div style={{ overflowY:'auto', padding:'16px 20px 20px' }}>
+              <div style={{ marginBottom:11 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <input maxLength={6} placeholder="최대 6자" value={addrForm.label} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
-                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                  style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
-              <div style={{ marginBottom:16 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>받으시는분 <span style={{ color:'#CB1D11' }}>*</span></label>
+              <div style={{ marginBottom:11 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>받으시는분 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <input maxLength={25} placeholder="최대 25자" value={addrForm.recipient} onChange={e => setAddrForm(f => ({ ...f, recipient: e.target.value }))}
-                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                  style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
-              <div style={{ marginBottom:16 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>휴대폰 <span style={{ color:'#CB1D11' }}>*</span></label>
+              <div style={{ marginBottom:11 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>휴대폰 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <input type="tel" placeholder="-없이 휴대폰 번호를 입력해주세요." value={addrForm.phone} onChange={e => setAddrForm(f => ({ ...f, phone: e.target.value.replace(/[^0-9]/g, '') }))}
-                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                  style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
-              <div style={{ marginBottom:18 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>주소 <span style={{ color:'#CB1D11' }}>*</span></label>
-                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+              <div style={{ marginBottom:13 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>주소 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <div style={{ display:'flex', gap:8, marginBottom:7 }}>
                   <input readOnly placeholder="우편번호" value={addrForm.zipcode} onClick={openAddrFormPost}
-                    style={{ flex:1, minWidth:0, height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
+                    style={{ flex:1, minWidth:0, height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', boxSizing:'border-box', cursor:'pointer' }} />
                   <button type="button" onClick={openAddrFormPost}
-                    style={{ height:46, padding:'0 16px', border:'none', borderRadius:6, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>우편번호 찾기</button>
+                    style={{ height:44, padding:'0 16px', border:'none', borderRadius:6, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit' }}>우편번호 찾기</button>
                 </div>
                 <input readOnly placeholder="기본 주소" value={addrForm.address1}
-                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', marginBottom:8, boxSizing:'border-box' }} />
+                  style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', marginBottom:7, boxSizing:'border-box' }} />
                 <input placeholder="건물, 아파트, 동/호수 입력" value={addrForm.address2} onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
-                  style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+                  style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
-              <div style={{ marginBottom:18 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
+              <div style={{ marginBottom:13 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>배송 요청사항</label>
                 <select value={addrForm.delivery_request} onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
-                  style={{ width:'100%', height:46, padding:'0 40px 0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box', color: addrForm.delivery_request ? '#1A1A1A' : '#94A3B8',
+                  style={{ width:'100%', height:44, padding:'0 40px 0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box', color: addrForm.delivery_request ? '#1A1A1A' : '#94A3B8',
                     appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
                     backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
                     backgroundRepeat:'no-repeat', backgroundPosition:'right 14px center' }}>
@@ -939,13 +939,13 @@ export default function CheckoutClient() {
                   <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
                 </select>
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:'#444', cursor:'pointer', marginBottom:22 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:'#444', cursor:'pointer', marginBottom:14 }}>
                 <input type="checkbox" checked={addrForm.is_default} onChange={e => setAddrForm(f => ({ ...f, is_default: e.target.checked }))}
                   style={{ width:16, height:16, accentColor:'#1A1A1A', cursor:'pointer' }} />
                 기본 배송지로 저장
               </label>
               <button onClick={saveAddr}
-                style={{ width:'100%', boxSizing:'border-box', padding:'15px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
+                style={{ width:'100%', boxSizing:'border-box', padding:'14px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>확인</button>
             </div>
           </div>
         </div>
