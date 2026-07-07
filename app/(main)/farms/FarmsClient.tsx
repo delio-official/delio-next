@@ -55,8 +55,8 @@ export default function FarmsClient() {
             파트너 농가
           </h1>
           <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7 }}>
-            델리오가 직접 계약한 믿을 수 있는 농가입니다.<br />
-            각 농가의 이야기와 철학을 만나보세요.
+            델리오가 직접 찾고 선택한 농가입니다.<br />
+            농산물에 담긴 농부들의 이야기와 재배 과정을 만나보세요.
           </p>
           <div style={{ fontSize: 12, color: '#aaa', marginTop: 16 }}>
             <Link href="/" style={{ color: '#aaa', textDecoration: 'none' }}>홈</Link>
