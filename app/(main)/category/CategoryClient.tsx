@@ -343,10 +343,7 @@ export default function CategoryClient() {
         </div>
 
         <div className="mob-pv-grid">
-          {loading
-            ? Array(6).fill(0).map((_, i) => <div key={i} className="product-card product-card-skeleton" />)
-            : products.map(p => <ProductCard key={p.id} p={p} />)
-          }
+          {products.map(p => <ProductCard key={p.id} p={p} />)}
         </div>
       </div>
 
@@ -396,11 +393,9 @@ export default function CategoryClient() {
             return (
               <>
                 <div className="product-grid">
-                  {loading
-                    ? Array(8).fill(0).map((_, i) => <div key={i} className="product-card product-card-skeleton" style={{ height: 320 }} />)
-                    : products.length === 0
-                      ? <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#999' }}>상품이 없습니다.</p>
-                      : paged.map(p => <ProductCard key={p.id} p={p} />)
+                  {products.length === 0
+                    ? (loading ? null : <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#999' }}>상품이 없습니다.</p>)
+                    : paged.map(p => <ProductCard key={p.id} p={p} />)
                   }
                 </div>
                 <Pagination total={products.length} perPage={ITEMS_PER_PAGE} page={page} onChange={setPage} />
