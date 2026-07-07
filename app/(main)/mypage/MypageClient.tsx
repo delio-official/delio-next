@@ -248,6 +248,7 @@ export default function MypageClient() {
   const [askCategory, setAskCategory] = useState('문의');
   const [askContent, setAskContent] = useState('');
   const [askPrivate, setAskPrivate] = useState(false);
+  const [askPassword, setAskPassword] = useState('');
   const [askSubmitting, setAskSubmitting] = useState(false);
   const [askCatOpen, setAskCatOpen] = useState(false);
   const [askProdOpen, setAskProdOpen] = useState(false);
@@ -407,6 +408,7 @@ export default function MypageClient() {
   async function submitAsk() {
     if (!askModal || !user) return;
     if (!askContent.trim()) { showToastMsg('문의 내용을 입력해주세요.'); return; }
+    if (askPrivate && !askPassword.trim()) { showToastMsg('비밀 문의는 비밀번호를 입력해주세요.'); return; }
     setAskSubmitting(true);
     const { error } = await createClient().from('product_inquiries').insert({
       product_id: askModal.selectedId,
@@ -414,7 +416,7 @@ export default function MypageClient() {
       category: askCategory,
       content: askContent.trim(),
       is_private: askPrivate,
-      password: null,
+      password: askPrivate ? askPassword.trim() : null,
     });
     setAskSubmitting(false);
     if (error) { showToastMsg('문의 등록 실패: ' + error.message); return; }
@@ -422,6 +424,7 @@ export default function MypageClient() {
     setAskContent('');
     setAskCategory('문의');
     setAskPrivate(false);
+    setAskPassword('');
     showToastMsg('문의가 등록되었습니다.');
   }
 
@@ -1522,10 +1525,14 @@ export default function MypageClient() {
             <textarea value={askContent} onChange={e => setAskContent(e.target.value)} placeholder="문의 내용을 입력해주세요."
               style={{ width:'100%', minHeight:120, padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:16 }} />
 
-            <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13.5, color:'#555', marginBottom:20, cursor:'pointer' }}>
+            <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13.5, color:'#555', marginBottom: askPrivate ? 10 : 20, cursor:'pointer' }}>
               <input type="checkbox" checked={askPrivate} onChange={e => setAskPrivate(e.target.checked)} style={{ width:16, height:16 }} />
               비밀 문의로 등록
             </label>
+            {askPrivate && (
+              <input type="password" value={askPassword} onChange={e => setAskPassword(e.target.value)} placeholder="비밀번호를 입력해주세요" maxLength={20}
+                style={{ width:'100%', padding:'12px 14px', border:'1px solid #E0E0DC', borderRadius:10, fontSize:14, color:'#333', fontFamily:'inherit', boxSizing:'border-box', marginBottom:20, outline:'none' }} />
+            )}
 
             <button onClick={submitAsk} disabled={askSubmitting}
               style={{ width:'100%', padding:'14px 0', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, fontFamily:'inherit', cursor: askSubmitting ? 'default' : 'pointer', opacity: askSubmitting ? 0.6 : 1 }}>
