@@ -85,7 +85,6 @@ export default function CheckoutClient() {
   const [ordererName, setOrdererName] = useState('');
   const [ordererPhone, setOrdererPhone] = useState('');
   const [ordererEmail, setOrdererEmail] = useState('');
-  const [editOrderer, setEditOrderer] = useState(false);
   const [payAgree, setPayAgree] = useState(false);
   /* 섹션 접기/펼치기 (기본 모두 펼침) */
   const [openSec, setOpenSec] = useState<Record<string, boolean>>({});
@@ -657,59 +656,41 @@ export default function CheckoutClient() {
             <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
           </Section>
 
-          {/* ②③ 배송지 설정 (주문하시는 분 + 받으시는 분) */}
-          <Section title="배송지 설정" sk="addr" open={isOpen('addr')} onToggle={toggleSec}>
-            {/* 주문하시는 분 */}
-            <div style={{ display:'flex', gap:16, alignItems:'flex-start', padding:'2px 0 18px', borderBottom:'1px solid #EEE' }}>
-              <span style={{ fontSize:14, fontWeight:700, minWidth:84, flexShrink:0, paddingTop:2 }}>주문하시는 분</span>
-              <div style={{ flex:1, minWidth:0 }}>
-                {editOrderer ? (
-                  <>
-                    <input value={ordererName} onChange={e => setOrdererName(e.target.value)} placeholder="주문자 이름" style={inS} />
-                    <input value={ordererPhone} onChange={e => setOrdererPhone(e.target.value.replace(/[^0-9-]/g,''))} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:8 }} />
-                    <input value={ordererEmail} onChange={e => setOrdererEmail(e.target.value)} placeholder="이메일" inputMode="email" style={{ ...inS, marginTop:8 }} />
-                    <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0' }}>카카오 알림톡이 발송되지 않을 경우 입력하신 이메일로 주문 안내를 보내드려요.</p>
-                  </>
-                ) : (
-                  (ordererName || ordererPhone || ordererEmail)
-                    ? <div style={{ fontSize:14, color:'#333', lineHeight:1.5 }}>{[ordererName, ordererPhone, ordererEmail].filter(Boolean).join(' ')}</div>
-                    : <div style={{ fontSize:14, color:'#94A3B8' }}>주문자 정보를 입력해주세요</div>
-                )}
+          {/* ② 주문하시는 분 */}
+          <Section title="주문하시는 분" sk="orderer" open={isOpen('orderer')} onToggle={toggleSec}>
+            <input value={ordererName} onChange={e => setOrdererName(e.target.value)} placeholder="주문자 이름" style={inS} />
+            <input value={ordererPhone} onChange={e => setOrdererPhone(e.target.value.replace(/[^0-9-]/g,''))} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:10 }} />
+            <input value={ordererEmail} onChange={e => setOrdererEmail(e.target.value)} placeholder="이메일" inputMode="email" style={{ ...inS, marginTop:10 }} />
+            <p style={{ fontSize:12, color:'#94A3B8', margin:'10px 0 0' }}>카카오 알림톡이 발송되지 않을 경우 입력하신 이메일로 주문 안내를 보내드려요.</p>
+          </Section>
+
+          {/* ③ 받으시는 분 */}
+          <Section title="받으시는 분" sk="addr" open={isOpen('addr')} onToggle={toggleSec}>
+            {selAddr ? (
+              <div style={{ border:'1px solid #E8E8E8', borderRadius:10, padding:'14px 16px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:15, fontWeight:700 }}>{selAddr.label || '배송지'}</span>
+                    {selAddr.is_default && <span style={{ fontSize:12, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px' }}>기본배송지</span>}
+                  </div>
+                  <button type="button" onClick={() => setAddrListModal(true)}
+                    style={{ background:'none', border:'none', fontSize:14, color:'#555', textDecoration:'underline', cursor:'pointer', fontFamily:'inherit' }}>변경</button>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:12, fontSize:15, color:'#555', marginBottom:6 }}>
+                  <span>{selAddr.recipient}  {selAddr.phone}</span>
+                </div>
+                <div style={{ fontSize:15, color:'#555', lineHeight:1.5 }}>
+                  {selAddr.zipcode && <span style={{ color:'#aaa' }}>[{selAddr.zipcode}] </span>}{selAddr.address1}
+                  {selAddr.address2 && <div>{selAddr.address2}</div>}
+                </div>
               </div>
-              <button type="button" onClick={() => setEditOrderer(v => !v)}
-                style={{ background:'none', border:'none', fontSize:14, color:'#555', textDecoration:'underline', cursor:'pointer', fontFamily:'inherit', flexShrink:0, paddingTop:2 }}>
-                {editOrderer ? '완료' : '수정'}
-              </button>
-            </div>
-            {/* 받으시는 분 */}
-            <div style={{ display:'flex', gap:16, alignItems:'flex-start', padding:'18px 0 2px' }}>
-              <span style={{ fontSize:14, fontWeight:700, minWidth:84, flexShrink:0, paddingTop:2 }}>받으시는 분</span>
-              <div style={{ flex:1, minWidth:0 }}>
-                {selAddr ? (
-                  <>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                      <span style={{ fontSize:15, fontWeight:700 }}>{selAddr.label || '배송지'}</span>
-                      {selAddr.is_default && <span style={{ fontSize:12, color:'#888', border:'1px solid #DADADA', borderRadius:4, padding:'2px 7px' }}>기본배송지</span>}
-                    </div>
-                    <div style={{ fontSize:14, color:'#555', marginBottom:4 }}>{selAddr.recipient}  {selAddr.phone}</div>
-                    <div style={{ fontSize:14, color:'#555', lineHeight:1.5 }}>
-                      {selAddr.zipcode && <span style={{ color:'#aaa' }}>[{selAddr.zipcode}] </span>}{selAddr.address1}
-                      {selAddr.address2 && <div>{selAddr.address2}</div>}
-                    </div>
-                  </>
-                ) : (
-                  <p style={{ fontSize:14, color:'#94A3B8', padding:'2px 0' }}>배송지를 추가해주세요.</p>
-                )}
-                <button type="button" onClick={openAddAddr}
-                  style={{ width:'100%', marginTop:12, padding:'12px', background:'#fff', color:'#1A1A1A', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
-                  + 배송지 {selAddr ? '추가' : '등록'}
-                </button>
-              </div>
-              {selAddr && (
-                <button type="button" onClick={() => setAddrListModal(true)}
-                  style={{ background:'none', border:'none', fontSize:14, color:'#555', textDecoration:'underline', cursor:'pointer', fontFamily:'inherit', flexShrink:0, paddingTop:2 }}>변경</button>
-              )}
-            </div>
+            ) : (
+              <p style={{ fontSize:14, color:'#94A3B8', padding:'4px 0 12px' }}>배송지를 추가해주세요.</p>
+            )}
+            <button type="button" onClick={openAddAddr}
+              style={{ width:'100%', marginTop:10, padding:'12px', background:'#fff', color:'#1A1A1A', border:'1.5px solid #DADADA', borderRadius:8, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+              + 배송지 {selAddr ? '추가' : '등록'}
+            </button>
           </Section>
 
           {/* ④ 배송요청사항 */}
