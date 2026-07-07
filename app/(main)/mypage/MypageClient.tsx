@@ -299,7 +299,7 @@ export default function MypageClient() {
   const [myRefundReqs, setMyRefundReqs] = useState<MyRefundReq[]>([]);
 
   /* 취소/환불 신청 모달 */
-  const [reqModal, setReqModal] = useState<{ order: Order; type: 'cancel' | 'refund' } | null>(null);
+  const [reqModal, setReqModal] = useState<{ order: Order; type: 'cancel' | 'refund'; instant?: boolean } | null>(null);
   const [reqReason, setReqReason] = useState('');
   const [reqDetail, setReqDetail] = useState('');
   const [reqSubmitting, setReqSubmitting] = useState(false);
@@ -311,30 +311,6 @@ export default function MypageClient() {
   myRefundReqs.forEach(r => {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) activeReqByOrder.set(r.order_id, r);
   });
-
-  /* 즉시 취소 (결제완료 상태) — 승인 없이 바로 처리 */
-  async function instantCancel(o: Order) {
-    if (!confirm('주문을 취소할까요?\n결제가 즉시 취소되고, 사용한 쿠폰·포인트가 복원됩니다.')) return;
-    try {
-      const res = await fetch('/api/orders/cancel', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: o.id }),
-      });
-      const j = await res.json().catch(() => ({}));
-      if (j?.cancelled) {
-        setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: 'cancelled' } : x));
-        await loadMyRefundReqs();
-        alert('주문이 취소됐습니다. 결제·쿠폰·포인트가 복원됩니다.');
-      } else if (j?.needsRequest) {
-        alert('이미 상품 준비가 시작돼 즉시취소가 어려워요.\n취소 신청으로 진행해주세요.');
-        setReqModal({ order: o, type: 'cancel' }); setReqReason(''); setReqDetail('');
-      } else {
-        alert('취소 처리 중 오류가 발생했습니다.' + (j?.error ? `\n${j.error}` : ''));
-      }
-    } catch {
-      alert('취소 처리 중 오류가 발생했습니다.');
-    }
-  }
 
   /* 반려/보류된 신청 → 같은 주문·유형으로 다시 신청 */
   function reapplyReq(r: MyRefundReq) {
@@ -348,6 +324,50 @@ export default function MypageClient() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
     if (reqReason === '기타' && !reqDetail.trim()) { alert('기타 사유를 직접 작성해주세요.'); return; }
     setReqSubmitting(true);
+
+    // 즉시 취소(결제완료 직후) — 승인 없이 바로 취소하되 사유는 기록
+    if (reqModal.instant) {
+      try {
+        const res = await fetch('/api/orders/cancel', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: reqModal.order.id }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (j?.cancelled) {
+          await createClient().from('refund_requests').insert({
+            order_id: reqModal.order.id, user_id: user.id,
+            reason: reqReason, detail: reqDetail.trim(), type: 'cancel',
+          });
+          setOrders(prev => prev.map(x => x.id === reqModal.order.id ? { ...x, status: 'cancelled' } : x));
+          setReqSubmitting(false);
+          setReqModal(null); setReqReason(''); setReqDetail('');
+          await loadMyRefundReqs();
+          alert('주문이 취소됐습니다. 결제·쿠폰·포인트가 복원됩니다.');
+          return;
+        }
+        if (j?.needsRequest) {
+          // 이미 준비 시작 → 즉시취소 불가, 취소 신청으로 접수
+          const { error } = await createClient().from('refund_requests').insert({
+            order_id: reqModal.order.id, user_id: user.id,
+            reason: reqReason, detail: reqDetail.trim(), type: 'cancel',
+          });
+          setReqSubmitting(false);
+          if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
+          setReqModal(null); setReqReason(''); setReqDetail('');
+          await loadMyRefundReqs();
+          alert('이미 상품 준비가 시작돼 즉시취소가 어려워, 취소 신청으로 접수했습니다. 관리자 확인 후 처리됩니다.');
+          return;
+        }
+        setReqSubmitting(false);
+        alert('취소 처리 중 오류가 발생했습니다.' + (j?.error ? `\n${j.error}` : ''));
+      } catch {
+        setReqSubmitting(false);
+        alert('취소 처리 중 오류가 발생했습니다.');
+      }
+      return;
+    }
+
+    // 신청형 (배송 준비 이후)
     const { error } = await createClient().from('refund_requests').insert({
       order_id: reqModal.order.id, user_id: user.id,
       reason: reqReason, detail: reqDetail.trim(), type: reqModal.type,
@@ -2535,7 +2555,7 @@ export default function MypageClient() {
                             if (o.status === 'paid' || o.status === 'preparing') {
                               btns.push(askBtn);
                               if (active) btns.push({ key:'reqst', label:`${active.type === 'cancel' ? '취소' : '환불'} 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
-                              else if (o.status === 'paid') btns.push({ key:'cancel', label:'주문취소', onClick: () => instantCancel(o) });
+                              else if (o.status === 'paid') btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel', instant:true }); setReqReason(''); setReqDetail(''); } });
                               else btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); } });
                             } else if (o.status === 'shipped') {
                               if (trackBtn) btns.push(trackBtn);
@@ -2558,7 +2578,7 @@ export default function MypageClient() {
                               // 입금대기(무통장 등) — 결제 전이므로 바로 취소 가능
                               btns.push(askBtn);
                               if (active) btns.push({ key:'reqst', label:`취소 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
-                              else btns.push({ key:'cancel', label:'주문취소', onClick: () => instantCancel(o) });
+                              else btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel', instant:true }); setReqReason(''); setReqDetail(''); } });
                             } else {
                               btns.push(askBtn);
                             }
@@ -4447,7 +4467,7 @@ export default function MypageClient() {
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-              <span style={{ fontSize:17, fontWeight:800 }}>{reqModal.type === 'cancel' ? '주문취소 신청' : '환불 신청'}</span>
+              <span style={{ fontSize:17, fontWeight:800 }}>{reqModal.instant ? '주문 취소' : reqModal.type === 'cancel' ? '주문취소 신청' : '환불 신청'}</span>
               <button onClick={() => setReqModal(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#999', lineHeight:1 }}>✕</button>
             </div>
             <p style={{ fontSize:13, color:'#888', marginBottom:18 }}>주문 {reqModal.order.order_no} · {fmtPrice(reqModal.order.final_amount)}원</p>
@@ -4473,12 +4493,14 @@ export default function MypageClient() {
               style={{ width:'100%', border:'1px solid #DDD', borderRadius:8, padding:'10px 12px', fontSize:14, fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:18 }} />
 
             <p style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
-              신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.
+              {reqModal.instant
+                ? '취소 즉시 결제·쿠폰·포인트가 복원됩니다. (이미 상품 준비가 시작된 경우 취소 신청으로 접수되어 관리자 확인 후 처리돼요.)'
+                : '신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.'}
             </p>
             <button onClick={submitReq} disabled={reqSubmitting || !reqReason || (reqReason === '기타' && !reqDetail.trim())}
               style={{ width:'100%', padding:'14px', background: (reqReason && !(reqReason === '기타' && !reqDetail.trim())) ? 'var(--color-ink)' : '#CCC', color:'#fff',
                 border:'none', borderRadius:8, fontSize:15, fontWeight:700, cursor: (reqReason && !(reqReason === '기타' && !reqDetail.trim())) ? 'pointer' : 'default' }}>
-              {reqSubmitting ? '접수 중…' : (reqModal.type === 'cancel' ? '주문취소 신청하기' : '환불 신청하기')}
+              {reqSubmitting ? '처리 중…' : reqModal.instant ? '주문 취소하기' : (reqModal.type === 'cancel' ? '주문취소 신청하기' : '환불 신청하기')}
             </button>
           </div>
         </div>
