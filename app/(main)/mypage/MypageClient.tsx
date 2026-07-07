@@ -26,16 +26,22 @@ import '@/styles/category.css';
 
 const REVIEW_PER_PAGE = 5;    // 리뷰 목록 한 페이지당 개수
 const REVIEW_WINDOW_DAYS = 30; // 리뷰 작성 가능 기간(배송완료일 기준)
+/* 배송완료 '날짜'로부터 며칠 지났는지(자정 기준). 같은 날=0 → 시각 무관하게 날짜로 계산 */
+function daysSinceDelivered(deliveredAt: string): number {
+  const d = new Date(deliveredAt); d.setHours(0, 0, 0, 0);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.floor((t.getTime() - d.getTime()) / 86400000);
+}
 /* 배송완료일 기준 30일 이내인지 — delivered_at 없으면(과거 데이터) 제한하지 않음 */
 function withinReviewWindow(deliveredAt?: string | null): boolean {
   if (!deliveredAt) return true;
-  return Date.now() - new Date(deliveredAt).getTime() <= REVIEW_WINDOW_DAYS * 86400000;
+  return daysSinceDelivered(deliveredAt) <= REVIEW_WINDOW_DAYS;
 }
 const RETURN_WINDOW_DAYS = 7; // 취소/교환/반품(환불신청) 가능 기간(배송완료일 기준) — 전자상거래법 청약철회 7일
-/* 배송완료일 기준 6일 이내인지 — delivered_at 없으면(과거 데이터) 제한하지 않음 */
+/* 배송완료일 기준 7일 이내인지(날짜 기준: 7/1 완료 → 7/8까지) — delivered_at 없으면 제한 안 함 */
 function withinReturnWindow(deliveredAt?: string | null): boolean {
   if (!deliveredAt) return true;
-  return Date.now() - new Date(deliveredAt).getTime() <= RETURN_WINDOW_DAYS * 86400000;
+  return daysSinceDelivered(deliveredAt) <= RETURN_WINDOW_DAYS;
 }
 
 /* ─── Types ─── */
