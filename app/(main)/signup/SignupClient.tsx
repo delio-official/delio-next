@@ -264,17 +264,15 @@ export default function SignupClient() {
     }
   }
 
-  // 게이트 ON 이면 회원가입 진입 즉시 PASS 인증 자동 실행 (팝업 차단 시 화면의 버튼으로 수동 진행)
-  const autoVerifyRef = useRef(false);
-  useEffect(() => {
-    if (gateOn && !verified && !autoVerifyRef.current) {
-      autoVerifyRef.current = true;
-      startVerify();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // 진입 즉시 자동 인증하지 않음 — 폼이 먼저 뜨고, 폼 안의 '휴대폰 본인인증' 버튼으로 사용자가 직접 진행
 
   async function completeSignup() {
+    // 게이트 ON: 휴대폰 본인인증 먼저 필수
+    if (gateOn && !verified) {
+      setFieldErrors({ name: '휴대폰 본인인증을 먼저 진행해주세요.' });
+      rowNameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     const email = getEmail();
     const errs: Record<string, string> = {};
     let firstRef: React.RefObject<HTMLDivElement | null> | null = null;
@@ -338,33 +336,6 @@ export default function SignupClient() {
     setDone(true);
   }
 
-  // 게이트 ON + 미인증 → 가입 폼 대신 본인인증 화면 먼저
-  if (gateOn && !verified && !done) {
-    return (
-      <div className="su-wrap">
-        <h1 className="su-title">회원가입</h1>
-        <div style={{ maxWidth: 460, margin: '40px auto 0', textAlign: 'center', padding: '0 20px' }}>
-          <div style={{ fontSize: 44, marginBottom: 18 }}>🔒</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1A1A1A', marginBottom: 10 }}>휴대폰 본인인증</h2>
-          <p style={{ fontSize: 14, color: '#888', lineHeight: 1.7, marginBottom: 28 }}>
-            안전한 가입을 위해 휴대폰 본인인증을 먼저 진행합니다.<br />
-            1인 1계정 확인을 위한 절차예요.
-          </p>
-          <button onClick={startVerify} disabled={verifyLoading}
-            style={{ width: '100%', padding: '16px 0', borderRadius: 10, border: 'none',
-              background: verifyLoading ? '#C8C8C8' : '#1A1A1A', color: '#fff', fontSize: 16, fontWeight: 700,
-              cursor: verifyLoading ? 'default' : 'pointer', fontFamily: 'inherit' }}>
-            {verifyLoading ? '인증 진행 중...' : '휴대폰 본인인증하고 시작하기'}
-          </button>
-          {error && <p style={{ color: '#E53935', fontSize: 13, marginTop: 16 }}>{error}</p>}
-          <p style={{ fontSize: 12, color: '#bbb', marginTop: 20, lineHeight: 1.6 }}>
-            인증 정보(이름·생년월일·연락처)는 본인확인 목적으로만 사용되며 안전하게 보관됩니다.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="su-wrap">
@@ -373,14 +344,40 @@ export default function SignupClient() {
 
         <div className="su-form">
 
-          {/* 이름 */}
+          {/* 본인인증(gateOn) / 이름 입력(gateOff) */}
           <div className="su-row" ref={rowNameRef}>
-            <div className="su-lbl">이름<em>*</em></div>
-            <div className="su-ctrl">
-              <input type="text" className={`su-input${fieldErrors.name ? ' su-err' : ''}`} placeholder="이름을 입력해주세요"
-                value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: '' })); }} />
-              {fieldErrors.name && <div className="su-field-error">{fieldErrors.name}</div>}
-            </div>
+            {gateOn ? (
+              <>
+                <div className="su-lbl">본인인증<em>*</em></div>
+                <div className="su-ctrl">
+                  {verified ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 14px', background:'#F0FAF3', border:'1px solid #B9E6CB', borderRadius:8 }}>
+                      <span style={{ color:'#1F9D55', fontWeight:700, fontSize:14, flexShrink:0 }}>✓ 인증완료</span>
+                      <span style={{ fontSize:14, color:'#333' }}>{name}{phone ? ` · ${phone}` : ''}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <button type="button" onClick={startVerify} disabled={verifyLoading}
+                        style={{ width:'100%', padding:'14px 0', borderRadius:8, border:'none', background: verifyLoading?'#C8C8C8':'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor: verifyLoading?'default':'pointer', fontFamily:'inherit' }}>
+                        {verifyLoading ? '인증 진행 중...' : '휴대폰 본인인증'}
+                      </button>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:8, lineHeight:1.5 }}>본인인증하면 이름·생년월일·성별·휴대폰번호가 자동으로 입력됩니다.</div>
+                    </>
+                  )}
+                  {fieldErrors.name && <div className="su-field-error">{fieldErrors.name}</div>}
+                  {error && !verified && <div className="su-field-error">{error}</div>}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="su-lbl">이름<em>*</em></div>
+                <div className="su-ctrl">
+                  <input type="text" className={`su-input${fieldErrors.name ? ' su-err' : ''}`} placeholder="이름을 입력해주세요"
+                    value={name} onChange={e => { setName(e.target.value); if (fieldErrors.name) setFieldErrors(p => ({ ...p, name: '' })); }} />
+                  {fieldErrors.name && <div className="su-field-error">{fieldErrors.name}</div>}
+                </div>
+              </>
+            )}
           </div>
 
           {/* 이메일 */}
@@ -482,15 +479,37 @@ export default function SignupClient() {
             </div>
           </div>
 
-          {/* 휴대폰·성별·생년월일은 가입 직후 휴대폰 본인인증에서 한 번에 등록 */}
-          <div className="su-row">
-            <div className="su-lbl">본인인증</div>
-            <div className="su-ctrl su-ctrl-pt16">
-              <div style={{ fontSize:13, color:'#888', lineHeight:1.6 }}>
-                휴대폰번호·생년월일·성별은 가입 직후 <strong style={{ color:'#1A1A1A' }}>휴대폰 본인인증</strong>에서 한 번에 등록됩니다.
+          {gateOn ? (
+            <>
+              {/* 생년월일 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">생년월일</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified && birthY ? '#333' : '#94A3B8' }}>
+                    {verified && birthY ? `${birthY}년 ${birthM}월 ${birthD}일` : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+              {/* 성별 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">성별</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified ? '#333' : '#94A3B8' }}>
+                    {verified ? (gender === 'male' ? '남성' : gender === 'female' ? '여성' : '-') : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="su-row">
+              <div className="su-lbl">본인인증</div>
+              <div className="su-ctrl su-ctrl-pt16">
+                <div style={{ fontSize:13, color:'#888', lineHeight:1.6 }}>
+                  휴대폰번호·생년월일·성별은 가입 직후 <strong style={{ color:'#1A1A1A' }}>휴대폰 본인인증</strong>에서 한 번에 등록됩니다.
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* 추천인 */}
           <div className="su-row">
