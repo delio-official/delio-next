@@ -231,7 +231,7 @@ export default function CategoryClient() {
   const selMajorRow = majors.find(m => m.tab_value === selMajor);
   const curMajorSubs = selMajor ? catRows.filter(t => t.parent === selMajor).sort((a, b) => a.sort_order - b.sort_order) : [];
   const subTabs = curMajorSubs.length
-    ? [{ value: selMajor, label: `${selMajorRow?.label ?? ''} 전체`.trim() }, ...curMajorSubs.map(s => ({ value: s.tab_value, label: s.label }))]
+    ? [{ value: '__all__', label: '전체보기' }, { value: selMajor, label: `${selMajorRow?.label ?? ''} 전체`.trim() }, ...curMajorSubs.map(s => ({ value: s.tab_value, label: s.label }))]
     : [];
 
   /* 현재 정렬 라벨 */
@@ -284,6 +284,12 @@ export default function CategoryClient() {
   /* 카테고리 변경 — origin(국산/수입) · new(신상품) 모두 유지 */
   function setCat(val: string) {
     const p = new URLSearchParams();
+    // 전체보기: origin/cat 없이 전 상품(정렬만 유지)
+    if (val === '__all__') {
+      if (sortParam) p.set('sort', sortParam);
+      router.push(`/category?${p.toString()}`);
+      return;
+    }
     if (val) p.set('cat', val);
     if (originParam) p.set('origin', originParam);
     if (newParam)    p.set('new', 'true');
