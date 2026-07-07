@@ -19,21 +19,21 @@ function Section({ title, sk, open, onToggle, right, children }: {
   right?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
-    <div style={{ background: '#fff', marginBottom: 10, borderRadius: 0 }}>
-      <button type="button" onClick={() => onToggle(sk)}
+    <div className="co-sec" style={{ background: '#fff', marginBottom: 10, borderRadius: 0 }}>
+      <button type="button" className="co-sec-head" onClick={() => onToggle(sk)}
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '18px 18px 14px' }}>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
           <span style={{ fontSize: 16, fontWeight: 800, color: '#1A1A1A' }}>{title}</span>
           {right}
         </span>
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#999" strokeWidth="2"
+        <svg className="co-sec-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#999" strokeWidth="2"
           strokeLinecap="round" strokeLinejoin="round"
           style={{ transform: open ? 'none' : 'rotate(180deg)', transition: 'transform .2s' }}>
           <polyline points="18 15 12 9 6 15" />
         </svg>
       </button>
-      {open && <div style={{ padding: '0 18px 20px' }}>{children}</div>}
+      <div className={`co-sec-body${open ? '' : ' closed'}`} style={{ padding: '0 18px 20px' }}>{children}</div>
     </div>
   );
 }
