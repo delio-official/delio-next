@@ -311,7 +311,8 @@ export default function FarmClient() {
         </div>
       )}
 
-      {/* ── 농가 정보 요약 ── */}
+      {/* ── 농가 정보 요약 (표시할 값이 있을 때만 — 빈 회색 띠 방지) ── */}
+      {(farm.founded_year || farm.altitude || farm.annual_output || certs.length > 0) && (
       <div style={{ background:'#F7F7F5', borderBottom:'1px solid #EBEBEB' }}>
         <div className="container" style={{ padding:'20px 0' }}>
           <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
@@ -342,6 +343,7 @@ export default function FarmClient() {
           </div>
         </div>
       </div>
+      )}
 
       <div className="container" style={{ paddingTop:32, paddingBottom:80 }}>
 
