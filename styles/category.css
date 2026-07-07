@@ -78,8 +78,8 @@ body { background: #fff; }
   }
   .farm-prod-wrap:hover .farm-prod-arrow { opacity: 1; }
   .farm-prod-arrow:hover { background: rgba(0,0,0,0.5); }
-  .farm-prod-arrow.prev { left: -16px; }
-  .farm-prod-arrow.next { right: -16px; }
+  .farm-prod-arrow.prev { left: -26px; }
+  .farm-prod-arrow.next { right: -26px; }
 }
 
 /* 농가 상세 히어로 — 모바일: 풀폭 / PC: container 폭 박스 */
