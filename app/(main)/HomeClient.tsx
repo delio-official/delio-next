@@ -1287,7 +1287,7 @@ export default function HomeClient() {
               </button>
               <div className="footer-biz-detail">
                 <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
-                <div>주소 : 경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 플래시아 더 퍼스드)</div>
+                <div>주소 : 경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 클래시아 더 퍼스트)</div>
                 <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 2026-고양덕양구-1612</div>
                 <div>개인정보보호책임자 : 송민창 (deli_o@naver.com)</div>
                 <div>모든 거래에 대한 책임과 환불·민원 처리는 델리오가 진행합니다. &nbsp;|&nbsp; 민원담당자 : 송민창 (070-8064-3601)</div>
@@ -1296,13 +1296,13 @@ export default function HomeClient() {
             </div>
 
             {/* 고객센터 */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#999', lineHeight:1.9 }}>
-              <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터</div>
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+              <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터 안내</div>
               <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>070-8064-3601</div>
-              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                <div>운영시간 : 평일 09:00 ~ 18:00</div>
-                <div>토·일·공휴일은 운영하지 않습니다.</div>
-                <div>이메일 : deli_o@naver.com</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ display:'flex', gap:18 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:56, flexShrink:0 }}>운영시간</span><span>평일 09:00 - 18:00</span></div>
+                <div style={{ display:'flex', gap:18 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:56, flexShrink:0 }}>점심시간</span><span>12:00 - 13:00</span></div>
+                <div style={{ display:'flex', gap:18 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:56, flexShrink:0 }}>휴무일</span><span>주말 및 공휴일</span></div>
               </div>
             </div>
 
