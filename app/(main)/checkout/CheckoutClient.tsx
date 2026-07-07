@@ -78,7 +78,7 @@ export default function CheckoutClient() {
     window.addEventListener('resize', check, { passive: true });
     return () => window.removeEventListener('resize', check);
   }, []);
-  interface Addr { id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean; created_at?:string; }
+  interface Addr { id:string; label:string; recipient:string; phone:string; zipcode:string; address1:string; address2:string|null; is_default:boolean; created_at?:string; delivery_request?:string|null; }
   const [savedAddresses, setSavedAddresses] = useState<Addr[]>([]);
   const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
   /* 주문하시는 분(계정) */
@@ -91,7 +91,7 @@ export default function CheckoutClient() {
   const isOpen = (k: string) => openSec[k] !== false;
   const toggleSec = (k: string) => setOpenSec(p => ({ ...p, [k]: p[k] === false ? true : false }));
   /* 배송지 모달 */
-  const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false };
+  const EMPTY_ADDR = { label:'', recipient:'', phone:'', zipcode:'', address1:'', address2:'', is_default:false, delivery_request:'' };
   const [addrListModal, setAddrListModal] = useState(false);
   const [addrFormModal, setAddrFormModal] = useState(false);
   const [addrEditing, setAddrEditing] = useState<Addr | null>(null);
@@ -125,12 +125,12 @@ export default function CheckoutClient() {
     document.head.appendChild(s);
   }
   function openAddAddr() { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormModal(true); }
-  function openEditAddr(a: Addr) { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2 || '', is_default:a.is_default }); setAddrFormModal(true); }
+  function openEditAddr(a: Addr) { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2 || '', is_default:a.is_default, delivery_request:a.delivery_request || '' }); setAddrFormModal(true); }
   async function saveAddr() {
     if (!addrForm.recipient.trim() || !addrForm.phone.trim() || !addrForm.address1.trim()) { alert('필수 항목을 입력해주세요.'); return; }
     const supabase = createClient();
     const makeDefault = addrForm.is_default || savedAddresses.length === 0;
-    const payload = { label:addrForm.label, recipient:addrForm.recipient, phone:addrForm.phone, zipcode:addrForm.zipcode, address1:addrForm.address1, address2:addrForm.address2 };
+    const payload = { label:addrForm.label, recipient:addrForm.recipient, phone:addrForm.phone, zipcode:addrForm.zipcode, address1:addrForm.address1, address2:addrForm.address2, delivery_request:addrForm.delivery_request };
     if (makeDefault) await supabase.from('shipping_addresses').update({ is_default:false }).eq('user_id', user!.id);
     let savedId = addrEditing?.id;
     if (addrEditing) {
@@ -163,13 +163,14 @@ export default function CheckoutClient() {
     setZipcode(a.zipcode || '');
     setAddr1(a.address1);
     setAddr2(a.address2 || '');
+    if (a.delivery_request) setMemo(a.delivery_request); // 배송지에 저장된 요청사항 → 요청사항 칸 반영(수정 가능)
   }
 
   async function loadAddresses(selectId?: string) {
     if (!user) return;
     const { data } = await createClient()
       .from('shipping_addresses')
-      .select('id, label, recipient, phone, zipcode, address1, address2, is_default, created_at')
+      .select('id, label, recipient, phone, zipcode, address1, address2, is_default, created_at, delivery_request')
       .eq('user_id', user.id)
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false });
@@ -922,6 +923,21 @@ export default function CheckoutClient() {
                   style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, background:'#fff', fontFamily:'inherit', marginBottom:8, boxSizing:'border-box' }} />
                 <input placeholder="건물, 아파트, 동/호수 입력" value={addrForm.address2} onChange={e => setAddrForm(f => ({ ...f, address2: e.target.value }))}
                   style={{ width:'100%', height:46, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
+              </div>
+              <div style={{ marginBottom:18 }}>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
+                <select value={addrForm.delivery_request} onChange={e => setAddrForm(f => ({ ...f, delivery_request: e.target.value }))}
+                  style={{ width:'100%', height:46, padding:'0 40px 0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box', color: addrForm.delivery_request ? '#1A1A1A' : '#94A3B8',
+                    appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
+                    backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                    backgroundRepeat:'no-repeat', backgroundPosition:'right 14px center' }}>
+                  <option value="">선택 안 함</option>
+                  <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
+                  <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
+                  <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
+                  <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
+                  <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
+                </select>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:'#444', cursor:'pointer', marginBottom:22 }}>
                 <input type="checkbox" checked={addrForm.is_default} onChange={e => setAddrForm(f => ({ ...f, is_default: e.target.checked }))}
