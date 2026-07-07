@@ -597,19 +597,32 @@ export default function CheckoutClient() {
           {/* ① 주문상품 */}
           <Section title="주문상품" sk="items" open={isOpen('items')} onToggle={toggleSec}
             right={<span style={{ fontSize:14, color:'#888', fontWeight:600 }}>{items.length}건</span>}>
-            <div style={{ fontSize:14, fontWeight:700, color:'#555', marginBottom:8 }}>일반 배송</div>
-            {items.map(i => (
-              <div key={i.idx} style={{ display:'flex', gap:12, alignItems:'center', padding:'10px 0' }}>
-                <div style={{ width:64, height:64, borderRadius:8, background:'#F7F7F5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:28, overflow:'hidden', border:'1px solid #EEE' }}>
-                  {i.thumbnail ? <img src={i.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍑'}
+            {/* PC 테이블 헤더 */}
+            <div className="co-items-head">
+              <span>상품정보</span><span>수량</span><span>판매가</span><span>정가</span><span>배송비</span>
+            </div>
+            {items.map(i => {
+              const qty = i.quantity ?? 1;
+              const hasOrig = i.originalPrice != null && i.originalPrice > i.price;
+              return (
+              <div key={i.idx} className="co-item">
+                <div className="co-item-info">
+                  <div style={{ width:60, height:60, borderRadius:8, background:'#F7F7F5', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:26, overflow:'hidden', border:'1px solid #EEE' }}>
+                    {i.thumbnail ? <img src={i.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : '🍑'}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:600, lineHeight:1.4 }}>{i.name}</div>
+                    {i.options && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>ㄴ {i.options}</div>}
+                    <div className="co-mob-price" style={{ fontSize:14, color:'#555', marginTop:4, fontWeight:600 }}>{fmtPrice(i.price*qty)}원 / {qty}개</div>
+                  </div>
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:600, lineHeight:1.4 }}>{i.name}</div>
-                  {i.options && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>ㄴ {i.options}</div>}
-                  <div style={{ fontSize:14, color:'#555', marginTop:4, fontWeight:600 }}>{fmtPrice(i.price*(i.quantity??1))}원 / {i.quantity??1}개</div>
-                </div>
+                <div className="co-col">{qty}개</div>
+                <div className="co-col" style={{ fontWeight:700, color:'#1A1A1A' }}>{fmtPrice(i.price*qty)}원</div>
+                <div className="co-col co-orig">{hasOrig ? `${fmtPrice(i.originalPrice!*qty)}원` : '-'}</div>
+                <div className="co-col" style={{ color:'#2D7A4D', fontWeight:600 }}>무료</div>
               </div>
-            ))}
+              );
+            })}
           </Section>
 
           {/* ② 주문자 */}

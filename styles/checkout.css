@@ -9,6 +9,24 @@
       .co-pc-hide { display: none; }         /* PC에서 좌측 결제예정금액·동의 중복 숨김 */
     }
 
+    /* 주문상품: 모바일은 리스트, PC는 테이블 */
+    .co-items-head { display: none; }
+    .co-item { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #F2F2F2; }
+    .co-item:last-child { border-bottom: none; }
+    .co-item-info { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
+    .co-col { display: none; }
+    @media (min-width: 1025px) {
+      .co-items-head {
+        display: grid; grid-template-columns: 1fr 64px 120px 110px 72px; gap: 10px; align-items: center;
+        padding: 0 0 12px; border-bottom: 1.5px solid #1A1A1A; font-size: 13px; color: #888; font-weight: 600; text-align: center;
+      }
+      .co-items-head span:first-child { text-align: left; }
+      .co-item { display: grid; grid-template-columns: 1fr 64px 120px 110px 72px; gap: 10px; align-items: center; }
+      .co-col { display: block; text-align: center; font-size: 14px; color: #444; }
+      .co-orig { color: #BBB; text-decoration: line-through; font-size: 13px; }
+      .co-mob-price { display: none; }
+    }
+
     /* 섹션 아코디언: 모바일은 접기 유지, PC는 항상 펼침 */
     .co-sec-body.closed { display: none; }
     @media (min-width: 1025px) {
