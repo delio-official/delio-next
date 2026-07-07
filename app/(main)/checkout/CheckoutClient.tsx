@@ -886,7 +886,7 @@ export default function CheckoutClient() {
       {/* 배송지 추가/수정 모달 */}
       {addrFormModal && (
         <div onClick={() => setAddrFormModal(false)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1001, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:460, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'center', position:'relative', padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
