@@ -4,11 +4,15 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
 /* 기본: 경로 이동 시 항상 최상단(뒤로가기 시 하단으로 튀는 문제 방지).
-   예외: 홈('/')으로 '뒤로가기'한 경우에만 보던 위치로 복원
-   → 홈 하단 푸터에서 약관 등 링크 눌렀다 돌아오면 그 자리(하단) 유지. */
+   예외: 홈 하단 푸터 링크(약관·개인정보·환불·FAQ)에서 홈으로 '뒤로가기'한 경우에만
+   보던 위치로 복원 → 푸터에서 링크 눌렀다 돌아오면 그 자리(하단) 유지.
+   상품 등 다른 페이지에서 홈으로 뒤로가기는 최상단으로 간다. */
+const FOOTER_PAGES = ['/privacy', '/terms', '/refund-policy', '/faq'];
+
 export default function ScrollReset() {
   const pathname = usePathname();
   const isPop = useRef(false);
+  const prevPath = useRef(pathname);
 
   useEffect(() => {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -20,8 +24,11 @@ export default function ScrollReset() {
   useEffect(() => {
     const pop = isPop.current;
     isPop.current = false;
-    // 홈으로 뒤로가기 → 저장된 위치 복원 (콘텐츠 로드까지 몇 프레임 재시도)
-    if (pop && pathname === '/') {
+    const from = prevPath.current;
+    prevPath.current = pathname;
+
+    // 홈 푸터 링크 페이지 → 홈으로 뒤로가기한 경우만 위치 복원
+    if (pop && pathname === '/' && FOOTER_PAGES.includes(from)) {
       const y = Number(sessionStorage.getItem('sy:/') || 0);
       if (y > 0) {
         let tries = 0;
