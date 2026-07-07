@@ -352,8 +352,7 @@ export default function SignupClient() {
                 <div className="su-ctrl">
                   {verified ? (
                     <div style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 14px', background:'#F0FAF3', border:'1px solid #B9E6CB', borderRadius:8 }}>
-                      <span style={{ color:'#1F9D55', fontWeight:700, fontSize:14, flexShrink:0 }}>✓ 인증완료</span>
-                      <span style={{ fontSize:14, color:'#333' }}>{name}{phone ? ` · ${phone}` : ''}</span>
+                      <span style={{ color:'#1F9D55', fontWeight:700, fontSize:14 }}>✓ 인증완료</span>
                     </div>
                   ) : (
                     <>
@@ -379,6 +378,47 @@ export default function SignupClient() {
               </>
             )}
           </div>
+
+          {gateOn && (
+            <>
+              {/* 이름 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">이름</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified && name ? '#333' : '#94A3B8' }}>
+                    {verified && name ? name : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+              {/* 휴대폰 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">휴대폰</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified && phone ? '#333' : '#94A3B8' }}>
+                    {verified && phone ? phone : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+              {/* 생년월일 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">생년월일</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified && birthY ? '#333' : '#94A3B8' }}>
+                    {verified && birthY ? `${birthY}년 ${birthM}월 ${birthD}일` : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+              {/* 성별 (본인인증 자동입력) */}
+              <div className="su-row">
+                <div className="su-lbl">성별</div>
+                <div className="su-ctrl su-ctrl-pt16">
+                  <div style={{ fontSize:14, color: verified ? '#333' : '#94A3B8' }}>
+                    {verified ? (gender === 'male' ? '남성' : gender === 'female' ? '여성' : '-') : '본인인증 시 자동 입력됩니다'}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* 이메일 */}
           <div className="su-row" ref={rowEmailRef}>
@@ -479,28 +519,7 @@ export default function SignupClient() {
             </div>
           </div>
 
-          {gateOn ? (
-            <>
-              {/* 생년월일 (본인인증 자동입력) */}
-              <div className="su-row">
-                <div className="su-lbl">생년월일</div>
-                <div className="su-ctrl su-ctrl-pt16">
-                  <div style={{ fontSize:14, color: verified && birthY ? '#333' : '#94A3B8' }}>
-                    {verified && birthY ? `${birthY}년 ${birthM}월 ${birthD}일` : '본인인증 시 자동 입력됩니다'}
-                  </div>
-                </div>
-              </div>
-              {/* 성별 (본인인증 자동입력) */}
-              <div className="su-row">
-                <div className="su-lbl">성별</div>
-                <div className="su-ctrl su-ctrl-pt16">
-                  <div style={{ fontSize:14, color: verified ? '#333' : '#94A3B8' }}>
-                    {verified ? (gender === 'male' ? '남성' : gender === 'female' ? '여성' : '-') : '본인인증 시 자동 입력됩니다'}
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
+          {!gateOn && (
             <div className="su-row">
               <div className="su-lbl">본인인증</div>
               <div className="su-ctrl su-ctrl-pt16">
