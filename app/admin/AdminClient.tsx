@@ -5822,7 +5822,7 @@ export default function AdminClient() {
               <div className="adm-user-avatar">A</div>
               <div><div className="adm-user-name">관리자</div><div className="adm-user-role">Super Admin</div></div>
             </div>
-            <Link href="/" className="adm-ext-btn" title="사이트 보기"><Icon.ExternalLink /></Link>
+            <Link href="/" target="_blank" rel="noopener noreferrer" className="adm-ext-btn" title="사이트 보기"><Icon.ExternalLink /></Link>
           </div>
         </aside>
 
