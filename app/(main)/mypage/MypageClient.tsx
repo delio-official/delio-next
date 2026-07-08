@@ -2940,12 +2940,12 @@ export default function MypageClient() {
                 {/* 리뷰 적립 혜택 안내 박스 */}
                 <div className="mp-review-benefit">
                   <div className="mp-review-benefit-item">
-                    <span className="mp-review-benefit-label">포토리뷰 혜택 적립금</span>
-                    <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardPhoto)}원</span>
+                    <span className="mp-review-benefit-label">일반리뷰 작성 적립금</span>
+                    <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardText)}원</span>
                   </div>
                   <div className="mp-review-benefit-item">
-                    <span className="mp-review-benefit-label">리뷰 작성 혜택 적립금</span>
-                    <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardText)}원</span>
+                    <span className="mp-review-benefit-label">포토리뷰 작성 적립금</span>
+                    <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardPhoto)}원</span>
                   </div>
                 </div>
                 <ul className="mp-review-notice">
