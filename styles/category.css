@@ -290,6 +290,17 @@ body { background: #fff; }
   .product-card .price-current  { font-size: 15px; }
   .product-card .price-discount { font-size: 15px; }
   .product-card .price-original { font-size: 12px; }
+  /* 할인% + 판매가는 항상 한 줄로 (좁은 화면에서 두 줄로 깨지는 것 방지) */
+  .product-card .product-price-row { flex-wrap: nowrap; gap: 3px; white-space: nowrap; }
+}
+/* 아주 좁은 폰: 한 줄 유지되도록 가격 글자 축소 */
+@media (max-width: 400px) {
+  .product-card .price-current  { font-size: 14px; }
+  .product-card .price-discount { font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .product-card .price-current  { font-size: 13px; }
+  .product-card .price-discount { font-size: 13px; }
 }
 
 /* 카드 본문 */
