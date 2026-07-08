@@ -1160,7 +1160,7 @@
     .review-prod-name { font-size: 12px; font-weight: 600; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
     .review-prod-rating { font-size: 11px; color: var(--color-ink-mute); }
     .review-prod-rating span { color: #FFB300; font-weight: 700; margin-right: 2px; }
-    .review-nav-btn { position: absolute; top: 50%; transform: translateY(-60%); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
+    .review-nav-btn { position: absolute; top: 50%; transform: translateY(calc(-60% - 4px)); z-index: 10; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.32); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; opacity: 0; transition: opacity .2s, background .15s; }
     .review-scroll-wrap:hover .review-nav-btn { opacity: 1; }
     .review-nav-btn:hover { background: rgba(0,0,0,0.5); }
     .review-nav-btn.prev { left: -16px; }
