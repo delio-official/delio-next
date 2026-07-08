@@ -228,10 +228,9 @@ export default function CategoryClient() {
   const curCatRow = catRows.find(t => t.tab_value === ctxVal);
   const selMajor = curCatRow ? (curCatRow.parent || curCatRow.tab_value) : '';
   const activeVal = catParam || (curCatRow ? curCatRow.tab_value : '');
-  const selMajorRow = majors.find(m => m.tab_value === selMajor);
   const curMajorSubs = selMajor ? catRows.filter(t => t.parent === selMajor).sort((a, b) => a.sort_order - b.sort_order) : [];
   const subTabs = curMajorSubs.length
-    ? [{ value: '__all__', label: '전체보기' }, { value: selMajor, label: `${selMajorRow?.label ?? ''} 전체`.trim() }, ...curMajorSubs.map(s => ({ value: s.tab_value, label: s.label }))]
+    ? [{ value: selMajor, label: '전체보기' }, ...curMajorSubs.map(s => ({ value: s.tab_value, label: s.label }))]
     : [];
 
   /* 현재 정렬 라벨 */
