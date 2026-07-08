@@ -2904,8 +2904,8 @@ export default function ProductClient() {
                               border:`1.5px solid ${on ? '#1A1A1A' : '#E5E5E5'}`,
                               background: '#fff', color: on ? '#1A1A1A' : '#999',
                               fontSize:11, fontWeight:on ? 700 : 500, fontFamily:'inherit',
-                              lineHeight:1.3, transition:'all .12s' }}>
-                            {lv}
+                              lineHeight:1.3, transition:'all .12s', whiteSpace:'pre-line', textAlign:'center' }}>
+                            {lv.replace(' ', '\n')}
                           </button>
                         );
                       })}
