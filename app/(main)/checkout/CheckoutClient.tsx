@@ -653,8 +653,8 @@ export default function CheckoutClient() {
           {/* ⑥ 포인트 */}
           <Section title="포인트" sk="point" open={isOpen('point')} onToggle={toggleSec}>
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <input type="number" min={0} max={maxPoint} value={pointUsed || ''}
-                onChange={e => setPointUsed(Math.min(Number(e.target.value) || 0, maxPoint))} placeholder="0"
+              <input type="text" inputMode="numeric" value={pointUsed || ''}
+                onChange={e => setPointUsed(Math.min(Number(e.target.value.replace(/[^0-9]/g, '')) || 0, maxPoint))} placeholder="0"
                 style={{ ...inS, flex:1, textAlign:'right' }} />
               <button onClick={() => setPointUsed(maxPoint)}
                 style={{ padding:'8px 14px', border:'none', background:'#1A1A1A', borderRadius:6, fontSize:14, fontWeight:700, color:'#fff', cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0 }}>전액사용</button>
