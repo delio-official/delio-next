@@ -3547,10 +3547,10 @@ export default function MypageClient() {
                     <div style={{ marginBottom:18, position:'relative' }}>
                       <label style={{ display:'block', fontSize:13, fontWeight:600, marginBottom:7 }}>배송 요청사항</label>
                       <button type="button" className="req-box" onClick={() => setAddrReqOpen(o => !o)}>
-                        <span className="req-box-tag">일반</span>
-                        <span className={`req-box-val${(!addrReqCustom && !addrForm.delivery_request) ? ' ph' : ''}`}>{addrForm.delivery_request || '배송요청사항 없음'}</span>
-                        <span className="req-box-change">변경</span>
+                        <span className={`req-box-val${(!addrReqCustom && !addrForm.delivery_request) ? ' ph' : ''}`}>{addrForm.delivery_request || '배송 요청사항을 선택해주세요.'}</span>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}><polyline points="6 9 12 15 18 9"/></svg>
                       </button>
+                      <p style={{ fontSize:12, color:'#999', margin:'6px 2px 0' }}>배송일자 지정 등 출고관련 요청은 불가합니다.</p>
                       {/* PC: 인라인 드롭다운 */}
                       {addrReqOpen && !isMobileView && (
                         <>
