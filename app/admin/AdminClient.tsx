@@ -830,7 +830,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
           onClick={() => setPreview(false)}>
           <div style={{ background:'#fff', borderRadius:16, padding:28, width:320 }} onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <span style={{ fontSize:15, fontWeight:800 }}>SMS 미리보기</span>
+              <span style={{ fontSize:15, fontWeight:700 }}>SMS 미리보기</span>
               <button onClick={() => setPreview(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             {/* 폰 목업 */}
@@ -5401,7 +5401,7 @@ export default function AdminClient() {
                       ].map(([l, v, c]) => (
                         <div key={l} className="adm-kpi-card">
                           <div className="adm-kpi-label">{l}</div>
-                          <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:16 }}>{v}</div>
+                          <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
                         </div>
                       ))}
                     </div>
@@ -8651,7 +8651,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                   <div className="adm-float-overlay" onClick={() => setRefundDetail(null)}>
                     <div className="adm-float-modal" style={{ maxWidth:480, padding:28 }} onClick={e => e.stopPropagation()}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-                        <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>환불 신청 상세</h3>
+                        <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>환불 신청 상세</h3>
                         <button onClick={() => setRefundDetail(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
                       </div>
 
@@ -8745,7 +8745,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     ].map(([l, v, c]) => (
                       <div key={l} className="adm-kpi-card">
                         <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:18 }}>{v}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
                       </div>
                     ))}
                   </div>
@@ -8761,7 +8761,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     ].map(([l, v, c, sub]) => (
                       <div key={l} className="adm-kpi-card">
                         <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string, fontSize:18 }}>{v}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
                         {sub && <div className="adm-muted" style={{ fontSize:10, marginTop:2, lineHeight:1.3 }}>{sub}</div>}
                       </div>
                     ))}
@@ -9257,7 +9257,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 const kpiCard = (l: string, v: string, sub: string, opts: { trend?: { t: string; c: string; bg: string }; valColor?: string } = {}) => (
                   <div key={l} className="adm-kpi-card">
                     <div className="adm-kpi-label">{l}</div>
-                    <div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:21, color: opts.valColor }}>{v}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: opts.valColor }}>{v}</div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
                       {opts.trend && <span style={{ fontSize:10.5, fontWeight:800, color: opts.trend.c, background: opts.trend.bg, borderRadius:5, padding:'2px 7px' }}>{opts.trend.t}</span>}
                       <span style={{ fontSize:11, color:'#94A3B8' }}>{sub}</span>
@@ -9390,7 +9390,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                         <div style={{ padding:'14px 18px' }}>
                           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                             {[['이번달 발송', `${m.smsCount}건`], ['총 수신자', `${m.smsRecipients.toLocaleString()}명`]].map(([l, v]) => (
-                              <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ fontSize:18 }}>{v}</div></div>
+                              <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt">{v}</div></div>
                             ))}
                           </div>
                           <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.5 }}>읽음·클릭률은 SMS로는 추적이 안 됩니다. (카카오 알림톡 전환 시 가능)</div>
@@ -9699,7 +9699,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
             {/* 헤더 */}
             <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:16, fontWeight:800 }}>{selectedMember.name}</span>
+                <span style={{ fontSize:15, fontWeight:700 }}>{selectedMember.name}</span>
                 <span className={`adm-badge ${GRADE_BADGE_CLS[selectedMember.grade]||'badge-normal'}`}>{GRADE_LABEL[selectedMember.grade]||selectedMember.grade}</span>
                 {selectedMember.is_blocked && <span className="adm-badge badge-off">블랙리스트</span>}
               </div>
@@ -9931,7 +9931,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           <div className="adm-float-overlay" onClick={() => setGiveCouponModal(false)}>
             <div className="adm-float-modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
               <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:17, fontWeight:800 }}>쿠폰 지급</span>
+                <span style={{ fontSize:15, fontWeight:700 }}>쿠폰 지급</span>
                 <button onClick={() => setGiveCouponModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
               </div>
               <div style={{ padding:'18px 22px' }}>
@@ -10010,7 +10010,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           <div className="adm-float-modal" style={{ maxWidth:420, padding:28 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>포인트 지급</h3>
+              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>포인트 지급</h3>
               <button onClick={() => setGivePointModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             <div style={{ background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginBottom:20 }}>
@@ -10105,7 +10105,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           <div className="adm-float-modal" style={{ maxWidth:520, padding:28 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>입점문의 상세</h3>
+              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>입점문의 상세</h3>
               <button onClick={() => setSelectedInquiry(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             {[
@@ -10186,7 +10186,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           <div className="adm-float-modal" style={{ maxWidth:560, padding:28 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>{editingLounge ? '라운지 수정' : '라운지 등록'}</h3>
+              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>{editingLounge ? '라운지 수정' : '라운지 등록'}</h3>
               <button onClick={() => setLoungeModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             <div className="adm-form">
@@ -10305,7 +10305,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
           <div className="adm-float-modal" style={{ maxWidth:480, padding:28 }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:18, fontWeight:800, margin:0 }}>{editingCoupon ? '쿠폰 수정' : '쿠폰 생성'}</h3>
+              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>{editingCoupon ? '쿠폰 수정' : '쿠폰 생성'}</h3>
               <button onClick={() => setCouponModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             <div className="adm-form">
