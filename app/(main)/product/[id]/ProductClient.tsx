@@ -2905,7 +2905,7 @@ export default function ProductClient() {
                               background: '#fff', color: on ? '#1A1A1A' : '#999',
                               fontSize:11, fontWeight:on ? 700 : 500, fontFamily:'inherit',
                               lineHeight:1.3, transition:'all .12s', whiteSpace:'pre-line', textAlign:'center' }}>
-                            {lv.replace(' ', '\n')}
+                            {lv.length >= 5 ? lv.replace(' ', '\n') : lv}
                           </button>
                         );
                       })}
