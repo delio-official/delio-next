@@ -3064,7 +3064,7 @@ export default function MypageClient() {
                                     <div key={'ei'+i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
                                       <img src={url} alt="" style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee' }} />
                                       <button type="button" onClick={() => setEditImages(prev => prev.filter((_, j) => j !== i))}
-                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                        style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                                     </div>
                                   ))}
                                   {/* 새 이미지 */}
@@ -3072,7 +3072,7 @@ export default function MypageClient() {
                                     <div key={'ni'+i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
                                       <img src={URL.createObjectURL(f)} alt="" style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee' }} />
                                       <button type="button" onClick={() => setEditNewImages(prev => prev.filter((_, j) => j !== i))}
-                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                        style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                                     </div>
                                   ))}
                                   {/* 기존 영상 */}
@@ -3080,7 +3080,7 @@ export default function MypageClient() {
                                     <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                                       <video src={editVideo} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
                                       <button type="button" onClick={() => setEditVideo(null)}
-                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                        style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                                     </div>
                                   )}
                                   {/* 새 영상 */}
@@ -3088,7 +3088,7 @@ export default function MypageClient() {
                                     <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                                       <video src={URL.createObjectURL(editNewVideo)} style={{ width:64, height:64, objectFit:'cover', borderRadius:8, border:'1px solid #eee', background:'#000' }} />
                                       <button type="button" onClick={() => setEditNewVideo(null)}
-                                        style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', lineHeight:1 }}>×</button>
+                                        style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                                     </div>
                                   )}
                                   {/* 사진 추가 (최대 5장) */}

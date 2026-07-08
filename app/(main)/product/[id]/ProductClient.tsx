@@ -2952,12 +2952,12 @@ export default function ProductClient() {
                     />
                     <button
                       onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))}
-                      style={{ position:'absolute', top:-6, right:-6,
-                        width:20, height:20, borderRadius:'50%',
-                        background:'#1A1A1A', color:'#fff', border:'none',
-                        fontSize:12, cursor:'pointer', display:'flex',
-                        alignItems:'center', justifyContent:'center', lineHeight:1 }}>
-                      ×
+                      style={{ position:'absolute', top:3, right:3,
+                        width:18, height:18, borderRadius:'50%',
+                        background:'rgba(0,0,0,0.55)', color:'#fff', border:'none',
+                        fontSize:11, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>
+                      ✕
                     </button>
                   </div>
                 ))}
@@ -2976,12 +2976,12 @@ export default function ProductClient() {
                     </div>
                     <button
                       onClick={() => setNewVideo(null)}
-                      style={{ position:'absolute', top:-6, right:-6,
-                        width:20, height:20, borderRadius:'50%',
-                        background:'#1A1A1A', color:'#fff', border:'none',
-                        fontSize:12, cursor:'pointer', display:'flex',
-                        alignItems:'center', justifyContent:'center', lineHeight:1 }}>
-                      ×
+                      style={{ position:'absolute', top:3, right:3,
+                        width:18, height:18, borderRadius:'50%',
+                        background:'rgba(0,0,0,0.55)', color:'#fff', border:'none',
+                        fontSize:11, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>
+                      ✕
                     </button>
                   </div>
                 )}

@@ -239,14 +239,14 @@ export default function ReviewWriteModal({
                   onTouchEnd={() => { if (reviewDropTarget.current !== null) reorderReviewImages(reviewDropTarget.current); reviewDropTarget.current = null; }}
                   style={{ position:'relative', width:64, height:64, flexShrink:0, cursor:'grab', touchAction:'none' }}>
                   <img src={URL.createObjectURL(file)} alt="" draggable={false} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:8, border:'1px solid #E8E8E6', pointerEvents:'none' }} />
-                  <button onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>×</button>
+                  <button onClick={() => setNewImages(prev => prev.filter((_, j) => j !== i))} style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                 </div>
               ))}
               {newVideo && (
                 <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
                   <video src={URL.createObjectURL(newVideo)} style={{ width:'100%', height:'100%', objectFit:'cover', borderRadius:8, border:'1px solid #E8E8E6' }} />
                   <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)', borderRadius:8 }}><span style={{ fontSize:20 }}>▶</span></div>
-                  <button onClick={() => setNewVideo(null)} style={{ position:'absolute', top:-6, right:-6, width:20, height:20, borderRadius:'50%', background:'#1A1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>×</button>
+                  <button onClick={() => setNewVideo(null)} style={{ position:'absolute', top:3, right:3, width:18, height:18, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:11, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>✕</button>
                 </div>
               )}
               {newImages.length < 5 && (() => {
