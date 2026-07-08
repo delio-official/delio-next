@@ -2602,7 +2602,7 @@ export default function MypageClient() {
                       </div>
                     );
                   })}
-                  {!isMobileView && orderTotalPages > 1 && (
+                  {!isMobileView && filteredOrders.length > 0 && (
                     <div className="pagination" style={{ marginTop:24 }}>
                       <button className="page-btn" onClick={() => setOrderPage(0)} disabled={orderSafePage === 0}>«</button>
                       <button className="page-btn" onClick={() => setOrderPage(p => Math.max(0, p - 1))} disabled={orderSafePage === 0}>‹</button>
