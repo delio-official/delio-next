@@ -935,7 +935,7 @@ export default function HomeClient() {
         <div className="container">
           <div className="g-section-head">
             <h2 className="g-section-title">
-              <small>델리오가 엄선한 이번 주 추천 상품</small>
+              <small>델리오가 엄선한 이번주 추천 상품</small>
               <div className="g-title-main">
                 <span>델리오 픽</span>
               </div>
