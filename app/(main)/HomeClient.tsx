@@ -1209,7 +1209,7 @@ export default function HomeClient() {
         <div className="container">
           <div className="g-section-head">
             <h2 className="g-section-title">
-              <small>이번 주 주목할 만한 소식</small>
+              <small>이번주 주목할 만한 소식</small>
               <div className="g-title-main"><span>델리오 라운지</span></div>
             </h2>
           </div>
