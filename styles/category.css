@@ -216,6 +216,7 @@ body { background: #fff; }
   position: relative; aspect-ratio: 1;
   border-radius: 8px; background: var(--color-bg-white);
   box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden;
+  container-type: inline-size;
 }
 
 /* 품절 오버레이 (썸네일 위 검정 반투명 + 흰 글씨) */
@@ -223,7 +224,7 @@ body { background: #fff; }
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); color: #fff;
-  font-size: 22px; font-weight: 600; letter-spacing: 2px;
+  font-size: 11cqw; font-weight: 600; letter-spacing: 1cqw;
 }
 
 /* 이모지 배경 (카테고리별 그라디언트) */
