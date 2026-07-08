@@ -3949,8 +3949,7 @@ export default function MypageClient() {
                         </div>
                         <div style={{ fontSize:16, fontWeight:800, marginBottom:8 }}>문의가 접수되었습니다!</div>
                         <p style={{ fontSize:13, color:'#888', lineHeight:1.8, marginBottom:32 }}>
-                          영업일 기준 1~2일 이내 답변드립니다.<br/>
-                          아래 문의 내역에서 확인 가능합니다.
+                          영업일 기준 1~2일 이내 답변드리겠습니다.
                         </p>
                         <div style={{ display:'flex', gap:16 }}>
                           <button onClick={() => setCsFormOpen(false)}
@@ -4136,11 +4135,11 @@ export default function MypageClient() {
                                 {inq.status==='answered'?'답변완료':'답변대기'}
                               </span>
                             </div>
-                            <div style={{ fontSize:15, color:'#333', lineHeight:1.5,
+                            <div style={{ fontSize:13, color:'#333', lineHeight:1.5,
                               display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{inq.title}</div>
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', borderRadius:10, padding:'12px 14px',
-                                marginTop:10, fontSize:14, color:'#555', lineHeight:1.7 }}>
+                                marginTop:10, fontSize:13, color:'#555', lineHeight:1.7 }}>
                                 <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📝 문의 내용</div>
                                 {editCsId === inq.id
                                   ? <textarea value={editCsText} onClick={e => e.stopPropagation()} onChange={e => setEditCsText(e.target.value)}
