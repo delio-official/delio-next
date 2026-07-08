@@ -731,7 +731,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                 <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
                   <input type="text" className="adm-input-text" placeholder="이름·아이디(이메일)·전화번호 검색"
                     style={{ flex:1 }} value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
-                  <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>
                     <input type="checkbox"
                       checked={filteredForSelect.length > 0 && selectedIds.size === filteredForSelect.length}
                       onChange={toggleSelectAll} />
@@ -4958,7 +4958,7 @@ export default function AdminClient() {
                   ['is_active', '판매중'],
                   ['show_stat_pill', '만족/재구매 필 표시'],
                 ] as const).map(([key, label]) => (
-                  <label key={key} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14 }}>
+                  <label key={key} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
                     <input type="checkbox" checked={!!pForm[key]}
                       onChange={e => setPForm(f => ({ ...f, [key]: e.target.checked }))} />
                     {label}
@@ -5109,7 +5109,7 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
                 <input type="checkbox" checked={evForm.is_active}
                   onChange={e => setEvForm(f => ({ ...f, is_active: e.target.checked }))} />
                 즉시 활성화
@@ -5165,7 +5165,7 @@ export default function AdminClient() {
                   onChange={e => setFaqForm(f => ({ ...f, answer: e.target.value }))}
                   placeholder="고객에게 보여질 답변을 입력하세요." />
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:14 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
                 <input type="checkbox" checked={faqForm.is_active}
                   onChange={e => setFaqForm(f => ({ ...f, is_active: e.target.checked }))} />
                 노출 활성화
@@ -5272,24 +5272,24 @@ export default function AdminClient() {
               <div>
                 <label className="adm-label">노출 위치 (각각 켜고 끌 수 있음)</label>
                 <div style={{ display:'flex', flexDirection:'column', gap:8, marginTop:4 }}>
-                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
                     <input type="checkbox" checked={ftForm.show_in_home}
                       onChange={e => setFtForm(f => ({ ...f, show_in_home: e.target.checked }))} />
                     메인 퀵 가이드
                   </label>
-                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
                     <input type="checkbox" checked={ftForm.show_in_category}
                       onChange={e => setFtForm(f => ({ ...f, show_in_category: e.target.checked }))} />
                     상품목록 상단
                   </label>
-                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14 }}>
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13 }}>
                     <input type="checkbox" checked={ftForm.show_in_shortcut}
                       onChange={e => setFtForm(f => ({ ...f, show_in_shortcut: e.target.checked }))} />
                     모바일 카테고리 탭
                   </label>
                 </div>
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:14, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
                 <input type="checkbox" checked={ftForm.is_active}
                   onChange={e => setFtForm(f => ({ ...f, is_active: e.target.checked }))} />
                 <strong>전체 사용</strong> (끄면 모든 위치에서 숨김)
@@ -5427,10 +5427,10 @@ export default function AdminClient() {
                       <div className="adm-card">
                         <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
                         <table className="adm-table" style={{ marginTop:4 }}>
-                          <thead><tr><th>상품</th><th>수량</th><th>매출</th></tr></thead>
+                          <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
                           <tbody>
                             {d.topProducts.length === 0 ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'16px 0' }}>판매 없음</td></tr>
-                              : d.topProducts.map((r, i) => <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:5 }}>{i+1}</span>{r.name}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>)}
+                              : d.topProducts.map((r, i) => <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:5 }}>{i+1}</span>{r.name}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>)}
                           </tbody>
                         </table>
                       </div>
@@ -8793,12 +8793,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <div className="adm-card">
                       <div className="adm-card-head"><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>상품</th><th>수량</th><th>매출</th></tr></thead>
+                        <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
                         <tbody>
                           {settlementData.topProducts.length === 0
                             ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
                             : settlementData.topProducts.map((r, i) => (
-                              <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.name}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                              <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.name}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
                             ))}
                         </tbody>
                       </table>
@@ -8806,12 +8806,12 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <div className="adm-card">
                       <div className="adm-card-head"><span className="adm-card-title">카테고리별 매출 TOP</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>카테고리</th><th>수량</th><th>매출</th></tr></thead>
+                        <thead><tr><th>카테고리</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
                         <tbody>
                           {settlementData.topCategories.length === 0
                             ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
                             : settlementData.topCategories.map((r, i) => (
-                              <tr key={r.category}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.category}</td><td>{r.qty}개</td><td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                              <tr key={r.category}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.category}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
                             ))}
                         </tbody>
                       </table>
@@ -8823,15 +8823,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <div className="adm-card">
                       <div className="adm-card-head"><span className="adm-card-title">주문 상태별 현황</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>상태</th><th>건수</th><th>금액</th></tr></thead>
+                        <thead><tr><th>상태</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
                         <tbody>
                           {settlementData.byStatus.length === 0
                             ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
                             : settlementData.byStatus.map(r => (
                             <tr key={r.status}>
                               <td><span className={`adm-badge ${STATUS_BADGE_CLS[r.status] || 'badge-wait'}`}>{STATUS_LABEL[r.status] || r.status}</span></td>
-                              <td>{r.count}건</td>
-                              <td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                              <td className="adm-num">{r.count}건</td>
+                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
                             </tr>
                           ))}
                         </tbody>
@@ -8842,15 +8842,15 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <div className="adm-card">
                       <div className="adm-card-head"><span className="adm-card-title">결제 수단별 현황</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>결제수단</th><th>건수</th><th>금액</th></tr></thead>
+                        <thead><tr><th>결제수단</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
                         <tbody>
                           {settlementData.byMethod.length === 0
                             ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
                             : settlementData.byMethod.map(r => (
                             <tr key={r.method}>
                               <td style={{ fontWeight:500 }}>{r.method}</td>
-                              <td>{r.count}건</td>
-                              <td style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                              <td className="adm-num">{r.count}건</td>
+                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
                             </tr>
                           ))}
                         </tbody>
@@ -8969,7 +8969,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                 {farmSettleLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>농가</th><th>판매수량</th><th>매출</th><th>정산액(공급가)</th><th>마진</th><th>상태</th><th>처리</th></tr></thead>
+                      <thead><tr><th>농가</th><th className="adm-num">판매수량</th><th className="adm-num">매출</th><th className="adm-num">정산액(공급가)</th><th className="adm-num">마진</th><th>상태</th><th>처리</th></tr></thead>
                       <tbody>
                         {farmSettleRows.length === 0 ? (
                           <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 월 정산 내역이 없습니다.</td></tr>
@@ -8978,10 +8978,10 @@ GRANT ALL ON popups TO authenticated, anon;`}
                           return (
                           <tr key={r.farmId ?? 'none'}>
                             <td><strong>{r.farmName}</strong></td>
-                            <td className="adm-mono">{r.qty.toLocaleString()}개</td>
-                            <td className="adm-mono adm-muted">{fmtPrice(r.sales)}원</td>
-                            <td className="adm-mono"><strong>{fmtPrice(r.payout)}원</strong></td>
-                            <td className="adm-mono" style={{ color: r.margin >= 0 ? '#16A34A' : '#DC2626' }}>{fmtPrice(r.margin)}원</td>
+                            <td className="adm-num">{r.qty.toLocaleString()}개</td>
+                            <td className="adm-num adm-muted">{fmtPrice(r.sales)}원</td>
+                            <td className="adm-num"><strong>{fmtPrice(r.payout)}원</strong></td>
+                            <td className="adm-num" style={{ color: r.margin >= 0 ? '#16A34A' : '#DC2626' }}>{fmtPrice(r.margin)}원</td>
                             <td>
                               {paidAt
                                 ? <span className="adm-badge badge-on" title={new Date(paidAt).toLocaleString('ko-KR')}>정산완료</span>
@@ -9961,7 +9961,7 @@ GRANT ALL ON popups TO authenticated, anon;`}
                     <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
                       <input type="text" className="adm-input-text" placeholder="이름·이메일 검색" style={{ flex:1 }}
                         value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
-                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>
                         <input type="checkbox"
                           checked={filtered.length > 0 && filtered.every(m => giveCouponIds.has(m.id))}
                           onChange={e => {

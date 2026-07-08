@@ -307,6 +307,9 @@ select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 .adm-table tr:hover td { background: #F8FAFC; }
 .adm-table input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent); }
 .adm-mono { font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; }
+/* 금액·수량 등 숫자 컬럼: 우측정렬 + 자릿수 폭 고정 */
+.adm-num { font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; }
+.adm-table th.adm-num, .adm-table td.adm-num { text-align: right; }
 .adm-muted { color: var(--text-mute); }
 
 /* ===== 배지 ===== */
