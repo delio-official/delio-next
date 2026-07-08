@@ -447,7 +447,7 @@ export default function CartClient() {
 
             <div className="cta-group">
               <button className="cart-checkout-all" onClick={handleCheckout}>
-                주문하기 ({fmtPrice(total)}원)
+                주문하기
               </button>
               <button className="cart-checkout-sel" onClick={handleCheckout}>
                 선택 주문하기 ({selItems.length}개)
