@@ -148,7 +148,7 @@ export default function Header() {
                 <>
                   {isAdmin && (
                     <>
-                      <Link href="/admin">관리자페이지</Link>
+                      <Link href="/admin" target="_blank" rel="noopener noreferrer">관리자페이지</Link>
                       <span className="utility-sep">|</span>
                     </>
                   )}
