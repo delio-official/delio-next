@@ -156,9 +156,9 @@ export default function ReviewWriteModal({
             </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:13.5, fontWeight:600, color:'#222', lineHeight:1.4, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{product.name}</div>
-              {(reviewPt.text + reviewPt.photo) > 0 && (
+              {Math.max(reviewPt.text, reviewPt.photo) > 0 && (
                 <span style={{ display:'inline-block', marginTop:6, fontSize:11, fontWeight:700, color:'var(--color-accent)', background:'var(--color-accent-bg)', padding:'2px 8px', borderRadius:5 }}>
-                  최대 {(reviewPt.text + reviewPt.photo).toLocaleString()}P
+                  최대 {Math.max(reviewPt.text, reviewPt.photo).toLocaleString()}P
                 </span>
               )}
             </div>
@@ -166,12 +166,11 @@ export default function ReviewWriteModal({
 
           {/* 포인트 적립 안내 */}
           {(reviewPt.text > 0 || reviewPt.photo > 0) && (
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, padding:'12px 14px', borderRadius:12, background:'var(--color-accent-bg)', border:'1px solid var(--color-accent-soft)' }}>
-              <span style={{ fontSize:18, lineHeight:1 }}>✨</span>
-              <div style={{ fontSize:12.5, lineHeight:1.6, color:'var(--color-ink-soft)' }}>
+            <div style={{ marginBottom:20, padding:'14px 16px', borderRadius:12, background:'var(--color-accent-bg)', border:'1px solid var(--color-accent-soft)', textAlign:'left' }}>
+              <div style={{ fontSize:14, lineHeight:1.7, color:'var(--color-ink-soft)' }}>
                 리뷰를 남기면 포인트를 드려요!<br />
-                <b style={{ color:'var(--color-accent)' }}>리뷰 작성 +{reviewPt.text.toLocaleString()}P</b>
-                {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>사진·영상 첨부 시 +{reviewPt.photo.toLocaleString()}P</b></>}
+                <b style={{ color:'var(--color-accent)' }}>일반 리뷰 {reviewPt.text.toLocaleString()}P</b>
+                {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>포토(사진·영상) 리뷰 {reviewPt.photo.toLocaleString()}P</b></>}
               </div>
             </div>
           )}
@@ -313,12 +312,12 @@ export default function ReviewWriteModal({
 
         {/* 하단 */}
         <div style={{ flexShrink:0, borderTop:'1px solid #EEE', padding:'10px 16px 14px', background:'#fff' }}>
-          {(reviewPt.text + reviewPt.photo) > 0 && (
+          {Math.max(reviewPt.text, reviewPt.photo) > 0 && (
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:13, marginBottom:8 }}>
               <span style={{ color:'#888' }}>받을 수 있는 포인트</span>
               <span style={{ fontWeight:700 }}>
-                <span style={{ color:'var(--color-accent)' }}>{((newContent.trim().length >= 10 ? reviewPt.text : 0) + ((newImages.length > 0 || newVideo) ? reviewPt.photo : 0)).toLocaleString()}</span>
-                <span style={{ color:'#bbb' }}> / {(reviewPt.text + reviewPt.photo).toLocaleString()}P</span>
+                <span style={{ color:'var(--color-accent)' }}>{((newImages.length > 0 || newVideo) ? reviewPt.photo : (newContent.trim().length >= 10 ? reviewPt.text : 0)).toLocaleString()}</span>
+                <span style={{ color:'#bbb' }}> / {Math.max(reviewPt.text, reviewPt.photo).toLocaleString()}P</span>
               </span>
             </div>
           )}
