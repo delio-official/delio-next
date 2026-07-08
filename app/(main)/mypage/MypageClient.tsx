@@ -4139,7 +4139,7 @@ export default function MypageClient() {
                               display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>{inq.title}</div>
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', borderRadius:10, padding:'12px 14px',
-                                marginTop:10, fontSize:13, color:'#555', lineHeight:1.7 }}>
+                                marginTop:10, fontSize:15, color:'#555', lineHeight:1.7 }}>
                                 <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📝 문의 내용</div>
                                 {editCsId === inq.id
                                   ? <textarea value={editCsText} onClick={e => e.stopPropagation()} onChange={e => setEditCsText(e.target.value)}
