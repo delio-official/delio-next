@@ -2865,6 +2865,8 @@ export default function AdminClient() {
           orders: r.orders && nextOrderStatus ? { ...r.orders, status: nextOrderStatus } : r.orders }
       : r));
     setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : prev.reject_reason } : prev);
+    if (req.order_id && nextOrderStatus) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: nextOrderStatus as string } : o));
+    refreshStageCounts(); // 환불 처리로 바뀐 주문상태를 현황판에 반영
   }
 
   async function loadReviews() {
@@ -3674,6 +3676,7 @@ export default function AdminClient() {
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
+      refreshStageCounts(); // 주문 처리 현황판 즉시 갱신
 
       /* 취소·환불이면 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
       if (isVoid) {
@@ -4240,6 +4243,7 @@ export default function AdminClient() {
 
   /* ========== 패널 전환 ========== */
   function go(p: PanelKey, fromHistory = false) {
+    const changed = p !== panel;
     setPanel(prev => {
       // 사용자가 직접 이동한 경우만 히스토리에 기록 (뒤로가기로 복원 가능)
       if (!fromHistory && typeof window !== 'undefined' && p !== prev) {
@@ -4247,6 +4251,12 @@ export default function AdminClient() {
       }
       return p;
     });
+    // 섹션을 벗어났다 다시 오면 하위 필터가 남지 않도록 초기화
+    // (대시보드 바로가기는 go() 호출 이후 필터를 세팅하므로 그 값은 유지됨)
+    if (changed) {
+      setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderPage(1);
+      setRefundFilter('all'); setRefundTypeFilter(''); setRefundStatusFilter('');
+    }
     if (window.innerWidth <= 900) setSidebarOpen(false);
     if (loadedPanels.current.has(p)) return;
     loadedPanels.current.add(p);
@@ -5859,7 +5869,7 @@ export default function AdminClient() {
                 <div style={{ display:'flex', alignItems:'center', padding:'16px 8px 10px', flexWrap:'wrap' }}>
                   {ORDER_STAGES.map((st, i) => (
                     <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:96 }}>
-                      <div onClick={() => { setOrderStatusFilter(st.key); go('orders'); }}
+                      <div onClick={() => { go('orders'); setOrderStatusFilter(st.key); }}
                         style={{ flex:1, cursor:'pointer', textAlign:'center', padding:'12px 6px', borderRadius:12, background:'#F8FAFC' }}>
                         <div style={{ fontSize:13, color:'#64748B', marginBottom:6 }}>{st.label}</div>
                         <div style={{ fontSize:26, fontWeight:800, color:'#1A1A1A', lineHeight:1 }}>
@@ -5890,7 +5900,7 @@ export default function AdminClient() {
                 <div className="adm-card">
                   <div className="adm-card-head"><span className="adm-card-title">판매 지연</span></div>
                   <div className="adm-pending-list">
-                    <div className="adm-pending-row" onClick={() => { setOrderStatusFilter('preparing'); go('orders'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
+                    <div className="adm-pending-row" onClick={() => { go('orders'); setOrderStatusFilter('preparing'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
                     <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 처리 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
                   </div>
                 </div>
