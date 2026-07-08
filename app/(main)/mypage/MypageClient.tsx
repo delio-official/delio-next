@@ -3255,7 +3255,7 @@ export default function MypageClient() {
                   farmWishlist.length === 0 ? (
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
-                    <div className="farms-grid">
+                    <div className={isMobileView ? 'farms-grid' : 'product-grid'}>
                       {farmWishlist.map(fw => !fw.farms ? null : isMobileView ? (
                         <FarmCard key={fw.id} farm={fw.farms} onRemove={() => removeFarmWish(fw.id)} />
                       ) : (
