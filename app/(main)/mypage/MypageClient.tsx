@@ -3255,11 +3255,12 @@ export default function MypageClient() {
                   farmWishlist.length === 0 ? (
                     <div className="mp-empty">찜한 농가가 없습니다.</div>
                   ) : (
-                    <div className={isMobileView ? 'farms-grid' : 'product-grid'}>
-                      {farmWishlist.map(fw => !fw.farms ? null : isMobileView ? (
+                    <div className="farms-grid">
+                      {farmWishlist.map(fw => !fw.farms ? null : !isMobileView ? (
+                        /* PC: 상세형 브랜드 소개관 카드 (과일 뱃지·지역·소개·농가 스토리) */
                         <FarmCard key={fw.id} farm={fw.farms} onRemove={() => removeFarmWish(fw.id)} />
                       ) : (
-                        /* PC: 메인 브랜드 소개관 카드 스타일 (사진 + 로고·농가명·화살표, 상품 없음) */
+                        /* 모바일: 심플 카드 (사진 + 로고·농가명·화살표) */
                         <Link key={fw.id} href={`/farm/${fw.farms.slug}`}
                           style={{ display:'block', textDecoration:'none', color:'inherit', borderRadius:8, overflow:'hidden', border:'1px solid #F0F0EE', background:'#fff', transition:'box-shadow .2s' }}
                           onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)')}
