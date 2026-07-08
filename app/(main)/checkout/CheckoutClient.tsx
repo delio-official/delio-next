@@ -703,13 +703,14 @@ export default function CheckoutClient() {
                 appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
                 backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
                 backgroundRepeat:'no-repeat', backgroundPosition:'right 16px center' }}>
-              <option value="">배송 요청사항을 선택해주세요</option>
+              <option value="">배송 요청사항을 선택해주세요.</option>
               <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
               <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
               <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
               <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
               <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
             </select>
+            <p style={{ fontSize:12, color:'#999', margin:'6px 2px 0' }}>배송일자 지정 등 출고관련 요청은 불가합니다.</p>
           </Section>
 
           {/* ⑦ 결제 예정금액 (PC는 우측 박스로 대체) */}
@@ -899,7 +900,7 @@ export default function CheckoutClient() {
             </div>
             <div className="hide-scrollbar" style={{ overflowY:'auto', padding:'16px 20px 20px' }}>
               <div style={{ marginBottom:11 }}>
-                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
+                <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>배송지명 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <input maxLength={6} placeholder="최대 6자" value={addrForm.label} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
                   style={{ width:'100%', height:44, padding:'0 13px', border:'1px solid #DDD', borderRadius:6, fontSize:14, outline:'none', fontFamily:'inherit', boxSizing:'border-box' }} />
               </div>
@@ -933,13 +934,14 @@ export default function CheckoutClient() {
                     appearance:'none', WebkitAppearance:'none', MozAppearance:'none', backgroundColor:'#fff',
                     backgroundImage:"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
                     backgroundRepeat:'no-repeat', backgroundPosition:'right 14px center' }}>
-                  <option value="">선택 안 함</option>
+                  <option value="">배송 요청사항을 선택해주세요.</option>
                   <option value="문 앞에 놓아주세요">문 앞에 놓아주세요</option>
                   <option value="부재 시 문 앞에 놓아주세요">부재 시 문 앞에 놓아주세요</option>
                   <option value="경비실에 맡겨주세요">경비실에 맡겨주세요</option>
                   <option value="배송 전 연락 바랍니다">배송 전 연락 바랍니다</option>
                   <option value="파손 주의 부탁드립니다">파손 주의 부탁드립니다</option>
                 </select>
+                <p style={{ fontSize:12, color:'#999', margin:'6px 2px 0' }}>배송일자 지정 등 출고관련 요청은 불가합니다.</p>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, color:'#444', cursor:'pointer', marginBottom:14 }}>
                 <input type="checkbox" checked={addrForm.is_default} onChange={e => setAddrForm(f => ({ ...f, is_default: e.target.checked }))}
