@@ -230,7 +230,7 @@ export default function ReviewPhotoModal({
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 3500, background: 'rgba(0,0,0,0.6)', display: 'flex' }}>
         <div onClick={e => e.stopPropagation()} style={{ background: '#fff', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {header}
-          <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
+          <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>{photo}{thumbs}{info}{productCard}</div>
           {reviewNav}
           {footerNode ?? footer}
         </div>
@@ -244,9 +244,9 @@ export default function ReviewPhotoModal({
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 880, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
         {header}
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-          <div style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: 20 }}>{photo}{thumbs}{productCard}</div>
+          <div className="hide-scrollbar" style={{ width: '50%', borderRight: '1px solid #EEE', display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingBottom: 20 }}>{photo}{thumbs}{productCard}</div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{ flex: 1, overflowY: 'auto' }}>{info}</div>
+            <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>{info}</div>
             {footerNode ?? footer}
           </div>
         </div>

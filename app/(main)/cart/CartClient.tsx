@@ -491,7 +491,7 @@ export default function CartClient() {
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
+            <div className="hide-scrollbar" style={{ overflowY:'auto', padding:'18px 22px 22px' }}>
               <div style={{ fontSize:14, color:'#888', paddingBottom:14, marginBottom:16, borderBottom:'1px solid #F2F2F2', lineHeight:1.5 }}>
                 {optItem.name}
               </div>

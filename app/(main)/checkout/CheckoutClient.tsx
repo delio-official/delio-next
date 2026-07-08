@@ -833,7 +833,7 @@ export default function CheckoutClient() {
               </div>
             </div>
             {/* 목록 (스크롤) */}
-            <div style={{ flex:1, overflowY:'auto', padding:'0 22px 20px' }}>
+            <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', padding:'0 22px 20px' }}>
               {savedAddresses.length === 0 ? (
                 <div style={{ textAlign:'center', color:'#aaa', fontSize:14, padding:'40px 0' }}>저장된 배송지가 없습니다.</div>
               ) : (
@@ -897,7 +897,7 @@ export default function CheckoutClient() {
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#888" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <div style={{ overflowY:'auto', padding:'16px 20px 20px' }}>
+            <div className="hide-scrollbar" style={{ overflowY:'auto', padding:'16px 20px 20px' }}>
               <div style={{ marginBottom:11 }}>
                 <label style={{ display:'block', fontSize:14, fontWeight:600, marginBottom:6 }}>배송명 <span style={{ color:'#CB1D11' }}>*</span></label>
                 <input maxLength={6} placeholder="최대 6자" value={addrForm.label} onChange={e => setAddrForm(f => ({ ...f, label: e.target.value }))}
@@ -980,7 +980,7 @@ export default function CheckoutClient() {
               </button>
             </div>
             {/* 리스트 */}
-            <div style={{ flex:1, overflowY:'auto', padding:'16px 20px 20px' }}>
+            <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', padding:'16px 20px 20px' }}>
               {/* 최대할인 자동적용 — 누르면 가장 많이 할인되는 쿠폰이 선택됨 */}
               <button disabled={!bestCouponId}
                 onClick={() => setModalSel(modalSel === bestCouponId ? '' : bestCouponId)}

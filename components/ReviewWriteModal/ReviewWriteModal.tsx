@@ -148,7 +148,7 @@ export default function ReviewWriteModal({
         </div>
 
         {/* 스크롤 본문 */}
-        <div style={{ flex:1, overflowY:'auto', padding:'20px 18px 24px' }}>
+        <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', padding:'20px 18px 24px' }}>
           {/* 상품 정보 */}
           <div style={{ display:'flex', gap:12, alignItems:'center', paddingBottom:18, borderBottom:'1px solid #F0F0F0', marginBottom:20 }}>
             <div style={{ width:56, height:56, borderRadius:8, overflow:'hidden', flexShrink:0, background:'#F4F4F2', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>

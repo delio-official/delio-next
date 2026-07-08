@@ -236,7 +236,7 @@ export default function InfoSectionEditor({ productId, productName, onClose }: P
         </div>
 
         {/* 본문 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px' }}>
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
               height: 300, color: '#999', fontSize: 14 }}>불러오는 중...</div>

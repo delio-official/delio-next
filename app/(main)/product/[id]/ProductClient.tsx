@@ -1217,10 +1217,10 @@ export default function ProductClient() {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
                   {/* 본문: 모바일=세로 스크롤 / PC=좌우 분할 */}
-                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflowY: isMobile ? 'auto' : 'hidden' }}>
+                  <div className="hide-scrollbar" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflowY: isMobile ? 'auto' : 'hidden' }}>
 
                     {/* ── 큰 사진 + 썸네일 ── */}
-                    <div style={{ width: isMobile ? '100%' : '50%', flexShrink: 0, display: 'flex', flexDirection: 'column', ...(isMobile ? {} : { overflowY: 'auto', borderRight: '1px solid #EEE' }) }}>
+                    <div className="hide-scrollbar" style={{ width: isMobile ? '100%' : '50%', flexShrink: 0, display: 'flex', flexDirection: 'column', ...(isMobile ? {} : { overflowY: 'auto', borderRight: '1px solid #EEE' }) }}>
                       {/* 큰 사진 (정사각 — 사진 크기 통일) */}
                       <div style={{
                         position: 'relative', width: '100%', aspectRatio: '1', background: '#F4F4F2',
@@ -1298,7 +1298,7 @@ export default function ProductClient() {
                     </div>
 
                     {/* ── 리뷰 정보 ── */}
-                    <div style={{ minWidth: 0, ...(isMobile ? {} : { flex: 1, overflowY: 'auto' }) }}>
+                    <div className="hide-scrollbar" style={{ minWidth: 0, ...(isMobile ? {} : { flex: 1, overflowY: 'auto' }) }}>
                       {selItem.review ? (
                         <>
                           {/* ① 상단 배지 행: BEST | 이름 | 평점텍스트 */}
@@ -1398,7 +1398,7 @@ export default function ProductClient() {
 
               ) : (
                 /* ────── 그리드 뷰 ────── */
-                <div style={{ overflowY: 'auto', padding: 12 }}>
+                <div className="hide-scrollbar" style={{ overflowY: 'auto', padding: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isMobile ? 3 : 6}, 1fr)`, gap: 4 }}>
                     {allPhotoItems.map((item, i) => (
                       <div key={i}
@@ -2691,7 +2691,7 @@ export default function ProductClient() {
           display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center',
           padding: isMobile ? 0 : 16 }}
           onClick={() => setInqModal(false)}>
-          <div style={{ background:'#fff', width:'100%', maxWidth:480,
+          <div className="hide-scrollbar" style={{ background:'#fff', width:'100%', maxWidth:480,
             borderRadius: isMobile ? '16px 16px 0 0' : 16, padding:24, maxHeight:'80vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
@@ -2817,7 +2817,7 @@ export default function ProductClient() {
             </div>
 
             {/* 스크롤 본문 */}
-            <div style={{ flex:1, overflowY:'auto', padding:'20px 18px 24px' }}>
+            <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', padding:'20px 18px 24px' }}>
 
             {/* 상품 정보 */}
             <div style={{ display:'flex', gap:12, alignItems:'center', paddingBottom:18,
@@ -3172,7 +3172,7 @@ export default function ProductClient() {
               <span style={{ fontSize:16, fontWeight:800 }}>🎟️ 쿠폰 다운받기</span>
               <button onClick={() => setCouponDownOpen(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#888', lineHeight:1 }}>✕</button>
             </div>
-            <div style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
+            <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', padding:'14px 18px' }}>
               {downCoupons.length === 0 ? (
                 <div style={{ textAlign:'center', color:'#aaa', fontSize:14, padding:'30px 0' }}>받을 수 있는 쿠폰이 없습니다.</div>
               ) : downCoupons.map(c => (

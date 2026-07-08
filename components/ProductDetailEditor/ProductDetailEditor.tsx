@@ -192,7 +192,7 @@ export default function ProductDetailEditor({ productId, productName, onClose }:
         </div>
 
         {/* ── 에디터 본문 — 실제 상품 상세페이지 스타일 그대로 ── */}
-        <div style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: '#999', fontSize: 14 }}>
               불러오는 중...

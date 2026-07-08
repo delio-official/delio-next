@@ -149,7 +149,7 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
         </div>
 
         {/* 본문 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
               height: 200, color: '#999' }}>불러오는 중...</div>

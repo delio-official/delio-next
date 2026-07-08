@@ -189,7 +189,7 @@ export default function OptionDrawer() {
           <div style={{ padding:'60px 0', textAlign:'center', color:'#aaa', fontSize:14 }}>불러오는 중...</div>
         ) : product ? (
           <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-            <div style={{ flex:1, overflowY:'auto', overscrollBehavior:'contain', WebkitOverflowScrolling:'touch', padding:'18px 20px' }}>
+            <div className="hide-scrollbar" style={{ flex:1, overflowY:'auto', overscrollBehavior:'contain', WebkitOverflowScrolling:'touch', padding:'18px 20px' }}>
               {/* 상품 정보 */}
               <div style={{ display:'flex', gap:12, marginBottom:22 }}>
                 <div style={{ width:56, height:56, borderRadius:8, background:'#F7F7F5', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', fontSize:26 }}>

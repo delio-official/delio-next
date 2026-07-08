@@ -114,7 +114,7 @@ export default function TrackingModal({ carrierId, trackingNumber, courierName, 
         </div>
 
         {/* 본문 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#94A3B8' }}>
               조회 중...

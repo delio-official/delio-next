@@ -1486,7 +1486,7 @@ export default function MypageClient() {
         <div onClick={() => setAskModal(null)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems: isMobileView ? 'flex-end' : 'center', justifyContent:'center', padding: isMobileView ? 0 : 20 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius: isMobileView ? '16px 16px 0 0' : 16, padding: isMobileView ? '22px 20px calc(24px + env(safe-area-inset-bottom))' : '22px 20px 24px', maxHeight:'85vh', overflowY:'auto' }}>
+            className="hide-scrollbar" style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius: isMobileView ? '16px 16px 0 0' : 16, padding: isMobileView ? '22px 20px calc(24px + env(safe-area-inset-bottom))' : '22px 20px 24px', maxHeight:'85vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
               <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
               <button onClick={() => setAskModal(null)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
@@ -1578,7 +1578,7 @@ export default function MypageClient() {
           <div onClick={() => { setPicker(null); setPickerOpen(false); }}
             style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:'16px 16px 0 0', padding:'22px 20px calc(24px + env(safe-area-inset-bottom))', maxHeight:'85vh', overflowY:'auto' }}>
+              className="hide-scrollbar" style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius:'16px 16px 0 0', padding:'22px 20px calc(24px + env(safe-area-inset-bottom))', maxHeight:'85vh', overflowY:'auto' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
                 <span style={{ fontSize:17, fontWeight:700 }}>{title}</span>
                 <button onClick={() => { setPicker(null); setPickerOpen(false); }} style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, color:'#999', lineHeight:1, padding:0 }}>×</button>
@@ -1676,7 +1676,7 @@ export default function MypageClient() {
           const pcTitle: React.CSSProperties = { fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:14 };
           const pcBtn: React.CSSProperties = { fontSize:13, padding:'8px 16px', border:'1px solid #DDD', borderRadius:8, background:'#fff', color:'#333', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' };
           return (
-            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
+            <div className="hide-scrollbar" style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
               onClick={() => setDetailOrder(null)}>
               <div style={{ maxWidth:920, margin:'0 auto', background:'#F7F7F5', borderRadius:16, overflow:'hidden' }} onClick={e => e.stopPropagation()}>
                 {/* 헤더 */}
@@ -1759,7 +1759,7 @@ export default function MypageClient() {
         }
 
         return (
-          <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
+          <div className="hide-scrollbar" style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
             <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
               {/* 헤더 */}
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', position:'sticky', top:0, background:'#fff', zIndex:2, borderBottom:'1px solid #F0F0F0' }}>
@@ -1869,7 +1869,7 @@ export default function MypageClient() {
           const pcSec: React.CSSProperties = { border:'1px solid #ECECEC', borderRadius:12, padding:'20px 24px', background:'#fff' };
           const pcTitle: React.CSSProperties = { fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:14 };
           return (
-            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
+            <div className="hide-scrollbar" style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, overflowY:'auto', padding:'40px 20px' }}
               onClick={() => setCancelDetail(null)}>
               <div style={{ maxWidth:560, margin:'0 auto', background:'#F7F7F5', borderRadius:16, overflow:'hidden' }} onClick={e => e.stopPropagation()}>
                 <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', padding:'26px 32px 20px', background:'#fff', borderBottom:'1px solid #F0F0F0' }}>
@@ -1927,7 +1927,7 @@ export default function MypageClient() {
           );
         }
         return (
-          <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
+          <div className="hide-scrollbar" style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, overflowY:'auto' }}>
             <div style={{ maxWidth:480, margin:'0 auto', minHeight:'100%', background:'#fff', paddingBottom:'calc(24px + env(safe-area-inset-bottom))' }}>
               {/* 헤더 */}
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 16px', position:'sticky', top:0, background:'#fff', zIndex:2, borderBottom:'1px solid #F0F0F0' }}>
@@ -1997,7 +1997,7 @@ export default function MypageClient() {
         const REASONS = ['앱 사용이 불편해요','상품 탐색이 어려워요','상품 배송이 느려요','구매할 만한 상품이 없어요','광고성 알림이 너무 많이 와요','상품의 질이 좋지 않아요','쓰지 않는 앱이에요','재가입할 거예요','기타'];
         return (
           <div style={{ position:'fixed', inset:0, background:'#fff', zIndex:3100, display:'flex', flexDirection:'column' }}>
-            <div style={{ background:'#fff', width:'100%', flex:1, minHeight:0, overflowY:'auto', padding:'24px 22px 28px', maxWidth:560, margin:'0 auto' }}>
+            <div className="hide-scrollbar" style={{ background:'#fff', width:'100%', flex:1, minHeight:0, overflowY:'auto', padding:'24px 22px 28px', maxWidth:560, margin:'0 auto' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
                 <h3 style={{ fontSize:17, fontWeight:800, lineHeight:1.4 }}>
                   {withdrawStep === 1 ? '탈퇴하는 이유를 알려주세요' : `${profile?.name || '회원'}님의 혜택이 모두 사라져요!`}
@@ -4471,7 +4471,7 @@ export default function MypageClient() {
         <div onClick={() => setReqModal(null)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
+            className="hide-scrollbar" style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
               <span style={{ fontSize:17, fontWeight:800 }}>{reqModal.instant ? '주문 취소' : reqModal.type === 'cancel' ? '주문취소 신청' : '환불 신청'}</span>
               <button onClick={() => setReqModal(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#999', lineHeight:1 }}>✕</button>

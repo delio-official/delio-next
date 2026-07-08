@@ -247,7 +247,7 @@ export default function ReviewClient() {
               <span style={{ fontSize: 16, fontWeight: 700 }}>사진 후기 전체보기 ({photoTotal})</span>
               <button onClick={closeGallery} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 22, color: '#888', lineHeight: 1 }}>✕</button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+            <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
                 {photoReviews.map(r => {
                   const cat = r.products?.category || 'default';
