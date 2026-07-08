@@ -789,7 +789,7 @@ input, select, textarea { font-family: inherit; }
 }
 /* 사업자정보 아코디언: PC는 항상 펼침·토글 숨김 */
 .footer-biz-toggle { display: none; }
-.footer-biz-detail { display: flex; flex-direction: column; gap: 8px; }
+.footer-biz-detail { display: flex; flex-direction: column; gap: 6px; }
 
 @media (max-width: 640px) {
   .footer-inner { grid-template-columns: 1fr; }

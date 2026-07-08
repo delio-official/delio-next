@@ -1277,9 +1277,9 @@ export default function HomeClient() {
           </div>
 
           {/* 사업자정보 | 고객센터 | 입금계좌 (같은 높이 박스, 내용 위아래 꽉) */}
-          <div className="footer-top" style={{ display:'grid', gridTemplateColumns:'1.9fr 1fr 1fr', gap:48, paddingBottom:40, alignItems:'stretch' }}>
+          <div className="footer-top" style={{ display:'grid', gridTemplateColumns:'1.9fr 1fr 1fr', gap:48, paddingBottom:40, alignItems:'start' }}>
             {/* 사업자 정보 */}
-            <div className={`footer-biz${bizOpen ? ' open' : ''}`} style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+            <div className={`footer-biz${bizOpen ? ' open' : ''}`} style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13, color:'#888', lineHeight:1.75 }}>
               {/* 모바일 전용 토글 헤더 */}
               <button type="button" className="footer-biz-toggle" onClick={() => setBizOpen(o => !o)}>
                 <span>델리오 사업자 정보</span>
@@ -1296,7 +1296,7 @@ export default function HomeClient() {
             </div>
 
             {/* 고객센터 */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', fontSize:13.5, color:'#888', lineHeight:1.9 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:14, fontSize:13.5, color:'#888', lineHeight:1.75 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터 안내</div>
               <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>070-8064-3601</div>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -1307,7 +1307,7 @@ export default function HomeClient() {
             </div>
 
             {/* 입금 계좌 */}
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', gap:12, fontSize:14.5, color:'#999', lineHeight:1.9 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:14, fontSize:14, color:'#999', lineHeight:1.75 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>국민은행 469901-04-404587</div>
