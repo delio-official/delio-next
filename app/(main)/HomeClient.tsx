@@ -1272,7 +1272,7 @@ export default function HomeClient() {
       <footer className="site-footer">
         <div className="container">
           {/* 로고 (맨 위 단독) */}
-          <div className="footer-logo" style={{ marginBottom:28 }}>
+          <div className="footer-logo" style={{ marginBottom:16 }}>
             <img src="/DelioLogo.png" alt="Delio" style={{ height:48, width:'auto', display:'block', objectFit:'contain' }} />
           </div>
 
@@ -1296,7 +1296,7 @@ export default function HomeClient() {
             </div>
 
             {/* 고객센터 */}
-            <div style={{ display:'flex', flexDirection:'column', gap:14, fontSize:13.5, color:'#888', lineHeight:1.75 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:9, fontSize:13.5, color:'#888', lineHeight:1.75 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터 안내</div>
               <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>070-8064-3601</div>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -1307,7 +1307,7 @@ export default function HomeClient() {
             </div>
 
             {/* 입금 계좌 */}
-            <div style={{ display:'flex', flexDirection:'column', gap:14, fontSize:14, color:'#999', lineHeight:1.75 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:9, fontSize:14, color:'#999', lineHeight:1.75 }}>
               <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 <div>국민은행 469901-04-404587</div>
