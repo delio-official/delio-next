@@ -634,8 +634,11 @@ export default function CheckoutClient() {
               <span style={{ fontSize:14, color:'#333', fontWeight:600 }}>최대할인 자동적용</span>
             </label>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
-              <span style={{ fontSize:16, fontWeight:600 }}>쿠폰</span>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:3, minWidth:0 }}>
+                <span style={{ fontSize:16, fontWeight:600 }}>쿠폰</span>
+                {coupon && <span style={{ fontSize:13, color:'#555', fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{coupon.name}</span>}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
                 <span style={{ fontSize:14, fontWeight:700, color: couponDisc > 0 ? '#CB1D11' : '#888' }}>
                   {coupon ? `−${fmtPrice(couponDisc)}원` : `${coupons.length}장`}
                 </span>
