@@ -1484,7 +1484,7 @@ export default function MypageClient() {
       {/* 상품 문의 작성 모달 (배송조회에서 바로) */}
       {askModal && (
         <div onClick={() => setAskModal(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3100, display:'flex', alignItems: isMobileView ? 'flex-end' : 'center', justifyContent:'center', padding: isMobileView ? 0 : 20 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:3400, display:'flex', alignItems: isMobileView ? 'flex-end' : 'center', justifyContent:'center', padding: isMobileView ? 0 : 20 }}>
           <div onClick={e => e.stopPropagation()}
             className="hide-scrollbar" style={{ width:'100%', maxWidth:440, background:'#fff', borderRadius: isMobileView ? '16px 16px 0 0' : 16, padding: isMobileView ? '22px 20px calc(24px + env(safe-area-inset-bottom))' : '22px 20px 24px', maxHeight:'85vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
@@ -4469,7 +4469,7 @@ export default function MypageClient() {
       {/* ── 주문취소 / 환불 신청 모달 ── */}
       {reqModal && (
         <div onClick={() => setReqModal(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3400, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
             className="hide-scrollbar" style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
