@@ -3864,18 +3864,18 @@ export default function MypageClient() {
                             </div>
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', padding:'16px 0' }}>
-                                {/* 문의 */}
-                                <div style={{ display:'flex', alignItems:'flex-start', marginBottom: q.answer ? 14 : 0 }}>
-                                  <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#1A1A1A' }}>Q</span>
-                                  <div style={{ flex:1, paddingRight:8, fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
-                                    {editQnaId === q.id
-                                      ? <textarea value={editQnaText} onChange={e => setEditQnaText(e.target.value)}
-                                          style={{ width:'100%', minHeight:72, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:13, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
-                                      : q.content}
+                                {/* 문의 — 수정 시에만 노출 (내용은 위 목록에 이미 표시됨) */}
+                                {editQnaId === q.id && (
+                                  <div style={{ display:'flex', alignItems:'flex-start', marginBottom:14 }}>
+                                    <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#1A1A1A' }}>Q</span>
+                                    <div style={{ flex:1, paddingRight:8, fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
+                                      <textarea value={editQnaText} onChange={e => setEditQnaText(e.target.value)}
+                                        style={{ width:'100%', minHeight:72, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:13, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical' }} />
+                                    </div>
                                   </div>
-                                </div>
+                                )}
                                 {/* 답변 */}
-                                <div style={{ display:'flex', alignItems:'flex-start', borderTop:'1px solid #ECECEC', paddingTop:14 }}>
+                                <div style={{ display:'flex', alignItems:'flex-start', ...(editQnaId === q.id ? { borderTop:'1px solid #ECECEC', paddingTop:14 } : {}) }}>
                                   <span style={{ width:70, flexShrink:0, textAlign:'center', fontSize:12, fontWeight:800, color:'#CB1D11' }}>A</span>
                                   <div style={{ flex:1, paddingRight:8, fontSize:13, color: q.answer ? '#333' : '#aaa', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
                                     {q.answer || '아직 답변이 등록되지 않았습니다.'}
@@ -4141,11 +4141,14 @@ export default function MypageClient() {
                             {isOpen && (
                               <div style={{ background:'#F7F7F5', borderRadius:10, padding:'12px 14px',
                                 marginTop:10, fontSize:15, color:'#555', lineHeight:1.7 }}>
-                                <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📝 문의 내용</div>
-                                {editCsId === inq.id
-                                  ? <textarea value={editCsText} onClick={e => e.stopPropagation()} onChange={e => setEditCsText(e.target.value)}
-                                      style={{ width:'100%', minHeight:84, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:14, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical', marginBottom: inq.answer?12:0 }} />
-                                  : <p style={{ margin:0, whiteSpace:'pre-wrap', marginBottom: inq.answer?12:0 }}>{inq.message}</p>}
+                                {/* 문의 내용 — 수정 시에만 노출 (제목은 위 목록에 이미 표시됨) */}
+                                {editCsId === inq.id && (
+                                  <>
+                                    <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📝 문의 내용</div>
+                                    <textarea value={editCsText} onClick={e => e.stopPropagation()} onChange={e => setEditCsText(e.target.value)}
+                                      style={{ width:'100%', minHeight:84, padding:'8px 10px', border:'1.5px solid #DDD', borderRadius:8, fontSize:14, fontFamily:'inherit', lineHeight:1.6, outline:'none', boxSizing:'border-box', resize:'vertical', marginBottom:12 }} />
+                                  </>
+                                )}
                                 {inq.attachments && inq.attachments.length > 0 && (
                                   <div style={{ marginTop:10 }}>
                                     <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginBottom:6 }}>📎 첨부파일</div>
@@ -4175,12 +4178,9 @@ export default function MypageClient() {
                                     </div>
                                   </div>
                                 )}
-                                {inq.answer && (
-                                  <>
-                                    <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginTop:12, marginBottom:6 }}>💬 답변</div>
-                                    <p style={{ margin:0, whiteSpace:'pre-wrap' }}>{inq.answer}</p>
-                                  </>
-                                )}
+                                {/* 답변 (대기 중이면 안내문구) */}
+                                <div style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', marginTop:(editCsId===inq.id || (inq.attachments && inq.attachments.length>0))?12:0, marginBottom:6 }}>💬 답변</div>
+                                <p style={{ margin:0, whiteSpace:'pre-wrap', color: inq.answer ? '#555' : '#aaa' }}>{inq.answer || '아직 답변이 등록되지 않았습니다.'}</p>
                                 <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12, gap:8 }}>
                                   {editCsId === inq.id ? (
                                     <>
