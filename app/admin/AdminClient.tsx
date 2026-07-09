@@ -6238,11 +6238,11 @@ export default function AdminClient() {
                         <tr><td colSpan={5} style={{ textAlign:'center', padding:'32px 0', color:'#94A3B8' }}>해당 기간 판매 내역이 없습니다.</td></tr>
                       ) : productRank[rankDays].map((r, i) => (
                         <tr key={i}>
-                          <td style={{ fontWeight:800, textAlign:'center' }}>{i+1}</td>
-                          <td style={{ fontWeight:600 }}>{r.name}</td>
+                          <td style={{ textAlign:'center', fontWeight:700, color:'#94A3B8' }}>{i+1}</td>
+                          <td>{r.name}</td>
                           <td className="adm-muted">{r.option}</td>
                           <td className="adm-num">{fmtPrice(r.unit_price)}원</td>
-                          <td className="adm-num"><strong>{r.qty.toLocaleString()}개</strong></td>
+                          <td className="adm-num" style={{ fontWeight:600 }}>{r.qty.toLocaleString()}개</td>
                         </tr>
                       ))}
                     </tbody>
