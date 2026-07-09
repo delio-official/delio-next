@@ -1380,7 +1380,7 @@ export default function AdminClient() {
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
-  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0 });
+  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0 });
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
   type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
   type PerfSeries = { visits:number[]; orders:number[]; payment:number[]; aov:number[]; conv:number[] };
@@ -1995,12 +1995,16 @@ export default function AdminClient() {
 
     /* 취소·반품·교환 / 판매지연 (대시보드 카드) */
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
-    const [cancelReqRes, refundingRes, exchangeRes, shipDelayRes, refundDelayRes] = await Promise.all([
+    const [cancelReqRes, refundingRes, exchangeRes, shipDelayRes, refundDelayRes, csRes, prodInqRes, farmInqRes, reviewRes] = await Promise.all([
       supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending'),
       supabase.from('orders').select('id', { count:'exact', head:true }).eq('status', 'refunding'),
       supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['exchanging','exchanged']),
       supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['paid','preparing']).lt('created_at', twoDaysAgo),
       supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').lt('created_at', twoDaysAgo),
+      supabase.from('cs_inquiries').select('id', { count:'exact', head:true }).eq('status', 'pending'),
+      supabase.from('product_inquiries').select('id', { count:'exact', head:true }).is('answer', null),
+      supabase.from('farm_inquiries').select('id', { count:'exact', head:true }).or('status.eq.pending,status.eq.new,status.is.null'),
+      supabase.from('reviews').select('id', { count:'exact', head:true }).is('seller_reply', null),
     ]);
     setDashExtra({
       cancelReq:  cancelReqRes.count   || 0,
@@ -2008,6 +2012,10 @@ export default function AdminClient() {
       exchanging: exchangeRes.count    || 0,
       shipDelay:  shipDelayRes.count   || 0,
       refundDelay: refundDelayRes.count || 0,
+      unansweredCs:      csRes.count      || 0,
+      unansweredProdInq: prodInqRes.count || 0,
+      unansweredFarmInq: farmInqRes.count || 0,
+      unansweredReview:  reviewRes.count  || 0,
     });
 
     const allOrders = ordersRes.data || [];
@@ -5891,7 +5899,7 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 취소·반품·교환 / 판매지연 / 정산요약 */}
+              {/* 취소·반품·교환 / 미답변 문의·리뷰 / 판매지연 */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:16, marginBottom:24 }}>
                 <div className="adm-card">
                   <div className="adm-card-head"><span className="adm-card-title">취소 · 반품 · 교환</span></div>
@@ -5902,17 +5910,19 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">미답변 문의 · 리뷰</span></div>
+                  <div className="adm-pending-list">
+                    <div className="adm-pending-row" onClick={() => go('cs')}><span>1:1 문의</span><span className="adm-pending-num red">{dashExtra.unansweredCs}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('productinquiry')}><span>상품 문의</span><span className="adm-pending-num orange">{dashExtra.unansweredProdInq}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('inquiry')}><span>입점 문의</span><span className="adm-pending-num">{dashExtra.unansweredFarmInq}</span></div>
+                    <div className="adm-pending-row" onClick={() => go('reviews')}><span>미답변 리뷰</span><span className="adm-pending-num">{dashExtra.unansweredReview}</span></div>
+                  </div>
+                </div>
+                <div className="adm-card">
                   <div className="adm-card-head"><span className="adm-card-title">판매 지연</span></div>
                   <div className="adm-pending-list">
                     <div className="adm-pending-row" onClick={() => { pendingOrderStatus.current = 'preparing'; go('orders'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
                     <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 처리 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
-                  </div>
-                </div>
-                <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">정산 요약</span></div>
-                  <div className="adm-pending-list">
-                    <div className="adm-pending-row" onClick={() => go('settlement')}><span>금일 매출</span><span className="adm-pending-num">{fmtPrice(stats?.todayRevenue || 0)}원</span></div>
-                    <div className="adm-pending-row" onClick={() => go('settlement')}><span>이번달 매출 <span className="adm-muted" style={{ fontSize:11 }}>(정산예정)</span></span><span className="adm-pending-num">{fmtPrice(stats?.monthRevenue || 0)}원</span></div>
                   </div>
                 </div>
               </div>
