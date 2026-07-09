@@ -1305,6 +1305,9 @@ export default function AdminClient() {
   const [admLoginErr, setAdmLoginErr] = useState('');
   const [admLoginLoading, setAdmLoginLoading] = useState(false);
   const [chartDays, setChartDays] = useState<'7'|'30'>('7');
+  const [rankDays, setRankDays] = useState<'7'|'30'>('30'); // 상품별 판매순위 기간
+  type RankItem = { name: string; option: string; unit_price: number; qty: number };
+  const [productRank, setProductRank] = useState<{ '7': RankItem[]; '30': RankItem[] }>({ '7': [], '30': [] });
   const [farmModal, setFarmModal] = useState(false);
   const [farms, setFarms] = useState<AdminFarm[]>([]);
   const [farmsLoading, setFarmsLoading] = useState(false);
@@ -2076,6 +2079,57 @@ export default function AdminClient() {
 
     setStatsLoading(false);
     loadMemberDash();
+    loadProductRank();
+  }
+
+  /* 상품별 판매 순위 TOP5 (이번주 월~일 / 이번달 1~말일) — 판매 수량 기준 */
+  async function loadProductRank() {
+    const supabase = createClient();
+    const cNow = new Date();
+    const weekMon = new Date(cNow); weekMon.setDate(cNow.getDate() - ((cNow.getDay()+6)%7)); weekMon.setHours(0,0,0,0);
+    const weekEnd = new Date(weekMon); weekEnd.setDate(weekMon.getDate()+6); weekEnd.setHours(23,59,59,999);
+    const monthFirst = new Date(cNow.getFullYear(), cNow.getMonth(), 1);
+    const monthEnd = new Date(cNow.getFullYear(), cNow.getMonth()+1, 0); monthEnd.setHours(23,59,59,999);
+    const fetchStart = weekMon < monthFirst ? weekMon : monthFirst;
+
+    // 기간 내 유효주문 → 그 주문의 상품 아이템 집계
+    const { data: ords } = await supabase.from('orders').select('id, created_at')
+      .gte('created_at', fetchStart.toISOString()).in('status', VALID_ORDER_STATUS).limit(10000);
+    const orderDate: Record<string, number> = {};
+    (ords || []).forEach((o: { id:string; created_at:string }) => { orderDate[o.id] = new Date(o.created_at).getTime(); });
+    const orderIds = Object.keys(orderDate);
+    if (orderIds.length === 0) { setProductRank({ '7': [], '30': [] }); return; }
+
+    const items: { order_id:string; product_name:string|null; option_label:string|null; unit_price:number|null; quantity:number|null }[] = [];
+    for (let i = 0; i < orderIds.length; i += 300) {
+      const { data } = await supabase.from('order_items')
+        .select('order_id, product_name, option_label, unit_price, quantity')
+        .in('order_id', orderIds.slice(i, i+300));
+      if (data) items.push(...(data as typeof items));
+    }
+
+    const parseName = (full: string) => {
+      const m = full.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+      return m ? { name: m[1].trim(), option: m[2].trim() } : { name: full, option: '' };
+    };
+    const agg = (start: number, end: number): RankItem[] => {
+      const map: Record<string, RankItem> = {};
+      items.forEach(it => {
+        const t = orderDate[it.order_id]; if (t == null || t < start || t > end) return;
+        const full = it.product_name || '상품';
+        const pn = parseName(full);
+        const opt = (it.option_label || '').trim() || pn.option || '-';
+        const key = `${full}`;
+        if (!map[key]) map[key] = { name: pn.name, option: opt, unit_price: it.unit_price || 0, qty: 0 };
+        map[key].qty += it.quantity || 0;
+        if (it.unit_price) map[key].unit_price = it.unit_price;
+      });
+      return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 5);
+    };
+    setProductRank({
+      '7':  agg(weekMon.getTime(), weekEnd.getTime()),
+      '30': agg(monthFirst.getTime(), monthEnd.getTime()),
+    });
   }
 
   /* 회원 현황 (전체회원·이번달신규·구매회원·재구매율·평균구매횟수 + 전월 대비) */
@@ -6163,6 +6217,36 @@ export default function AdminClient() {
                       {orders.length === 0 && <div className="adm-muted" style={{ padding:'12px 0', fontSize:13 }}>주문 없음</div>}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* 상품별 판매 순위 TOP5 (이번주/이번달) */}
+              <div className="adm-card" style={{ marginTop: 24 }}>
+                <div className="adm-card-head">
+                  <span className="adm-card-title">상품별 판매 순위 <span className="adm-muted" style={{ fontSize:11, fontWeight:400 }}>TOP 5 · 판매수량순</span></span>
+                  <div className="adm-btn-group">
+                    {(['7','30'] as const).map(d => (
+                      <button key={d} className={`adm-seg-btn${rankDays===d?' active':''}`} onClick={() => setRankDays(d)}>{d==='7'?'이번주':'이번달'}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="adm-table-wrap">
+                  <table className="adm-table">
+                    <thead><tr><th style={{ width:44, textAlign:'center' }}>순위</th><th>상품명</th><th>옵션</th><th className="adm-num">단가</th><th className="adm-num">판매수량</th></tr></thead>
+                    <tbody>
+                      {productRank[rankDays].length === 0 ? (
+                        <tr><td colSpan={5} style={{ textAlign:'center', padding:'32px 0', color:'#94A3B8' }}>해당 기간 판매 내역이 없습니다.</td></tr>
+                      ) : productRank[rankDays].map((r, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight:800, textAlign:'center' }}>{i+1}</td>
+                          <td style={{ fontWeight:600 }}>{r.name}</td>
+                          <td className="adm-muted">{r.option}</td>
+                          <td className="adm-num">{fmtPrice(r.unit_price)}원</td>
+                          <td className="adm-num"><strong>{r.qty.toLocaleString()}개</strong></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
