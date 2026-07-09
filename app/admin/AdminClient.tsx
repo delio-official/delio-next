@@ -1396,14 +1396,17 @@ export default function AdminClient() {
     const fmt = (d:Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     const today = new Date();
     let curStart:Date, prevStart:Date, prevEnd:Date;
-    const curEnd = new Date(today);
+    let curEnd = new Date(today);
     if (range === 'day') {
       curStart = new Date(today);
       prevEnd = new Date(today); prevEnd.setDate(prevEnd.getDate()-1); prevStart = new Date(prevEnd);
     } else if (range === 'week') {
-      curStart = new Date(today); curStart.setDate(curStart.getDate()-6);
-      prevEnd = new Date(curStart); prevEnd.setDate(prevEnd.getDate()-1);
-      prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate()-6);
+      // 이번주 월요일~일요일 (달력 주). 비교는 지난주 동기간(월~같은 요일)
+      const back = (today.getDay() + 6) % 7; // 월요일까지 며칠 뒤로
+      curStart = new Date(today); curStart.setDate(today.getDate() - back);
+      curEnd = new Date(curStart); curEnd.setDate(curStart.getDate() + 6);
+      prevStart = new Date(curStart); prevStart.setDate(curStart.getDate() - 7);
+      prevEnd = new Date(today); prevEnd.setDate(today.getDate() - 7);
     } else {
       curStart = new Date(today.getFullYear(), today.getMonth(), 1);
       prevStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
