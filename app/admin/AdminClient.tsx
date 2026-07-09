@@ -2585,7 +2585,9 @@ export default function AdminClient() {
 
     // ── 옵션 저장 (기존 삭제 후 재삽입) ──
     if (productId) {
-      await supabase.from('product_options').delete().eq('product_id', productId);
+      // 기존 옵션 삭제 — 실패하면 중단(삭제 실패 후 insert 시 옵션이 중복 누적되는 것 방지)
+      const { error: delErr } = await supabase.from('product_options').delete().eq('product_id', productId);
+      if (delErr) { alert('옵션 저장 실패(기존 옵션 삭제 오류): ' + delErr.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
       const validOptsRaw = pOptions.filter(o => o.label.trim());
       // parent_id(편집용 연결) → 상위 라벨(parent_label)로 변환해 저장 (스토어프론트는 parent_label 사용)
       const labelById = new Map(pOptions.map(o => [o.id, o.label?.trim() || '']));
