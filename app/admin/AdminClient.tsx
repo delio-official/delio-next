@@ -6013,11 +6013,11 @@ export default function AdminClient() {
                     const ga = salesPerf?.gaConfigured;
                     const diff = (a:number, b:number) => b>0 ? ((a-b)/b*100) : (a>0?100:0);
                     const items = [
-                      { label:'방문 수',      val: ga ? (c?.visits||0).toLocaleString() : '—', unit: ga?'':'', d: ga?diff(c!.visits,p!.visits):0, na:!ga, series:s?.visits||[],  color:'#16A34A' },
+                      { label:'결제금액',      val: fmtPrice(c?.payment||0),                 unit:'원', d: diff(c?.payment||0,p?.payment||0), na:false, series:s?.payment||[], color:'#DB2777' },
+                      { label:'상품주문단가',  val: fmtPrice(c?.aov||0),                     unit:'원', d: diff(c?.aov||0,p?.aov||0), na:false, series:s?.aov||[],     color:'#0891B2' },
                       { label:'상품 주문건수', val: (c?.orders||0).toLocaleString(),         unit:'건', d: diff(c?.orders||0,p?.orders||0), na:false, series:s?.orders||[],  color:'#2563EB' },
                       { label:'구매전환율',    val: ga ? (c?.conv||0).toFixed(1) : '—',     unit: ga?'%':'', d: ga?diff(c!.conv,p!.conv):0, na:!ga, series:s?.conv||[],    color:'#9333EA' },
-                      { label:'상품주문단가',  val: fmtPrice(c?.aov||0),                     unit:'원', d: diff(c?.aov||0,p?.aov||0), na:false, series:s?.aov||[],     color:'#0891B2' },
-                      { label:'결제금액',      val: fmtPrice(c?.payment||0),                 unit:'원', d: diff(c?.payment||0,p?.payment||0), na:false, series:s?.payment||[], color:'#DB2777' },
+                      { label:'방문 수',      val: ga ? (c?.visits||0).toLocaleString() : '—', unit: ga?'':'', d: ga?diff(c!.visits,p!.visits):0, na:!ga, series:s?.visits||[],  color:'#16A34A' },
                     ];
                     return items.map(it => (
                       <div key={it.label} className="adm-perf-item">
