@@ -973,12 +973,10 @@ function Spark({ data, color }: { data:number[]; color:string }) {
   const pts = data.map((v,i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`);
   const line = `M ${pts.join(' L ')}`;
   const area = `${line} L ${X(n-1).toFixed(1)},${(h-pad).toFixed(1)} L ${X(0).toFixed(1)},${(h-pad).toFixed(1)} Z`;
-  const last = data[n-1];
   return (
     <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display:'block' }}>
       <path d={area} fill={color} opacity={0.1} />
       <path d={line} fill="none" stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-      {n>1 && <circle cx={X(n-1)} cy={Y(last)} r={2.4} fill={color} />}
     </svg>
   );
 }
