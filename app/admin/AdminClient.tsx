@@ -2109,8 +2109,10 @@ export default function AdminClient() {
     }
 
     const parseName = (full: string) => {
-      const m = full.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-      return m ? { name: m[1].trim(), option: m[2].trim() } : { name: full, option: '' };
+      // 상품명 뒤 " (옵션)" 분리 — 옵션 안에 괄호가 또 있어도(중첩) 첫 " (" ~ 마지막 ")" 사이를 옵션으로
+      const i = full.indexOf(' (');
+      if (i >= 0 && full.trim().endsWith(')')) return { name: full.slice(0, i).trim(), option: full.slice(i + 2, full.lastIndexOf(')')).trim() };
+      return { name: full, option: '' };
     };
     const agg = (start: number, end: number): RankItem[] => {
       const map: Record<string, RankItem> = {};
