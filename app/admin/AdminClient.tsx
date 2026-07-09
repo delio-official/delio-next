@@ -403,6 +403,8 @@ const ORDER_STAGES: { key: string; label: string }[] = [
   { key:'delivered', label:'배송완료' },
   { key:'confirmed', label:'구매확정' },
 ];
+/* 매출·주문 집계 시 유효로 인정하는 주문 상태(취소·환불·무통장 미입금 제외) — 판매성과와 동일 기준 */
+const VALID_ORDER_STATUS = ORDER_STAGES.map(s => s.key);
 
 const GRADE_LABEL: Record<string, string> = {
   beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터',
@@ -1412,7 +1414,7 @@ export default function AdminClient() {
     { const d = new Date(curStart); while (d <= curEnd) { dayKeys.push(fmt(d)); d.setDate(d.getDate()+1); } }
 
     const supabase = createClient();
-    const valid = ['paid','preparing','shipped','delivered','confirmed'];
+    const valid = VALID_ORDER_STATUS;
     /* 현재 기간: 일자별 집계까지 (created_at 포함) */
     const { data: curRows } = await supabase.from('orders').select('final_amount, created_at')
       .gte('created_at', new Date(curStart.getFullYear(),curStart.getMonth(),curStart.getDate(),0,0,0).toISOString())
@@ -1986,7 +1988,7 @@ export default function AdminClient() {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
     const [ordersRes, membersRes, ...stageRes] = await Promise.all([
-      supabase.from('orders').select('final_amount, created_at').gte('created_at', monthStart),
+      supabase.from('orders').select('final_amount, created_at').gte('created_at', monthStart).in('status', VALID_ORDER_STATUS),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
       ...ORDER_STAGES.map(st =>
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', st.key)
@@ -2050,7 +2052,7 @@ export default function AdminClient() {
       .from('orders')
       .select('final_amount, created_at')
       .gte('created_at', thirtyDaysAgo.toISOString())
-      .in('status', ['paid', 'preparing', 'shipped', 'delivered']);
+      .in('status', VALID_ORDER_STATUS);
 
     const dayMap: Record<string, number> = {};
     (chartOrders || []).forEach((o: { final_amount: number; created_at: string }) => {
