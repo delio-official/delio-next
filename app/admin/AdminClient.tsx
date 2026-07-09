@@ -2503,8 +2503,11 @@ export default function AdminClient() {
       supabase.from('product_options').select('label, add_price, stock, group_name, is_required, parent_label')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          const rows: POpt[] = ((data || []) as { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
+          const rawRows: POpt[] = ((data || []) as { label: string; add_price: number; stock: number; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
             ({ id: newOptId(), group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0, stock: o.stock ?? 0, parent_label: o.parent_label || '' }));
+          // 중복 옵션 제거(같은 분류·그룹·라벨은 1개만) — 과거 중복 저장 데이터 방어
+          const _seen = new Set<string>();
+          const rows = rawRows.filter(r => { const k = `${(r.parent_label||'').trim()}|${r.group}|${(r.label||'').trim()}`; if (_seen.has(k)) return false; _seen.add(k); return true; });
           // 저장된 parent_label(상위 라벨) → 편집용 parent_id 로 연결
           for (const r of rows) {
             const pl = (r.parent_label || '').trim();
@@ -2583,9 +2586,16 @@ export default function AdminClient() {
     // ── 옵션 저장 (기존 삭제 후 재삽입) ──
     if (productId) {
       await supabase.from('product_options').delete().eq('product_id', productId);
-      const validOpts = pOptions.filter(o => o.label.trim());
+      const validOptsRaw = pOptions.filter(o => o.label.trim());
       // parent_id(편집용 연결) → 상위 라벨(parent_label)로 변환해 저장 (스토어프론트는 parent_label 사용)
       const labelById = new Map(pOptions.map(o => [o.id, o.label?.trim() || '']));
+      // 중복 옵션 방어: 같은 (상위라벨·그룹·라벨)은 1개만 저장
+      const _seenSave = new Set<string>();
+      const validOpts = validOptsRaw.filter(o => {
+        const pl = o.parent_id ? (labelById.get(o.parent_id) || '') : (o.parent_label?.trim() || '');
+        const k = `${pl}|${o.group?.trim() || '옵션'}|${o.label.trim()}`;
+        if (_seenSave.has(k)) return false; _seenSave.add(k); return true;
+      });
       if (validOpts.length > 0) {
         await supabase.from('product_options').insert(
           validOpts.map((o, i) => ({
