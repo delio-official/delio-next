@@ -1380,7 +1380,7 @@ export default function AdminClient() {
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
-  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0 });
+  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0 });
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
   type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
   type PerfSeries = { visits:number[]; orders:number[]; payment:number[]; aov:number[]; conv:number[] };
@@ -1476,6 +1476,8 @@ export default function AdminClient() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
+  const pendingRefundType = useRef<'' | 'cancel' | 'refund' | null>(null); // 환불 패널 진입 시 적용할 유형 필터
+  const pendingRefundStatus = useRef<string | null>(null); // 환불 패널 진입 시 적용할 상태 필터
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
   const [orderReqOnly, setOrderReqOnly] = useState(false);
   const [orderDateBasis, setOrderDateBasis] = useState<'created_at'|'paid_at'>('created_at');
@@ -1920,9 +1922,13 @@ export default function AdminClient() {
         대시보드 바로가기는 pendingOrderStatus 로 원하는 상태를 전달해 그 값만 유지 ── */
   useEffect(() => {
     setOrderFarmFilter(''); setOrderSearch(''); setOrderPage(1);
-    setRefundFilter('all'); setRefundTypeFilter(''); setRefundStatusFilter('');
+    setRefundFilter('all');
     setOrderStatusFilter(pendingOrderStatus.current ?? '');
+    setRefundTypeFilter(pendingRefundType.current ?? '');
+    setRefundStatusFilter(pendingRefundStatus.current ?? '');
     pendingOrderStatus.current = null;
+    pendingRefundType.current = null;
+    pendingRefundStatus.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel]);
 
@@ -1995,7 +2001,7 @@ export default function AdminClient() {
 
     /* 취소·반품·교환 / 판매지연 (대시보드 카드) */
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
-    const [cancelReqRes, refundingRes, exchangeRes, shipDelayRes, refundDelayRes, csRes, prodInqRes, farmInqRes, reviewRes] = await Promise.all([
+    const [cancelReqRes, refundingRes, exchangeRes, shipDelayRes, refundDelayRes, csRes, prodInqRes, farmInqRes, reviewRes, cancelPendingRes, refundPendingRes] = await Promise.all([
       supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending'),
       supabase.from('orders').select('id', { count:'exact', head:true }).eq('status', 'refunding'),
       supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['exchanging','exchanged']),
@@ -2005,6 +2011,8 @@ export default function AdminClient() {
       supabase.from('product_inquiries').select('id', { count:'exact', head:true }).is('answer', null),
       supabase.from('farm_inquiries').select('id', { count:'exact', head:true }).or('status.eq.pending,status.eq.new,status.is.null'),
       supabase.from('reviews').select('id', { count:'exact', head:true }).is('seller_reply', null),
+      supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').eq('type', 'cancel'),
+      supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').or('type.eq.refund,type.is.null'),
     ]);
     setDashExtra({
       cancelReq:  cancelReqRes.count   || 0,
@@ -2012,6 +2020,8 @@ export default function AdminClient() {
       exchanging: exchangeRes.count    || 0,
       shipDelay:  shipDelayRes.count   || 0,
       refundDelay: refundDelayRes.count || 0,
+      pendingCancel: cancelPendingRes.count || 0,
+      pendingRefund: refundPendingRes.count || 0,
       unansweredCs:      csRes.count      || 0,
       unansweredProdInq: prodInqRes.count || 0,
       unansweredFarmInq: farmInqRes.count || 0,
@@ -5899,30 +5909,27 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 취소·반품·교환 / 미답변 문의·리뷰 / 판매지연 */}
+              {/* 취소·환불 / 미답변 / 판매지연 — 각 행 클릭 시 해당 파트로 필터 걸고 진입 */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(240px, 1fr))', gap:16, marginBottom:24 }}>
                 <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">취소 · 반품 · 교환</span></div>
+                  <div className="adm-card-head"><span className="adm-card-title">취소 · 환불</span></div>
                   <div className="adm-pending-list">
-                    <div className="adm-pending-row" onClick={() => go('refund')}><span>취소/환불 요청</span><span className="adm-pending-num red">{dashExtra.cancelReq}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 진행중</span><span className="adm-pending-num orange">{dashExtra.refunding}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('orders')}><span>교환 요청</span><span className="adm-pending-num">{dashExtra.exchanging}</span></div>
+                    <div className="adm-pending-row" onClick={() => { pendingRefundType.current = 'cancel'; pendingRefundStatus.current = 'pending'; go('refund'); }}><span>취소 요청</span><span className="adm-pending-num red">{dashExtra.pendingCancel}</span></div>
+                    <div className="adm-pending-row" onClick={() => { pendingRefundType.current = 'refund'; pendingRefundStatus.current = 'pending'; go('refund'); }}><span>환불 요청</span><span className="adm-pending-num orange">{dashExtra.pendingRefund}</span></div>
                   </div>
                 </div>
                 <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">미답변 문의 · 리뷰</span></div>
+                  <div className="adm-card-head"><span className="adm-card-title">미답변</span></div>
                   <div className="adm-pending-list">
-                    <div className="adm-pending-row" onClick={() => go('cs')}><span>1:1 문의</span><span className="adm-pending-num red">{dashExtra.unansweredCs}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('productinquiry')}><span>상품 문의</span><span className="adm-pending-num orange">{dashExtra.unansweredProdInq}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('inquiry')}><span>입점 문의</span><span className="adm-pending-num">{dashExtra.unansweredFarmInq}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('reviews')}><span>미답변 리뷰</span><span className="adm-pending-num">{dashExtra.unansweredReview}</span></div>
+                    <div className="adm-pending-row" onClick={() => { setCsAdminTab('tab-pending'); go('cs'); }}><span>미답변 1:1 문의</span><span className="adm-pending-num red">{dashExtra.unansweredCs}</span></div>
+                    <div className="adm-pending-row" onClick={() => { setReviewAnswered('unanswered'); go('reviews'); }}><span>미답변 리뷰</span><span className="adm-pending-num orange">{dashExtra.unansweredReview}</span></div>
                   </div>
                 </div>
                 <div className="adm-card">
                   <div className="adm-card-head"><span className="adm-card-title">판매 지연</span></div>
                   <div className="adm-pending-list">
                     <div className="adm-pending-row" onClick={() => { pendingOrderStatus.current = 'preparing'; go('orders'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
-                    <div className="adm-pending-row" onClick={() => go('refund')}><span>환불 처리 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
+                    <div className="adm-pending-row" onClick={() => { pendingRefundStatus.current = 'pending'; go('refund'); }}><span>환불 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
                   </div>
                 </div>
               </div>
