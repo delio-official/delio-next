@@ -2091,8 +2091,8 @@ export default function AdminClient() {
       supabase.from('profiles').select('id', { count:'exact', head:true }).gte('created_at', monthStartISO),
       supabase.from('profiles').select('id', { count:'exact', head:true }).gte('created_at', lastMonthStartISO).lt('created_at', monthStartISO),
       supabase.from('withdrawn_users').select('id', { count:'exact', head:true }).gte('withdrawn_at', monthStartISO),
-      // 유효 주문(취소·환불 제외) — 구매자/재구매/평균구매횟수 계산용
-      supabase.from('orders').select('user_id, created_at').not('status', 'in', '(cancelled,refunded,refunding)').limit(20000),
+      // 유효 주문(취소·환불·무통장 미입금 제외) — 구매자/재구매/평균구매횟수 계산용
+      supabase.from('orders').select('user_id, created_at').in('status', VALID_ORDER_STATUS).limit(20000),
     ]);
 
     const orders = ((ordersRes.data as { user_id:string|null; created_at:string }[]) || []).filter(o => o.user_id);
