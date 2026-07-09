@@ -2047,34 +2047,32 @@ export default function AdminClient() {
       totalMembers: membersRes.count || 0,
     });
 
-    // ── 차트 데이터 (최근 30일 일별 매출) ──
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    // ── 매출 추이 차트 (주간=이번주 월~일 / 월간=이번달 1~말일) ──
+    const dkey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const cNow = new Date();
+    const weekMon = new Date(cNow); weekMon.setDate(cNow.getDate() - ((cNow.getDay()+6)%7)); weekMon.setHours(0,0,0,0);
+    const monthFirst = new Date(cNow.getFullYear(), cNow.getMonth(), 1);
+    const monthLast  = new Date(cNow.getFullYear(), cNow.getMonth()+1, 0);
+    const fetchStart = weekMon < monthFirst ? weekMon : monthFirst; // 둘 중 이른 날짜부터 조회
     const { data: chartOrders } = await supabase
       .from('orders')
       .select('final_amount, created_at')
-      .gte('created_at', thirtyDaysAgo.toISOString())
+      .gte('created_at', fetchStart.toISOString())
       .in('status', VALID_ORDER_STATUS);
 
     const dayMap: Record<string, number> = {};
     (chartOrders || []).forEach((o: { final_amount: number; created_at: string }) => {
-      const day = o.created_at.slice(0, 10);
-      dayMap[day] = (dayMap[day] || 0) + o.final_amount;
+      const key = dkey(new Date(o.created_at));
+      dayMap[key] = (dayMap[key] || 0) + o.final_amount;
     });
 
-    const labels30: string[] = [], values30: number[] = [];
-    const labels7: string[]  = [], values7: number[]  = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key   = d.toISOString().slice(0, 10);
-      const label = `${d.getMonth()+1}/${d.getDate()}`;
-      labels30.push(label);
-      values30.push(dayMap[key] || 0);
-      if (i < 7) { labels7.push(label); values7.push(dayMap[key] || 0); }
-    }
-    setChartData({ '7': { labels: labels7, values: values7 }, '30': { labels: labels30, values: values30 } });
+    // 주간: 이번주 월요일~일요일 (7일)
+    const labelsW: string[] = [], valuesW: number[] = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(weekMon); d.setDate(weekMon.getDate()+i); labelsW.push(`${d.getMonth()+1}/${d.getDate()}`); valuesW.push(dayMap[dkey(d)] || 0); }
+    // 월간: 이번달 1일~말일
+    const labelsM: string[] = [], valuesM: number[] = [];
+    for (let d = new Date(monthFirst); d <= monthLast; d.setDate(d.getDate()+1)) { labelsM.push(`${d.getMonth()+1}/${d.getDate()}`); valuesM.push(dayMap[dkey(d)] || 0); }
+    setChartData({ '7': { labels: labelsW, values: valuesW }, '30': { labels: labelsM, values: valuesM } });
 
     setStatsLoading(false);
     loadMemberDash();
@@ -6126,10 +6124,10 @@ export default function AdminClient() {
               <div className="adm-row" style={{ marginTop: 24 }}>
                 <div className="adm-card adm-card-lg">
                   <div className="adm-card-head">
-                    <span className="adm-card-title">매출 현황</span>
+                    <span className="adm-card-title">매출 추이</span>
                     <div className="adm-btn-group">
                       {(['7','30'] as const).map(d => (
-                        <button key={d} className={`adm-seg-btn${chartDays===d?' active':''}`} onClick={() => setChartDays(d)}>{d}일</button>
+                        <button key={d} className={`adm-seg-btn${chartDays===d?' active':''}`} onClick={() => setChartDays(d)}>{d==='7'?'이번주':'이번달'}</button>
                       ))}
                     </div>
                   </div>
