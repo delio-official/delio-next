@@ -1381,6 +1381,8 @@ export default function AdminClient() {
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
   const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0 });
+  /* ── 회원 현황 (대시보드, 전월 대비 비교) ── */
+  const [memberDash, setMemberDash] = useState<{ total:number; netIncrease:number; newThis:number; newPrev:number; buyersThis:number; buyersPrev:number; repeatRateThis:number; repeatRatePrev:number; avgOrdersThis:number; avgOrdersPrev:number } | null>(null);
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
   type PerfMetrics = { visits:number; orders:number; payment:number; aov:number; conv:number };
   type PerfSeries = { visits:number[]; orders:number[]; payment:number[]; aov:number[]; conv:number[] };
@@ -2072,6 +2074,62 @@ export default function AdminClient() {
     setChartData({ '7': { labels: labels7, values: values7 }, '30': { labels: labels30, values: values30 } });
 
     setStatsLoading(false);
+    loadMemberDash();
+  }
+
+  /* 회원 현황 (전체회원·이번달신규·구매회원·재구매율·평균구매횟수 + 전월 대비) */
+  async function loadMemberDash() {
+    const supabase = createClient();
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthStartISO = monthStart.toISOString();
+    const lastMonthStartISO = lastMonthStart.toISOString();
+
+    const [totalRes, newThisRes, newPrevRes, withdrawThisRes, ordersRes] = await Promise.all([
+      supabase.from('profiles').select('id', { count:'exact', head:true }),
+      supabase.from('profiles').select('id', { count:'exact', head:true }).gte('created_at', monthStartISO),
+      supabase.from('profiles').select('id', { count:'exact', head:true }).gte('created_at', lastMonthStartISO).lt('created_at', monthStartISO),
+      supabase.from('withdrawn_users').select('id', { count:'exact', head:true }).gte('withdrawn_at', monthStartISO),
+      // 유효 주문(취소·환불 제외) — 구매자/재구매/평균구매횟수 계산용
+      supabase.from('orders').select('user_id, created_at').not('status', 'in', '(cancelled,refunded,refunding)').limit(20000),
+    ]);
+
+    const orders = ((ordersRes.data as { user_id:string|null; created_at:string }[]) || []).filter(o => o.user_id);
+    const nowMs = now.getTime() + 1000;
+    const monthStartMs = monthStart.getTime();
+    const lastMonthStartMs = lastMonthStart.getTime();
+
+    /* 특정 기간(periodStart~periodEnd) 구매자 기준 지표. cumEnd = 누적 구매횟수 계산 마감 시점 */
+    const calc = (periodStart:number, periodEnd:number, cumEnd:number) => {
+      const cum: Record<string, number> = {};
+      orders.forEach(o => { const t = new Date(o.created_at).getTime(); if (t < cumEnd) cum[o.user_id!] = (cum[o.user_id!] || 0) + 1; });
+      const inPeriod = orders.filter(o => { const t = new Date(o.created_at).getTime(); return t >= periodStart && t < periodEnd; });
+      const buyers = new Set(inPeriod.map(o => o.user_id!));
+      const buyerCnt = buyers.size;
+      let repeat = 0; buyers.forEach(u => { if ((cum[u] || 0) >= 2) repeat++; });
+      return {
+        buyers: buyerCnt,
+        repeatRate: buyerCnt > 0 ? repeat / buyerCnt * 100 : 0,
+        avgOrders: buyerCnt > 0 ? inPeriod.length / buyerCnt : 0,
+      };
+    };
+    const cur = calc(monthStartMs, nowMs, nowMs);
+    const prev = calc(lastMonthStartMs, monthStartMs, monthStartMs);
+
+    const newThis = newThisRes.count || 0;
+    setMemberDash({
+      total: totalRes.count || 0,
+      netIncrease: newThis - (withdrawThisRes.count || 0),
+      newThis,
+      newPrev: newPrevRes.count || 0,
+      buyersThis: cur.buyers,
+      buyersPrev: prev.buyers,
+      repeatRateThis: cur.repeatRate,
+      repeatRatePrev: prev.repeatRate,
+      avgOrdersThis: cur.avgOrders,
+      avgOrdersPrev: prev.avgOrders,
+    });
   }
 
   async function loadOrders(opts?: { from?: string; to?: string; basis?: 'created_at'|'paid_at' }) {
@@ -6008,6 +6066,46 @@ export default function AdminClient() {
                     <div className="adm-kpi-value">{k.val}</div>
                   </div>
                 ))}
+              </div>
+
+              {/* 회원 현황 (전월 대비) */}
+              <div className="adm-kpi-section-label" style={{ marginTop: 24 }}>회원 현황</div>
+              <div className="adm-kpi-grid adm-kpi-5">
+                {!memberDash ? (
+                  Array(5).fill(0).map((_, i) => (
+                    <div key={i} className="adm-kpi-card"><div className="adm-kpi-label">-</div><div className="adm-kpi-value" style={{ color:'#CBD5E1' }}>불러오는 중...</div></div>
+                  ))
+                ) : (() => {
+                  const m = memberDash;
+                  const col = (up:boolean, flat:boolean) => flat ? '#94A3B8' : up ? '#16A34A' : '#DC2626';
+                  const pctTag = (cur:number, prev:number) => {
+                    const d = prev > 0 ? (cur - prev) / prev * 100 : (cur > 0 ? 100 : 0);
+                    const flat = Math.abs(d) < 0.05;
+                    return <span style={{ color: col(d > 0, flat) }}>{d > 0 ? '▲' : d < 0 ? '▼' : '·'} {Math.abs(d).toFixed(1)}%</span>;
+                  };
+                  const ppTag = (cur:number, prev:number) => {
+                    const d = cur - prev; const flat = Math.abs(d) < 0.05;
+                    return <span style={{ color: col(d > 0, flat) }}>{d > 0 ? '▲' : d < 0 ? '▼' : '·'} {Math.abs(d).toFixed(1)}%p</span>;
+                  };
+                  const netTag = (() => { const n = m.netIncrease; return <span style={{ color: col(n > 0, n === 0) }}>{n > 0 ? '+' : ''}{n.toLocaleString()}명</span>; })();
+                  const cards = [
+                    { label:'전체 회원',      val:`${m.total.toLocaleString()}명`,     cls:'kpi-green',  icon:<Icon.Members />, sub:<>이번달 {netTag}</>,                       panel:'members' as PanelKey },
+                    { label:'이번달 신규',     val:`${m.newThis.toLocaleString()}명`,   cls:'kpi-blue',   icon:<Icon.Members />, sub:<>전월 대비 {pctTag(m.newThis, m.newPrev)}</>, panel:'members' as PanelKey },
+                    { label:'이번달 구매 회원', val:`${m.buyersThis.toLocaleString()}명`, cls:'kpi-purple', icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.buyersThis, m.buyersPrev)}</>, panel:'orders' as PanelKey },
+                    { label:'재구매율',       val:`${m.repeatRateThis.toFixed(0)}%`,   cls:'kpi-green',  icon:<Icon.Members />, sub:<>전월 대비 {ppTag(m.repeatRateThis, m.repeatRatePrev)}</>, panel:'members' as PanelKey },
+                    { label:'평균 구매 횟수',  val:`${m.avgOrdersThis.toFixed(1)}회`,    cls:'kpi-blue',   icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.avgOrdersThis, m.avgOrdersPrev)}</>, panel:'orders' as PanelKey },
+                  ];
+                  return cards.map(k => (
+                    <div key={k.label} className="adm-kpi-card" style={{ cursor:'pointer' }} onClick={() => go(k.panel)}>
+                      <div className="adm-kpi-header">
+                        <span className="adm-kpi-label">{k.label}</span>
+                        <span className={`adm-kpi-icon ${k.cls}`}>{k.icon}</span>
+                      </div>
+                      <div className="adm-kpi-value">{k.val}</div>
+                      <div style={{ fontSize:12, marginTop:4, color:'#94A3B8' }}>{k.sub}</div>
+                    </div>
+                  ));
+                })()}
               </div>
 
               <div className="adm-row" style={{ marginTop: 24 }}>
