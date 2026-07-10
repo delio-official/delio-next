@@ -6396,12 +6396,12 @@ export default function AdminClient() {
                       <thead>
                         <tr>
                           <th>주문번호</th><th>주문일시</th><th>수령인</th><th>연락처</th>
-                          <th>금액</th><th>결제수단</th><th>상태</th><th>관리</th>
+                          <th>금액</th><th>상태</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredOrders.length === 0 ? (
-                          <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
                         ) : pagedOrders.map(o => (
@@ -6411,7 +6411,6 @@ export default function AdminClient() {
                             <td>{o.recipient}</td>
                             <td className="adm-mono">{o.phone}</td>
                             <td className="adm-mono">{fmtPrice(o.final_amount)}원</td>
-                            <td className="adm-muted">{o.payment_method}</td>
                             <td>
                               <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
                                 {STATUS_LABEL[o.status] || o.status}
