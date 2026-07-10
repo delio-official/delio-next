@@ -983,6 +983,36 @@ function Spark({ data, color }: { data:number[]; color:string }) {
   );
 }
 
+/* 관리자 공통 처리항목 롤링 알림 바 — 있는 항목만, 여러 개면 위로 롤링, 클릭 시 이동 */
+type AdmAlert = { icon: string; label: string; count: number; onClick: () => void };
+function AdminAlertBar({ alerts }: { alerts: AdmAlert[] }) {
+  const [i, setI] = useState(0);
+  useEffect(() => { setI(0); }, [alerts.length]);
+  useEffect(() => {
+    if (alerts.length <= 1) return;
+    const t = setInterval(() => setI(p => (p + 1) % alerts.length), 3500);
+    return () => clearInterval(t);
+  }, [alerts.length]);
+  if (alerts.length === 0) return null;
+  const idx = i % alerts.length;
+  const a = alerts[idx];
+  return (
+    <div className="adm-alertbar">
+      <div className="adm-alertbar-item adm-alertbar-anim" key={idx} onClick={a.onClick} role="button">
+        <span className="adm-alertbar-icon">{a.icon}</span>
+        <span className="adm-alertbar-label">{a.label}</span>
+        <span className="adm-alertbar-badge">{a.count.toLocaleString()}건</span>
+        <span className="adm-alertbar-go">바로가기 ›</span>
+      </div>
+      {alerts.length > 1 && (
+        <div className="adm-alertbar-dots">
+          {alerts.map((_, k) => <span key={k} className={`adm-alertbar-dot${k === idx ? ' on' : ''}`} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ===== 뱃지 색상 선택 (프리셋 클릭 → 선택칸을 피커로 덮어쓰기) =====
  *  - 프리셋 원 클릭: 그 색 선택
  *  - 무지개 피커: 현재 선택된 칸의 색을 직접 변경(그 칸이 새 색으로 교체)
@@ -5997,32 +6027,21 @@ export default function AdminClient() {
             </div>
           </header>
 
+          {/* 공통 처리항목 알림 바 (모든 페이지 동일 위치) */}
+          <div className="adm-alertbar-wrap">
+            <AdminAlertBar alerts={([
+              stageCounts.paid > 0 && { icon:'🆕', label:'신규 주문', count: stageCounts.paid, onClick: () => { pendingOrderStatus.current='paid'; go('orders'); } },
+              stageCounts.preparing > 0 && { icon:'📦', label:'금일 발송 대기', count: stageCounts.preparing, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
+              dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
+              dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
+              dashExtra.unansweredProdInq > 0 && { icon:'❓', label:'미답변 상품문의', count: dashExtra.unansweredProdInq, onClick: () => go('productinquiry') },
+              dashExtra.unansweredReview > 0 && { icon:'⭐', label:'미답변 리뷰', count: dashExtra.unansweredReview, onClick: () => { setReviewAnswered('unanswered'); go('reviews'); } },
+            ].filter(Boolean)) as AdmAlert[]} />
+          </div>
+
           {/* ===== 대시보드 ===== */}
           {panel === 'dashboard' && (
             <div className="adm-content">
-              {/* 할 일 알림 — 오늘 처리 필요한 항목 */}
-              {(() => {
-                const shipWait = (stageCounts.paid || 0) + (stageCounts.preparing || 0);
-                const A: { icon:string; color:string; bg:string; border:string; text: React.ReactNode; onClick: ()=>void }[] = [];
-                if (dashExtra.shipDelay > 0) A.push({ icon:'⚠️', color:'#B91C1C', bg:'#FEF2F2', border:'#FECACA', text: <>발송 지연 <b>{dashExtra.shipDelay}건</b> (2일 경과)이 있어요. 빠른 발송 처리가 필요합니다.</>, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } });
-                if (shipWait > 0) A.push({ icon:'🕐', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>금일 발송 대기 <b>{shipWait}건</b>이 있어요. 오늘 중으로 배송준비 처리가 필요합니다.</>, onClick: () => go('orders') });
-                if (dashExtra.cancelReq > 0) A.push({ icon:'💬', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>취소·환불 요청 <b>{dashExtra.cancelReq}건</b>이 대기 중이에요.</>, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } });
-                if (dashExtra.unansweredCs > 0) A.push({ icon:'✉️', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>답변 대기 1:1 문의 <b>{dashExtra.unansweredCs}건</b>이 있어요.</>, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } });
-                if (A.length === 0) return (
-                  <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, fontSize:14, color:'#15803D', fontWeight:600, marginBottom:16 }}>
-                    <span>✅</span><span>지금 처리할 항목이 없어요. 모두 처리됐습니다!</span>
-                  </div>
-                );
-                return (
-                  <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
-                    {A.map((a, i) => (
-                      <div key={i} onClick={a.onClick} style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:a.bg, border:`1px solid ${a.border}`, borderRadius:10, cursor:'pointer', fontSize:14, color:a.color, fontWeight:600 }}>
-                        <span>{a.icon}</span><span>{a.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
               {/* 주문 처리 단계 플로우 (실시간) */}
               <div className="adm-card" style={{ marginBottom: 22 }}>
                 <div className="adm-card-head">
@@ -6280,6 +6299,9 @@ export default function AdminClient() {
           {/* ===== 주문 관리 ===== */}
           {panel === 'orders' && (
             <div className="adm-content">
+              <div className="adm-info-box" style={{ marginBottom: 16 }}>
+                📦 <strong>상태 변경:</strong> 상세 버튼 클릭 → 상태 버튼으로 변경. 변경 사항은 Supabase에 즉시 저장됩니다.
+              </div>
               {/* 주문 처리 단계 바 — 클릭 시 해당 상태로 필터 */}
               <div className="adm-card" style={{ marginBottom: 16 }}>
                 <div style={{ display:'flex', alignItems:'center', padding:'14px 8px 8px', flexWrap:'wrap' }}>
@@ -6413,9 +6435,6 @@ export default function AdminClient() {
                   <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredOrders.length}건</span>
                 </div>
               )}
-              <div className="adm-info-box adm-info-mt10">
-                📦 <strong>상태 변경:</strong> 상세 버튼 클릭 → 상태 버튼으로 변경. 변경 사항은 Supabase에 즉시 저장됩니다.
-              </div>
             </div>
           )}
 
