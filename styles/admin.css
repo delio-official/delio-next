@@ -918,9 +918,13 @@ select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 .adm-alertbar-label { font-size: 14px; font-weight: 700; color: #9A3412; white-space: nowrap; }
 .adm-alertbar-badge { font-size: 12px; font-weight: 800; color: #fff; background: #EA580C; border-radius: 999px; padding: 2px 9px; flex-shrink: 0; }
 .adm-alertbar-go { font-size: 12px; color: #C2660C; font-weight: 600; flex-shrink: 0; }
+.adm-alertbar-ctrl { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .adm-alertbar-dots { display: flex; gap: 5px; flex-shrink: 0; }
 .adm-alertbar-dot { width: 6px; height: 6px; border-radius: 50%; background: #FED7AA; transition: background .2s; }
 .adm-alertbar-dot.on { background: #EA580C; }
+.adm-alertbar-arrows { display: flex; flex-direction: column; gap: 1px; }
+.adm-alertbar-arrow { width: 26px; height: 15px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: #C2660C; padding: 0; border-radius: 4px; }
+.adm-alertbar-arrow:hover { color: #EA580C; background: #FFEDD5; }
 @keyframes admAlertUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .adm-alertbar-anim { animation: admAlertUp .38s ease; }
 @media (max-width: 600px) { .adm-alertbar-go { display: none; } }

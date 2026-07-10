@@ -987,15 +987,17 @@ function Spark({ data, color }: { data:number[]; color:string }) {
 type AdmAlert = { icon: string; label: string; count: number; onClick: () => void };
 function AdminAlertBar({ alerts }: { alerts: AdmAlert[] }) {
   const [i, setI] = useState(0);
+  const [manualTick, setManualTick] = useState(0);
   useEffect(() => { setI(0); }, [alerts.length]);
   useEffect(() => {
     if (alerts.length <= 1) return;
     const t = setInterval(() => setI(p => (p + 1) % alerts.length), 3500);
     return () => clearInterval(t);
-  }, [alerts.length]);
+  }, [alerts.length, manualTick]); // 수동 조작 시 자동롤링 타이머 재시작
   if (alerts.length === 0) return null;
-  const idx = i % alerts.length;
+  const idx = ((i % alerts.length) + alerts.length) % alerts.length;
   const a = alerts[idx];
+  const step = (d: number) => (e: React.MouseEvent) => { e.stopPropagation(); setI(p => (((p + d) % alerts.length) + alerts.length) % alerts.length); setManualTick(t => t + 1); };
   return (
     <div className="adm-alertbar">
       <div className="adm-alertbar-item adm-alertbar-anim" key={idx} onClick={a.onClick} role="button">
@@ -1005,8 +1007,18 @@ function AdminAlertBar({ alerts }: { alerts: AdmAlert[] }) {
         <span className="adm-alertbar-go">바로가기 ›</span>
       </div>
       {alerts.length > 1 && (
-        <div className="adm-alertbar-dots">
-          {alerts.map((_, k) => <span key={k} className={`adm-alertbar-dot${k === idx ? ' on' : ''}`} />)}
+        <div className="adm-alertbar-ctrl">
+          <div className="adm-alertbar-dots">
+            {alerts.map((_, k) => <span key={k} className={`adm-alertbar-dot${k === idx ? ' on' : ''}`} />)}
+          </div>
+          <div className="adm-alertbar-arrows">
+            <button className="adm-alertbar-arrow" onClick={step(-1)} title="이전" aria-label="이전 알림">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+            </button>
+            <button className="adm-alertbar-arrow" onClick={step(1)} title="다음" aria-label="다음 알림">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
         </div>
       )}
     </div>
