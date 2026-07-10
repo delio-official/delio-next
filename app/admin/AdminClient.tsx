@@ -6000,6 +6000,29 @@ export default function AdminClient() {
           {/* ===== 대시보드 ===== */}
           {panel === 'dashboard' && (
             <div className="adm-content">
+              {/* 할 일 알림 — 오늘 처리 필요한 항목 */}
+              {(() => {
+                const shipWait = (stageCounts.paid || 0) + (stageCounts.preparing || 0);
+                const A: { icon:string; color:string; bg:string; border:string; text: React.ReactNode; onClick: ()=>void }[] = [];
+                if (dashExtra.shipDelay > 0) A.push({ icon:'⚠️', color:'#B91C1C', bg:'#FEF2F2', border:'#FECACA', text: <>발송 지연 <b>{dashExtra.shipDelay}건</b> (2일 경과)이 있어요. 빠른 발송 처리가 필요합니다.</>, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } });
+                if (shipWait > 0) A.push({ icon:'🕐', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>금일 발송 대기 <b>{shipWait}건</b>이 있어요. 오늘 중으로 배송준비 처리가 필요합니다.</>, onClick: () => go('orders') });
+                if (dashExtra.cancelReq > 0) A.push({ icon:'💬', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>취소·환불 요청 <b>{dashExtra.cancelReq}건</b>이 대기 중이에요.</>, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } });
+                if (dashExtra.unansweredCs > 0) A.push({ icon:'✉️', color:'#9A3412', bg:'#FFF7ED', border:'#FED7AA', text: <>답변 대기 1:1 문의 <b>{dashExtra.unansweredCs}건</b>이 있어요.</>, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } });
+                if (A.length === 0) return (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:'#F0FDF4', border:'1px solid #BBF7D0', borderRadius:10, fontSize:14, color:'#15803D', fontWeight:600, marginBottom:16 }}>
+                    <span>✅</span><span>지금 처리할 항목이 없어요. 모두 처리됐습니다!</span>
+                  </div>
+                );
+                return (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+                    {A.map((a, i) => (
+                      <div key={i} onClick={a.onClick} style={{ display:'flex', alignItems:'center', gap:8, padding:'12px 16px', background:a.bg, border:`1px solid ${a.border}`, borderRadius:10, cursor:'pointer', fontSize:14, color:a.color, fontWeight:600 }}>
+                        <span>{a.icon}</span><span>{a.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               {/* 주문 처리 단계 플로우 (실시간) */}
               <div className="adm-card" style={{ marginBottom: 22 }}>
                 <div className="adm-card-head">
