@@ -4118,6 +4118,7 @@ export default function AdminClient() {
     if (!reason || !reason.trim()) return;
     const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
     if (!eta || !eta.trim()) return;
+    if (!confirm(`선택한 ${targets.length}건에 배송 지연 안내를 발송할까요?\n\n사유: ${reason.trim()}\n예상 도착일: ${eta.trim()}`)) return;
     for (const o of targets) {
       await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ type:'delivery_delayed', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() }) }).catch(() => {});
