@@ -4551,8 +4551,8 @@ export default function AdminClient() {
   const orderCurPage = Math.min(orderPage, orderTotalPages);
   const pagedOrders = filteredOrders.slice((orderCurPage - 1) * orderPageSize, orderCurPage * orderPageSize);
 
-  /* 엑셀 다운로드 (농가별 주문서 겸 발주서) — 농가별 시트 + 배송행 + 발주 합계 */
-  async function downloadOrderExcel(farmId?: string) {
+  /* 엑셀 다운로드 — kind='ship'(주문서·배송용, 공급가 제외) / 'purchase'(발주서·매입용, 고객 개인정보 제외) */
+  async function downloadOrderExcel(farmId?: string, kind: 'ship' | 'purchase' = 'ship') {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
     const targetOrders = farmId
@@ -4589,29 +4589,39 @@ export default function AdminClient() {
 
     const wb = XLSX.utils.book_new();
     const usedNames = new Set<string>();
+    const today0 = new Date().toISOString().slice(0, 10);
     Object.values(byFarm).forEach(rows => {
       const f = rows[0];
       const aoa: (string | number)[][] = [];
-      aoa.push([`${f.farmName} 주문서 / 발주서`, '', '', '', `지정 택배사: ${f.carrier}`]);
-      aoa.push([`출력일: ${new Date().toISOString().slice(0,10)}`]);
-      aoa.push([]);
-      // 배송용 행 (택배사 업로드) — 택배사/운송장번호/배송상태 포함
-      aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '공급단가', '공급가 소계', '배송메시지', '택배사', '운송장번호', '배송상태']);
-      rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.supply, r.supply * r.qty, r.memo, r.courierName, r.tracking, r.shipStatus]));
-      // 발주 합계
-      const totalQty = rows.reduce((s, r) => s + r.qty, 0);
-      const totalSupply = rows.reduce((s, r) => s + r.supply * r.qty, 0);
-      aoa.push([]);
-      aoa.push(['── 상품별 발주 합계 ──']);
-      aoa.push(['상품명', '옵션', '수량', '공급가 합계']);
-      const pmap: Record<string, { qty: number; amount: number }> = {};
-      rows.forEach(r => { const k = `${r.product}|${r.option}`; (pmap[k] ||= { qty: 0, amount: 0 }); pmap[k].qty += r.qty; pmap[k].amount += r.supply * r.qty; });
-      Object.entries(pmap).forEach(([k, v]) => { const [p, op] = k.split('|'); aoa.push([p, op, v.qty, v.amount]); });
-      aoa.push([]);
-      aoa.push(['농가 발주 합계', '', totalQty, totalSupply]);
-
+      let cols: { wch: number }[];
+      if (kind === 'ship') {
+        // 주문서(배송용) — 고객·배송 정보만 (공급가/원가 제외)
+        aoa.push([`${f.farmName} 주문서 (배송용)`, '', '', '', `지정 택배사: ${f.carrier}`]);
+        aoa.push([`출력일: ${today0}`]);
+        aoa.push([]);
+        aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '배송메시지', '택배사', '운송장번호', '배송상태']);
+        rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.memo, r.courierName, r.tracking, r.shipStatus]));
+        cols = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 12 }];
+      } else {
+        // 발주서(매입용) — 상품·수량·공급가만 (고객 개인정보 제외)
+        aoa.push([`${f.farmName} 발주서 (매입용)`, '', '', `출력일: ${today0}`]);
+        aoa.push([]);
+        aoa.push(['주문번호', '상품명', '옵션', '수량', '공급단가', '공급가 소계']);
+        rows.forEach(r => aoa.push([r.order_no, r.product, r.option, r.qty, r.supply, r.supply * r.qty]));
+        const totalQty = rows.reduce((s, r) => s + r.qty, 0);
+        const totalSupply = rows.reduce((s, r) => s + r.supply * r.qty, 0);
+        aoa.push([]);
+        aoa.push(['── 상품별 발주 합계 ──']);
+        aoa.push(['상품명', '옵션', '수량', '공급가 합계']);
+        const pmap: Record<string, { qty: number; amount: number }> = {};
+        rows.forEach(r => { const k = `${r.product}|${r.option}`; (pmap[k] ||= { qty: 0, amount: 0 }); pmap[k].qty += r.qty; pmap[k].amount += r.supply * r.qty; });
+        Object.entries(pmap).forEach(([k, v]) => { const [p, op] = k.split('|'); aoa.push([p, op, v.qty, v.amount]); });
+        aoa.push([]);
+        aoa.push(['농가 발주 합계', '', totalQty, totalSupply]);
+        cols = [{ wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
+      }
       const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 12 }];
+      ws['!cols'] = cols;
       // 시트명: 농가명(31자, 특수문자 제거, 중복방지)
       let nm = f.farmName.replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || '농가';
       let n = nm; let c = 2; while (usedNames.has(n)) { n = `${nm}_${c++}`; } usedNames.add(n);
@@ -4619,9 +4629,10 @@ export default function AdminClient() {
     });
 
     const today = new Date().toISOString().slice(0, 10);
+    const docName = kind === 'ship' ? '주문서(배송용)' : '발주서(매입용)';
     const fileName = farmId
-      ? `주문서_${(byFarm[farmId]?.[0]?.farmName) || '농가'}_${today}.xlsx`
-      : `주문서_농가별_${today}.xlsx`;
+      ? `${docName}_${(byFarm[farmId]?.[0]?.farmName) || '농가'}_${today}.xlsx`
+      : `${docName}_농가별_${today}.xlsx`;
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
     const blob = new Blob([buf], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
@@ -6412,11 +6423,17 @@ export default function AdminClient() {
                   </button>
                 </div>
                 <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={() => downloadOrderExcel(orderFarmFilter || undefined)}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => downloadOrderExcel(orderFarmFilter || undefined, 'ship')} title="고객·배송 정보 (공급가 제외)">
                     <span className="adm-btn-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </span>
-                    {orderFarmFilter ? `${farms.find(f=>f.id===orderFarmFilter)?.name || ''} 주문서/발주서` : '농가별 주문서/발주서'}
+                    주문서(배송용)
+                  </button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => downloadOrderExcel(orderFarmFilter || undefined, 'purchase')} title="상품·수량·공급가 (고객 개인정보 제외)">
+                    <span className="adm-btn-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </span>
+                    발주서(매입용)
                   </button>
                   <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
