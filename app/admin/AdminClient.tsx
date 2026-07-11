@@ -1537,6 +1537,9 @@ export default function AdminClient() {
   const [orderPage, setOrderPage] = useState(1);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
+  const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
+  const [trackEditVal, setTrackEditVal] = useState('');
+  const [trackSaving, setTrackSaving] = useState<string | null>(null);
   const [farmTracking, setFarmTracking] = useState<Record<string, { courier: string; tracking_number: string }>>({}); // 농가별 송장 입력
   const [savingTracking, setSavingTracking] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
@@ -4062,6 +4065,34 @@ export default function AdminClient() {
     setSavingTracking(false);
   }
 
+  /* 주문 목록 인라인 송장 저장 — 택배사 기본(CJ) + SMS + 상태동기화 + 웹훅(상세 저장과 동일 흐름) */
+  async function saveInlineTracking(o: Order, tno: string) {
+    const trk = (tno || '').trim();
+    if (!trk) { alert('송장번호를 입력하세요.'); return; }
+    setTrackSaving(o.id);
+    const supabase = createClient();
+    const cid = o.courier || 'kr.cjlogistics';
+    const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
+    if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
+    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: cid, tracking_number: trk } : x));
+    // 배송 시작 SMS
+    if (o.phone) fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'shipping_started', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[cid] || cid || '택배사', trackingNumber: trk }) }).catch(() => {});
+    // 상태 동기화 (배송중/배송완료)
+    if (o.status === 'paid' || o.status === 'preparing' || o.status === 'shipped') {
+      const sync = await fetch(`/api/tracking/webhook?carrierId=${encodeURIComponent(cid)}&trackingNumber=${encodeURIComponent(trk)}`, { method:'POST' }).then(r => r.json()).catch(() => null);
+      const real = sync?.updated as string | undefined;
+      const finalStatus = (real && real !== 'preparing') ? real : 'shipped';
+      await supabase.from('orders').update({ status: finalStatus }).eq('id', o.id);
+      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: finalStatus } : x));
+      refreshStageCounts();
+    }
+    // 웹훅 구독 등록
+    fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: cid, trackingNumber: trk }) }).catch(() => {});
+    setTrackSaving(null);
+    setTrackEditRow(null);
+  }
+
   /* ========== 라운지 노출 토글 ========== */
   async function toggleLoungeActive(id: number, newVal: boolean) {
     const supabase = createClient();
@@ -6396,12 +6427,12 @@ export default function AdminClient() {
                       <thead>
                         <tr>
                           <th>주문번호</th><th>주문일시</th><th>수령인</th><th>연락처</th>
-                          <th>금액</th><th>상태</th><th>관리</th>
+                          <th>금액</th><th>상태</th><th>송장번호</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredOrders.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
                         ) : pagedOrders.map(o => (
@@ -6423,6 +6454,35 @@ export default function AdminClient() {
                                     {rq.type === 'cancel' ? '취소요청' : '환불요청'}
                                   </span>
                                 );
+                              })()}
+                            </td>
+                            <td onClick={e => e.stopPropagation()}>
+                              {(() => {
+                                const st = o.status;
+                                if (['cancelled','refunded','refunding','exchanging','exchanged'].includes(st)) return <span className="adm-muted">—</span>;
+                                const editable = st === 'paid' || st === 'preparing' || st === 'shipped';
+                                const editing = trackEditRow === o.id;
+                                const saving = trackSaving === o.id;
+                                if (editing || (editable && !o.tracking_number)) {
+                                  return (
+                                    <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                                      <input value={editing ? trackEditVal : ''} disabled={saving}
+                                        onChange={e => { setTrackEditRow(o.id); setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
+                                        placeholder="송장번호" inputMode="numeric"
+                                        style={{ width:130, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
+                                      <button className="adm-row-btn" disabled={saving} onClick={() => saveInlineTracking(o, editing ? trackEditVal : '')}>{saving ? '저장 중' : '저장'}</button>
+                                    </div>
+                                  );
+                                }
+                                if (o.tracking_number) {
+                                  return (
+                                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                                      <span className="adm-mono" style={{ fontSize:12 }}>{o.tracking_number}</span>
+                                      {editable && <button className="adm-row-btn" onClick={() => { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); }}>수정</button>}
+                                    </div>
+                                  );
+                                }
+                                return <span className="adm-muted">—</span>;
                               })()}
                             </td>
                             <td>
