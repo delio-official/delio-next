@@ -4182,10 +4182,23 @@ export default function AdminClient() {
     if (list.length === 0) { alert('엑셀에서 주문번호·운송장번호를 찾지 못했습니다.\n주문서(배송용)를 내려받아 택배사·운송장번호를 채운 뒤 올려주세요.'); return; }
     if (!confirm(`엑셀에서 ${list.length}건을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?`)) return;
     const supabase = createClient();
-    let done = 0, miss = 0;
+    // 현재 조회 기간 밖 주문도 매칭되도록, 화면에 없는 주문번호는 서버에서 직접 조회
+    const loadedByNo: Record<string, Order> = {};
+    orders.forEach(o => { if (o.order_no) loadedByNo[o.order_no] = o; });
+    const missingNos = list.map(p => p.orderNo).filter(no => !loadedByNo[no]);
+    const fetchedByNo: Record<string, Order> = {};
+    for (let i = 0; i < missingNos.length; i += 300) {
+      const chunk = missingNos.slice(i, i + 300);
+      const { data } = await supabase.from('orders')
+        .select('id, order_no, phone, recipient, status, order_items(product_name)')
+        .in('order_no', chunk);
+      (data || []).forEach((o: Record<string, unknown>) => { fetchedByNo[o.order_no as string] = o as unknown as Order; });
+    }
+    let done = 0, miss = 0, skip = 0;
     for (const p of list) {
-      const o = orders.find(x => x.order_no === p.orderNo);
+      const o = loadedByNo[p.orderNo] || fetchedByNo[p.orderNo];
       if (!o) { miss++; continue; }
+      if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
       await supabase.from('orders').update({ courier: p.courier, tracking_number: p.tracking, status: 'shipped' }).eq('id', o.id);
       setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped' } : x));
       if (o.phone) fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
@@ -4195,7 +4208,7 @@ export default function AdminClient() {
     }
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`엑셀 일괄 발송처리 완료: ${done}건 처리${miss ? `, ${miss}건 주문번호 매칭 실패` : ''}`);
+    alert(`엑셀 일괄 발송처리 완료: ${done}건 처리${skip ? `, ${skip}건 취소/환불건 제외` : ''}${miss ? `, ${miss}건 주문번호 매칭 실패` : ''}`);
   }
 
   /* ========== 라운지 노출 토글 ========== */
@@ -6542,19 +6555,19 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
-              {selOrders.size > 0 && (
+              {(() => { const hasSel = selOrders.size > 0; return (
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', marginBottom:12, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:'#1D4ED8', marginRight:2 }}>{selOrders.size}건 선택</span>
-                  <button className="adm-btn adm-btn-primary" style={{ height:34 }} onClick={bulkSetPreparing}>발주확인</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkSetShipped}>발송처리</button>
+                  <span style={{ fontSize:14, fontWeight:800, color: hasSel ? '#1D4ED8' : '#94A3B8', marginRight:2 }}>{hasSel ? `${selOrders.size}건 선택` : '주문 선택'}</span>
+                  <button className="adm-btn adm-btn-primary" style={{ height:34 }} disabled={!hasSel} onClick={bulkSetPreparing}>발주확인</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} disabled={!hasSel} onClick={bulkSetShipped}>발송처리</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={() => bulkShipFileRef.current?.click()}>엑셀 일괄 발송처리</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkDelayNotice}>발송지연 처리</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34, color:'#DC2626', borderColor:'#FECACA' }} onClick={bulkCancel}>판매자 직접취소</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34, marginLeft:'auto' }} onClick={() => setSelOrders(new Set())}>선택 해제</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} disabled={!hasSel} onClick={bulkDelayNotice}>발송지연 처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34, color: hasSel ? '#DC2626' : undefined, borderColor: hasSel ? '#FECACA' : undefined }} disabled={!hasSel} onClick={bulkCancel}>판매자 직접취소</button>
+                  {hasSel && <button className="adm-btn adm-btn-outline" style={{ height:34, marginLeft:'auto' }} onClick={() => setSelOrders(new Set())}>선택 해제</button>}
                   <input ref={bulkShipFileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) bulkExcelShip(f); e.target.value = ''; }} />
                 </div>
-              )}
+              ); })()}
               <div className="adm-card">
                 {ordersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
