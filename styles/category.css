@@ -224,7 +224,7 @@ body { background: #fff; }
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
   background: rgba(0,0,0,0.5); color: #fff;
-  font-size: 9cqw; font-weight: 600; letter-spacing: 0.7cqw;
+  font-size: 10cqw; font-weight: 600; letter-spacing: 0.8cqw;
 }
 
 /* 이모지 배경 (카테고리별 그라디언트) */
