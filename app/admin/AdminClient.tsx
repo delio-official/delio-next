@@ -1539,6 +1539,7 @@ export default function AdminClient() {
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
+  const [trackEditCourier, setTrackEditCourier] = useState('');
   const [trackSaving, setTrackSaving] = useState<string | null>(null);
   const [farmTracking, setFarmTracking] = useState<Record<string, { courier: string; tracking_number: string }>>({}); // 농가별 송장 입력
   const [savingTracking, setSavingTracking] = useState(false);
@@ -4066,12 +4067,12 @@ export default function AdminClient() {
   }
 
   /* 주문 목록 인라인 송장 저장 — 택배사 기본(CJ) + SMS + 상태동기화 + 웹훅(상세 저장과 동일 흐름) */
-  async function saveInlineTracking(o: Order, tno: string) {
+  async function saveInlineTracking(o: Order, tno: string, courierSel?: string) {
     const trk = (tno || '').trim();
     if (!trk) { alert('송장번호를 입력하세요.'); return; }
     setTrackSaving(o.id);
     const supabase = createClient();
-    const cid = o.courier || 'kr.cjlogistics';
+    const cid = courierSel || o.courier || 'kr.cjlogistics';
     const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
     if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
     setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: cid, tracking_number: trk } : x));
@@ -6464,21 +6465,29 @@ export default function AdminClient() {
                                 const editing = trackEditRow === o.id;
                                 const saving = trackSaving === o.id;
                                 if (editing || (editable && !o.tracking_number)) {
+                                  const startEdit = () => { if (trackEditRow !== o.id) { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); setTrackEditCourier(o.courier || ''); } };
+                                  const curCourier = editing ? trackEditCourier : (o.courier || '');
                                   return (
                                     <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                                      <select value={curCourier} disabled={saving}
+                                        onChange={e => { startEdit(); setTrackEditCourier(e.target.value); }}
+                                        style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
+                                        {COURIER_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                      </select>
                                       <input value={editing ? trackEditVal : ''} disabled={saving}
-                                        onChange={e => { setTrackEditRow(o.id); setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
+                                        onChange={e => { startEdit(); setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
                                         placeholder="송장번호" inputMode="numeric"
-                                        style={{ width:130, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
-                                      <button className="adm-row-btn" disabled={saving} onClick={() => saveInlineTracking(o, editing ? trackEditVal : '')}>{saving ? '저장 중' : '저장'}</button>
+                                        style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
+                                      <button className="adm-row-btn" disabled={saving} onClick={() => saveInlineTracking(o, editing ? trackEditVal : '', editing ? trackEditCourier : (o.courier || ''))}>{saving ? '저장 중' : '저장'}</button>
                                     </div>
                                   );
                                 }
                                 if (o.tracking_number) {
                                   return (
                                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                                      {o.courier && <span className="adm-muted" style={{ fontSize:11, flexShrink:0 }}>{COURIER_NAMES[o.courier] || o.courier}</span>}
                                       <span className="adm-mono" style={{ fontSize:12 }}>{o.tracking_number}</span>
-                                      {editable && <button className="adm-row-btn" onClick={() => { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); }}>수정</button>}
+                                      {editable && <button className="adm-row-btn" onClick={() => { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); setTrackEditCourier(o.courier || ''); }}>수정</button>}
                                     </div>
                                   );
                                 }
