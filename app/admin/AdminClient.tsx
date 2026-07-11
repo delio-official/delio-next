@@ -1537,6 +1537,7 @@ export default function AdminClient() {
   const [orderPage, setOrderPage] = useState(1);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
+  const [selOrders, setSelOrders] = useState<Set<string>>(new Set()); // 주문 일괄선택
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
   const [trackEditCourier, setTrackEditCourier] = useState('');
@@ -4094,6 +4095,36 @@ export default function AdminClient() {
     setTrackEditRow(null);
   }
 
+  /* 선택 주문 일괄 배송준비 처리 */
+  async function bulkSetPreparing() {
+    const ids = [...selOrders];
+    if (ids.length === 0) return;
+    if (!confirm(`선택한 ${ids.length}건을 '배송준비' 상태로 변경할까요?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('orders').update({ status: 'preparing' }).in('id', ids);
+    if (error) { alert('변경 실패: ' + error.message); return; }
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: 'preparing' } : o));
+    refreshStageCounts();
+    setSelOrders(new Set());
+    alert(`${ids.length}건을 배송준비로 변경했습니다.`);
+  }
+
+  /* 선택 주문 일괄 배송 지연 안내 발송 (사유·예상도착일 1회 입력 → 전체 발송) */
+  async function bulkDelayNotice() {
+    const targets = orders.filter(o => selOrders.has(o.id) && o.phone);
+    if (targets.length === 0) { alert('연락처가 있는 선택 주문이 없습니다.'); return; }
+    const reason = prompt(`선택 ${targets.length}건에 보낼 지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)`);
+    if (!reason || !reason.trim()) return;
+    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
+    if (!eta || !eta.trim()) return;
+    for (const o of targets) {
+      await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'delivery_delayed', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() }) }).catch(() => {});
+    }
+    alert(`${targets.length}건에 배송 지연 안내를 발송했습니다.`);
+    setSelOrders(new Set());
+  }
+
   /* ========== 라운지 노출 토글 ========== */
   async function toggleLoungeActive(id: number, newVal: boolean) {
     const supabase = createClient();
@@ -6438,23 +6469,40 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
+              {selOrders.size > 0 && (
+                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', marginBottom:12, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:14, fontWeight:800, color:'#1D4ED8' }}>{selOrders.size}건 선택됨</span>
+                  <button className="adm-btn adm-btn-primary" style={{ height:34 }} onClick={bulkSetPreparing}>배송준비 처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkDelayNotice}>📦 배송 지연 안내 발송</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34, marginLeft:'auto' }} onClick={() => setSelOrders(new Set())}>선택 해제</button>
+                </div>
+              )}
               <div className="adm-card">
                 {ordersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
                         <tr>
+                          <th style={{ width:34 }}>
+                            <input type="checkbox" aria-label="전체 선택"
+                              checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
+                              onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
+                          </th>
                           <th>주문번호</th><th>주문일시</th><th>수령인</th><th>연락처</th>
                           <th>금액</th><th>상태</th><th>송장번호</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredOrders.length === 0 ? (
-                          <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
                         ) : pagedOrders.map(o => (
                           <tr key={o.id}>
+                            <td onClick={e => e.stopPropagation()}>
+                              <input type="checkbox" checked={selOrders.has(o.id)}
+                                onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) next.add(o.id); else next.delete(o.id); return next; })} />
+                            </td>
                             <td className="adm-mono" style={{ fontSize:12 }} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
                             <td className="adm-muted">{fmtDate(o.created_at)}</td>
                             <td>{o.recipient}</td>
