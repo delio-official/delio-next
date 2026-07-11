@@ -664,10 +664,10 @@ export default function CheckoutClient() {
 
           {/* ② 주문하시는 분 */}
           <Section title="주문하시는 분" sk="orderer" open={isOpen('orderer')} onToggle={toggleSec}>
-            <input value={ordererName} onChange={e => setOrdererName(e.target.value)} placeholder="주문자 이름" style={inS} />
-            <input value={ordererPhone} onChange={e => setOrdererPhone(e.target.value.replace(/[^0-9-]/g,''))} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:10 }} />
-            <input value={ordererEmail} onChange={e => setOrdererEmail(e.target.value)} placeholder="이메일" inputMode="email" style={{ ...inS, marginTop:10 }} />
-            <p style={{ fontSize:12, color:'#94A3B8', margin:'10px 0 0' }}>카카오 알림톡이 발송되지 않을 경우 입력하신 이메일로 주문 안내를 보내드려요.</p>
+            <input value={ordererName} readOnly tabIndex={-1} placeholder="주문자 이름" style={{ ...inS, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
+            <input value={ordererPhone} readOnly tabIndex={-1} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:10, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
+            <input value={ordererEmail} readOnly tabIndex={-1} placeholder="이메일" inputMode="email" style={{ ...inS, marginTop:10, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
+            <p style={{ fontSize:12, color:'#94A3B8', margin:'10px 0 0' }}>주문자 정보는 가입 계정 정보로 자동 입력되며 변경할 수 없습니다. 수정은 마이페이지에서 가능합니다.</p>
           </Section>
 
           {/* ③ 받으시는 분 */}
