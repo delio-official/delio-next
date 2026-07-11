@@ -6558,7 +6558,7 @@ export default function AdminClient() {
               <div className="adm-card">
                 {ordersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
-                    <table className="adm-table">
+                    <table className="adm-table adm-table-center">
                       <thead>
                         <tr>
                           <th style={{ width:34 }}>

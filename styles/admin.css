@@ -310,6 +310,9 @@ select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 /* 금액·수량 등 숫자 컬럼: 우측정렬 + 자릿수 폭 고정 */
 .adm-num { font-variant-numeric: tabular-nums; font-family: 'SF Mono', 'Consolas', monospace; font-size: 12px; }
 .adm-table th.adm-num, .adm-table td.adm-num { text-align: right; }
+/* 가운데 정렬 테이블(주문관리 등) */
+.adm-table-center th, .adm-table-center td { text-align: center; }
+.adm-table-center td > div { justify-content: center; }
 .adm-muted { color: var(--text-mute); }
 
 /* ===== 배지 ===== */
