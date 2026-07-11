@@ -1538,6 +1538,7 @@ export default function AdminClient() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
   const [selOrders, setSelOrders] = useState<Set<string>>(new Set()); // 주문 일괄선택
+  const bulkShipFileRef = useRef<HTMLInputElement>(null); // 엑셀 일괄 발송처리 파일 인풋
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
   const [trackEditCourier, setTrackEditCourier] = useState('');
@@ -4125,6 +4126,77 @@ export default function AdminClient() {
     setSelOrders(new Set());
   }
 
+  /* 선택 주문 일괄 발송처리(배송중으로 변경) — 송장은 인라인/엑셀로 별도 등록 */
+  async function bulkSetShipped() {
+    const ids = [...selOrders];
+    if (ids.length === 0) return;
+    if (!confirm(`선택한 ${ids.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('orders').update({ status: 'shipped' }).in('id', ids);
+    if (error) { alert('변경 실패: ' + error.message); return; }
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: 'shipped' } : o));
+    refreshStageCounts();
+    setSelOrders(new Set());
+    alert(`${ids.length}건을 배송중으로 변경했습니다.`);
+  }
+
+  /* 선택 주문 일괄 판매자 직접취소 (결제취소 + 쿠폰·포인트 복원) */
+  async function bulkCancel() {
+    const targets = orders.filter(o => selOrders.has(o.id) && !['cancelled','refunded'].includes(o.status));
+    if (targets.length === 0) { alert('취소 가능한 선택 주문이 없습니다.'); return; }
+    if (!confirm(`선택한 ${targets.length}건을 '판매자 직접취소' 처리할까요?\n\n결제취소 + 쿠폰·포인트 복원이 진행되며 되돌릴 수 없습니다.`)) return;
+    for (const o of targets) { await updateOrderStatus(o.id, 'cancelled'); }
+    setSelOrders(new Set());
+    alert(`${targets.length}건 취소 처리했습니다.`);
+  }
+
+  /* 엑셀 일괄 발송처리 — 주문서(배송용) 양식(주문번호·택배사·운송장번호)을 올려 여러 건 송장+배송중 일괄 등록 */
+  async function bulkExcelShip(file: File) {
+    const xlsxMod = await import('xlsx');
+    const XLSX = xlsxMod.default ?? xlsxMod;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const nameToCode: Record<string, string> = {};
+    Object.entries(COURIER_NAMES).forEach(([code, nm]) => { nameToCode[nm] = code; });
+    type P = { orderNo: string; courier: string; tracking: string };
+    const byNo: Record<string, P> = {};
+    wb.SheetNames.forEach(sn => {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 }) as unknown[][];
+      const hi = rows.findIndex(r => (r || []).some(c => String(c).trim() === '주문번호'));
+      if (hi < 0) return;
+      const hdr = (rows[hi] || []).map(c => String(c || '').trim());
+      const iNo = hdr.indexOf('주문번호'), iCr = hdr.indexOf('택배사');
+      const iTk = hdr.findIndex(h => h === '운송장번호' || h === '송장번호');
+      if (iNo < 0 || iTk < 0) return;
+      for (let r = hi + 1; r < rows.length; r++) {
+        const row = rows[r] || [];
+        const orderNo = String(row[iNo] || '').trim();
+        const tracking = String(row[iTk] || '').replace(/[^0-9]/g, '').trim();
+        if (!orderNo || !tracking) continue;
+        const courierName = iCr >= 0 ? String(row[iCr] || '').trim() : '';
+        byNo[orderNo] = { orderNo, courier: nameToCode[courierName] || 'kr.cjlogistics', tracking };
+      }
+    });
+    const list = Object.values(byNo);
+    if (list.length === 0) { alert('엑셀에서 주문번호·운송장번호를 찾지 못했습니다.\n주문서(배송용)를 내려받아 택배사·운송장번호를 채운 뒤 올려주세요.'); return; }
+    if (!confirm(`엑셀에서 ${list.length}건을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?`)) return;
+    const supabase = createClient();
+    let done = 0, miss = 0;
+    for (const p of list) {
+      const o = orders.find(x => x.order_no === p.orderNo);
+      if (!o) { miss++; continue; }
+      await supabase.from('orders').update({ courier: p.courier, tracking_number: p.tracking, status: 'shipped' }).eq('id', o.id);
+      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped' } : x));
+      if (o.phone) fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ type:'shipping_started', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[p.courier] || p.courier, trackingNumber: p.tracking }) }).catch(() => {});
+      fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: p.courier, trackingNumber: p.tracking }) }).catch(() => {});
+      done++;
+    }
+    refreshStageCounts();
+    setSelOrders(new Set());
+    alert(`엑셀 일괄 발송처리 완료: ${done}건 처리${miss ? `, ${miss}건 주문번호 매칭 실패` : ''}`);
+  }
+
   /* ========== 라운지 노출 토글 ========== */
   async function toggleLoungeActive(id: number, newVal: boolean) {
     const supabase = createClient();
@@ -6470,11 +6542,16 @@ export default function AdminClient() {
                 </div>
               </div>
               {selOrders.size > 0 && (
-                <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', marginBottom:12, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:'#1D4ED8' }}>{selOrders.size}건 선택됨</span>
-                  <button className="adm-btn adm-btn-primary" style={{ height:34 }} onClick={bulkSetPreparing}>배송준비 처리</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkDelayNotice}>📦 배송 지연 안내 발송</button>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', marginBottom:12, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:14, fontWeight:800, color:'#1D4ED8', marginRight:2 }}>{selOrders.size}건 선택</span>
+                  <button className="adm-btn adm-btn-primary" style={{ height:34 }} onClick={bulkSetPreparing}>발주확인</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkSetShipped}>발송처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={() => bulkShipFileRef.current?.click()}>엑셀 일괄 발송처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={bulkDelayNotice}>발송지연 처리</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34, color:'#DC2626', borderColor:'#FECACA' }} onClick={bulkCancel}>판매자 직접취소</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34, marginLeft:'auto' }} onClick={() => setSelOrders(new Set())}>선택 해제</button>
+                  <input ref={bulkShipFileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) bulkExcelShip(f); e.target.value = ''; }} />
                 </div>
               )}
               <div className="adm-card">
