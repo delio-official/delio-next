@@ -343,6 +343,7 @@ export default function CheckoutClient() {
         pointUsed:   appliedPoint,
         userCouponId: coupon?.ucId || null,
         recipient, phone, zipcode,
+        ordererName: ordererName.trim(), ordererPhone: ordererPhone.trim(),
         addr1, addr2, memo,
         payMethod,
         items: items.map(i => ({
@@ -380,6 +381,7 @@ export default function CheckoutClient() {
             coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
             used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
             recipient, phone, zipcode, address1: addr1, address2: addr2,
+            orderer_name: ordererName.trim() || null, orderer_phone: ordererPhone.trim() || null,
             delivery_type: 'parcel', delivery_memo: memo,
             payment_method: payMethod, paid_at: new Date().toISOString(),
           })
@@ -430,7 +432,7 @@ export default function CheckoutClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'order_complete',
-            phone: phone.trim(),
+            phone: (ordererPhone.trim() || phone.trim()),
             recipient: recipient.trim(),
             orderNo: order.order_no,
             orderDate: new Date().toLocaleDateString('ko-KR'),
@@ -464,6 +466,7 @@ export default function CheckoutClient() {
             coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
             used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
             recipient, phone, zipcode, address1: addr1, address2: addr2,
+            orderer_name: ordererName.trim() || null, orderer_phone: ordererPhone.trim() || null,
             delivery_type: 'parcel', delivery_memo: memo,
             payment_method: 'vbank', paid_at: null,
           })
@@ -543,10 +546,11 @@ export default function CheckoutClient() {
           alert(failMsg || '결제가 취소되었습니다.');
           /* 결제 실패 알림톡 — 단순 사용자 취소는 제외 */
           const isCancel = !failMsg || /취소|cancel/i.test(failMsg);
-          if (!isCancel && phone.trim()) {
+          const ordPhone = ordererPhone.trim() || phone.trim();
+          if (!isCancel && ordPhone) {
             fetch('/api/notify', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type: 'payment_failed', phone: phone.trim(),
+              body: JSON.stringify({ type: 'payment_failed', phone: ordPhone,
                 recipient: recipient.trim() || '고객', reason: failMsg, amount: `${total.toLocaleString()}원` }),
             }).catch(() => {});
           }

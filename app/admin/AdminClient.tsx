@@ -56,6 +56,8 @@ interface Order {
   final_amount: number;
   recipient: string;
   phone: string;
+  orderer_name?: string | null;
+  orderer_phone?: string | null;
   zipcode: string | null;
   address1: string;
   address2: string | null;
@@ -65,6 +67,15 @@ interface Order {
   tracking_number: string | null;
   delivery_memo: string | null;
   order_items?: OrderItem[];
+}
+
+/** 주문 알림 발송 — 여러 번호에 중복 없이 발송(숫자만 기준 dedupe).
+ *  배송 관련은 [수령인, 주문자] 양쪽, 결제 관련은 [주문자]만 넘기면 됨. */
+function notifyOrderPhones(phones: (string | null | undefined)[], payload: Record<string, unknown>) {
+  const uniq = [...new Set(phones.map(p => (p || '').replace(/[^0-9]/g, '')).filter(Boolean))];
+  uniq.forEach(ph => {
+    fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, phone: ph }) }).catch(() => {});
+  });
 }
 
 /** 주문 대표 상품명 — 알림톡 변수용 (첫 상품 + 외 N건) */
@@ -3036,15 +3047,13 @@ export default function AdminClient() {
     /* 승인(완료) 시 취소/환불 알림톡 */
     if (newStatus === 'completed' && req.order_id) {
       const ord = orders.find(o => o.id === req.order_id);
-      if (ord?.phone) {
-        fetch('/api/notify', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'order_cancelled', phone: ord.phone, recipient: ord.recipient,
-            orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
-            refundAmount: `${(ord.final_amount || 0).toLocaleString()}원`,
-          }),
-        }).catch(() => {});
+      if (ord) {
+        /* 취소·환불 = 결제 관련 → 주문자(계정)에게만 발송 */
+        notifyOrderPhones([ord.orderer_phone || ord.phone], {
+          type: 'order_cancelled', recipient: ord.recipient,
+          orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
+          refundAmount: `${(ord.final_amount || 0).toLocaleString()}원`,
+        });
       }
     }
     /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
@@ -3904,19 +3913,15 @@ export default function AdminClient() {
       if (newStatus === 'delivered') {
         // 배송 완료 SMS 발송
         const deliveredOrder = orders.find(o => o.id === orderId);
-        if (deliveredOrder?.phone) {
-          fetch('/api/notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'delivery_complete',
-              phone: deliveredOrder.phone,
-              recipient: deliveredOrder.recipient,
-              orderNo: deliveredOrder.order_no,
-              productName: orderProductName(deliveredOrder),
-              completedAt: new Date().toLocaleString('ko-KR'),
-            }),
-          }).catch(() => {});
+        if (deliveredOrder) {
+          /* 배송 관련 → 수령인 + 주문자 양쪽(같은 번호면 1회) */
+          notifyOrderPhones([deliveredOrder.phone, deliveredOrder.orderer_phone], {
+            type: 'delivery_complete',
+            recipient: deliveredOrder.recipient,
+            orderNo: deliveredOrder.order_no,
+            productName: orderProductName(deliveredOrder),
+            completedAt: new Date().toLocaleString('ko-KR'),
+          });
         }
       }
     }
@@ -3970,22 +3975,15 @@ export default function AdminClient() {
       const its = newItems.filter(i => i.id && idSet.has(i.id));
       const names = its.map(i => i.product_name).filter(Boolean) as string[];
       const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
-      // 배송시작 알림톡 (해당 농가 상품명)
-      if (selectedOrder.phone) {
-        fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'shipping_started',
-            phone: selectedOrder.phone,
-            recipient: selectedOrder.recipient,
-            orderNo: selectedOrder.order_no,
-            productName,
-            courierName: COURIER_NAMES[courier] || courier || '택배사',
-            trackingNumber: tracking,
-          }),
-        }).catch(() => {});
-      }
+      // 배송시작 알림톡 (해당 농가 상품명) — 수령인 + 주문자 양쪽
+      notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], {
+        type: 'shipping_started',
+        recipient: selectedOrder.recipient,
+        orderNo: selectedOrder.order_no,
+        productName,
+        courierName: COURIER_NAMES[courier] || courier || '택배사',
+        trackingNumber: tracking,
+      });
       // tracker.delivery 웹훅 구독 등록 → 이후 상태 변경 자동 동기화(배포 환경)
       fetch('/api/tracking/register', {
         method: 'POST',
@@ -4027,22 +4025,15 @@ export default function AdminClient() {
         const cid = trackingInput.courier || 'kr.cjlogistics';
         const tno = trackingInput.tracking_number;
 
-        // 배송 시작 SMS
-        if (selectedOrder.phone) {
-          fetch('/api/notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'shipping_started',
-              phone: selectedOrder.phone,
-              recipient: selectedOrder.recipient,
-              orderNo: selectedOrder.order_no,
-              productName: orderProductName(selectedOrder),
-              courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
-              trackingNumber: tno,
-            }),
-          }).catch(() => {});
-        }
+        // 배송 시작 알림 — 수령인 + 주문자 양쪽
+        notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], {
+          type: 'shipping_started',
+          recipient: selectedOrder.recipient,
+          orderNo: selectedOrder.order_no,
+          productName: orderProductName(selectedOrder),
+          courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
+          trackingNumber: tno,
+        });
 
         // 송장 등록 시 실제 배송상태 조회해서 반영 (배송완료면 바로 배송완료, 진행중이면 배송중)
         if (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing' || selectedOrder.status === 'shipped') {
@@ -4078,9 +4069,8 @@ export default function AdminClient() {
     const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
     if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
     setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: cid, tracking_number: trk } : x));
-    // 배송 시작 SMS
-    if (o.phone) fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'shipping_started', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[cid] || cid || '택배사', trackingNumber: trk }) }).catch(() => {});
+    // 배송 시작 알림 — 수령인 + 주문자 양쪽
+    notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[cid] || cid || '택배사', trackingNumber: trk });
     // 상태 동기화 (배송중/배송완료)
     if (o.status === 'paid' || o.status === 'preparing' || o.status === 'shipped') {
       const sync = await fetch(`/api/tracking/webhook?carrierId=${encodeURIComponent(cid)}&trackingNumber=${encodeURIComponent(trk)}`, { method:'POST' }).then(r => r.json()).catch(() => null);
@@ -4120,8 +4110,8 @@ export default function AdminClient() {
     if (!eta || !eta.trim()) return;
     if (!confirm(`선택한 ${targets.length}건에 배송 지연 안내를 발송할까요?\n\n사유: ${reason.trim()}\n예상 도착일: ${eta.trim()}`)) return;
     for (const o of targets) {
-      await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'delivery_delayed', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() }) }).catch(() => {});
+      /* 배송 지연 = 배송 관련 → 수령인 + 주문자 양쪽 */
+      notifyOrderPhones([o.phone, o.orderer_phone], { type:'delivery_delayed', recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() });
     }
     alert(`${targets.length}건에 배송 지연 안내를 발송했습니다.`);
     setSelOrders(new Set());
@@ -4190,7 +4180,7 @@ export default function AdminClient() {
     for (let i = 0; i < missingNos.length; i += 300) {
       const chunk = missingNos.slice(i, i + 300);
       const { data } = await supabase.from('orders')
-        .select('id, order_no, phone, recipient, status, order_items(product_name)')
+        .select('id, order_no, phone, orderer_phone, recipient, status, order_items(product_name)')
         .in('order_no', chunk);
       (data || []).forEach((o: Record<string, unknown>) => { fetchedByNo[o.order_no as string] = o as unknown as Order; });
     }
@@ -4201,8 +4191,7 @@ export default function AdminClient() {
       if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
       await supabase.from('orders').update({ courier: p.courier, tracking_number: p.tracking, status: 'shipped' }).eq('id', o.id);
       setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped' } : x));
-      if (o.phone) fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ type:'shipping_started', phone:o.phone, recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[p.courier] || p.courier, trackingNumber: p.tracking }) }).catch(() => {});
+      notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[p.courier] || p.courier, trackingNumber: p.tracking });
       fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: p.courier, trackingNumber: p.tracking }) }).catch(() => {});
       done++;
     }
@@ -6052,9 +6041,9 @@ export default function AdminClient() {
                     if (!reason || !reason.trim()) return;
                     const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
                     if (!eta || !eta.trim()) return;
-                    await fetch('/api/notify', { method:'POST', headers:{'Content-Type':'application/json'},
-                      body: JSON.stringify({ type:'delivery_delayed', phone: selectedOrder.phone, recipient: selectedOrder.recipient,
-                        orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() }) }).catch(()=>{});
+                    /* 배송 관련 → 수령인 + 주문자 양쪽 */
+                    notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
+                      orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
                     alert('배송 지연 안내를 발송했습니다.');
                   }}>
                   📦 배송 지연 안내 발송

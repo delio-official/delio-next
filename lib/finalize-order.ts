@@ -9,6 +9,7 @@ export interface OrderData {
   couponDiscount?: number;
   pointUsed?: number;
   userCouponId?: string | null;
+  ordererName?: string; ordererPhone?: string;
   recipient: string; phone: string; zipcode: string;
   addr1: string; addr2: string; memo: string;
   payMethod: string;
@@ -77,6 +78,8 @@ export async function finalizeOrder(
     final_amount:    orderData.totalAmount,
     recipient:       orderData.recipient,
     phone:           orderData.phone,
+    orderer_name:    orderData.ordererName || null,
+    orderer_phone:   orderData.ordererPhone || null,
     zipcode:         orderData.zipcode,
     address1:        orderData.addr1,
     address2:        orderData.addr2,
@@ -186,12 +189,13 @@ export async function finalizeOrder(
     }
   }
 
-  /* 주문 완료 알림톡 (실패해도 주문은 정상) */
-  if (orderData.phone) {
+  /* 주문 완료 알림톡 (실패해도 주문은 정상) — 결제 관련이므로 주문자(계정)에게 발송 */
+  const ordererPhone = orderData.ordererPhone || orderData.phone;
+  if (ordererPhone) {
     const first = orderData.items[0];
     const productName = first ? first.name + (orderData.items.length > 1 ? ` 외 ${orderData.items.length - 1}건` : '') : '';
     try {
-      await notifyAlimtalk('order_complete', orderData.phone, {
+      await notifyAlimtalk('order_complete', ordererPhone, {
         recipient: orderData.recipient,
         orderNo: order.order_no,
         orderDate: new Date().toLocaleDateString('ko-KR'),
