@@ -6406,7 +6406,7 @@ export default function AdminClient() {
                           </td></tr>
                         ) : pagedOrders.map(o => (
                           <tr key={o.id}>
-                            <td className="adm-mono" style={{ fontSize:12 }}>{o.order_no}</td>
+                            <td className="adm-mono" style={{ fontSize:12 }} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
                             <td className="adm-muted">{fmtDate(o.created_at)}</td>
                             <td>{o.recipient}</td>
                             <td className="adm-mono">{o.phone}</td>
