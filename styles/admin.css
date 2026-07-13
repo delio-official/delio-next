@@ -208,6 +208,22 @@ select.adm-select {
 }
 select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 
+/* ===== 날짜/일시 입력 통일 — 달력 아이콘 정리 (전 관리자 공통) ===== */
+input[type="date"].adm-select,
+input[type="datetime-local"].adm-select {
+  /* 드롭다운 화살표용 여백(32px) 제거 → 달력 아이콘이 우측 끝에 오도록 */
+  padding-right: 10px; cursor: pointer;
+}
+input[type="date"].adm-input-text,
+input[type="datetime-local"].adm-input-text { cursor: pointer; }
+.adm-select::-webkit-calendar-picker-indicator,
+.adm-input-text::-webkit-calendar-picker-indicator {
+  opacity: .5; cursor: pointer; margin-left: 2px;
+  transition: opacity .12s;
+}
+.adm-select:hover::-webkit-calendar-picker-indicator,
+.adm-input-text:hover::-webkit-calendar-picker-indicator { opacity: .9; }
+
 /* ===== 폼 섹션 카드 (상품 등록 등) ===== */
 .adm-formsec {
   border: 1px solid #E5EAF0; border-radius: 12px;
