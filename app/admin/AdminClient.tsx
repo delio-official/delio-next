@@ -1577,9 +1577,11 @@ export default function AdminClient() {
   useEffect(() => { setDetailStatus(selectedOrder?.status || ''); }, [selectedOrder]);
   // 모달(어떤 것이든) 열려 있는 동안 뒷배경 스크롤 잠금 — 매 렌더 후 열린 모달 유무로 판단
   useEffect(() => {
-    document.body.style.overflow = document.querySelector('.adm-modal-bg.open') ? 'hidden' : '';
+    const lock = !!document.querySelector('.adm-modal-bg.open');
+    document.documentElement.style.overflow = lock ? 'hidden' : '';
+    document.body.style.overflow = lock ? 'hidden' : '';
   });
-  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+  useEffect(() => () => { document.documentElement.style.overflow = ''; document.body.style.overflow = ''; }, []);
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
