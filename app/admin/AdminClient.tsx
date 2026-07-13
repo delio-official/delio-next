@@ -6022,9 +6022,11 @@ export default function AdminClient() {
                   </div>
                 </div>
               ))}
+              </div>
+              <div className="adm-detail-col">
               {/* 주문 상품 목록 */}
               {(selectedOrder.order_items?.length ?? 0) > 0 && (
-                <div className="adm-detail-group adm-detail-mt16">
+                <div className="adm-detail-group">
                   <div className="adm-detail-label" style={{ marginBottom:10 }}>주문 상품</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {selectedOrder.order_items!.map((item, i) => (
@@ -6055,10 +6057,8 @@ export default function AdminClient() {
                   </div>
                 </div>
               )}
-              </div>
-              <div className="adm-detail-col">
               {/* 배송 추적 정보 입력 — 농가(상품)별 송장 */}
-              <div className="adm-detail-group">
+              <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (농가별 송장)</div>
                 {(() => {
                   const items = selectedOrder.order_items || [];
