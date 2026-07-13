@@ -623,6 +623,15 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 12px 16px;
 }
+/* 상세 섹션 카드 (고객/배송/결제 그룹 구분) */
+.adm-detail-card {
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 12px; background: #FCFCFD;
+}
+.adm-detail-card-title {
+  font-size: 12px; font-weight: 800; color: #334155;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #EEF1F5;
+}
 .adm-detail-group { display: flex; flex-direction: column; gap: 4px; }
 .adm-detail-label {
   font-size: 11px; font-weight: 700;

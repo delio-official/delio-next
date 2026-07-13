@@ -5993,22 +5993,33 @@ export default function AdminClient() {
               </div>
             </div>
             <div className="adm-modal-body">
-              <div className="adm-detail-grid">
-                {[
+              {[
+                { title:'고객 정보', rows: [
                   ['주문자', selectedOrder.recipient],
                   ['연락처', selectedOrder.phone],
+                ] as [string, React.ReactNode][] },
+                { title:'배송 정보', rows: [
                   ['배송지', `${selectedOrder.address1}${selectedOrder.address2 ? ' ' + selectedOrder.address2 : ''}`],
                   ['배송 요청사항', selectedOrder.delivery_memo || '-'],
+                ] as [string, React.ReactNode][] },
+                { title:'결제 정보', rows: [
                   ['결제금액', <>{fmtPrice(selectedOrder.final_amount)}원<PayBadge method={selectedOrder.payment_method} /></>],
                   ['주문일시', fmtDate(selectedOrder.created_at)],
                   ['현재 상태', STATUS_LABEL[selectedOrder.status] || selectedOrder.status],
-                ].map(([k, v]) => (
-                  <div key={String(k)} className="adm-detail-group">
-                    <div className="adm-detail-label">{k}</div>
-                    <div className="adm-detail-val">{v}</div>
+                ] as [string, React.ReactNode][] },
+              ].map(sec => (
+                <div key={sec.title} className="adm-detail-card">
+                  <div className="adm-detail-card-title">{sec.title}</div>
+                  <div className="adm-detail-grid">
+                    {sec.rows.map(([k, v]) => (
+                      <div key={k} className="adm-detail-group">
+                        <div className="adm-detail-label">{k}</div>
+                        <div className="adm-detail-val">{v}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
               {/* 주문 상품 목록 */}
               {(selectedOrder.order_items?.length ?? 0) > 0 && (
                 <div className="adm-detail-group adm-detail-mt16">
