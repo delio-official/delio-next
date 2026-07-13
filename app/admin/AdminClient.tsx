@@ -67,6 +67,7 @@ interface Order {
   courier: string | null;
   tracking_number: string | null;
   delivery_memo: string | null;
+  delay_notified_at?: string | null;
   order_items?: OrderItem[];
 }
 
@@ -1583,7 +1584,6 @@ export default function AdminClient() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailStatus, setDetailStatus] = useState<string>(''); // 상세 모달에서 선택한(미저장) 주문 상태
-  const [delaySentAt, setDelaySentAt] = useState<Record<string, string>>({}); // 주문별 배송지연 안내 발송 시각(H:MM)
   useEffect(() => { setDetailStatus(selectedOrder?.status || ''); }, [selectedOrder]);
   // 모달(어떤 것이든) 열려 있는 동안 뒷배경 스크롤 잠금 — 매 렌더 후 열린 모달 유무로 판단
   useEffect(() => {
@@ -6144,7 +6144,7 @@ export default function AdminClient() {
               <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 지연 안내</div>
                 {(() => {
-                  const sentAt = delaySentAt[selectedOrder.id];
+                  const sentAt = selectedOrder.delay_notified_at;
                   const doSend = async () => {
                     if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
                     const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
@@ -6154,16 +6154,17 @@ export default function AdminClient() {
                     /* 배송 관련 → 수령인 + 주문자 양쪽 */
                     notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
                       orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
-                    const now = new Date();
-                    const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-                    setDelaySentAt(prev => ({ ...prev, [selectedOrder.id]: t }));
+                    const iso = new Date().toISOString();
+                    await createClient().from('orders').update({ delay_notified_at: iso }).eq('id', selectedOrder.id);
+                    setSelectedOrder(prev => prev ? { ...prev, delay_notified_at: iso } : prev);
+                    setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, delay_notified_at: iso } : o));
                   };
                   return sentAt ? (
                     <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:320, padding:'10px 14px',
                       border:'1px solid #BBF7D0', background:'#F0FDF4', borderRadius:8 }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>배송 지연 안내 발송 완료</span>
-                      <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{sentAt} 발송</span>
+                      <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{fmtDate(sentAt)} 발송</span>
                       <button onClick={doSend} title="예상 도착일이 바뀌면 다시 발송"
                         style={{ display:'inline-flex', alignItems:'center', gap:4, height:26, padding:'0 9px', fontSize:12, fontWeight:600,
                           border:'1px solid #86EFAC', background:'#fff', color:'#15803D', borderRadius:6, cursor:'pointer' }}>
