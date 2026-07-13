@@ -345,6 +345,24 @@ const STATUS_BADGE_CLS: Record<string, string> = {
   refunding:'badge-refund', refunded:'badge-off',
 };
 
+/* 결제수단 뱃지 — 카드 회색 / 네이버 초록 / 카카오 노랑 */
+const PAY_INFO: Record<string, { label: string; bg: string; color: string }> = {
+  card:  { label:'카드',   bg:'#F1F5F9', color:'#475569' },
+  naver: { label:'네이버', bg:'#E7F7EC', color:'#03C75A' },
+  kakao: { label:'카카오', bg:'#FEE500', color:'#3C1E1E' },
+  toss:  { label:'토스',   bg:'#E9F1FE', color:'#3182F6' },
+  vbank: { label:'무통장', bg:'#F1F5F9', color:'#475569' },
+};
+function PayBadge({ method }: { method: string }) {
+  const info = PAY_INFO[method] || { label: method || '기타', bg:'#F1F5F9', color:'#475569' };
+  return (
+    <span style={{ display:'inline-block', marginLeft:8, padding:'2px 9px', borderRadius:6,
+      background: info.bg, color: info.color, fontSize:12, fontWeight:700, verticalAlign:'middle' }}>
+      {info.label}
+    </span>
+  );
+}
+
 /* YYYY-MM-DD 포맷 (날짜 input 값) */
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -5968,11 +5986,11 @@ export default function AdminClient() {
                   ['연락처', selectedOrder.phone],
                   ['배송지', `${selectedOrder.address1}${selectedOrder.address2 ? ' ' + selectedOrder.address2 : ''}`],
                   ['배송 요청사항', selectedOrder.delivery_memo || '-'],
-                  ['결제금액', `${fmtPrice(selectedOrder.final_amount)}원 (${selectedOrder.payment_method})`],
+                  ['결제금액', <>{fmtPrice(selectedOrder.final_amount)}원<PayBadge method={selectedOrder.payment_method} /></>],
                   ['주문일시', fmtDate(selectedOrder.created_at)],
                   ['현재 상태', STATUS_LABEL[selectedOrder.status] || selectedOrder.status],
                 ].map(([k, v]) => (
-                  <div key={k} className="adm-detail-group">
+                  <div key={String(k)} className="adm-detail-group">
                     <div className="adm-detail-label">{k}</div>
                     <div className="adm-detail-val">{v}</div>
                   </div>
