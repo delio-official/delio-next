@@ -6031,9 +6031,11 @@ export default function AdminClient() {
                   );
                 })}
                 <span className="adm-statusbar-sep" />
-                <button disabled={updatingStatus === selectedOrder.id}
-                  onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
-                  style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>취소</button>
+                {!(selectedOrder.tracking_number || (selectedOrder.order_items || []).some(i => i.tracking_number)) && (
+                  <button disabled={updatingStatus === selectedOrder.id}
+                    onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
+                    style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>취소</button>
+                )}
                 <button disabled={updatingStatus === selectedOrder.id}
                   onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>환불</button>
