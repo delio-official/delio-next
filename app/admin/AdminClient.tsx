@@ -37,6 +37,7 @@ interface DashboardStats {
 interface OrderItem {
   id?: string;
   product_name: string;
+  option_label?: string | null;
   quantity: number;
   unit_price: number;
   subtotal: number;
@@ -6588,7 +6589,7 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th>주문번호</th><th>주문일시</th><th>수령인</th><th>연락처</th>
+                          <th>주문번호</th><th>주문일시</th><th>수령인</th><th>상품</th>
                           <th>금액</th><th>상태</th><th>송장번호</th><th>관리</th>
                         </tr>
                       </thead>
@@ -6606,7 +6607,22 @@ export default function AdminClient() {
                             <td className="adm-mono" style={{ fontSize:12 }} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
                             <td className="adm-muted">{fmtDate(o.created_at)}</td>
                             <td>{o.recipient}</td>
-                            <td className="adm-mono">{o.phone}</td>
+                            <td>
+                              {(() => {
+                                const items = o.order_items || [];
+                                if (items.length === 0) return <span className="adm-muted">-</span>;
+                                const first = items[0];
+                                const opt = first.option_label || '';
+                                let name = first.product_name || '상품';
+                                if (opt && name.endsWith(`(${opt})`)) name = name.slice(0, -(`(${opt})`.length)).trim();
+                                return (
+                                  <div style={{ lineHeight:1.35 }}>
+                                    <div style={{ fontWeight:600 }}>{name}{items.length > 1 ? ` 외 ${items.length - 1}건` : ''}</div>
+                                    {opt && <div className="adm-muted" style={{ fontSize:12 }}>{opt}</div>}
+                                  </div>
+                                );
+                              })()}
+                            </td>
                             <td className="adm-mono">{fmtPrice(o.final_amount)}원</td>
                             <td>
                               <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
