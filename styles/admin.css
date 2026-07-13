@@ -625,7 +625,10 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   gap: 12px 16px;
 }
 /* 주문 상세: 넓은 모달 + 2단 배치(스크롤 최소화) */
-.adm-modal-wide { max-width: 920px; }
+.adm-modal-wide { max-width: 920px; max-height: 94vh; }
+/* 스크롤바 숨김(휠 스크롤은 유지) */
+.adm-modal-wide { scrollbar-width: none; -ms-overflow-style: none; }
+.adm-modal-wide::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .adm-detail-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 .adm-detail-col { min-width: 0; }
 @media (max-width: 760px) {
