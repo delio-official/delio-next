@@ -4808,6 +4808,50 @@ export default function AdminClient() {
     URL.revokeObjectURL(url);
   }
 
+  /* CJ대한통운 대량접수 엑셀 — 주문×농가(파셀) 1행, CJ 업로드 양식 컬럼에 매핑 */
+  async function downloadCJExcel(farmId?: string) {
+    const xlsxMod = await import('xlsx');
+    const XLSX = xlsxMod.default ?? xlsxMod;
+    const targetOrders = farmId
+      ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
+      : filteredOrders;
+    // (주문 × 농가) 단위로 묶어 파셀 1행 — 같은 주문 내 같은 농가 상품은 한 박스로 합침
+    type Pcl = { order_no: string; recipient: string; phone: string; address: string; memo: string; products: string[]; qty: number; tracking: string };
+    const parcels: Record<string, Pcl> = {};
+    targetOrders.forEach(o => {
+      (o.order_items || []).forEach(it => {
+        const i = it as typeof it & { option_label?: string|null; tracking_number?: string|null };
+        if (farmId && i.farm_id !== farmId) return;
+        const key = `${o.id}|${i.farm_id || '__none__'}`;
+        const p = (parcels[key] ||= { order_no: o.order_no, recipient: o.recipient, phone: o.phone,
+          address: o.address1 + (o.address2 ? ' ' + o.address2 : ''), memo: o.delivery_memo || '', products: [], qty: 0, tracking: (i.tracking_number as string) || '' });
+        const nm = i.product_name + (i.option_label ? ` (${i.option_label})` : '');
+        p.products.push(nm);
+        p.qty += Number(i.quantity) || 0;
+      });
+    });
+    const list = Object.values(parcels);
+    if (list.length === 0) { alert('다운로드할 주문이 없습니다.'); return; }
+
+    const header = ['받는분성명','받는분전화번호','받는분기타연락처','받는분주소(전체, 분할)','품목명','내품명','내품수량','박스타입','운임구분','사용안함','배송메세지1','고객주문번호','운송장번호'];
+    const aoa: (string | number)[][] = [header];
+    list.forEach(p => {
+      const item = p.products.length > 1 ? `${p.products[0]} 외 ${p.products.length - 1}건` : (p.products[0] || '상품');
+      aoa.push([p.recipient, p.phone, '', p.address, item, '', p.qty, '소', '신용', '', p.memo, p.order_no, p.tracking]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch:10 },{ wch:15 },{ wch:15 },{ wch:40 },{ wch:24 },{ wch:12 },{ wch:8 },{ wch:8 },{ wch:8 },{ wch:8 },{ wch:24 },{ wch:20 },{ wch:16 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'sheet1');
+    const today = new Date().toISOString().slice(0, 10);
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `CJ대한통운_발송_${today}.xlsx`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   /* 필터된 상품 목록 */
   /* 판매상태 판정: 판매중(활성·재고>0) / 품절(활성·재고0) / 판매중지(비활성) */
   const productSellState = (p: AdminProduct): 'selling'|'soldout'|'stopped' =>
@@ -6673,6 +6717,12 @@ export default function AdminClient() {
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </span>
                     발주서(매입용)
+                  </button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => downloadCJExcel(orderFarmFilter || undefined)} title="CJ대한통운 대량접수 업로드용 양식">
+                    <span className="adm-btn-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </span>
+                    CJ대한통운 엑셀
                   </button>
                   <button className="adm-btn adm-btn-outline" onClick={() => loadOrders()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
