@@ -5976,7 +5976,7 @@ export default function AdminClient() {
       {/* ===== 주문 상세 모달 ===== */}
       {selectedOrder && (
         <div className="adm-modal-bg open" onClick={() => setSelectedOrder(null)}>
-          <div className="adm-modal" onClick={e => e.stopPropagation()}>
+          <div className="adm-modal adm-modal-wide" onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">주문 상세 — {selectedOrder.order_no}</span>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -5993,6 +5993,8 @@ export default function AdminClient() {
               </div>
             </div>
             <div className="adm-modal-body">
+              <div className="adm-detail-2col">
+              <div className="adm-detail-col">
               {[
                 { title:'고객 정보', rows: [
                   ['주문자', selectedOrder.recipient],
@@ -6053,9 +6055,10 @@ export default function AdminClient() {
                   </div>
                 </div>
               )}
-
+              </div>
+              <div className="adm-detail-col">
               {/* 배송 추적 정보 입력 — 농가(상품)별 송장 */}
-              <div className="adm-detail-group adm-detail-mt16">
+              <div className="adm-detail-group">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (농가별 송장)</div>
                 {(() => {
                   const items = selectedOrder.order_items || [];
@@ -6172,6 +6175,8 @@ export default function AdminClient() {
                     onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   >환불</button>
                 </div>
+              </div>
+              </div>
               </div>
             </div>
           </div>
