@@ -6054,7 +6054,7 @@ export default function AdminClient() {
                           <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} style={{ minWidth:140 }} options={COURIER_OPTIONS} />
                           <input placeholder="운송장번호" value={cur.tracking_number}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
-                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:13, fontFamily:'inherit', outline:'none' }} />
                           <button onClick={() => saveItemTracking(fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
                             className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
                             {savingTracking ? '저장 중...' : '저장'}
