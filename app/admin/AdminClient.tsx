@@ -55,6 +55,9 @@ interface Order {
   user_id: string | null;
   status: string;
   final_amount: number;
+  total_amount?: number | null;
+  coupon_discount?: number | null;
+  point_used?: number | null;
   recipient: string;
   phone: string;
   orderer_name?: string | null;
@@ -6092,11 +6095,28 @@ export default function AdminClient() {
                         </div>
                       </div>
                     ))}
-                    <div style={{ display:'flex', justifyContent:'flex-end', paddingTop:6,
-                      borderTop:'1px solid #E2E8F0', marginTop:2 }}>
-                      <span style={{ fontSize:13, color:'#64748B', marginRight:8 }}>총 결제금액</span>
-                      <span style={{ fontSize:14, fontWeight:800 }}>{fmtPrice(selectedOrder.final_amount)}원</span>
-                    </div>
+                    {(() => {
+                      const coupon = selectedOrder.coupon_discount || 0;
+                      const point = selectedOrder.point_used || 0;
+                      const goods = selectedOrder.total_amount || ((selectedOrder.final_amount || 0) + coupon + point);
+                      const hasDiscount = coupon > 0 || point > 0;
+                      const rowS = { display:'flex', justifyContent:'flex-end', gap:8, fontSize:13 } as React.CSSProperties;
+                      return (
+                        <div style={{ borderTop:'1px solid #E2E8F0', marginTop:2, paddingTop:8, display:'flex', flexDirection:'column', gap:5 }}>
+                          {hasDiscount && (
+                            <>
+                              <div style={rowS}><span style={{ color:'#64748B' }}>상품 금액</span><span style={{ minWidth:90, textAlign:'right' }}>{fmtPrice(goods)}원</span></div>
+                              {coupon > 0 && <div style={rowS}><span style={{ color:'#64748B' }}>쿠폰 할인</span><span style={{ minWidth:90, textAlign:'right', color:'#DC2626' }}>-{fmtPrice(coupon)}원</span></div>}
+                              {point > 0 && <div style={rowS}><span style={{ color:'#64748B' }}>포인트 사용</span><span style={{ minWidth:90, textAlign:'right', color:'#DC2626' }}>-{fmtPrice(point)}원</span></div>}
+                            </>
+                          )}
+                          <div style={{ ...rowS, paddingTop: hasDiscount ? 5 : 0, borderTop: hasDiscount ? '1px dashed #E2E8F0' : 'none' }}>
+                            <span style={{ color:'#64748B', fontWeight:700 }}>총 결제금액</span>
+                            <span style={{ minWidth:90, textAlign:'right', fontSize:14, fontWeight:800 }}>{fmtPrice(selectedOrder.final_amount)}원</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
