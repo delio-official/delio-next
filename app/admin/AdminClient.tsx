@@ -1541,7 +1541,7 @@ export default function AdminClient() {
   const pendingRefundStatus = useRef<string | null>(null); // 환불 패널 진입 시 적용할 상태 필터
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
   const [orderReqOnly, setOrderReqOnly] = useState(false);
-  const [orderDateBasis, setOrderDateBasis] = useState<'created_at'|'paid_at'>('created_at');
+  const [orderDateBasis, setOrderDateBasis] = useState<'paid_at'|'delivered_at'>('paid_at');
   const [orderFrom, setOrderFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
   const [orderTo, setOrderTo] = useState<string>(() => ymd(new Date()));
   const [orderPageSize, setOrderPageSize] = useState(50);
@@ -2248,7 +2248,7 @@ export default function AdminClient() {
     });
   }
 
-  async function loadOrders(opts?: { from?: string; to?: string; basis?: 'created_at'|'paid_at' }) {
+  async function loadOrders(opts?: { from?: string; to?: string; basis?: 'paid_at'|'delivered_at' }) {
     setOrdersLoading(true);
     setOrderPage(1);
     const basis = opts?.basis ?? orderDateBasis;
@@ -6492,8 +6492,8 @@ export default function AdminClient() {
               {/* 조회 기준 · 기간 · 페이지당 개수 */}
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <AdmSelect value={orderDateBasis} onChange={v => setOrderDateBasis(v as 'created_at'|'paid_at')}
-                    options={[{ value:'created_at', label:'주문일' }, { value:'paid_at', label:'결제일' }]} />
+                  <AdmSelect value={orderDateBasis} onChange={v => setOrderDateBasis(v as 'paid_at'|'delivered_at')}
+                    options={[{ value:'paid_at', label:'결제일' }, { value:'delivered_at', label:'배송완료일' }]} />
                   <div className="adm-btn-group">
                     {([['오늘',0],['1주',7],['1개월',30],['3개월',90]] as const).map(([label, days]) => (
                       <button key={label} className="adm-seg-btn" onClick={() => {
