@@ -6143,34 +6143,44 @@ export default function AdminClient() {
               {/* 배송 지연 안내 발송 */}
               <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 지연 안내</div>
-                {delaySentAt[selectedOrder.id] ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:300, padding:'10px 14px',
-                    border:'1px solid #BBF7D0', background:'#F0FDF4', borderRadius:8 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>배송 지연 안내 발송 완료</span>
-                    <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{delaySentAt[selectedOrder.id]} 발송</span>
-                  </div>
-                ) : (
-                  <button
-                    style={{ display:'inline-flex', alignItems:'center', gap:7, width:'fit-content', height:38, padding:'0 16px',
-                      border:'1px solid #E2E8F0', background:'#fff', borderRadius:8, fontSize:13, fontWeight:600, color:'#334155', cursor:'pointer' }}
-                    onClick={async () => {
-                      if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
-                      const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
-                      if (!reason || !reason.trim()) return;
-                      const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
-                      if (!eta || !eta.trim()) return;
-                      /* 배송 관련 → 수령인 + 주문자 양쪽 */
-                      notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
-                        orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
-                      const now = new Date();
-                      const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-                      setDelaySentAt(prev => ({ ...prev, [selectedOrder.id]: t }));
-                    }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    고객에게 배송 지연 안내 발송
-                  </button>
-                )}
+                {(() => {
+                  const sentAt = delaySentAt[selectedOrder.id];
+                  const doSend = async () => {
+                    if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
+                    const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
+                    if (!reason || !reason.trim()) return;
+                    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
+                    if (!eta || !eta.trim()) return;
+                    /* 배송 관련 → 수령인 + 주문자 양쪽 */
+                    notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
+                      orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
+                    const now = new Date();
+                    const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                    setDelaySentAt(prev => ({ ...prev, [selectedOrder.id]: t }));
+                  };
+                  return sentAt ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:320, padding:'10px 14px',
+                      border:'1px solid #BBF7D0', background:'#F0FDF4', borderRadius:8 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>배송 지연 안내 발송 완료</span>
+                      <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{sentAt} 발송</span>
+                      <button onClick={doSend} title="예상 도착일이 바뀌면 다시 발송"
+                        style={{ display:'inline-flex', alignItems:'center', gap:4, height:26, padding:'0 9px', fontSize:12, fontWeight:600,
+                          border:'1px solid #86EFAC', background:'#fff', color:'#15803D', borderRadius:6, cursor:'pointer' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        다시 보내기
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      style={{ display:'inline-flex', alignItems:'center', gap:7, width:'fit-content', height:38, padding:'0 16px',
+                        border:'1px solid #E2E8F0', background:'#fff', borderRadius:8, fontSize:13, fontWeight:600, color:'#334155', cursor:'pointer' }}
+                      onClick={doSend}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      고객에게 배송 지연 안내 발송
+                    </button>
+                  );
+                })()}
               </div>
 
               {/* 고객 취소/환불 요청 (진행중일 때) — 여기서 바로 승인/거절 */}
