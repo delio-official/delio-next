@@ -1573,6 +1573,8 @@ export default function AdminClient() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [detailStatus, setDetailStatus] = useState<string>(''); // 상세 모달에서 선택한(미저장) 주문 상태
+  useEffect(() => { setDetailStatus(selectedOrder?.status || ''); }, [selectedOrder]);
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
@@ -5977,7 +5979,19 @@ export default function AdminClient() {
           <div className="adm-modal" onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">주문 상세 — {selectedOrder.order_no}</span>
-              <button className="adm-modal-close" onClick={() => setSelectedOrder(null)}>✕</button>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 14px', fontSize:13 }}
+                  onClick={() => setSelectedOrder(null)}>취소</button>
+                <button className="adm-btn adm-btn-primary" style={{ height:32, padding:'0 14px', fontSize:13 }}
+                  disabled={updatingStatus === selectedOrder.id}
+                  onClick={async () => {
+                    if (detailStatus && detailStatus !== selectedOrder.status) {
+                      await updateOrderStatus(selectedOrder.id, detailStatus);
+                    }
+                    setSelectedOrder(null);
+                  }}>저장</button>
+                <button className="adm-modal-close-box" onClick={() => setSelectedOrder(null)} aria-label="닫기">✕</button>
+              </div>
             </div>
             <div className="adm-modal-body">
               <div className="adm-detail-grid">
@@ -6125,14 +6139,14 @@ export default function AdminClient() {
               })()}
 
               <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label">주문 상태 변경</div>
+                <div className="adm-detail-label">주문 상태 변경 <span className="adm-muted" style={{ fontSize:11, fontWeight:400 }}>(선택 후 우측 상단 저장)</span></div>
                 <div className="adm-flex-gap adm-mt-6 adm-flex-wrap">
                   {(['preparing','shipped','delivered'] as const).map(s => (
                     <button
                       key={s}
-                      className={`adm-btn ${selectedOrder.status === s ? 'adm-btn-primary' : 'adm-btn-outline'}`}
+                      className={`adm-btn ${detailStatus === s ? 'adm-btn-primary' : 'adm-btn-outline'}`}
                       disabled={updatingStatus === selectedOrder.id}
-                      onClick={() => updateOrderStatus(selectedOrder.id, s)}
+                      onClick={() => setDetailStatus(s)}
                     >
                       {STATUS_LABEL[s]}
                     </button>

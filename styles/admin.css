@@ -609,6 +609,15 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   border-radius: var(--radius);
 }
 .adm-modal-close:hover { background: var(--bg); color: var(--text); }
+/* 네모칸 X (테두리 있는 닫기) */
+.adm-modal-close-box {
+  width: 32px; height: 32px;
+  background: #fff; border: 1px solid var(--border); cursor: pointer;
+  font-size: 14px; color: var(--text-mute);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; transition: background .12s, color .12s, border-color .12s;
+}
+.adm-modal-close-box:hover { background: #F1F5F9; color: var(--text); border-color: #CBD5E1; }
 .adm-modal-body { padding: 20px; }
 .adm-detail-grid {
   display: grid; grid-template-columns: 1fr 1fr;
