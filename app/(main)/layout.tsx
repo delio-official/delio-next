@@ -1,4 +1,5 @@
 import Header from '@/components/Header/Header';
+import SiteFooter from '@/components/SiteFooter/SiteFooter';
 import BottomNav from '@/components/BottomNav/BottomNav';
 import FloatingButtons from '@/components/FloatingButtons/FloatingButtons';
 import CartToast from '@/components/CartToast/CartToast';
@@ -15,6 +16,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <IdentityGate />
       <Header />
       {children}
+      <SiteFooter />
       <BottomNav />
       <FloatingButtons />
       <CartToast />
