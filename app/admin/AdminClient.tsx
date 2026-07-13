@@ -1114,8 +1114,12 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
 }) {
   const [open, setOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
+  const [q, setQ] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  // 옵션이 많을 때만 검색창 노출
+  const searchable = options.length >= 8;
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
@@ -1124,16 +1128,22 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [open]);
+  // 열릴 때 검색어 초기화 + 검색창 포커스
+  useEffect(() => {
+    if (open) { setQ(''); if (searchable) setTimeout(() => searchRef.current?.focus(), 0); }
+  }, [open, searchable]);
   function toggle() {
     if (disabled) return;
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      const listH = Math.min(280, options.length * 38 + 12);
+      const listH = Math.min(280, options.length * 38 + 12) + (searchable ? 44 : 0);
       setDropUp(window.innerHeight - rect.bottom < listH + 16 && rect.top > listH + 16);
     }
     setOpen(o => !o);
   }
   const selected = options.find(o => o.value === value);
+  const kw = q.trim().toLowerCase();
+  const shown = kw ? options.filter(o => o.label.toLowerCase().includes(kw)) : options;
   return (
     <div ref={ref} className={`adm-cs${className ? ' ' + className : ''}`} style={style}>
       <button ref={btnRef} type="button" className={`adm-cs-btn${open ? ' open' : ''}`} disabled={disabled}
@@ -1143,13 +1153,23 @@ function AdmSelect({ value, onChange, options, placeholder, className, style, di
       </button>
       {open && (
         <div className="adm-cs-list" style={dropUp ? { top: 'auto', bottom: 'calc(100% + 5px)' } : undefined}>
-          {options.map(o => (
-            <button type="button" key={o.value} className={`adm-cs-item${o.value === value ? ' active' : ''}`}
-              onClick={() => { onChange(o.value); setOpen(false); }}>
-              {o.label}
-              {o.value === value && <svg className="adm-cs-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-            </button>
-          ))}
+          {searchable && (
+            <div className="adm-cs-search">
+              <input ref={searchRef} type="text" value={q} onChange={e => setQ(e.target.value)}
+                placeholder="검색" onKeyDown={e => { if (e.key === 'Enter' && shown.length === 1) { onChange(shown[0].value); setOpen(false); } }} />
+            </div>
+          )}
+          <div className="adm-cs-scroll">
+            {shown.length === 0 ? (
+              <div className="adm-cs-empty">검색 결과 없음</div>
+            ) : shown.map(o => (
+              <button type="button" key={o.value} className={`adm-cs-item${o.value === value ? ' active' : ''}`}
+                onClick={() => { onChange(o.value); setOpen(false); }}>
+                {o.label}
+                {o.value === value && <svg className="adm-cs-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
