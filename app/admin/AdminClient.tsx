@@ -6604,7 +6604,7 @@ export default function AdminClient() {
                               <input type="checkbox" checked={selOrders.has(o.id)}
                                 onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) next.add(o.id); else next.delete(o.id); return next; })} />
                             </td>
-                            <td className="adm-mono" style={{ fontSize:12 }} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
+                            <td title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
                             <td className="adm-muted">{fmtDate(o.created_at)}</td>
                             <td>{o.recipient}</td>
                             <td>
@@ -6623,7 +6623,7 @@ export default function AdminClient() {
                                 );
                               })()}
                             </td>
-                            <td className="adm-mono">{fmtPrice(o.final_amount)}원</td>
+                            <td>{fmtPrice(o.final_amount)}원</td>
                             <td>
                               <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
                                 {STATUS_LABEL[o.status] || o.status}
@@ -6667,7 +6667,7 @@ export default function AdminClient() {
                                   return (
                                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                                       {o.courier && <span className="adm-muted" style={{ fontSize:11, flexShrink:0 }}>{COURIER_NAMES[o.courier] || o.courier}</span>}
-                                      <span className="adm-mono" style={{ fontSize:12 }}>{o.tracking_number}</span>
+                                      <span>{o.tracking_number}</span>
                                       {editable && <button className="adm-row-btn" onClick={() => { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); setTrackEditCourier(o.courier || ''); }}>수정</button>}
                                     </div>
                                   );
