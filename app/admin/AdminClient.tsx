@@ -1583,6 +1583,7 @@ export default function AdminClient() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailStatus, setDetailStatus] = useState<string>(''); // 상세 모달에서 선택한(미저장) 주문 상태
+  const [delaySentAt, setDelaySentAt] = useState<Record<string, string>>({}); // 주문별 배송지연 안내 발송 시각(H:MM)
   useEffect(() => { setDetailStatus(selectedOrder?.status || ''); }, [selectedOrder]);
   // 모달(어떤 것이든) 열려 있는 동안 뒷배경 스크롤 잠금 — 매 렌더 후 열린 모달 유무로 판단
   useEffect(() => {
@@ -6142,20 +6143,34 @@ export default function AdminClient() {
               {/* 배송 지연 안내 발송 */}
               <div className="adm-detail-group adm-detail-mt16">
                 <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 지연 안내</div>
-                <button className="adm-btn adm-btn-outline" style={{ height:36, padding:'0 14px', fontSize:13 }}
-                  onClick={async () => {
-                    if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
-                    const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
-                    if (!reason || !reason.trim()) return;
-                    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
-                    if (!eta || !eta.trim()) return;
-                    /* 배송 관련 → 수령인 + 주문자 양쪽 */
-                    notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
-                      orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
-                    alert('배송 지연 안내를 발송했습니다.');
-                  }}>
-                  📦 배송 지연 안내 발송
-                </button>
+                {delaySentAt[selectedOrder.id] ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:300, padding:'10px 14px',
+                    border:'1px solid #BBF7D0', background:'#F0FDF4', borderRadius:8 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>배송 지연 안내 발송 완료</span>
+                    <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{delaySentAt[selectedOrder.id]} 발송</span>
+                  </div>
+                ) : (
+                  <button
+                    style={{ display:'inline-flex', alignItems:'center', gap:7, width:'fit-content', height:38, padding:'0 16px',
+                      border:'1px solid #E2E8F0', background:'#fff', borderRadius:8, fontSize:13, fontWeight:600, color:'#334155', cursor:'pointer' }}
+                    onClick={async () => {
+                      if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
+                      const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
+                      if (!reason || !reason.trim()) return;
+                      const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
+                      if (!eta || !eta.trim()) return;
+                      /* 배송 관련 → 수령인 + 주문자 양쪽 */
+                      notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
+                        orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
+                      const now = new Date();
+                      const t = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                      setDelaySentAt(prev => ({ ...prev, [selectedOrder.id]: t }));
+                    }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    고객에게 배송 지연 안내 발송
+                  </button>
+                )}
               </div>
 
               {/* 고객 취소/환불 요청 (진행중일 때) — 여기서 바로 승인/거절 */}
