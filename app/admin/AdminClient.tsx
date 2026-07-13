@@ -5990,7 +5990,6 @@ export default function AdminClient() {
                     }
                     setSelectedOrder(null);
                   }}>저장</button>
-                <button className="adm-modal-close-box" onClick={() => setSelectedOrder(null)} aria-label="닫기">✕</button>
               </div>
             </div>
             <div className="adm-modal-body">
