@@ -1575,13 +1575,11 @@ export default function AdminClient() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailStatus, setDetailStatus] = useState<string>(''); // 상세 모달에서 선택한(미저장) 주문 상태
   useEffect(() => { setDetailStatus(selectedOrder?.status || ''); }, [selectedOrder]);
-  // 상세 모달 열림 동안 뒷배경 스크롤 잠금
+  // 모달(어떤 것이든) 열려 있는 동안 뒷배경 스크롤 잠금 — 매 렌더 후 열린 모달 유무로 판단
   useEffect(() => {
-    if (!selectedOrder) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [selectedOrder]);
+    document.body.style.overflow = document.querySelector('.adm-modal-bg.open') ? 'hidden' : '';
+  });
+  useEffect(() => () => { document.body.style.overflow = ''; }, []);
   const [orderSearch, setOrderSearch] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('');
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
