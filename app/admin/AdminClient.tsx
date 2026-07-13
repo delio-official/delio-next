@@ -345,6 +345,15 @@ const STATUS_BADGE_CLS: Record<string, string> = {
   refunding:'badge-refund', refunded:'badge-off',
 };
 
+/* 주문 상태 변경 버튼 — 선택 시 주문관리 표 뱃지와 동일 색상 */
+const STATUS_BTN_COLOR: Record<string, { bg: string; color: string; border: string }> = {
+  preparing: { bg:'#FFF7ED', color:'#C2410C', border:'#FDBA74' }, // 배송준비중(주황)
+  shipped:   { bg:'#F0FDF4', color:'#15803D', border:'#86EFAC' }, // 배송중(초록)
+  delivered: { bg:'#F1F5F9', color:'#475569', border:'#CBD5E1' }, // 배송완료(회색)
+  cancelled: { bg:'#FEF2F2', color:'#B91C1C', border:'#FCA5A5' }, // 취소(빨강)
+  refunded:  { bg:'#FEF2F2', color:'#DC2626', border:'#FCA5A5' }, // 환불(빨강)
+};
+
 /* 결제수단 뱃지 — 카드 회색 / 네이버 초록 / 카카오 노랑 */
 const PAY_INFO: Record<string, { label: string; bg: string; color: string }> = {
   card:  { label:'카드',   bg:'#F1F5F9', color:'#475569' },
@@ -5999,6 +6008,33 @@ export default function AdminClient() {
                   }}>저장</button>
               </div>
             </div>
+            {/* 상태 변경 바 (상단, 전체 폭) */}
+            <div className="adm-statusbar">
+              <div className="adm-statusbar-cur">
+                <span className="adm-statusbar-caption">현재 상태</span>
+                <span className={`adm-badge ${STATUS_BADGE_CLS[selectedOrder.status] || 'badge-wait'}`}>{STATUS_LABEL[selectedOrder.status] || selectedOrder.status}</span>
+              </div>
+              <div className="adm-statusbar-btns">
+                {(['preparing','shipped','delivered'] as const).map(s => {
+                  const on = detailStatus === s; const c = STATUS_BTN_COLOR[s];
+                  return (
+                    <button key={s} disabled={updatingStatus === selectedOrder.id}
+                      onClick={() => setDetailStatus(s)}
+                      style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer',
+                        border:`1px solid ${on ? c.border : '#E2E8F0'}`, background: on ? c.bg : '#fff', color: on ? c.color : '#64748B' }}>
+                      {STATUS_LABEL[s]}
+                    </button>
+                  );
+                })}
+                <span className="adm-statusbar-sep" />
+                <button disabled={updatingStatus === selectedOrder.id}
+                  onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
+                  style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>취소</button>
+                <button disabled={updatingStatus === selectedOrder.id}
+                  onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
+                  style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>환불</button>
+              </div>
+            </div>
             <div className="adm-modal-body">
               <div className="adm-detail-2col">
               <div className="adm-detail-col">
@@ -6014,7 +6050,6 @@ export default function AdminClient() {
                 { title:'결제 정보', rows: [
                   ['결제금액', <>{fmtPrice(selectedOrder.final_amount)}원<PayBadge method={selectedOrder.payment_method} /></>],
                   ['주문일시', fmtDate(selectedOrder.created_at)],
-                  ['현재 상태', STATUS_LABEL[selectedOrder.status] || selectedOrder.status],
                 ] as [string, React.ReactNode][] },
               ].map(sec => (
                 <div key={sec.title} className="adm-detail-card">
@@ -6158,31 +6193,6 @@ export default function AdminClient() {
                 );
               })()}
 
-              <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label">주문 상태 변경 <span className="adm-muted" style={{ fontSize:11, fontWeight:400 }}>(선택 후 우측 상단 저장)</span></div>
-                <div className="adm-flex-gap adm-mt-6 adm-flex-wrap">
-                  {(['preparing','shipped','delivered'] as const).map(s => (
-                    <button
-                      key={s}
-                      className={`adm-btn ${detailStatus === s ? 'adm-btn-primary' : 'adm-btn-outline'}`}
-                      disabled={updatingStatus === selectedOrder.id}
-                      onClick={() => setDetailStatus(s)}
-                    >
-                      {STATUS_LABEL[s]}
-                    </button>
-                  ))}
-                  <button
-                    className="adm-btn adm-btn-refund"
-                    disabled={updatingStatus === selectedOrder.id}
-                    onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
-                  >취소</button>
-                  <button
-                    className="adm-btn adm-btn-refund"
-                    disabled={updatingStatus === selectedOrder.id}
-                    onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
-                  >환불</button>
-                </div>
-              </div>
               </div>
               </div>
             </div>

@@ -624,6 +624,16 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 12px 16px;
 }
+/* 주문 상세: 상단 상태 변경 바 */
+.adm-statusbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 12px 20px; background: #FAFBFC; border-bottom: 1px solid var(--border);
+}
+.adm-statusbar-cur { display: flex; align-items: center; gap: 8px; }
+.adm-statusbar-caption { font-size: 12px; font-weight: 700; color: #64748B; }
+.adm-statusbar-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.adm-statusbar-sep { width: 1px; height: 20px; background: #E2E8F0; margin: 0 4px; }
+
 /* 주문 상세: 넓은 모달 + 2단 배치(스크롤 최소화) */
 .adm-modal-wide { max-width: 920px; max-height: 94vh; }
 /* 스크롤바 숨김(휠 스크롤은 유지) */
