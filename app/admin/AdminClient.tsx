@@ -333,8 +333,8 @@ const CS_CAT_LABEL: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending:'결제대기', paid:'결제완료', preparing:'상품준비중',
-  shipped:'배송중', delivered:'배송완료', confirmed:'구매확정', cancelled:'취소됨',
+  pending:'결제대기', paid:'결제완료', preparing:'배송준비중',
+  shipped:'배송중', delivered:'배송완료', confirmed:'구매확정', cancelled:'취소',
   refunding:'환불처리중', refunded:'환불완료',
 };
 
@@ -4667,7 +4667,7 @@ export default function AdminClient() {
 
     // 주문항목을 농가별로 평탄화
     type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number; courierName: string; tracking: string; shipStatus: string };
-    const SHIP_LABEL: Record<string, string> = { preparing:'상품 준비중', shipped:'배송중', delivered:'배송완료' };
+    const SHIP_LABEL: Record<string, string> = { preparing:'배송준비중', shipped:'배송중', delivered:'배송완료' };
     const all: Row[] = [];
     targetOrders.forEach(o => {
       (o.order_items || []).forEach(it => {
@@ -6516,7 +6516,7 @@ export default function AdminClient() {
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); }}
-                    options={[{ value:'', label:'전체 상태' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
+                    options={[{ value:'', label:'전체' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
                     options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
