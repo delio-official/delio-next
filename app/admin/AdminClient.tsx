@@ -5085,9 +5085,9 @@ export default function AdminClient() {
                     onChange={e => setPForm(f => ({ ...f, short_desc: e.target.value }))} placeholder="상품 카드에 표시되는 짧은 설명" />
                 </div>
                 <div>
-                  <label className="adm-label">SKU <span style={{ fontWeight:400, color:'#94A3B8' }}>(자동생성·수정가능)</span></label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.sku}
-                    onChange={e => setPForm(f => ({ ...f, sku: e.target.value }))} placeholder="자동 생성됩니다" />
+                  <label className="adm-label">SKU <span style={{ fontWeight:400, color:'#94A3B8' }}>(자동생성 · 내부코드)</span></label>
+                  <input className="adm-input-text" style={{ width:'100%', background:'#F1F5F9', color:'#64748B', cursor:'default' }}
+                    value={pForm.sku} readOnly tabIndex={-1} placeholder="저장 시 자동 생성됩니다" />
                 </div>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">카테고리 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(대분류 → 소분류)</span></label>
