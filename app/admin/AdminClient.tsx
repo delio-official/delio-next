@@ -5052,15 +5052,19 @@ export default function AdminClient() {
                   { dawn:true,  label:'산지 상품', desc:'산지직송' },
                 ] as const).map(opt => {
                   const active = !!pForm.is_dawn === opt.dawn;
+                  // 산지 = 초록, 자사 = 주황 (상품페이지와 동일 계열)
+                  const cMain = opt.dawn ? '#16A34A' : '#EA580C';
+                  const cBg = opt.dawn ? '#F0FDF4' : '#FFF7ED';
+                  const cBorder = opt.dawn ? '#16A34A' : '#F97316';
                   return (
                     <button key={String(opt.dawn)} type="button"
                       onClick={() => setPForm(f => ({ ...f, is_dawn: opt.dawn }))}
                       style={{ flex:1, padding:'12px 10px', borderRadius:10, cursor:'pointer', textAlign:'center',
-                        border: active ? '2px solid #16A34A' : '1px solid #E2E8F0',
-                        background: active ? '#F0FDF4' : '#fff',
-                        color: active ? '#16A34A' : '#475569' }}>
-                      <div style={{ fontSize:14, fontWeight: active ? 800 : 700 }}>{opt.label}</div>
-                      <div style={{ fontSize:11, color: active ? '#16A34A' : '#94A3B8', marginTop:2 }}>{opt.desc}</div>
+                        border: active ? `2px solid ${cBorder}` : '1px solid #E2E8F0',
+                        background: active ? cBg : '#fff',
+                        color: active ? cMain : '#475569' }}>
+                      <div style={{ fontSize:14, fontWeight:700 }}>{opt.label}</div>
+                      <div style={{ fontSize:11, color: active ? cMain : '#94A3B8', marginTop:2 }}>{opt.desc}</div>
                     </button>
                   );
                 })}
