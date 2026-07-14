@@ -1624,6 +1624,7 @@ export default function AdminClient() {
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState('');
+  const [productBrandFilter, setProductBrandFilter] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
 
   /* ── 필탭 / 카테고리 ── */
@@ -4662,7 +4663,7 @@ export default function AdminClient() {
     loadedPanels.current.add(p);
     switch (p) {
       case 'orders':    loadOrders(); loadFarms(); loadRefundRequests(); break;
-      case 'products':  loadProducts(); loadFilterTabs(); break;
+      case 'products':  loadProducts(); loadFilterTabs(); loadFarms(); break;
       case 'menu': loadMenus(); loadFilterTabs(); break;
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
@@ -4883,10 +4884,11 @@ export default function AdminClient() {
   const subCatsOf = (majorVal: string) => catTabsAll.filter(t => t.parent === majorVal).sort((a, b) => a.sort_order - b.sort_order);
   const filteredProducts = products.filter(p => {
     const matchCat = !productCatFilter || p.category === productCatFilter;
+    const matchBrand = !productBrandFilter || p.farm_id === productBrandFilter;
     const q = productSearch.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q);
     const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
-    return matchCat && matchSearch && matchStatus;
+    return matchCat && matchBrand && matchSearch && matchStatus;
   });
 
   /* 리뷰 필터·페이지 */
@@ -6892,6 +6894,8 @@ export default function AdminClient() {
                 <div className="adm-toolbar-left">
                   <AdmSelect value={productCatFilter} onChange={setProductCatFilter}
                     options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))]} />
+                  <AdmSelect value={productBrandFilter} onChange={setProductBrandFilter}
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="상품명 검색"
                     value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 </div>
