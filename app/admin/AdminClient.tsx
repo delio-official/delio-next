@@ -3968,6 +3968,16 @@ export default function AdminClient() {
             if (parts.length) alert('복원 완료: ' + parts.join(' · '));
           }
         } catch { /* 복원 실패해도 상태는 유지 */ }
+
+        /* 판매자 직접 취소/환불 → 고객(주문자)에게 취소 안내 알림톡 */
+        const vo = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+        if (vo) {
+          notifyOrderPhones([vo.orderer_phone || vo.phone], {
+            type: 'order_cancelled', recipient: vo.recipient, orderNo: vo.order_no,
+            cancelledAt: new Date().toLocaleString('ko-KR'),
+            refundAmount: `${(vo.final_amount || 0).toLocaleString()}원`,
+          });
+        }
       }
 
       /* 추천 리워드는 첫 구매 배송완료(delivered) 시 DB 트리거가 자동 지급 (5,000원 쿠폰) */
