@@ -6705,7 +6705,7 @@ export default function AdminClient() {
                   <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); }}
                     options={[{ value:'', label:'전체' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
-                    options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
                     value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
                   <button
