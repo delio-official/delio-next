@@ -6915,33 +6915,33 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         <tr>
-                          <th>상품명</th><th>카테고리</th><th>정상가</th><th>판매가</th>
+                          <th>상품명</th><th>브랜드</th><th>카테고리</th><th>정상가</th><th>판매가</th>
                           <th>할인율</th><th>상태</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>상품 없음</td></tr>
+                          <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>상품 없음</td></tr>
                         ) : filteredProducts.map(p => (
                           <tr key={p.id}>
                             <td>{p.name}</td>
+                            <td>{farms.find(f => f.id === p.farm_id)?.name || '-'}</td>
                             <td>{catOptions[p.category] || CAT_LABEL[p.category] || p.category}</td>
                             <td className="adm-mono adm-muted"><s>{fmtPrice(p.price)}원</s></td>
                             <td className="adm-mono"><strong>{fmtPrice(p.discounted_price)}원</strong></td>
-                            <td>{p.discount_rate > 0 ? <span className="adm-badge badge-paid">{Math.round(p.discount_rate)}%</span> : '-'}</td>
+                            <td>{p.discount_rate > 0 ? <span className="adm-badge badge-refund">{Math.round(p.discount_rate)}%</span> : '-'}</td>
                             <td>
-                              <span className={`adm-badge ${p.is_active ? 'badge-on' : 'badge-off'}`}>
-                                {p.is_active ? '판매중' : '판매중지'}
-                              </span>
+                              {(() => {
+                                const st = productSellState(p);
+                                const info = st === 'selling' ? { l:'판매중', c:'badge-on' } : st === 'soldout' ? { l:'품절', c:'badge-ready' } : { l:'판매중지', c:'badge-done' };
+                                return <span className={`adm-badge ${info.c}`}>{info.l}</span>;
+                              })()}
                             </td>
                             <td style={{ display:'flex', gap:6 }}>
                               <button className="adm-row-btn" onClick={() => openProductModal(p)}>수정</button>
-                              <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => setDetailEditor({ id: p.id, name: p.name })}>상세설명</button>
-                              <button className="adm-row-btn" style={{ color:'#7C3AED' }} onClick={() => setInfoEditor({ id: p.id, name: p.name })}>상세정보</button>
                               <button className="adm-row-btn" style={{ color: p.is_active ? '#DC2626' : '#16A34A' }} onClick={() => toggleProductActive(p)}>
-                                {p.is_active ? '판매중지' : '판매활성'}
+                                {p.is_active ? '판매중지' : '판매중'}
                               </button>
-                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteProduct(p)}>삭제</button>
                             </td>
                           </tr>
                         ))}
