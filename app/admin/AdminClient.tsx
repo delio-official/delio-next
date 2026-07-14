@@ -6881,8 +6881,8 @@ export default function AdminClient() {
                   { l:'품절', v:productStatusCounts.soldout, st:'soldout' as const, red:true },
                   { l:'판매중지', v:productStatusCounts.stopped, st:'stopped' as const, red:false },
                 ].map(k => (
-                  <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: productStatusFilter===k.st && k.st!=='' ? '2px solid #1A1A1A' : 'none' }}
-                    onClick={() => setProductStatusFilter(productStatusFilter===k.st ? '' : k.st)}>
+                  <div key={k.l} className="adm-kpi-card" style={{ cursor:'pointer', outline: productStatusFilter===k.st ? '2px solid #1A1A1A' : 'none' }}
+                    onClick={() => setProductStatusFilter(k.st)}>
                     <div className="adm-kpi-label">{k.l}</div>
                     <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && k.v>0 ? { color:'#DC2626' } : undefined}>{k.v}</div>
                   </div>
