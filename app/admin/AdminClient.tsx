@@ -5035,13 +5035,13 @@ export default function AdminClient() {
         />
       )}
 
-      {/* ===== 상품 등록/수정 모달 ===== */}
-      {productModal && (
-        <div className="adm-modal-bg open">
-          <div className="adm-modal" style={{ maxWidth:640, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
-            <div className="adm-modal-head">
+      {/* ===== 상품 등록/수정 — 페이지형 패널 ===== */}
+      {productModal && panel === 'products' && (
+        <div className="adm-productpage">
+          <div className="adm-productpage-inner">
+            <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
               <span className="adm-modal-title">{editingProduct ? '상품 수정' : '상품 등록'}</span>
-              <button className="adm-modal-close" onClick={() => setProductModal(false)}>✕</button>
+              <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={() => setProductModal(false)}>← 목록으로</button>
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
