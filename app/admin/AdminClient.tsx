@@ -5049,7 +5049,7 @@ export default function AdminClient() {
               <div style={{ display:'flex', gap:8 }}>
                 {([
                   { dawn:false, label:'자사 상품', desc:'자사배송' },
-                  { dawn:true,  label:'산지 상품', desc:'산지직송' },
+                  { dawn:true,  label:'브랜드 직송', desc:'산지직송' },
                 ] as const).map(opt => {
                   const active = !!pForm.is_dawn === opt.dawn;
                   // 산지 = 초록, 자사 = 주황 (상품페이지와 동일 계열)
@@ -5114,6 +5114,34 @@ export default function AdminClient() {
                     );
                   })()}
                 </div>
+                {pForm.is_dawn && (
+                <div style={{ gridColumn:'1 / -1' }}>
+                  <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
+                  <div style={{ position:'relative' }}>
+                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="농가 없음 — 이름으로 검색"
+                      value={farmPickOpen ? farmSearch : (farmList.find(fm => fm.id === pForm.farm_id)?.name || '')}
+                      onFocus={() => { setFarmPickOpen(true); setFarmSearch(''); }}
+                      onBlur={() => setTimeout(() => setFarmPickOpen(false), 150)}
+                      onChange={e => setFarmSearch(e.target.value)} />
+                    {farmPickOpen && (() => {
+                      const matched = farmList.filter(fm => fm.name.toLowerCase().includes(farmSearch.toLowerCase()));
+                      return (
+                        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, maxHeight:220,
+                          overflowY:'auto', background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 6px 18px rgba(0,0,0,0.1)' }}>
+                          <div onMouseDown={() => { setPForm(f => ({ ...f, farm_id: null })); setFarmPickOpen(false); }}
+                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>농가 없음</div>
+                          {matched.map(fm => (
+                            <div key={fm.id} onMouseDown={() => { setPForm(f => ({ ...f, farm_id: fm.id })); setFarmPickOpen(false); }}
+                              style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, fontWeight: pForm.farm_id===fm.id ? 700 : 400,
+                                background: pForm.farm_id===fm.id ? '#F1F5F9' : '#fff' }}>{fm.name}</div>
+                          ))}
+                          {matched.length === 0 && <div style={{ padding:'9px 12px', fontSize:12, color:'#94A3B8' }}>검색 결과 없음</div>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+                )}
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">원산지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(국내산: 시·도 → 시·군·구 / 수입산: 국가)</span></label>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -5380,41 +5408,6 @@ export default function AdminClient() {
                     )}
                   </div>
                 </div>
-                {pForm.is_dawn ? (
-                <div>
-                  <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
-                  <div style={{ position:'relative' }}>
-                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="농가 없음 — 이름으로 검색"
-                      value={farmPickOpen ? farmSearch : (farmList.find(fm => fm.id === pForm.farm_id)?.name || '')}
-                      onFocus={() => { setFarmPickOpen(true); setFarmSearch(''); }}
-                      onBlur={() => setTimeout(() => setFarmPickOpen(false), 150)}
-                      onChange={e => setFarmSearch(e.target.value)} />
-                    {farmPickOpen && (() => {
-                      const matched = farmList.filter(fm => fm.name.toLowerCase().includes(farmSearch.toLowerCase()));
-                      return (
-                        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, maxHeight:220,
-                          overflowY:'auto', background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 6px 18px rgba(0,0,0,0.1)' }}>
-                          <div onMouseDown={() => { setPForm(f => ({ ...f, farm_id: null })); setFarmPickOpen(false); }}
-                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>농가 없음</div>
-                          {matched.map(fm => (
-                            <div key={fm.id} onMouseDown={() => { setPForm(f => ({ ...f, farm_id: fm.id })); setFarmPickOpen(false); }}
-                              style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, fontWeight: pForm.farm_id===fm.id ? 700 : 400,
-                                background: pForm.farm_id===fm.id ? '#F1F5F9' : '#fff' }}>{fm.name}</div>
-                          ))}
-                          {matched.length === 0 && <div style={{ padding:'9px 12px', fontSize:12, color:'#94A3B8' }}>검색 결과 없음</div>}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-                ) : (
-                <div>
-                  <label className="adm-label">연결 농가</label>
-                  <div style={{ padding:'11px 12px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:13, color:'#475569', background:'#F8FAFC' }}>
-                    자사배송 상품은 <b>델리오(자사센터)</b>로 자동 연결돼요. <span style={{ color:'#94A3B8' }}>(발주서용 · 파트너농가 페이지엔 노출 안 됨)</span>
-                  </div>
-                </div>
-                )}
                 <div>
                   <label className="adm-label">정렬 순서</label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.sort_order || ''}
