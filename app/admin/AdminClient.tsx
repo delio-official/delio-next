@@ -6730,7 +6730,11 @@ export default function AdminClient() {
                     </span>
                     발주서(매입용)
                   </button>
-                  <button className="adm-btn adm-btn-outline" onClick={() => downloadCJExcel(orderFarmFilter || undefined)} title="자사상품 CJ대한통운 대량접수 업로드용 양식">
+                  <button className="adm-btn adm-btn-outline" onClick={() => {
+                      const delio = farms.find(f => f.name === '델리오' || f.name.includes('델리오'));
+                      if (!delio) { alert('델리오(자사) 브랜드를 찾을 수 없습니다.'); return; }
+                      downloadCJExcel(delio.id);
+                    }} title="델리오(자사) 상품만 CJ대한통운 대량접수 업로드용 양식">
                     <span className="adm-btn-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     </span>
