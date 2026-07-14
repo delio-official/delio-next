@@ -4886,7 +4886,8 @@ export default function AdminClient() {
     const matchCat = !productCatFilter || p.category === productCatFilter;
     const matchBrand = !productBrandFilter || p.farm_id === productBrandFilter;
     const q = productSearch.toLowerCase();
-    const matchSearch = !q || p.name.toLowerCase().includes(q);
+    const brandName = (farms.find(f => f.id === p.farm_id)?.name || '').toLowerCase();
+    const matchSearch = !q || p.name.toLowerCase().includes(q) || brandName.includes(q);
     const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
     return matchCat && matchBrand && matchSearch && matchStatus;
   });
@@ -6900,7 +6901,7 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={productBrandFilter} onChange={setProductBrandFilter}
                     options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
-                  <input type="text" className="adm-input-text" placeholder="상품명 검색"
+                  <input type="text" className="adm-input-text" placeholder="브랜드명·상품명 검색"
                     value={productSearch} onChange={e => setProductSearch(e.target.value)} />
                 </div>
                 <div className="adm-toolbar-right">
