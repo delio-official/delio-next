@@ -1425,6 +1425,18 @@ export default function AdminClient() {
 
   /* ── 상품 등록/수정 모달 ── */
   const [productModal, setProductModal] = useState(false);
+  // 상품폼 열림을 브라우저 히스토리에 연동 — 뒤로가기 시 이전 페이지가 아니라 폼만 닫히도록
+  useEffect(() => {
+    if (!productModal) return;
+    window.history.pushState({ adminPForm: true }, '');
+    const onPop = () => setProductModal(false);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      // 버튼/저장으로 닫힌 경우(뒤로가기 아님) 쌓아둔 히스토리 항목 정리
+      if (window.history.state?.adminPForm) window.history.back();
+    };
+  }, [productModal]);
   const [editingProduct, setEditingProduct] = useState<AdminProductFull | null>(null);
 
   /* ── 상세설명 / 상세정보 에디터 ── */
