@@ -5438,9 +5438,9 @@ export default function AdminClient() {
               </div>
               </div>
 
-              {/* 배송 · 표시 */}
+              {/* 배송 (출발 마감 시간 전용 섹션) */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🚚 배송 · 표시</div>
+              <div className="adm-formsec-title">🚚 배송</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
@@ -5448,6 +5448,13 @@ export default function AdminClient() {
                     onChange={v => setPForm(f => ({ ...f, dispatch_cutoff: v }))}
                     options={[{ value:'', label:'전체 설정 적용' }, ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) }))]} />
                 </div>
+              </div>
+              </div>
+
+              {/* 표시 설정 (뱃지 · 정렬 · 태그) */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">🏷 표시 설정</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.badge || ''}
