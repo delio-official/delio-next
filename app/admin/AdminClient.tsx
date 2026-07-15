@@ -1239,14 +1239,14 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
     <div key={o.id} style={{ marginBottom:8, marginLeft:16 }}>
       <div style={{ display:'flex', gap:6, alignItems:'center' }}>
         <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
-        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
+        <input className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
-        <input className="adm-input-text" style={{ width:84, flexShrink:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
-        <input className="adm-input-text" style={{ width:88, flexShrink:0 }} type="number" placeholder="0" title="농가 공급가(매입가+배송비)"
+        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="농가 공급가(매입가+배송비)"
           value={o.supply_price || ''} onChange={e => patch(o._i, { supply_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>공급가</span>
-        <input className="adm-input-text" style={{ width:72, flexShrink:0, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
+        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
           type="number" placeholder={o.manage_stock ? '0' : '무한'} disabled={!o.manage_stock}
           value={o.manage_stock ? (o.stock || '') : ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
         <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#94A3B8', flexShrink:0, cursor:'pointer' }} title="끄면 재고 무한(차감·품절 없음)">
