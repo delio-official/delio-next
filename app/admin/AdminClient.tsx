@@ -1482,6 +1482,7 @@ export default function AdminClient() {
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
   const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
+  const pImgDragIdx = useRef<number | null>(null); // 이미지 드래그 시작 인덱스
   // 업로드된 URL을 ref로도 보관 → 스테일 클로저로 인한 null 저장 방지
   const uploadedThumbnailRef = useRef<string>('');
 
@@ -2660,7 +2661,6 @@ export default function AdminClient() {
   }
 
   /* 상품 이미지 순서 변경 — 드래그 이동([대표, ...추가5] 통합 배열, 이미지는 항상 왼쪽부터 채움) */
-  const pImgDragIdx = useRef<number | null>(null);
   function reorderPImg(from: number, to: number) {
     const arr: (string|null)[] = [pForm.thumbnail_url || null, ...((pForm.image_urls as (string|null)[]) || [null,null,null,null,null])];
     const filled = arr.filter((u): u is string => !!u);
