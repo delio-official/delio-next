@@ -5115,7 +5115,7 @@ export default function AdminClient() {
 
               {/* 기본 정보 */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">📋 기본 정보</div>
+              <div className="adm-formsec-title">기본 정보</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품명 *</label>
@@ -5234,7 +5234,7 @@ export default function AdminClient() {
 
               {/* 판매금액 영역 (정상가 · 할인 · 판매가 한 묶음) */}
               <div className="adm-formsec">
-                <div className="adm-formsec-title">💰 판매금액 · 정산</div>
+                <div className="adm-formsec-title">판매금액 · 정산</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {/* 정상가 */}
                   <div>
@@ -5327,14 +5327,14 @@ export default function AdminClient() {
 
               {/* 옵션 */}
               <div className="adm-formsec">
-                <div className="adm-formsec-title">🧩 판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
+                <div className="adm-formsec-title">판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
                 <OptionTreeEditor key={editingProduct?.id || 'new'} options={pOptions} setOptions={setPOptions}
                   basePrice={Math.round((pForm.price || 0) * (1 - (Number(pForm.discount_rate) || 0) / 100))} />
               </div>
 
               {/* 상품 이미지 */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🖼 상품 이미지</div>
+              <div className="adm-formsec-title">상품 이미지</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(최대 6장 · 첫 번째 = 대표)</span></label>
@@ -5407,7 +5407,7 @@ export default function AdminClient() {
 
               {/* 맛 프로파일 */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🍯 맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(상세페이지 표시 · 미설정 시 카테고리 기본값)</span></div>
+              <div className="adm-formsec-title">맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(상세페이지 표시 · 미설정 시 카테고리 기본값)</span></div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {SELLER_AXES.map(axis => (
                   <div key={axis.key} style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
@@ -5440,7 +5440,7 @@ export default function AdminClient() {
 
               {/* 배송 (출발 마감 시간 전용 섹션) */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🚚 배송</div>
+              <div className="adm-formsec-title">배송</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
@@ -5453,7 +5453,7 @@ export default function AdminClient() {
 
               {/* 표시 설정 (뱃지 · 정렬 · 태그) */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">🏷 표시 설정</div>
+              <div className="adm-formsec-title">표시 설정</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
@@ -5499,7 +5499,7 @@ export default function AdminClient() {
 
               {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 저장 후 자동 진입) */}
               <div className="adm-formsec">
-                <div className="adm-formsec-title">📄 상세페이지</div>
+                <div className="adm-formsec-title">상세페이지</div>
                 <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
                   {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '버튼을 누르면 먼저 상품이 저장된 뒤 상세 작성 화면이 열립니다.'}
                 </div>
