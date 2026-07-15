@@ -208,6 +208,11 @@ select.adm-select {
 }
 select.adm-select option { color: #1A1A1A; background: #fff; padding: 8px; }
 
+/* ===== 숫자 입력 스피너(위아래 화살표) 전역 제거 (관리자 전체) ===== */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
 /* ===== 날짜/일시 입력 통일 — 달력 아이콘 정리 (전 관리자 공통) ===== */
 input[type="date"].adm-select,
 input[type="datetime-local"].adm-select {
