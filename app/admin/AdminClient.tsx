@@ -1481,7 +1481,6 @@ export default function AdminClient() {
   const [pOptions, setPOptions] = useState<POpt[]>([]);
   const [pImgUploading, setPImgUploading] = useState(false);
   const pImgRef = useRef<HTMLInputElement>(null);
-  const pImgSlotRef = useRef<number>(0);   // 현재 업로드 중인 슬롯 (0 = 대표, 1~5 = 추가)
   const pImgDragIdx = useRef<number | null>(null); // 이미지 드래그 시작 인덱스
   // 업로드된 URL을 ref로도 보관 → 스테일 클로저로 인한 null 저장 방지
   const uploadedThumbnailRef = useRef<string>('');
@@ -2660,18 +2659,21 @@ export default function AdminClient() {
     return `${code}-${String(max + 1).padStart(4, '0')}`;
   }
 
-  /* 상품 이미지 순서 변경 — 드래그 이동([대표, ...추가5] 통합 배열, 이미지는 항상 왼쪽부터 채움) */
-  function reorderPImg(from: number, to: number) {
-    const arr: (string|null)[] = [pForm.thumbnail_url || null, ...((pForm.image_urls as (string|null)[]) || [null,null,null,null,null])];
-    const filled = arr.filter((u): u is string => !!u);
-    const fFrom = arr.slice(0, from).filter(Boolean).length;
-    const fTo = Math.min(arr.slice(0, to).filter(Boolean).length, filled.length - 1);
-    if (fFrom === fTo || fFrom >= filled.length) return;
-    const [moved] = filled.splice(fFrom, 1);
-    filled.splice(fTo, 0, moved);
-    const next: (string|null)[] = [...filled, ...Array(6 - filled.length).fill(null)];
+  /* 상품 이미지 목록 — [대표, ...추가5]에서 실제 등록된 것만 (항상 왼쪽부터 채움) */
+  const pImgList = (): string[] =>
+    [pForm.thumbnail_url || null, ...((pForm.image_urls as (string|null)[]) || [])].filter((u): u is string => !!u);
+  const setPImgList = (list: string[]) => {
+    const next: (string|null)[] = [...list, ...Array(Math.max(0, 6 - list.length)).fill(null)];
     uploadedThumbnailRef.current = next[0] || '';
     setPForm(f => ({ ...f, thumbnail_url: next[0] || '', image_urls: next.slice(1, 6) }));
+  };
+  /* 드래그 이동 (등록된 이미지 인덱스 기준) */
+  function reorderPImg(from: number, to: number) {
+    const list = pImgList();
+    if (from === to || from < 0 || from >= list.length) return;
+    const [moved] = list.splice(from, 1);
+    list.splice(Math.min(to, list.length), 0, moved);
+    setPImgList(list);
   }
 
   function openProductModal(p?: AdminProduct) {
@@ -5335,8 +5337,8 @@ export default function AdminClient() {
               <div className="adm-formsec-title">🖼 상품 이미지</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
-                  <label className="adm-label">상품 이미지 (최대 6장 · 첫 번째 = 대표)</label>
-                  {/* 숨김 파일 인풋 — 슬롯별 공유 */}
+                  <label className="adm-label">상품 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(최대 6장 · 첫 번째 = 대표)</span></label>
+                  {/* 숨김 파일 인풋 — 여러 장 동시 선택 */}
                   <input ref={pImgRef} type="file" accept="image/*" multiple style={{ display:'none' }}
                     onChange={async e => {
                       const files = Array.from(e.target.files || []);
@@ -5345,73 +5347,58 @@ export default function AdminClient() {
                       const urls: string[] = [];
                       for (const file of files) { const u = await uploadProductImage(file); if (u) urls.push(u); }
                       if (!urls.length) return;
-                      const start = pImgSlotRef.current;
-                      setPForm(f => {
-                        const arr: (string|null)[] = [f.thumbnail_url || null, ...((f.image_urls as (string|null)[]) || [null,null,null,null,null])];
-                        arr[start] = urls[0];                       // 클릭한 칸은 교체
-                        let k = 1;
-                        for (let i = 0; i < 6 && k < urls.length; i++) if (!arr[i]) arr[i] = urls[k++]; // 나머지는 빈 칸에 순서대로
-                        uploadedThumbnailRef.current = arr[0] || '';
-                        return { ...f, thumbnail_url: arr[0] || '', image_urls: arr.slice(1, 6) };
-                      });
+                      setPImgList([...pImgList(), ...urls].slice(0, 6)); // 뒤에 추가(최대 6장)
                     }} />
-                  {/* 6슬롯 그리드 */}
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:8, marginTop:6 }}>
-                    {[pForm.thumbnail_url, ...((pForm.image_urls as (string|null)[]) || [null,null,null,null,null])].map((imgUrl, i) => (
-                      <div key={i}
-                        onClick={() => { pImgSlotRef.current = i; pImgRef.current?.click(); }}
-                        draggable={!!imgUrl}
-                        onDragStart={() => { pImgDragIdx.current = i; }}
-                        onDragOver={e => { if (pImgDragIdx.current !== null) e.preventDefault(); }}
-                        onDrop={e => {
-                          e.preventDefault(); e.stopPropagation();
-                          const from = pImgDragIdx.current;
-                          pImgDragIdx.current = null;
-                          if (from !== null && from !== i) reorderPImg(from, i);
-                        }}
-                        onDragEnd={() => { pImgDragIdx.current = null; }}
-                        style={{ position:'relative', aspectRatio:'1', borderRadius:8,
-                          border:'1.5px dashed #CBD5E1', background: imgUrl ? '#fff' : '#F8FAFC',
-                          overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center',
-                          cursor: pImgUploading ? 'wait' : (imgUrl ? 'grab' : 'pointer'), flexDirection:'column', gap:4 }}>
-                        {imgUrl
-                          ? <img src={imgUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                          : <span style={{ fontSize:20, color:'#CBD5E1' }}>+</span>}
-                        {/* 대표 뱃지 (좌상단) */}
-                        {i === 0 && imgUrl && (
-                          <div style={{ position:'absolute', top:3, left:3,
-                            background:'#1A1A1A', fontSize:9, fontWeight:700, color:'#fff',
-                            borderRadius:4, padding:'2px 6px', letterSpacing:'0.04em' }}>
-                            대표
-                          </div>
-                        )}
-                        {/* 삭제 버튼 */}
-                        {imgUrl && (
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (i === 0) {
-                                uploadedThumbnailRef.current = '';
-                                setPForm(f => ({ ...f, thumbnail_url: '' }));
-                              } else {
-                                setPForm(f => {
-                                  const imgs: (string|null)[] = [...((f.image_urls as (string|null)[]) || [null,null,null,null,null])];
-                                  imgs[i - 1] = null;
-                                  return { ...f, image_urls: imgs };
-                                });
-                              }
-                            }}
-                            style={{ position:'absolute', top:3, right:3,
-                              background:'rgba(0,0,0,0.55)', border:'none', color:'#fff',
-                              borderRadius:'50%', width:18, height:18, fontSize:11,
-                              cursor:'pointer', display:'flex', alignItems:'center',
-                              justifyContent:'center', lineHeight:1 }}>
-                            ×
+                  {(() => {
+                    const imgs = pImgList();
+                    return (
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+                        {/* 카메라 버튼 (당근식 · 등록수/최대) */}
+                        {imgs.length < 6 && (
+                          <button type="button" onClick={() => pImgRef.current?.click()} disabled={pImgUploading}
+                            style={{ width:88, height:88, flexShrink:0, borderRadius:8, border:'1px solid #E2E8F0', background:'#fff',
+                              display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:5,
+                              cursor: pImgUploading ? 'wait' : 'pointer' }}>
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                            </svg>
+                            <span style={{ fontSize:13, fontWeight:700, color:'#64748B' }}>
+                              <span style={{ color:'#F97316' }}>{imgs.length}</span>/6
+                            </span>
                           </button>
                         )}
+                        {/* 등록된 이미지 — 끌어서 순서 변경 */}
+                        {imgs.map((imgUrl, i) => (
+                          <div key={imgUrl + i}
+                            draggable
+                            onDragStart={() => { pImgDragIdx.current = i; }}
+                            onDragOver={e => { if (pImgDragIdx.current !== null) e.preventDefault(); }}
+                            onDrop={e => {
+                              e.preventDefault();
+                              const from = pImgDragIdx.current;
+                              pImgDragIdx.current = null;
+                              if (from !== null) reorderPImg(from, i);
+                            }}
+                            onDragEnd={() => { pImgDragIdx.current = null; }}
+                            style={{ position:'relative', width:88, height:88, flexShrink:0, borderRadius:8,
+                              border:'1px solid #E2E8F0', background:'#fff', overflow:'hidden', cursor:'grab' }}>
+                            <img src={imgUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                            {i === 0 && (
+                              <div style={{ position:'absolute', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.6)',
+                                fontSize:10, fontWeight:700, color:'#fff', textAlign:'center', padding:'2px 0' }}>대표</div>
+                            )}
+                            <button type="button"
+                              onClick={e => { e.stopPropagation(); const l = pImgList(); l.splice(i, 1); setPImgList(l); }}
+                              style={{ position:'absolute', top:4, right:4, background:'rgba(255,255,255,0.92)',
+                                border:'1px solid #E2E8F0', color:'#475569', borderRadius:'50%', width:20, height:20,
+                                fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                              ×
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                   <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>사진을 <b>끌어서 순서 변경</b> · 첫 번째(맨 왼쪽)가 대표 이미지 · 여러 장 한 번에 선택 가능</p>
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
