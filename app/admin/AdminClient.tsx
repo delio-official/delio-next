@@ -1215,9 +1215,10 @@ const newOptId = () => `o${Date.now().toString(36)}${(_optSeq++).toString(36)}`;
 // 편집 중 상위-하위 연결은 라벨(이름)이 아니라 고정 id(parent_id)로 함 → 이름이 비거나 같아도 분류별 독립.
 // 저장 시 parent_id → 해당 상위의 라벨(parent_label)로 변환해 DB에 기록(스토어프론트는 parent_label 사용).
 type POpt = { id: string; group: string; required: boolean; label: string; add_price: number; supply_price: number; stock: number; parent_label?: string; parent_id?: string };
-function OptionTreeEditor({ options, setOptions }: {
+function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   options: POpt[];
   setOptions: React.Dispatch<React.SetStateAction<POpt[]>>;
+  basePrice?: number; // 할인 적용된 판매가 — 옵션별 판매금액 계산용
 }) {
   const groups = [...new Set(options.map(o => o.group))];
   const idx = options.map((o, i) => ({ ...o, _i: i }));
@@ -1232,21 +1233,19 @@ function OptionTreeEditor({ options, setOptions }: {
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
-  const setGroupReq = (g: string, req: boolean) => setOptions(prev => prev.map(o => o.group === g ? { ...o, required: req } : o));
   const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) { lastCascade.current = null; setOptions([]); } };
 
-  const reqToggle = (g: string, req: boolean) => (
-    <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
-      <button type="button" onClick={() => setGroupReq(g, true)} style={{ fontSize:11, padding:'4px 9px', border:'none', cursor:'pointer', fontWeight:600, background: req ? '#1A1A1A':'#fff', color: req ? '#fff':'#64748B' }}>필수</button>
-      <button type="button" onClick={() => setGroupReq(g, false)} style={{ fontSize:11, padding:'4px 9px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600, background: !req ? '#1A1A1A':'#fff', color: !req ? '#fff':'#64748B' }}>선택</button>
-    </div>
-  );
   const valueRow = (o: { _i:number; id:string; label:string; add_price:number; supply_price:number; stock:number }) => (
     <div key={o.id} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft:16 }}>
       <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
       <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
       <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
-      <input className="adm-input-text" style={{ width:84, minWidth:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+      <div style={{ display:'flex', flexDirection:'column', gap:2, width:84, flexShrink:0 }}>
+        <input className="adm-input-text" style={{ width:'100%' }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+        <span style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', whiteSpace:'nowrap' }} title="판매금액 (판매가 + 추가금액)">
+          {fmtPrice(basePrice + (Number(o.add_price) || 0))}원
+        </span>
+      </div>
       <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
       <input className="adm-input-text" style={{ width:88, minWidth:0 }} type="number" placeholder="0" title="농가 공급가(매입가+배송비)"
         value={o.supply_price || ''} onChange={e => patch(o._i, { supply_price: Number(e.target.value) })} />
@@ -1271,22 +1270,12 @@ function OptionTreeEditor({ options, setOptions }: {
   const subOpts = idx.filter(o => !!o.parent_id);    // 하위(값)
   const supName = supOpts[0]?.group ?? '';
   const subName = subOpts[0]?.group ?? '';
-  const supReq = supOpts[0]?.required !== false;
-  const subReq = subOpts[0]?.required !== false;
   const renameSupGroup = (nv: string) => setOptions(prev => prev.map(o => !o.parent_id ? { ...o, group: nv } : o));
   const renameSubGroup = (nv: string) => setOptions(prev => prev.map(o => o.parent_id ? { ...o, group: nv } : o));
-  const setSupReq = (req: boolean) => setOptions(prev => prev.map(o => !o.parent_id ? { ...o, required: req } : o));
-  const setSubReq = (req: boolean) => setOptions(prev => prev.map(o => o.parent_id ? { ...o, required: req } : o));
-  const roleReqToggle = (req: boolean, setReq: (r: boolean) => void) => (
-    <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden', flexShrink:0 }}>
-      <button type="button" onClick={() => setReq(true)} style={{ fontSize:11, padding:'4px 9px', border:'none', cursor:'pointer', fontWeight:600, background: req ? '#1A1A1A':'#fff', color: req ? '#fff':'#64748B' }}>필수</button>
-      <button type="button" onClick={() => setReq(false)} style={{ fontSize:11, padding:'4px 9px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:600, background: !req ? '#1A1A1A':'#fff', color: !req ? '#fff':'#64748B' }}>선택</button>
-    </div>
-  );
   // 연결은 id로 하므로 상위 라벨 변경 시 자식 재연결 불필요(라벨만 바꿈)
   const renameSup = (_i: number, _oldLabel: string, nv: string) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, label: nv } : o));
-  const addSup = () => setOptions(prev => [...prev, { id: newOptId(), group: supName || '분류', required: supReq, label:'', add_price:0, supply_price:0, stock:0, parent_label:'' }]);
-  const addSubUnder = (parentId: string) => setOptions(prev => [...prev, { id: newOptId(), group: subName || subNameDraft.trim() || '옵션', required: subReq, label:'', add_price:0, supply_price:0, stock:0, parent_label:'', parent_id: parentId }]);
+  const addSup = () => setOptions(prev => [...prev, { id: newOptId(), group: supName || '분류', required: true, label:'', add_price:0, supply_price:0, stock:0, parent_label:'' }]);
+  const addSubUnder = (parentId: string) => setOptions(prev => [...prev, { id: newOptId(), group: subName || subNameDraft.trim() || '옵션', required: true, label:'', add_price:0, supply_price:0, stock:0, parent_label:'', parent_id: parentId }]);
 
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'', add_price:0, supply_price:0, stock:0, parent_label:'' }]); setMode('indep'); };
@@ -1321,27 +1310,28 @@ function OptionTreeEditor({ options, setOptions }: {
     setMode('cascade');
   };
 
-  if (options.length === 0) {
-    return (
-      <div>
-        <div style={{ fontSize:12, color:'#64748B', padding:'4px 0 12px' }}>옵션 없는 <strong>단품</strong>입니다. 옵션이 필요하면 방식을 고르세요.</div>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startOne}>+ 단일 옵션 <span style={{ color:'#94A3B8' }}>(예: 중량만)</span></button>
-          <button type="button" className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={startTwo}>+ 2단계 옵션 <span style={{ color:'#94A3B8' }}>(예: 품종 → 중량)</span></button>
-        </div>
-      </div>
-    );
-  }
-
-  const modeBar = (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
-      <div style={{ display:'inline-flex', border:'1px solid #E2E8F0', borderRadius:6, overflow:'hidden' }}>
-        <button type="button" onClick={() => mode !== 'indep' && toIndep()} style={{ fontSize:11, padding:'5px 11px', border:'none', cursor:'pointer', fontWeight:700, background: mode==='indep'?'#1A1A1A':'#fff', color: mode==='indep'?'#fff':'#64748B' }}>단일 옵션</button>
-        <button type="button" onClick={() => mode !== 'cascade' && toCascade()} style={{ fontSize:11, padding:'5px 11px', border:'none', borderLeft:'1px solid #E2E8F0', cursor:'pointer', fontWeight:700, background: mode==='cascade'?'#1A1A1A':'#fff', color: mode==='cascade'?'#fff':'#64748B' }}>2단계(분류→옵션)</button>
-      </div>
-      <button type="button" onClick={clearAll} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>옵션 없애기</button>
+  /* 재고 설정 여부 라디오 — 설정안함 = 재고 미관리(무제한 판매) / 설정함 = 수량 관리 */
+  const stockRadio = (
+    <div style={{ display:'flex', alignItems:'center', gap:18, flexWrap:'wrap', paddingBottom:4 }}>
+      <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
+        <input type="radio" name="stockMode" checked={options.length === 0} onChange={clearAll} />
+        설정안함
+      </label>
+      <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
+        <input type="radio" name="stockMode" checked={options.length > 0} onChange={() => options.length === 0 && startOne()} />
+        설정함
+      </label>
+      <span style={{ fontSize:11, color:'#94A3B8' }}>
+        {options.length === 0
+          ? '재고 관리 없이 수량 제한 없이 계속 판매됩니다.'
+          : '수량만큼 다 팔리면 자동으로 품절 처리돼요.'}
+      </span>
     </div>
   );
+
+  if (options.length === 0) return <div>{stockRadio}</div>;
+
+  const modeBar = stockRadio;
 
   if (mode === 'cascade') {
     return (
@@ -1350,12 +1340,10 @@ function OptionTreeEditor({ options, setOptions }: {
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           <span style={{ fontSize:11, color:'#1A8A4C', fontWeight:800 }}>상위(분류)</span>
           <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }} value={supName} placeholder="예: 품종" onChange={e => renameSupGroup(e.target.value)} />
-          {roleReqToggle(supReq, setSupReq)}
           <span style={{ fontSize:11, color:'#7C3AED', fontWeight:800, marginLeft:6 }}>하위(옵션)</span>
           <input className="adm-input-text" style={{ flex:1, maxWidth:150, minWidth:0, fontWeight:600 }}
             value={subOpts.length ? subName : subNameDraft} placeholder="예: 중량"
             onChange={e => subOpts.length ? renameSubGroup(e.target.value) : setSubNameDraft(e.target.value)} />
-          {roleReqToggle(subReq, setSubReq)}
         </div>
         <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -1372,6 +1360,10 @@ function OptionTreeEditor({ options, setOptions }: {
           ))}
         </div>
         {addBtn('+ 분류 추가', addSup)}
+        <button type="button" onClick={toIndep}
+          style={{ alignSelf:'flex-start', fontSize:11, color:'#64748B', background:'#fff', border:'1px solid #E2E8F0', borderRadius:6, padding:'4px 9px', cursor:'pointer' }}>
+          분류 없애기 (단일 옵션으로)
+        </button>
       </div>
     );
   }
@@ -1382,7 +1374,6 @@ function OptionTreeEditor({ options, setOptions }: {
       <span style={{ fontSize:11, color:'#94A3B8' }}>옵션 하나만 고르는 상품입니다 (예: <b>중량</b> 1kg/2kg/3kg). 품종별로 가격이 다르면 <b>2단계</b>를 쓰세요.</span>
       {(() => {
         const g = groups[0] ?? '';
-        const gReq = options.find(o => o.group === g)?.required !== false;
         const gOpts = idx.filter(o => o.group === g);
         return (
           <div style={{ border:'1px solid #E2E8F0', borderRadius:8, padding:12, background:'#FAFBFC' }}>
@@ -1390,10 +1381,10 @@ function OptionTreeEditor({ options, setOptions }: {
               <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
               <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>옵션명</span>
               <input className="adm-input-text" style={{ flex:1, maxWidth:180, minWidth:0, fontWeight:600 }} value={g} placeholder="예: 중량" onChange={e => renameGroup(g, e.target.value)} />
-              {reqToggle(g, gReq)}
             </div>
             {gOpts.map(o => valueRow(o))}
             {addBtn('+ 옵션값 추가', () => addValue(g))}
+            {addBtn('+ 분류 추가 (품종 등 2단계로 나누기)', toCascade)}
           </div>
         );
       })()}
@@ -5304,7 +5295,8 @@ export default function AdminClient() {
               {/* 옵션 */}
               <div className="adm-formsec">
                 <div className="adm-formsec-title">🧩 판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
-                <OptionTreeEditor key={editingProduct?.id || 'new'} options={pOptions} setOptions={setPOptions} />
+                <OptionTreeEditor key={editingProduct?.id || 'new'} options={pOptions} setOptions={setPOptions}
+                  basePrice={Math.round((pForm.price || 0) * (1 - (Number(pForm.discount_rate) || 0) / 100))} />
               </div>
 
               {/* 상품 이미지 */}
