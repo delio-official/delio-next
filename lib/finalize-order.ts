@@ -128,13 +128,23 @@ export async function finalizeOrder(
     }
   }
 
-  /* 농가 정산용: 판매 시점 공급가 스냅샷 */
+  /* 농가 정산용: 판매 시점 공급가 스냅샷 — 옵션 공급가 우선, 없으면 상품 공급가 폴백 */
   const productIds = [...new Set(orderData.items.map(i => i.id).filter(Boolean))];
   const supplyMap: Record<string, number> = {};
   if (productIds.length > 0) {
     const { data: sp } = await supabase.from('products').select('id, supply_price').in('id', productIds);
     (sp || []).forEach((p: { id: string; supply_price: number | null }) => { supplyMap[p.id] = p.supply_price ?? 0; });
   }
+  const optSupplyMap: Record<string, number> = {};
+  {
+    const optIds = [...new Set(orderData.items.map(i => i.stockOptionId).filter(Boolean))] as string[];
+    if (optIds.length > 0) {
+      const { data: os } = await supabase.from('product_options').select('id, supply_price').in('id', optIds);
+      (os || []).forEach((o: { id: string; supply_price: number | null }) => { if (o.supply_price) optSupplyMap[o.id] = o.supply_price; });
+    }
+  }
+  const supplyOf = (i: { id: string; stockOptionId?: string | null }) =>
+    (i.stockOptionId && optSupplyMap[i.stockOptionId]) || supplyMap[i.id] || 0;
 
   await supabase.from('order_items').insert(
     orderData.items.map(i => ({
@@ -146,7 +156,7 @@ export async function finalizeOrder(
       unit_price:    i.price,
       quantity:      i.quantity,
       subtotal:      i.price * i.quantity,
-      supply_price:  supplyMap[i.id] ?? 0,
+      supply_price:  supplyOf(i),
       thumbnail_url: i.thumbnail || null,
     }))
   );
