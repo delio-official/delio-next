@@ -1316,9 +1316,10 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
     setMode('cascade');
   };
 
-  /* 재고 설정 여부 라디오 — 설정안함 = 재고 미관리(무제한 판매) / 설정함 = 수량 관리 */
+  /* 옵션 사용 여부 라디오 — 설정안함 = 단품(재고 무한) / 설정함 = 옵션별 관리(재고는 옵션마다 on/off) */
   const stockRadio = (
     <div style={{ display:'flex', alignItems:'center', gap:18, flexWrap:'wrap', paddingBottom:4 }}>
+      <span style={{ fontSize:12, fontWeight:800, color:'#334155', flexShrink:0 }}>옵션</span>
       <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
         <input type="radio" name="stockMode" checked={options.length === 0} onChange={clearAll} />
         설정안함
@@ -1329,8 +1330,8 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
       </label>
       <span style={{ fontSize:11, color:'#94A3B8' }}>
         {options.length === 0
-          ? '재고 관리 없이 수량 제한 없이 계속 판매됩니다.'
-          : '수량만큼 다 팔리면 자동으로 품절 처리돼요.'}
+          ? '옵션 없는 단품입니다. 재고 관리 없이 수량 제한 없이 계속 판매돼요.'
+          : '재고는 옵션마다 [재고관리] 체크로 켜고 끌 수 있어요. (끄면 무한 판매)'}
       </span>
     </div>
   );
