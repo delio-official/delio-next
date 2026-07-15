@@ -1455,6 +1455,7 @@ export default function AdminClient() {
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('rate');
+  const [pDiscOn, setPDiscOn] = useState(false); // '할인 판매하기' 체크 → 할인영역 펼침
   const [pDiscAmount, setPDiscAmount] = useState(''); // '원 할인' 모드 입력값(원)
   // 금액 입력 → 가격 기준으로 할인율(%) 환산 (가격 입력 순서 무관)
   useEffect(() => {
@@ -2672,6 +2673,7 @@ export default function AdminClient() {
             rawUrls[0] ?? null, rawUrls[1] ?? null, rawUrls[2] ?? null,
             rawUrls[3] ?? null, rawUrls[4] ?? null,
           ];
+          setPDiscOn((data.discount_rate || 0) > 0); // 기존 할인 있으면 펼친 상태로
           setPForm({
             sku: data.sku || '', name: data.name, category: data.category,
             origin: data.origin || '', origin_region: data.origin_region || '', supply_price: data.supply_price ?? 0, price: data.price, discount_rate: data.discount_rate,
@@ -2705,6 +2707,7 @@ export default function AdminClient() {
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
+      setPDiscOn(false); setPDiscAmount('');      // 신규는 할인 접힘
       setPForm({ ...PRODUCT_EMPTY });
       setPOptions([{ id: newOptId(), group: '옵션', required: true, label: '기본', add_price: 0, stock: 999, parent_label: '' }]);  // 단품 기본 옵션
       setProductModal(true);
@@ -5211,27 +5214,57 @@ export default function AdminClient() {
                     <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
                       onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
                   </div>
-                  {/* 할인 — 값 입력 + 단위(%/원) 드롭다운 */}
+                  {/* 할인 — 체크 시 펼쳐지는 영역 */}
                   <div>
-                    <label className="adm-label">할인 <span style={{ fontWeight:400, color:'#94A3B8' }}>(없으면 비워두세요)</span></label>
-                    <div style={{ display:'flex', gap:8 }}>
-                      {pDiscMode === 'rate' ? (
-                        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
-                          onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율" />
-                      ) : (
-                        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} type="number" min="0"
-                          value={pDiscAmount}
-                          onChange={e => setPDiscAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder={pForm.price > 0 ? '할인액(원)' : '먼저 판매가를 입력하세요'} />
-                      )}
-                      <AdmSelect style={{ flex:'0 0 90px' }} value={pDiscMode}
-                        onChange={v => {
-                          const mode = v as 'rate'|'amount';
-                          setPDiscMode(mode);
-                          if (mode === 'amount') setPDiscAmount(pForm.price > 0 && pForm.discount_rate > 0 ? String(Math.round(pForm.price * pForm.discount_rate / 100)) : '');
-                        }}
-                        options={[{ value:'rate', label:'% 할인' }, { value:'amount', label:'원 할인' }]} />
-                    </div>
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
+                      <input type="checkbox" checked={pDiscOn}
+                        onChange={e => {
+                          const on = e.target.checked;
+                          setPDiscOn(on);
+                          if (!on) { setPForm(f => ({ ...f, discount_rate: 0 })); setPDiscAmount(''); }
+                        }} />
+                      할인 판매하기
+                    </label>
+                    {pDiscOn && (
+                      <div style={{ marginTop:10, padding:14, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10 }}>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                          <span style={{ fontSize:13, color:'#64748B', flexShrink:0 }}>정상가에서</span>
+                          {pDiscMode === 'rate' ? (
+                            <input className="adm-input-text" style={{ flex:1, minWidth:120 }} type="number" min="0" max="99" value={pForm.discount_rate || ''}
+                              onChange={e => setPForm(f => ({ ...f, discount_rate: Math.min(99, Math.max(0, Number(e.target.value))) }))} placeholder="할인율" />
+                          ) : (
+                            <input className="adm-input-text" style={{ flex:1, minWidth:120 }} type="number" min="0"
+                              value={pDiscAmount}
+                              onChange={e => setPDiscAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                              placeholder={pForm.price > 0 ? '할인액(원)' : '먼저 정상가를 입력하세요'} />
+                          )}
+                          <AdmSelect style={{ flex:'0 0 90px' }} value={pDiscMode}
+                            onChange={v => {
+                              const mode = v as 'rate'|'amount';
+                              setPDiscMode(mode);
+                              if (mode === 'amount') setPDiscAmount(pForm.price > 0 && pForm.discount_rate > 0 ? String(Math.round(pForm.price * pForm.discount_rate / 100)) : '');
+                            }}
+                            options={[{ value:'rate', label:'% 할인' }, { value:'amount', label:'원 할인' }]} />
+                          <span style={{ fontSize:13, color:'#64748B', flexShrink:0 }}>할인</span>
+                        </div>
+                        {/* 할인가 실시간 */}
+                        {(() => {
+                          const rate = Number(pForm.discount_rate) || 0;
+                          const sell = Math.round((pForm.price || 0) * (1 - rate / 100));
+                          const off = (pForm.price || 0) - sell;
+                          return (
+                            <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #E2E8F0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                              <span style={{ fontSize:13, fontWeight:700, color:'#334155' }}>할인가</span>
+                              <span>
+                                <b style={{ fontSize:18, color:'#2563EB' }}>{fmtPrice(sell)}</b>
+                                <span style={{ fontSize:13, color:'#2563EB' }}>원</span>
+                                <span style={{ fontSize:12, color:'#64748B', marginLeft:6 }}>({fmtPrice(off)}원 할인)</span>
+                              </span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* 농가 공급가 (농가 정산 기준) */}
