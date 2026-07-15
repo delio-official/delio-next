@@ -1352,7 +1352,10 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
             value={subOpts.length ? subName : subNameDraft} placeholder="예: 중량"
             onChange={e => subOpts.length ? renameSubGroup(e.target.value) : setSubNameDraft(e.target.value)} />
         </div>
-        <div style={{ fontSize:11, color:'#94A3B8' }}>분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.</div>
+        <div style={{ fontSize:11, color:'#94A3B8' }}>
+          위 두 이름은 <b>고객에게 선택 항목명으로 보여요</b> (예: <b>품종</b> ▾ 무농약/유기농 · <b>중량</b> ▾ 1kg/2kg).<br />
+          분류를 고르면 그 분류의 하위 옵션만 보입니다. 가격·재고는 하위에만 입력하세요.
+        </div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {supOpts.map(sup => (
             <div key={sup.id} style={{ border:'1px solid #EEF2F6', borderRadius:8, padding:'10px', background:'#fff' }}>
@@ -1378,7 +1381,7 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {modeBar}
-      <span style={{ fontSize:11, color:'#94A3B8' }}>옵션 하나만 고르는 상품입니다 (예: <b>중량</b> 1kg/2kg/3kg). 품종별로 가격이 다르면 <b>2단계</b>를 쓰세요.</span>
+      <span style={{ fontSize:11, color:'#94A3B8' }}>옵션 하나만 고르는 상품입니다 (예: <b>중량</b> 1kg/2kg/3kg). 품종별로 가격이 다르면 아래 <b>분류 추가</b>를 누르세요.</span>
       {(() => {
         const g = groups[0] ?? '';
         const gOpts = idx.filter(o => o.group === g);
@@ -1388,6 +1391,7 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
               <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
               <span style={{ fontSize:11, color:'#64748B', fontWeight:800 }}>옵션명</span>
               <input className="adm-input-text" style={{ flex:1, maxWidth:180, minWidth:0, fontWeight:600 }} value={g} placeholder="예: 중량" onChange={e => renameGroup(g, e.target.value)} />
+              <span style={{ fontSize:11, color:'#94A3B8' }}>고객에게 이 이름으로 보여요 (예: 중량 ▾ 1kg/2kg)</span>
             </div>
             {gOpts.map(o => valueRow(o))}
             {addBtn('+ 옵션값 추가', () => addValue(g))}
