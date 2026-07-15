@@ -1236,23 +1236,23 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) { lastCascade.current = null; setOptions([]); } };
 
   const valueRow = (o: { _i:number; id:string; label:string; add_price:number; supply_price:number; stock:number }) => (
-    <div key={o.id} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6, marginLeft:16 }}>
-      <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
-      <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
-      <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
-      <div style={{ display:'flex', flexDirection:'column', gap:2, width:84, flexShrink:0 }}>
-        <input className="adm-input-text" style={{ width:'100%' }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
-        <span style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', whiteSpace:'nowrap' }} title="판매금액 (판매가 + 추가금액)">
-          {fmtPrice(basePrice + (Number(o.add_price) || 0))}원
-        </span>
+    <div key={o.id} style={{ marginBottom:8, marginLeft:16 }}>
+      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+        <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+        <input className="adm-input-text" style={{ flex:1, minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
+        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
+        <input className="adm-input-text" style={{ width:84, flexShrink:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
+        <input className="adm-input-text" style={{ width:88, flexShrink:0 }} type="number" placeholder="0" title="농가 공급가(매입가+배송비)"
+          value={o.supply_price || ''} onChange={e => patch(o._i, { supply_price: Number(e.target.value) })} />
+        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>공급가</span>
+        <input className="adm-input-text" style={{ width:72, flexShrink:0 }} type="number" placeholder="0" value={o.stock || ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
+        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>재고</span>
+        <button type="button" onClick={() => removeAt(o._i)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
       </div>
-      <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
-      <input className="adm-input-text" style={{ width:88, minWidth:0 }} type="number" placeholder="0" title="농가 공급가(매입가+배송비)"
-        value={o.supply_price || ''} onChange={e => patch(o._i, { supply_price: Number(e.target.value) })} />
-      <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>공급가</span>
-      <input className="adm-input-text" style={{ width:72, minWidth:0 }} type="number" placeholder="0" value={o.stock || ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
-      <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>재고</span>
-      <button type="button" onClick={() => removeAt(o._i)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+      <div style={{ marginLeft:18, marginTop:3, fontSize:11, color:'#64748B' }}>
+        판매금액 <b style={{ color:'#1A1A1A', fontSize:12 }}>{fmtPrice(basePrice + (Number(o.add_price) || 0))}원</b>
+      </div>
     </div>
   );
   const addBtn = (label: string, onClick: () => void) => (
