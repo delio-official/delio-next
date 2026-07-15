@@ -5418,10 +5418,15 @@ export default function AdminClient() {
                         const on = pForm.seller_score?.[axis.key] === level;
                         return (
                           <button key={level} type="button"
-                            onClick={() => setPForm(f => ({ ...f, seller_score: { ...(f.seller_score || {}), [axis.key]: level } }))}
+                            onClick={() => setPForm(f => {
+                              const cur = { ...(f.seller_score || {}) } as Record<string, number>;
+                              if (cur[axis.key] === level) delete cur[axis.key]; // 눌렀던 것 다시 누르면 해제
+                              else cur[axis.key] = level;
+                              return { ...f, seller_score: cur };
+                            })}
                             style={{ padding:'6px 11px', borderRadius:8, cursor:'pointer', fontSize:12, fontFamily:'inherit',
-                              border:`1px solid ${on ? axis.hex : '#E2E8F0'}`, background: on ? axis.hex : '#fff',
-                              color: on ? '#fff' : '#64748B', fontWeight: on ? 700 : 500 }}>
+                              border:`1px solid ${on ? '#1A1A1A' : '#E2E8F0'}`, background:'#fff',
+                              color: on ? '#1A1A1A' : '#64748B', fontWeight: on ? 700 : 500 }}>
                             {lv}
                           </button>
                         );
