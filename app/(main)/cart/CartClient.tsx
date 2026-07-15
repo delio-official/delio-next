@@ -15,7 +15,7 @@ function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 interface ProductOption {
   id: string; label: string; add_price: number; group_name: string | null;
   is_required: boolean | null; parent_label?: string | null; sort_order?: number;
-  stock?: number | null;
+  stock?: number | null; manage_stock?: boolean | null;
 }
 interface OptProduct { id: string; name: string; price: number; discounted_price: number | null; thumbnail_url: string | null; is_dawn: boolean | null; }
 
@@ -155,7 +155,7 @@ export default function CartClient() {
     const supabase = createClient();
     const [{ data: prod }, { data: opts }] = await Promise.all([
       supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', item.id).single(),
-      supabase.from('product_options').select('id,label,add_price,group_name,is_required,parent_label,sort_order,stock').eq('product_id', item.id).order('sort_order'),
+      supabase.from('product_options').select('id,label,add_price,group_name,is_required,parent_label,sort_order,stock,manage_stock').eq('product_id', item.id).order('sort_order'),
     ]);
     setOptProduct(prod as OptProduct);
     const list = (opts as ProductOption[]) || [];
@@ -183,7 +183,7 @@ export default function CartClient() {
       const opt = avail.find(o => o.id === optSel[g]);
       if (req && !opt) { alert('필수 옵션을 모두 선택해 주세요.'); return; }
       // 재고는 leaf(자식 없는 최하위) 옵션에만 존재 — 상위 옵션은 품절 판정 제외
-      if (opt && !childParentLabels.has(opt.label) && opt.stock != null && opt.stock <= 0) { alert('품절된 옵션은 선택할 수 없습니다.'); return; }
+      if (opt && opt.manage_stock !== false && !childParentLabels.has(opt.label) && opt.stock != null && opt.stock <= 0) { alert('품절된 옵션은 선택할 수 없습니다.'); return; }
       if (opt) chosen.push(opt);
     }
     const base = optProduct.discounted_price ?? optProduct.price;
@@ -217,10 +217,12 @@ export default function CartClient() {
   useEffect(() => {
     const ids = [...new Set(items.map(i => i.stockOptionId).filter(Boolean))] as string[];
     if (ids.length === 0) { setStockMap({}); return; }
-    createClient().from('product_options').select('id,stock').in('id', ids)
+    createClient().from('product_options').select('id,stock,manage_stock').in('id', ids)
       .then(({ data }) => {
         const m: Record<string, number> = {};
-        ((data as { id: string; stock: number }[]) || []).forEach(o => { m[o.id] = o.stock; });
+        // 재고 무한(manage_stock=false) 옵션은 상한 없음 → 맵에 넣지 않음
+        ((data as { id: string; stock: number; manage_stock?: boolean | null }[]) || [])
+          .forEach(o => { if (o.manage_stock !== false) m[o.id] = o.stock; });
         setStockMap(m);
       });
   }, [items]);
@@ -519,7 +521,7 @@ export default function CartClient() {
                             style={{ flex:1, padding:'11px 12px', paddingRight:38, fontSize:14, border:'1px solid #DADADA', borderRadius:8, backgroundColor:'#fff', backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`, backgroundRepeat:'no-repeat', backgroundPosition:'right 20px center', appearance:'none', WebkitAppearance:'none', MozAppearance:'none', color: optSel[g] ? '#1A1A1A' : '#999', fontFamily:'inherit', cursor:'pointer', outline:'none' }}>
                             <option value="">- {req ? '[필수]' : '[선택]'} 옵션을 선택해 주세요 -</option>
                             {avail.map(o => {
-                              const soldOut = !childParentLabels.has(o.label) && o.stock != null && o.stock <= 0;
+                              const soldOut = o.manage_stock !== false && !childParentLabels.has(o.label) && o.stock != null && o.stock <= 0;
                               return (
                                 <option key={o.id} value={o.id} disabled={soldOut}>
                                   {o.label}{o.add_price ? ` (+${fmtPrice(o.add_price)}원)` : ''}{soldOut ? ' (품절)' : ''}

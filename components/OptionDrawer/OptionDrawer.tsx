@@ -12,7 +12,7 @@ interface Product {
   thumbnail_url: string | null; is_dawn: boolean;
 }
 interface Option {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
+  id: string; label: string; add_price: number; stock: number; manage_stock?: boolean | null; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
 }
 
 const EMOJI = '🍑';
@@ -50,7 +50,7 @@ export default function OptionDrawer() {
       const supabase = createClient();
       const [{ data: prod }, { data: opts }] = await Promise.all([
         supabase.from('products').select('id,name,price,discounted_price,thumbnail_url,is_dawn').eq('id', productId).single(),
-        supabase.from('product_options').select('id,label,add_price,stock,is_default,group_name,is_required,parent_label').eq('product_id', productId).order('sort_order'),
+        supabase.from('product_options').select('id,label,add_price,stock,manage_stock,is_default,group_name,is_required,parent_label').eq('product_id', productId).order('sort_order'),
       ]);
       setProduct(prod as Product);
       setOptions((opts as Option[]) || []);
@@ -249,7 +249,7 @@ export default function OptionDrawer() {
                                 : { position: 'fixed' as const, left: ddRect.left, width: ddRect.width, top: ddRect.bottom + 6, maxHeight: Math.max(160, below - 24) };
                             })() : undefined}>
                               {groupOpts.map(o => {
-                                const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
+                                const soldout = o.manage_stock !== false && !(isCascade && g === parentGroup) && o.stock === 0;
                                 return (
                                   <button type="button" key={o.id} disabled={soldout}
                                     className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}

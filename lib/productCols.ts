@@ -8,15 +8,19 @@ export const PRODUCT_PUBLIC_COLS =
   'is_new, is_best, is_dawn, avg_rating, review_count, seller_score, show_stat_pill';
 
 /* 위 컬럼 + 재고(옵션 stock) 조인. 품절 표시가 필요한 목록 조회에 사용. */
-export const PRODUCT_PUBLIC_COLS_STOCK = PRODUCT_PUBLIC_COLS + ', product_options(stock)';
+export const PRODUCT_PUBLIC_COLS_STOCK = PRODUCT_PUBLIC_COLS + ', product_options(stock, manage_stock)';
 
 /* 옵션 stock 합으로 품절 판정 (관리자와 동일 로직).
-   옵션이 0개인 단품은 재고 미관리(null) → 품절로 보지 않음.
+   · 옵션이 0개인 단품 → 재고 미관리(null) → 품절 아님
+   · manage_stock=false(재고 무한) 옵션이 하나라도 있으면 → 품절 아님
+   · 나머지는 재고 관리 옵션들의 합이 0 이하일 때만 품절
    product_options 필드를 제거하고 soldout 불리언을 붙인 객체를 반환한다. */
 export function withSoldout<T extends Record<string, unknown>>(row: T): T & { soldout: boolean } {
-  const opts = (row.product_options as { stock: number }[] | undefined) || [];
-  const total = opts.length > 0 ? opts.reduce((s, o) => s + (o.stock || 0), 0) : null;
+  const opts = (row.product_options as { stock: number; manage_stock?: boolean | null }[] | undefined) || [];
+  const managed = opts.filter(o => o.manage_stock !== false);
+  const hasUnlimited = opts.length > managed.length; // 무한 옵션 존재 → 절대 품절 아님
+  const total = managed.length > 0 ? managed.reduce((s, o) => s + (o.stock || 0), 0) : null;
   const rest = { ...row };
   delete (rest as Record<string, unknown>).product_options;
-  return { ...(rest as T), soldout: total != null && total <= 0 };
+  return { ...(rest as T), soldout: !hasUnlimited && total != null && total <= 0 };
 }

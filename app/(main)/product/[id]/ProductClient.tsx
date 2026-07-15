@@ -33,7 +33,7 @@ interface Product {
   seller_score?: Record<string, number> | null;
 }
 interface ProductOption {
-  id: string; label: string; add_price: number; stock: number; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
+  id: string; label: string; add_price: number; stock: number; manage_stock?: boolean | null; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
 }
 interface Farm {
   id: string; name: string; region: string; farm_type: string;
@@ -648,6 +648,7 @@ export default function ProductClient() {
     for (const p of list) {
       const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
       if (!leaf) continue; // 옵션 없는 단품 = 재고 미관리
+      if (leaf.manage_stock === false) continue; // 재고 무한 옵션 = 수량 제한 없음
       const already = cart.filter(c => c.stockOptionId === leaf.id).reduce((s, c) => s + (c.quantity || 0), 0);
       if (already + p.qty > leaf.stock) {
         alert(leaf.stock > 0
@@ -1726,7 +1727,7 @@ export default function ProductClient() {
                                   <div className="opt-dd-list">
                                     {groupOpts.map(o => {
                                       // 분류(상위 품종)는 재고 개념 없음 → 하위 옵션만 품절 판정
-                                      const soldout = !(isCascade && g === parentGroup) && o.stock === 0;
+                                      const soldout = o.manage_stock !== false && !(isCascade && g === parentGroup) && o.stock === 0;
                                       return (
                                         <button type="button" key={o.id} disabled={soldout}
                                           className={`opt-dd-item${selByGroup[g] === o.id ? ' sel' : ''}`}
@@ -1783,7 +1784,7 @@ export default function ProductClient() {
                                   <button onClick={() => {
                                     const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
                                     const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
-                                    if (leaf && p.qty >= leaf.stock) {
+                                    if (leaf && leaf.manage_stock !== false && p.qty >= leaf.stock) {
                                       alert(`현재 구매 가능한 수량은 ${leaf.stock}개까지입니다.`);
                                       return;
                                     }
