@@ -97,7 +97,17 @@ export default function ReviewWriteModal({
       delete reviewPayload.author_name;
       ({ data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single());
     }
-    if (error) { submittingRef.current = false; setSubmitting(false); alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+    if (error) {
+      submittingRef.current = false; setSubmitting(false);
+      /* DB 트리거(trg_enforce_single_review)가 막은 경우 — 1상품 1리뷰 */
+      if (/ALREADY_REVIEWED/i.test(error.message)) {
+        alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.');
+        onClose();
+        return;
+      }
+      alert('리뷰 등록 중 오류가 발생했습니다.');
+      return;
+    }
 
     /* 포인트 적립(멱등) */
     let earnedPt = 0;

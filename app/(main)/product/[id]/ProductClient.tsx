@@ -185,6 +185,7 @@ export default function ProductClient() {
   const submittingRef = useRef(false); // 연타 동시 제출 방지 (state는 비동기라 ref로 동기 차단)
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
+  const [hasReviewed,      setHasReviewed]      = useState(false);   // 이 상품에 내 리뷰가 이미 있는지 (1상품 1리뷰)
   const [tasteMore,           setTasteMore]           = useState(false);
   const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0, repurchasers: 0, recent7buy: 0, recent7repurchase: 0 });
   /* 구매/재구매 문구: 최근7일 10명↑일 때 '7일간 N명' vs '누적 N명' 랜덤 (접속 시 1회 고정, hydration 안전하게 마운트 후 결정) */
@@ -717,6 +718,19 @@ export default function ProductClient() {
     })();
   }, [user, product?.id]);
 
+  /* 이미 이 상품에 리뷰를 썼는지 — 목록(reviews)은 limit 50이라 놓칠 수 있어 전용 조회 */
+  useEffect(() => {
+    if (!user || !product?.id) { setHasReviewed(false); return; }
+    (async () => {
+      const { count } = await createClient()
+        .from('reviews')
+        .select('id', { count: 'exact', head: true })
+        .eq('product_id', product.id)
+        .eq('user_id', user.id);
+      setHasReviewed((count ?? 0) > 0);
+    })();
+  }, [user, product?.id, reviews.length]);
+
   /* 리뷰 작성 적립 포인트 (안내용) */
   useEffect(() => {
     createClient().from('site_settings').select('key,value')
@@ -804,6 +818,8 @@ export default function ProductClient() {
     if (!user) { router.push('/login'); return; }
     /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
     if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+    /* 1상품 1리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
+    if (hasReviewed && !isAdmin) { alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     if (submittingRef.current) return;   // 이미 제출 중이면 무시 (연타 차단)
     submittingRef.current = true;
@@ -870,7 +886,18 @@ export default function ProductClient() {
       delete reviewPayload.author_name;
       ({ data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single());
     }
-    if (error) { submittingRef.current = false; setSubmitting(false); alert('리뷰 등록 중 오류가 발생했습니다.'); return; }
+    if (error) {
+      submittingRef.current = false; setSubmitting(false);
+      /* DB 트리거(trg_enforce_single_review)가 막은 경우 — 다른 탭/기기에서 이미 작성한 상황 */
+      if (/ALREADY_REVIEWED/i.test(error.message)) {
+        setHasReviewed(true);
+        alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.');
+        setReviewModalOpen(false);
+        return;
+      }
+      alert('리뷰 등록 중 오류가 발생했습니다.');
+      return;
+    }
     /* 성공: 모달 닫을 때까지 submitting 유지 → 중복 제출(다중 클릭) 방지 */
 
     /* 리뷰 작성 포인트 적립 (멱등) */
@@ -2256,6 +2283,8 @@ export default function ProductClient() {
                 onClick={() => {
                   if (!user) { router.push('/login'); return; }
                   if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+                  /* 1상품 1리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
+                  if (hasReviewed && !isAdmin) { alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
                   setReviewModalOpen(true);
                 }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
