@@ -1637,7 +1637,9 @@ input, select, textarea { font-family: inherit; }
   line-height: 1;
   color: #000;
   background: none;
-  border: none;
+  /* 열릴 때 테두리가 생기며 글자가 밀리지 않도록 기본 상태에 투명 테두리로 공간 확보 */
+  border: 1.5px solid transparent;
+  position: relative;
   cursor: pointer;
   padding: 17px 28px;
   border-radius: var(--radius-md);
@@ -1649,11 +1651,9 @@ input, select, textarea { font-family: inherit; }
 .mega-btn.open {
   background: #fff;
   color: var(--color-ink);
-  border: 1.5px solid #D8D8D2;
-  border-bottom: 1.5px solid #fff;
+  border-color: #D8D8D2;
+  border-bottom-color: #fff;
   border-radius: 4px 4px 0 0;
-  position: relative;
-  bottom: -1.5px;
   z-index: 502;
 }
 .mega-btn .mega-icon-open { display: block; }
@@ -1662,7 +1662,8 @@ input, select, textarea { font-family: inherit; }
 .mega-btn.open .mega-icon-close { display: block; }
 .mega-dropdown {
   position: absolute;
-  top: 100%;
+  /* 탭(.mega-btn.open)을 움직이지 않고도 카드 상단 테두리가 탭 밑선에 맞물리도록 1.5px 끌어올림 */
+  top: calc(100% - 1.5px);
   left: -10px;
   width: 100%;
   background: transparent;
