@@ -5480,20 +5480,37 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 태그 & 상태 */}
-              <div style={{ display:'flex', flexWrap:'wrap', gap:16 }}>
+              {/* 태그 & 상태 — 선택 시 검정으로 채워지는 토글 칩 */}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14 }}>
                 {([
-                  ['is_new',  'NEW 태그'],
-                  ['is_best', '인기 태그'],
-                  ['is_active', '판매중'],
-                  ['show_stat_pill', '만족/재구매 필 표시'],
-                ] as const).map(([key, label]) => (
-                  <label key={key} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
-                    <input type="checkbox" checked={!!pForm[key]}
-                      onChange={e => setPForm(f => ({ ...f, [key]: e.target.checked }))} />
-                    {label}
-                  </label>
-                ))}
+                  ['is_new',  'NEW 태그',   '상품카드에 NEW 표시'],
+                  ['is_best', '인기 태그',  'NEW와 함께 켜면 NEW가 우선 표시됨'],
+                  ['is_active', '판매중',   '끄면 판매중지'],
+                  ['show_stat_pill', '만족/재구매 필 표시', '상품카드에 만족도·재구매 필 노출'],
+                ] as const).map(([key, label, hint]) => {
+                  const on = !!pForm[key];
+                  return (
+                    <label key={key} title={hint}
+                      style={{ display:'inline-flex', alignItems:'center', gap:7, cursor:'pointer', fontSize:13, fontWeight:600,
+                        padding:'8px 14px', borderRadius:999, userSelect:'none', transition:'all .12s',
+                        border:`1px solid ${on ? '#1A1A1A' : '#E2E8F0'}`,
+                        background: on ? '#1A1A1A' : '#fff',
+                        color: on ? '#fff' : '#64748B' }}>
+                      <input type="checkbox" checked={on} style={{ display:'none' }}
+                        onChange={e => setPForm(f => ({ ...f, [key]: e.target.checked }))} />
+                      <span aria-hidden style={{ display:'inline-flex', alignItems:'center', justifyContent:'center',
+                        width:15, height:15, borderRadius:4, flexShrink:0,
+                        border:`1.5px solid ${on ? '#fff' : '#CBD5E1'}`, background:'transparent' }}>
+                        {on && (
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                      {label}
+                    </label>
+                  );
+                })}
               </div>
               </div>
 
