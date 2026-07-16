@@ -122,6 +122,7 @@ body { background: #fff; }
   color: var(--color-ink);
   line-height: 1.45;
   margin-bottom: 8px;
+  text-align: center;      /* 라운지 페이지: 제목 중앙 정렬 */
   word-break: keep-all;
   display: -webkit-box;
   -webkit-line-clamp: 2;
