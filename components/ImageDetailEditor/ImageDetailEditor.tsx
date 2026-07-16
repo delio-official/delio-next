@@ -9,9 +9,10 @@ interface Props {
   onClose: () => void;
   draftImages?: string[] | null;     // 버퍼 모드 초기값
   onCommitDraft?: (images: string[]) => void; // 버퍼 모드 저장 콜백
+  onUpload?: (path: string) => void; // 버퍼 모드: 업로드한 스토리지 경로 추적(취소 시 정리용)
 }
 
-export default function ImageDetailEditor({ productId, productName, onClose, draftImages, onCommitDraft }: Props) {
+export default function ImageDetailEditor({ productId, productName, onClose, draftImages, onCommitDraft, onUpload }: Props) {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -63,6 +64,8 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
       if (error) { alert(`업로드 실패: ${file.name} (${error.message})`); continue; }
       const { data } = supabase.storage.from('products').getPublicUrl(path);
       newUrls.push(data.publicUrl);
+      if (!productId) onUpload?.(path);   // 버퍼 모드: 취소 시 정리할 수 있게 경로 기록
+
     }
 
     setImages(prev => [...prev, ...newUrls]);

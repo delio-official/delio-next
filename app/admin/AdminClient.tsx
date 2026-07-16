@@ -1488,6 +1488,8 @@ export default function AdminClient() {
   const pImgDragIdx = useRef<number | null>(null); // 이미지 드래그 시작 인덱스
   // 업로드된 URL을 ref로도 보관 → 스테일 클로저로 인한 null 저장 방지
   const uploadedThumbnailRef = useRef<string>('');
+  // 신규 등록 세션에 업로드된 상세이미지 경로 전체 — 취소 시 스토리지에서 정리
+  const detailUploadsRef = useRef<string[]>([]);
 
   async function uploadProductImage(file: File): Promise<string | null> {
     setPImgUploading(true);
@@ -2683,6 +2685,7 @@ export default function AdminClient() {
   function openProductModal(p?: AdminProduct) {
     loadFarmList();
     setDraftImages(null); setDraftInfo(null);   // 상세 버퍼 초기화 (신규 등록 시 새로 담김)
+    detailUploadsRef.current = [];              // 상세이미지 업로드 추적 초기화
     if (p) {
       // 수정: 전체 필드 fetch 완료 후 모달 열기
       const supabase = createClient();
@@ -2846,6 +2849,13 @@ export default function AdminClient() {
       const { error: secErr } = await supabase.from('product_detail_sections').insert(sections);
       if (secErr) console.error('상세 저장 오류:', secErr);
     }
+    // 세션에 업로드했으나 최종 목록에 없는 상세이미지(추가 후 삭제한 것)는 스토리지에서 정리
+    if (!editingProduct && detailUploadsRef.current.length) {
+      const kept = new Set((draftImages || []).map(storageKeyFromUrl).filter(Boolean) as string[]);
+      const orphans = detailUploadsRef.current.filter(p => !kept.has(p));
+      if (orphans.length) supabase.storage.from('products').remove(orphans).then(({ error }) => { if (error) console.error('상세이미지 정리 오류:', error); });
+    }
+    detailUploadsRef.current = [];
     setDraftImages(null); setDraftInfo(null);
 
     setPSaving(false);
@@ -2868,6 +2878,26 @@ export default function AdminClient() {
     const name = pForm.name.trim();
     if (kind === 'desc') setDetailEditor({ id, name });
     else setInfoEditor({ id, name });
+  }
+
+  /* 공개 URL → 스토리지 키(products 버킷 기준 경로) */
+  function storageKeyFromUrl(url: string): string | null {
+    const m = url.split('/storage/v1/object/public/products/');
+    return m[1] ? decodeURIComponent(m[1]) : null;
+  }
+
+  /* 상품 등록/수정 화면 닫기.
+     신규 등록을 저장 없이 닫으면 세션에 업로드해둔 상세이미지(_new)는 참조되지 않으므로 스토리지에서 정리 */
+  async function closeProductForm() {
+    setProductModal(false);
+    if (!editingProduct && detailUploadsRef.current.length) {
+      const paths = [...detailUploadsRef.current];
+      detailUploadsRef.current = [];
+      createClient().storage.from('products').remove(paths).then(({ error }) => {
+        if (error) console.error('상세이미지 정리 오류:', error);
+      });
+    }
+    setDraftImages(null); setDraftInfo(null);
   }
 
   async function toggleProductActive(p: AdminProduct) {
@@ -5089,6 +5119,7 @@ export default function AdminClient() {
           productName={detailEditor.name}
           draftImages={draftImages}
           onCommitDraft={imgs => setDraftImages(imgs)}
+          onUpload={path => detailUploadsRef.current.push(path)}
           onClose={() => setDetailEditor(null)}
         />
       )}
@@ -5110,7 +5141,7 @@ export default function AdminClient() {
           <div className="adm-productpage-inner">
             <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
               <span className="adm-modal-title">{editingProduct ? '상품 수정' : '상품 등록'}</span>
-              <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={() => setProductModal(false)}>← 목록으로</button>
+              <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={closeProductForm}>← 목록으로</button>
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
@@ -5557,7 +5588,7 @@ export default function AdminClient() {
               </div>
 
               <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setProductModal(false)}>취소</button>
+                <button className="adm-btn adm-btn-outline" onClick={closeProductForm}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveProduct} disabled={pSaving}>
                   {pSaving ? '저장 중...' : editingProduct ? '수정 완료' : '상품 등록'}
                 </button>
