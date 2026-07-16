@@ -37,7 +37,15 @@ function getEventStatus(ev: Event): 'ongoing' | 'ended' {
   return new Date(ev.ends_at) >= new Date() && ev.is_active ? 'ongoing' : 'ended';
 }
 
+/* 무기한 노출 표식 — 관리자에서 '즉시 활성화'로 날짜를 비우면 종료일이 2099-12-31로 저장됨.
+   이 경우 D-day·기간을 표시하지 않는다. */
+function isIndefinite(ends_at: string | null | undefined): boolean {
+  if (!ends_at) return true;
+  return new Date(ends_at).getFullYear() >= 2099;
+}
+
 function getDday(ends_at: string): string | null {
+  if (isIndefinite(ends_at)) return null;   // 무기한이면 D-day 없음
   const now = new Date();
   const end = new Date(ends_at);
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -48,15 +56,13 @@ function getDday(ends_at: string): string | null {
   return `D-${diff}`;
 }
 
-function formatEventDate(starts: string, ends: string) {
+function formatEventDate(starts: string, ends: string): string {
+  if (isIndefinite(ends)) return '';        // 무기한이면 기간 표시 안 함
   const KD = ['일', '월', '화', '수', '목', '금', '토'];
   function fmt(d: Date) {
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}(${KD[d.getDay()]})`;
   }
-  const s = new Date(starts);
-  const e = new Date(ends);
-  const hasEnd = e.getFullYear() <= 2099;
-  return hasEnd ? `${fmt(s)} ~ ${fmt(e)}` : `${fmt(s)} ~`;
+  return `${fmt(new Date(starts))} ~ ${fmt(new Date(ends))}`;
 }
 
 function Pagination({ total, perPage, page, onChange }: {
@@ -169,7 +175,7 @@ export default function EventClient() {
                     {/* 텍스트 영역 */}
                     <div className="event-card-info">
                       <div className="event-card-title">{ev.title}</div>
-                      <div className="event-card-date">{dateStr}</div>
+                      {dateStr && <div className="event-card-date">{dateStr}</div>}
                     </div>
                   </Link>
                 );

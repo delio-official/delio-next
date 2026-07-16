@@ -97,10 +97,12 @@ export default function EventDetailClient() {
           <p style={{ fontSize: 15, color: '#666', marginBottom: 16 }}>{event.subtitle}</p>
         )}
 
-        {/* 기간 */}
-        <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32, display: 'flex', gap: 16 }}>
-          <span>{fmtDate(event.starts_at)} ~ {fmtDate(event.ends_at)}</span>
-        </div>
+        {/* 기간 — 무기한(2099 표식)이면 표시하지 않음 */}
+        {new Date(event.ends_at).getFullYear() < 2099 && (
+          <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32, display: 'flex', gap: 16 }}>
+            <span>{fmtDate(event.starts_at)} ~ {fmtDate(event.ends_at)}</span>
+          </div>
+        )}
 
         {/* 썸네일 */}
         {event.thumbnail_url ? (
