@@ -1654,3 +1654,36 @@
 .fruit-emoji-kiwi   { background: linear-gradient(135deg,#F1F8E9 0%,#fff 100%); }
 .fruit-emoji-grape  { background: linear-gradient(135deg,#EDE7F6 0%,#fff 100%); }
 .fruit-emoji-apple  { background: linear-gradient(135deg,#FFE8E8 0%,#fff 100%); }
+
+/* ===== 브랜드 소개 — 이미지 속 버튼 위에 덮는 실제 버튼 =====
+   PC: 원본 버튼(x752~945 · w194 · h54)에 정확히 겹치도록 %/cqw 환산.
+   모바일: 그대로 줄면 글자가 5px가 되어 안 보이므로, 왼쪽 기준은 유지한 채
+          오른쪽·아래로 키워 원본 버튼을 '초과해서' 덮는다. (좌 146px·하 242px 흰 여백 확인) */
+.brand-btn {
+  position: absolute;
+  left: 52.22%;
+  transform: translateY(-50%);
+  background: #F00000;
+  color: #fff;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5cqw;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  width: 13.47%;
+  height: 3.75cqw;
+  font-size: 1.35cqw;
+}
+@media (max-width: 768px) {
+  .brand-btn {
+    width: auto;
+    padding: 0 16px;
+    height: 34px;
+    font-size: 13px;
+    gap: 5px;
+  }
+}

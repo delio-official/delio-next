@@ -9,11 +9,10 @@ import '@/styles/index.css';
    버튼만 CSS로 다시 그려서 원래 위치에 정확히 덮는다.
    좌표·색상·글자크기는 원본(1440x7479) 픽셀을 실측해 % / cqw 로 환산 →
    컨테이너 폭이 바뀌어도 항상 동일 비율로 겹친다. */
-const BTN_RED = '#F00000';
-
+/* top = 원본 버튼의 '세로 중심' (btn1 y5928.5 / btn2 y6570.5 ÷ 7479) — CSS에서 translateY(-50%)로 중앙 정렬 */
 const BUTTONS = [
-  { href: '/farms',   text: '파트너 농가 보기', top: '78.914%' },
-  { href: '/inquiry', text: '입점 문의하기',   top: '87.498%' },
+  { href: '/farms',   text: '파트너 농가 보기', top: '79.268%' },
+  { href: '/inquiry', text: '입점 문의하기',   top: '87.852%' },
 ];
 
 export default function BrandIntroClient() {
@@ -36,24 +35,7 @@ export default function BrandIntroClient() {
 
         {/* 이미지 속 버튼 위에 덮는 실제 버튼 (원본: x 752~945 / w194 · h54) */}
         {BUTTONS.map(b => (
-          <Link
-            key={b.href}
-            href={b.href}
-            style={{
-              position: 'absolute',
-              left: '52.22%', top: b.top,
-              width: '13.47%', height: '0.722%',
-              background: BTN_RED,
-              color: '#fff',
-              borderRadius: 999,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5cqw',
-              fontSize: '1.35cqw',
-              fontWeight: 700,
-              lineHeight: 1,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <Link key={b.href} href={b.href} className="brand-btn" style={{ top: b.top }}>
             {b.text}
             <span style={{ fontWeight: 400 }}>›</span>
           </Link>
