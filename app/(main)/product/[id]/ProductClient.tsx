@@ -1997,7 +1997,7 @@ export default function ProductClient() {
                 const pct = agreePct(sLevel, buyerLevelsOf(axis.key));
                 const fillPct = tasteRevealed ? pct : sLevel / 5 * 100;
                 return (
-                  <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: '#F4F4F4' }}>
+                  <div key={axis.key} className={`taste5-card${idx >= 2 ? ' taste5-extra' : ''}`} style={{ background: '#FAFAF8' }}>
                     <div className="taste5-top">
                       <span className="taste5-name"><span className="taste5-icon">{axis.icon}</span>{axis.label}</span>
                       <span className="taste5-claim" style={{ color: '#666' }}>{axisLevelLabel(axis, sLevel)}</span>
@@ -2014,7 +2014,7 @@ export default function ProductClient() {
                 const fresh = TASTE_AXES.find(a => a.key === 'fresh')!;
                 const pct = avgPct(buyerLevelsOf('fresh'));
                 return (
-                  <div className="taste5-card taste5-fresh taste5-extra" style={{ background: '#F4F4F4' }}>
+                  <div className="taste5-card taste5-fresh taste5-extra" style={{ background: '#FAFAF8' }}>
                     <div className="taste5-top">
                       <span className="taste5-name"><span className="taste5-icon">{fresh.icon}</span>{fresh.label}<span className="taste5-only">구매자 전용</span></span>
                       <span className="taste5-claim" style={{ color: '#1A1A1A', fontWeight: 800 }}>{pct}%</span>
