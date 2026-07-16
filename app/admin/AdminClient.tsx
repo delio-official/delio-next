@@ -5544,7 +5544,7 @@ export default function AdminClient() {
               <div className="adm-formsec">
                 <div className="adm-formsec-title">상세페이지</div>
                 <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
-                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다. (상품이 미리 등록되지 않습니다)'}
+                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다.'}
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
