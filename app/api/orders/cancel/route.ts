@@ -11,8 +11,13 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: '인증 필요' }, { status: 401 });
 
-  let orderId = '';
-  try { orderId = (await req.json())?.orderId || ''; } catch { /* noop */ }
+  let orderId = '', reason = '', detail = '';
+  try {
+    const b = await req.json();
+    orderId = b?.orderId || '';
+    reason  = (b?.reason  || '').toString().slice(0, 100);
+    detail  = (b?.detail  || '').toString().slice(0, 500);
+  } catch { /* noop */ }
   if (!orderId) return NextResponse.json({ ok: false, error: 'orderId 누락' }, { status: 400 });
 
   const admin = createAdminSupabaseClient();
@@ -74,23 +79,23 @@ export async function POST(req: Request) {
   /* 재고 복원 (멱등: stock_restored 가드) */
   try { await admin.rpc('restore_order_stock', { p_order_id: orderId }); } catch { /* 복원 실패는 무시(관리자 확인) */ }
 
-  /* 기록용: 어드민 환불관리에 '취소완료(자동)'로 남김 */
+  /* 기록용: 어드민 환불관리에 '취소완료(자동)'로 남김 — 고객이 고른 사유를 그대로 저장(클라 중복 insert 없음) */
   try {
     await admin.from('refund_requests').insert({
-      order_id: orderId, user_id: user.id, reason: '고객 즉시취소', detail: '', type: 'cancel', status: 'completed',
+      order_id: orderId, user_id: user.id,
+      reason: reason || '고객 즉시취소', detail, type: 'cancel', status: 'completed',
     });
   } catch { /* 기록 실패는 무시 */ }
 
-  /* 주문 취소 알림톡 */
+  /* 주문 취소 알림톡 — 부가 작업이므로 최대 3초만 대기(솔라피 지연이 취소 응답을 막지 않도록) */
   if (order.phone) {
-    try {
-      await notifyAlimtalk('order_cancelled', order.phone, {
-        recipient: order.recipient || '',
-        orderNo: order.order_no || '',
-        cancelledAt: new Date().toLocaleString('ko-KR'),
-        refundAmount: `${(order.final_amount || 0).toLocaleString()}원`,
-      });
-    } catch { /* noop */ }
+    const notify = notifyAlimtalk('order_cancelled', order.phone, {
+      recipient: order.recipient || '',
+      orderNo: order.order_no || '',
+      cancelledAt: new Date().toLocaleString('ko-KR'),
+      refundAmount: `${(order.final_amount || 0).toLocaleString()}원`,
+    }).catch(() => { /* noop */ });
+    await Promise.race([notify, new Promise(r => setTimeout(r, 3000))]);
   }
 
   return NextResponse.json({ ok: true, cancelled: true });

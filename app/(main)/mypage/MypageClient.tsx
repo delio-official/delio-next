@@ -336,14 +336,11 @@ export default function MypageClient() {
       try {
         const res = await fetch('/api/orders/cancel', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: reqModal.order.id }),
+          body: JSON.stringify({ orderId: reqModal.order.id, reason: reqReason, detail: reqDetail.trim() }),
         });
         const j = await res.json().catch(() => ({}));
         if (j?.cancelled) {
-          await createClient().from('refund_requests').insert({
-            order_id: reqModal.order.id, user_id: user.id,
-            reason: reqReason, detail: reqDetail.trim(), type: 'cancel',
-          });
+          /* 기록(refund_requests)은 서버에서 사유까지 함께 저장 → 여기서 중복 insert 하지 않음 */
           setOrders(prev => prev.map(x => x.id === reqModal.order.id ? { ...x, status: 'cancelled' } : x));
           setReqSubmitting(false);
           setReqModal(null); setReqReason(''); setReqDetail('');

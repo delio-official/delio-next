@@ -168,10 +168,12 @@ export async function sendAlimtalk(params: {
   if (params.fallbackText) message.text = params.fallbackText;
 
   try {
+    // 타임아웃 — 솔라피 지연이 주문취소 등 본 처리 응답을 막지 않도록
     const res  = await fetch(API_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: getAuthHeader() },
       body:    JSON.stringify({ message }),
+      signal:  AbortSignal.timeout(8000),
     });
     const json = await res.json();
     if (!res.ok) console.error('[알림톡] 발송 실패:', json);
