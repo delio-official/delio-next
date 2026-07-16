@@ -425,8 +425,10 @@ export default function MypageClient() {
   const [editQnaText, setEditQnaText] = useState('');
   const [editCsId, setEditCsId] = useState<string | null>(null);
   const [editCsText, setEditCsText] = useState('');
-  /* 모달 열림 동안 뒷 배경 스크롤 잠금 */
-  useBodyScrollLock(!!detailOrder || !!cancelDetail || !!editingId || !!reviewPhotoModal || !!reqModal || (isMobileView && addrFormOpen) || !!askModal || !!picker);
+  /* 모달 열림 동안 뒷 배경 스크롤 잠금.
+     주의: 리뷰 수정(editingId)은 모달이 아니라 목록 안에 펼쳐지는 인라인 폼이므로 잠그면 안 됨
+     (잠그면 폼이 길어져도 아래로 스크롤이 안 돼 맛 평가 등이 잘림) */
+  useBodyScrollLock(!!detailOrder || !!cancelDetail || !!reviewPhotoModal || !!reqModal || (isMobileView && addrFormOpen) || !!askModal || !!picker);
 
   /* ── 상품 문의 작성 제출(배송조회 → 바로 모달) ── */
   async function submitAsk() {
