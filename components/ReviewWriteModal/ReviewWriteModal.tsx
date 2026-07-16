@@ -30,7 +30,6 @@ export default function ReviewWriteModal({
   const [mediaUploading, setMediaUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  const [reviewPolicyAgree, setReviewPolicyAgree] = useState(false);
   const [reviewPolicyOpen, setReviewPolicyOpen] = useState(false);
   const reviewDragSrc = useRef<number | null>(null);
   const reviewDropTarget = useRef<number | null>(null);
@@ -126,7 +125,7 @@ export default function ReviewWriteModal({
     onClose();
   }
 
-  const blocked = submitting || mediaUploading || newRating < 1 || newContent.trim().length < 10 || !reviewPolicyAgree;
+  const blocked = submitting || mediaUploading || newRating < 1 || newContent.trim().length < 10;
 
   return (
     <div
@@ -303,10 +302,6 @@ export default function ReviewWriteModal({
                 <li>· 타인의 개인정보가 포함된 후기는 삭제될 수 있어요.</li>
               </ul>
             )}
-            <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13.5, color:'#333', marginTop:14 }}>
-              <input type="checkbox" checked={reviewPolicyAgree} onChange={e => setReviewPolicyAgree(e.target.checked)} />
-              델리오 리뷰 정책에 동의합니다
-            </label>
           </div>
         </div>
 
@@ -323,7 +318,7 @@ export default function ReviewWriteModal({
           )}
           <button onClick={handleSubmitReview} disabled={blocked}
             style={{ width:'100%', height:50, background:'#1A1A1A', color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700, cursor: blocked ? 'not-allowed' : 'pointer', opacity: blocked ? 0.5 : 1, transition:'opacity .15s' }}>
-            {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : !reviewPolicyAgree ? '리뷰 정책에 동의해 주세요' : '등록하기'}
+            {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '등록하기'}
           </button>
         </div>
       </div>
