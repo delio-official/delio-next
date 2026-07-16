@@ -38,6 +38,10 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
 export default function CartClient() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  /* 진입 시 화면 상단으로 (썸네일 담기 → 바로 이동 시 이전 스크롤 위치 유지되는 문제 방지) */
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   /* 비로그인 상태에서 장바구니 접근 → 로그인 페이지로 (장바구니는 기기에 그대로 보존) */
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login?next=/cart');
