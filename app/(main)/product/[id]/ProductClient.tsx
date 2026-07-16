@@ -147,6 +147,7 @@ export default function ProductClient() {
   const [reportSaving,     setReportSaving]     = useState(false);
   const [newRating,        setNewRating]        = useState(0);
   const [newContent,       setNewContent]       = useState('');
+  const [newAuthorName,    setNewAuthorName]    = useState('');   // 관리자 전용: 작성자 표시명 직접 지정
   const [reviewPolicyAgree, setReviewPolicyAgree] = useState(false);
   const [reviewPolicyOpen,  setReviewPolicyOpen]  = useState(false);
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
@@ -803,7 +804,8 @@ export default function ProductClient() {
 
   async function handleSubmitReview() {
     if (!user) { router.push('/login'); return; }
-    if (!hasPurchased) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+    /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
+    if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     if (submittingRef.current) return;   // 이미 제출 중이면 무시 (연타 차단)
     submittingRef.current = true;
@@ -842,9 +844,12 @@ export default function ProductClient() {
       setMediaUploading(false);
     }
 
-    /* 작성자 표시명(마스킹) — profiles RLS 무관하게 직접 저장해 모두에게 보이도록 */
+    /* 작성자 표시명(마스킹) — profiles RLS 무관하게 직접 저장해 모두에게 보이도록.
+       관리자가 이름을 직접 지정한 경우엔 마스킹 없이 그 값을 그대로 사용 */
     let authorName: string | null = null;
-    {
+    if (isAdmin && newAuthorName.trim()) {
+      authorName = newAuthorName.trim();
+    } else {
       const { data: me } = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle();
       const nm = me?.name || (user.user_metadata as { name?: string } | undefined)?.name;
       if (nm) authorName = nm.charAt(0) + '****';
@@ -905,6 +910,7 @@ export default function ProductClient() {
     setReviewModalOpen(false);
     setNewRating(0);
     setNewContent('');
+    setNewAuthorName('');
     setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
@@ -1161,7 +1167,8 @@ export default function ProductClient() {
             const rep = reviewReps[ri];
             setSelectedGalleryIdx(allPhotoItems.findIndex(p => p.review?.id === rep.review?.id && p.photoIdx === 0));
           };
-          const author = rv.author_name ? `${rv.author_name.charAt(0)}**` : rv.profiles?.name ? `${rv.profiles.name.charAt(0)}**` : '익명';
+          /* author_name은 저장 시 이미 표시용(일반=마스킹 / 관리자=지정값)이라 그대로 사용 */
+          const author = rv.author_name || (rv.profiles?.name ? `${rv.profiles.name.charAt(0)}**` : '익명');
           return (
             <ReviewPhotoModal
               review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], videoUrl: rv.video_url, rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at, likesCount: rv.likes_count || 0 }}
@@ -1322,7 +1329,7 @@ export default function ProductClient() {
                             )}
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#222', flexShrink: 0 }}>
                               {selItem.review.author_name
-                                ? `${selItem.review.author_name.charAt(0)}**`
+                                ? selItem.review.author_name
                                 : selItem.review.profiles?.name
                                 ? `${selItem.review.profiles.name.charAt(0)}**`
                                 : '익명'}
@@ -3043,6 +3050,24 @@ export default function ProductClient() {
                 })()}
               </div>
             </div>
+
+            {/* 관리자 전용: 작성자 표시명 직접 지정 (비우면 본인 이름 마스킹으로 저장) */}
+            {isAdmin && (
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:8, color:'var(--color-ink-soft)' }}>
+                  작성자 이름
+                  <span style={{ fontSize:12, color:'#999', fontWeight:500, marginLeft:6 }}>관리자 전용 · 비우면 내 이름이 마스킹되어 표시</span>
+                </div>
+                <input
+                  value={newAuthorName}
+                  onChange={e => setNewAuthorName(e.target.value)}
+                  placeholder="예: 김**"
+                  style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
+                    borderRadius:10, fontSize:14, outline:'none',
+                    fontFamily:'inherit', boxSizing:'border-box', color:'var(--color-ink)' }}
+                />
+              </div>
+            )}
 
             <div style={{ marginBottom:20 }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:8,
