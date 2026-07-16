@@ -24,6 +24,7 @@ interface Product {
   discounted_price: number;
   thumbnail_url: string | null;
   badge: string | null;
+  badge_color: string | null;
   short_desc: string | null;
   is_new: boolean;
   is_best: boolean;
@@ -145,8 +146,12 @@ function ProductCard({ p }: { p: Product }) {
       {/* 카드 본문 */}
       <div className="product-card-body">
         <div className="product-brix-wrap">
+          {/* NEW · 인기 · 직접 입력 뱃지 — 켠 것은 모두 표시 */}
           {p.is_new  && <span className="product-badge badge-new">NEW</span>}
-          {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
+          {p.is_best && <span className="product-badge badge-best">인기</span>}
+          {p.badge && (
+            <span className="product-badge" style={{ background: p.badge_color || '#1A1A1A', color: '#fff' }}>{p.badge}</span>
+          )}
         </div>
         <div className="product-card-name">{p.name}</div>
         {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}

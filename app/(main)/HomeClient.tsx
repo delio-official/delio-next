@@ -57,6 +57,7 @@ interface QGProduct {
   id: string; name: string; price: number; discounted_price: number;
   discount_rate: number; brix: number | null; is_dawn: boolean;
   is_new: boolean; is_best: boolean;
+  badge: string | null; badge_color: string | null;
   thumbnail_url: string | null; category: string;
   short_desc: string | null; avg_rating: number; review_count: number;
   soldout?: boolean;
@@ -332,8 +333,13 @@ function QuickGuide() {
           {p.soldout && <div className="product-card-soldout">품절</div>}
         </div>
         <div className="qg-card-body">
-          {(p.is_new || p.is_best) ? (
-            <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>{p.is_new ? 'NEW' : '인기'}</span>
+          {/* NEW · 인기 · 직접 입력 뱃지 — 켠 것은 모두 표시 */}
+          {(p.is_new || p.is_best || p.badge) ? (
+            <span style={{ display:'inline-flex', gap:4, flexWrap:'wrap' }}>
+              {p.is_new  && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>NEW</span>}
+              {p.is_best && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>인기</span>}
+              {p.badge   && <span className="qg-card-tag" style={{ background: p.badge_color || '#1A1A1A', color:'#fff' }}>{p.badge}</span>}
+            </span>
           ) : (
             <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
           )}
@@ -417,7 +423,7 @@ function QuickGuide() {
       setLoading(true);
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'qg');
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock)';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock)';
 
       /* 직접 선택: 카테고리별 지정 상품 (플래그 탭/미지정 카테고리는 자동 정렬로 폴백) */
       if (cfg.mode === 'manual') {
@@ -751,7 +757,7 @@ export default function HomeClient() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'pick');
       if (cfg.count === 0) { setPickProds([]); setPickLoaded(true); return; }
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,thumbnail_url,category,product_options(stock)';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,avg_rating,review_count,short_desc,thumbnail_url,category,product_options(stock)';
 
       let rows: PickProduct[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
