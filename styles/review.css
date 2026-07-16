@@ -43,8 +43,8 @@ body { background: #fff; }
   transition: all .15s;
 }
 .lounge-filter.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: #1A1A1A;
+  border-color: #1A1A1A;
   color: #fff;
   font-weight: 700;
 }
@@ -113,6 +113,7 @@ body { background: #fff; }
 
 .lounge-card-info {
   padding: 12px 4px 0;
+  text-align: center;      /* 제목·레시피(뱃지) 박스 중앙 정렬 */
 }
 .lounge-card-title {
   font-size: 15px;
@@ -129,6 +130,7 @@ body { background: #fff; }
 .lounge-card-meta {
   display: flex;
   align-items: center;
+  justify-content: center;   /* 레시피(뱃지)·날짜 중앙 정렬 */
   gap: 8px;
 }
 .lounge-badge {
