@@ -30,7 +30,6 @@ export default function ReviewWriteModal({
   const [mediaUploading, setMediaUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
-  const [reviewPolicyOpen, setReviewPolicyOpen] = useState(false);
   const reviewDragSrc = useRef<number | null>(null);
   const reviewDropTarget = useRef<number | null>(null);
   const reviewPt = { text: rewardText, photo: rewardPhoto };
@@ -288,21 +287,6 @@ export default function ReviewWriteModal({
             <div style={{ fontSize:12, color:'#bbb', textAlign:'right', marginTop:4 }}>{newContent.length}자</div>
           </div>
 
-          {/* 리뷰 정책 동의 */}
-          <div style={{ borderTop:'1px solid #F0F0F0', paddingTop:14, textAlign:'left' }}>
-            <button type="button" onClick={() => setReviewPolicyOpen(o => !o)} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', padding:0 }}>
-              <span style={{ fontSize:14, fontWeight:600, color:'#333' }}>델리오 리뷰 정책</span>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: reviewPolicyOpen ? 'rotate(180deg)' : 'none', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <p style={{ fontSize:12, color:'#999', lineHeight:1.6, margin:'8px 0 0' }}>상품과 관련 없는 사진이나 내용, 동일 문자 반복 등 부적합한 내용은 삭제될 수 있습니다.</p>
-            {reviewPolicyOpen && (
-              <ul style={{ fontSize:12, color:'#888', lineHeight:1.8, margin:'8px 0 0', padding:0, listStyle:'none' }}>
-                <li>· 상품과 무관한 내용·사진, 광고/홍보성 후기는 삭제될 수 있어요.</li>
-                <li>· 욕설·비방, 동일 문구 반복 등은 삭제될 수 있어요.</li>
-                <li>· 타인의 개인정보가 포함된 후기는 삭제될 수 있어요.</li>
-              </ul>
-            )}
-          </div>
         </div>
 
         {/* 하단 */}
