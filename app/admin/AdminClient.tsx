@@ -5229,8 +5229,11 @@ export default function AdminClient() {
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
 
+              {/* ===== 섹션 1 · 기본정보 (상품 유형 + 기본 필드) ===== */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">기본정보</div>
               {/* 상품 유형: 자사 / 산지 (맨 위에서 먼저 선택) */}
-              <div style={{ display:'flex', gap:8 }}>
+              <div style={{ display:'flex', gap:8, marginBottom:16 }}>
                 {([
                   { dawn:false, label:'자사 상품', desc:'자사배송' },
                   { dawn:true,  label:'브랜드 직송', desc:'산지직송' },
@@ -5254,9 +5257,6 @@ export default function AdminClient() {
                 })}
               </div>
 
-              {/* 기본 정보 */}
-              <div className="adm-formsec">
-              <div className="adm-formsec-title">기본 정보</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품명 *</label>
@@ -5373,9 +5373,10 @@ export default function AdminClient() {
               </div>
               </div>
 
-              {/* 판매금액 영역 (정상가 · 할인 · 판매가 한 묶음) */}
+              {/* ===== 섹션 2 · 가격 · 옵션 ===== */}
               <div className="adm-formsec">
-                <div className="adm-formsec-title">판매금액 · 정산</div>
+                <div className="adm-formsec-title">가격 · 옵션</div>
+                <div style={{ fontSize:13, fontWeight:700, color:'#475569', marginBottom:12 }}>판매금액 · 정산</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {/* 정상가 */}
                   <div>
@@ -5464,18 +5465,16 @@ export default function AdminClient() {
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* 옵션 */}
-              <div className="adm-formsec">
-                <div className="adm-formsec-title">판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
+                {/* ── 판매 옵션 ── */}
+                <div style={{ fontSize:13, fontWeight:700, color:'#475569', margin:'22px 0 12px', paddingTop:18, borderTop:'1px solid #EEF1F5' }}>판매 옵션 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(없으면 단품)</span></div>
                 <OptionTreeEditor key={editingProduct?.id || 'new'} options={pOptions} setOptions={setPOptions}
                   basePrice={Math.round((pForm.price || 0) * (1 - (Number(pForm.discount_rate) || 0) / 100))} />
               </div>
 
-              {/* 상품 이미지 */}
+              {/* ===== 섹션 3 · 이미지 · 맛 프로파일 ===== */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">상품 이미지</div>
+              <div className="adm-formsec-title">이미지 · 맛 프로파일</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#475569', marginBottom:12 }}>상품 이미지</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">상품 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(최대 6장 · 첫 번째 = 대표)</span></label>
@@ -5544,11 +5543,9 @@ export default function AdminClient() {
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
               </div>
-              </div>
 
-              {/* 맛 프로파일 */}
-              <div className="adm-formsec">
-              <div className="adm-formsec-title">맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(상세페이지 표시 · 미설정 시 카테고리 기본값)</span></div>
+              {/* ── 맛 프로파일 ── */}
+              <div style={{ fontSize:13, fontWeight:700, color:'#475569', margin:'22px 0 12px', paddingTop:18, borderTop:'1px solid #EEF1F5' }}>맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(상세페이지 표시 · 미설정 시 카테고리 기본값)</span></div>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {SELLER_AXES.map(axis => (
                   <div key={axis.key} style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
@@ -5579,9 +5576,26 @@ export default function AdminClient() {
               </div>
               </div>
 
-              {/* 배송 (출발 마감 시간 전용 섹션) */}
+              {/* ===== 섹션 4 · 상세페이지 (등록 화면에서 바로 작성 · 신규는 상품 등록 시 함께 저장) ===== */}
               <div className="adm-formsec">
-              <div className="adm-formsec-title">배송</div>
+                <div className="adm-formsec-title">상세페이지</div>
+                <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
+                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다.'}
+                </div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
+                    disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세설명 작성</button>
+                  {!editingProduct && draftImages?.length ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 이미지 {draftImages.length}장 작성됨</span> : null}
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
+                    disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
+                  {!editingProduct && draftInfo ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 상세정보 작성됨</span> : null}
+                </div>
+              </div>
+
+              {/* ===== 섹션 5 · 배송 · 표시 ===== */}
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">배송 · 표시</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#475569', marginBottom:12 }}>배송</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
@@ -5590,11 +5604,9 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체 설정 적용' }, ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) }))]} />
                 </div>
               </div>
-              </div>
 
-              {/* 표시 설정 (뱃지 · 정렬 · 태그) */}
-              <div className="adm-formsec">
-              <div className="adm-formsec-title">표시 설정</div>
+              {/* ── 표시 설정 ── */}
+              <div style={{ fontSize:13, fontWeight:700, color:'#475569', margin:'22px 0 12px', paddingTop:18, borderTop:'1px solid #EEF1F5' }}>표시 설정 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(뱃지 · 정렬 · 태그)</span></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
@@ -5653,22 +5665,6 @@ export default function AdminClient() {
                   );
                 })}
               </div>
-              </div>
-
-              {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 상품 등록 시 함께 저장) */}
-              <div className="adm-formsec">
-                <div className="adm-formsec-title">상세페이지</div>
-                <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
-                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다.'}
-                </div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
-                    disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세설명 작성</button>
-                  {!editingProduct && draftImages?.length ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 이미지 {draftImages.length}장 작성됨</span> : null}
-                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
-                    disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
-                  {!editingProduct && draftInfo ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 상세정보 작성됨</span> : null}
-                </div>
               </div>
 
               {/* ── 미리보기 (목록/홈에 보이는 상품 카드) ── */}
