@@ -185,7 +185,8 @@ export default function ProductClient() {
   const submittingRef = useRef(false); // 연타 동시 제출 방지 (state는 비동기라 ref로 동기 차단)
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
-  const [hasReviewed,      setHasReviewed]      = useState(false);   // 이 상품에 내 리뷰가 이미 있는지 (1상품 1리뷰)
+  const [purchaseCount,    setPurchaseCount]    = useState(0);   // 이 상품 구매 건수 = 쓸 수 있는 리뷰 총 개수
+  const [myReviewCount,    setMyReviewCount]    = useState(0);   // 이 상품에 내가 이미 쓴 리뷰 수
   const [tasteMore,           setTasteMore]           = useState(false);
   const [buyerStats,          setBuyerStats]          = useState({ buyers: 0, repurchase: 0, recent: 0, repurchasers: 0, recent7buy: 0, recent7repurchase: 0 });
   /* 구매/재구매 문구: 최근7일 10명↑일 때 '7일간 N명' vs '누적 N명' 랜덤 (접속 시 1회 고정, hydration 안전하게 마운트 후 결정) */
@@ -696,40 +697,49 @@ export default function ProductClient() {
     return () => document.body.classList.remove('has-mobile-cta');
   }, []);
 
-  /* 이 상품 구매 여부 + 리뷰 작성 권한 — 배송완료(delivered/confirmed)는 배송완료일 기준 30일 이내만 */
+  /* 이 상품 구매 건수(= 쓸 수 있는 리뷰 총 개수) — 배송완료는 배송완료일 기준 30일 이내만.
+     수량·옵션이 아무리 많아도 주문 1건은 1개로 침(order_id 기준 중복 제거) — DB 트리거와 동일 규칙 */
   useEffect(() => {
-    if (!user || !product?.id) { setHasPurchased(false); return; }
+    if (!user || !product?.id) { setHasPurchased(false); setPurchaseCount(0); return; }
     (async () => {
       const { data } = await createClient()
         .from('order_items')
         .select('order_id, orders!inner(user_id, status, delivered_at)')
         .eq('product_id', product.id)
         .eq('orders.user_id', user.id)
-        .in('orders.status', ['paid', 'delivered', 'confirmed']);
+        .in('orders.status', ['paid', 'delivered', 'confirmed']);   // cancelled/refunded 제외
       const LIMIT = 30 * 86400000; // 리뷰 작성 가능 기간(30일)
-      const rows = (data as unknown as { orders: { status: string; delivered_at: string | null } }[]) || [];
-      const ok = rows.some(r => {
+      const rows = (data as unknown as { order_id: string; orders: { status: string; delivered_at: string | null } }[]) || [];
+      const okOrders = new Set<string>();
+      for (const r of rows) {
         const o = r.orders;
-        if (o.status === 'paid') return true;          // 배송 전 — 기존 정책 유지
-        if (!o.delivered_at) return true;              // 배송완료일 미상(과거 데이터) — 제한 안 함
-        return Date.now() - new Date(o.delivered_at).getTime() <= LIMIT;
-      });
-      setHasPurchased(ok);
+        const pass =
+          o.status === 'paid' ? true                   // 배송 전 — 기존 정책 유지
+          : !o.delivered_at   ? true                   // 배송완료일 미상(과거 데이터) — 제한 안 함
+          : Date.now() - new Date(o.delivered_at).getTime() <= LIMIT;
+        if (pass) okOrders.add(r.order_id);
+      }
+      setPurchaseCount(okOrders.size);
+      setHasPurchased(okOrders.size > 0);
     })();
   }, [user, product?.id]);
 
-  /* 이미 이 상품에 리뷰를 썼는지 — 목록(reviews)은 limit 50이라 놓칠 수 있어 전용 조회 */
+  /* 이 상품에 내가 이미 쓴 리뷰 수 — 목록(reviews)은 limit 50이라 놓칠 수 있어 전용 조회 */
   useEffect(() => {
-    if (!user || !product?.id) { setHasReviewed(false); return; }
+    if (!user || !product?.id) { setMyReviewCount(0); return; }
     (async () => {
       const { count } = await createClient()
         .from('reviews')
         .select('id', { count: 'exact', head: true })
         .eq('product_id', product.id)
         .eq('user_id', user.id);
-      setHasReviewed((count ?? 0) > 0);
+      setMyReviewCount(count ?? 0);
     })();
   }, [user, product?.id, reviews.length]);
+
+  /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일) */
+  const reviewQuotaLeft = purchaseCount - myReviewCount;
+  const canWriteReview  = isAdmin || reviewQuotaLeft > 0;
 
   /* 리뷰 작성 적립 포인트 (안내용) */
   useEffect(() => {
@@ -818,8 +828,8 @@ export default function ProductClient() {
     if (!user) { router.push('/login'); return; }
     /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
     if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
-    /* 1상품 1리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
-    if (hasReviewed && !isAdmin) { alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
+    /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
+    if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     if (submittingRef.current) return;   // 이미 제출 중이면 무시 (연타 차단)
     submittingRef.current = true;
@@ -890,8 +900,8 @@ export default function ProductClient() {
       submittingRef.current = false; setSubmitting(false);
       /* DB 트리거(trg_enforce_single_review)가 막은 경우 — 다른 탭/기기에서 이미 작성한 상황 */
       if (/ALREADY_REVIEWED/i.test(error.message)) {
-        setHasReviewed(true);
-        alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.');
+        setMyReviewCount(c => c + 1);   // 화면 상태를 실제(초과)에 맞춰 즉시 잠금
+        alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.');
         setReviewModalOpen(false);
         return;
       }
@@ -2283,8 +2293,8 @@ export default function ProductClient() {
                 onClick={() => {
                   if (!user) { router.push('/login'); return; }
                   if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
-                  /* 1상품 1리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
-                  if (hasReviewed && !isAdmin) { alert('이미 이 상품에 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
+                  /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
+                  if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
                   setReviewModalOpen(true);
                 }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
