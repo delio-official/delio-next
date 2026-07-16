@@ -22,6 +22,7 @@ const InfoSectionEditor = dynamic(
   () => import('@/components/InfoSectionEditor/InfoSectionEditor'),
   { ssr: false }
 );
+import type { InfoContent } from '@/components/InfoSectionEditor/InfoSectionEditor';
 
 /* ===== 타입 ===== */
 type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'homesections'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
@@ -1451,6 +1452,9 @@ export default function AdminClient() {
   /* ── 상세설명 / 상세정보 에디터 ── */
   const [detailEditor, setDetailEditor] = useState<{ id: string; name: string } | null>(null);
   const [infoEditor,   setInfoEditor]   = useState<{ id: string; name: string } | null>(null);
+  // 신규 상품 등록 중 상세 내용을 상품 저장 전까지 메모리에 보관하는 버퍼 (상품 등록 시 함께 커밋)
+  const [draftImages, setDraftImages] = useState<string[] | null>(null);
+  const [draftInfo,   setDraftInfo]   = useState<InfoContent | null>(null);
   const [farmList, setFarmList] = useState<AdminFarmSimple[]>([]);
   const [farmSearch, setFarmSearch] = useState('');
   const [farmPickOpen, setFarmPickOpen] = useState(false);
@@ -2678,6 +2682,7 @@ export default function AdminClient() {
 
   function openProductModal(p?: AdminProduct) {
     loadFarmList();
+    setDraftImages(null); setDraftInfo(null);   // 상세 버퍼 초기화 (신규 등록 시 새로 담김)
     if (p) {
       // 수정: 전체 필드 fetch 완료 후 모달 열기
       const supabase = createClient();
@@ -2833,16 +2838,33 @@ export default function AdminClient() {
       }
     }
 
+    // 신규 상품: 등록 중 버퍼에 담아둔 상세(이미지·정보)를 이제 함께 저장
+    if (!editingProduct && productId && (draftImages?.length || draftInfo)) {
+      const sections: { product_id: string; section_type: string; content: string; sort_order: number }[] = [];
+      if (draftImages?.length) sections.push({ product_id: productId, section_type: 'detail_images', content: JSON.stringify({ images: draftImages }), sort_order: 0 });
+      if (draftInfo)           sections.push({ product_id: productId, section_type: 'info_content',  content: JSON.stringify(draftInfo), sort_order: 99 });
+      const { error: secErr } = await supabase.from('product_detail_sections').insert(sections);
+      if (secErr) console.error('상세 저장 오류:', secErr);
+    }
+    setDraftImages(null); setDraftInfo(null);
+
     setPSaving(false);
     setProductModal(false);
     loadProducts();
     return productId;
   }
 
-  /* 저장 후 상세 에디터(상세설명/상세정보) 바로 열기 — 등록 화면에서 한 번에 */
+  /* 상세 에디터(상세설명/상세정보) 열기.
+     - 신규 상품: 저장하지 않고 버퍼(메모리) 편집 모드로 연다 → 상품 등록 시 함께 커밋
+     - 기존 상품: 해당 상품 상세를 곧바로 DB 편집 */
   async function saveAndEditDetail(kind: 'desc' | 'info') {
-    const id = editingProduct?.id || await saveProduct();
-    if (!id) return;
+    if (!editingProduct) {
+      const name = pForm.name.trim() || '새 상품';
+      if (kind === 'desc') setDetailEditor({ id: '', name });   // id='' → 버퍼 모드
+      else setInfoEditor({ id: '', name });
+      return;
+    }
+    const id = editingProduct.id;
     const name = pForm.name.trim();
     if (kind === 'desc') setDetailEditor({ id, name });
     else setInfoEditor({ id, name });
@@ -5065,6 +5087,8 @@ export default function AdminClient() {
         <ImageDetailEditor
           productId={detailEditor.id}
           productName={detailEditor.name}
+          draftImages={draftImages}
+          onCommitDraft={imgs => setDraftImages(imgs)}
           onClose={() => setDetailEditor(null)}
         />
       )}
@@ -5074,6 +5098,8 @@ export default function AdminClient() {
         <InfoSectionEditor
           productId={infoEditor.id}
           productName={infoEditor.name}
+          draftInfo={draftInfo}
+          onCommitDraft={d => setDraftInfo(d)}
           onClose={() => setInfoEditor(null)}
         />
       )}
@@ -5514,17 +5540,19 @@ export default function AdminClient() {
               </div>
               </div>
 
-              {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 저장 후 자동 진입) */}
+              {/* 상세페이지 — 등록 화면에서 바로 작성 (신규는 상품 등록 시 함께 저장) */}
               <div className="adm-formsec">
                 <div className="adm-formsec-title">상세페이지</div>
                 <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
-                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '버튼을 누르면 먼저 상품이 저장된 뒤 상세 작성 화면이 열립니다.'}
+                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다. (상품이 미리 등록되지 않습니다)'}
                 </div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                   <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
                     disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세설명 작성</button>
+                  {!editingProduct && draftImages?.length ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 이미지 {draftImages.length}장 작성됨</span> : null}
                   <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
                     disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
+                  {!editingProduct && draftInfo ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 상세정보 작성됨</span> : null}
                 </div>
               </div>
 

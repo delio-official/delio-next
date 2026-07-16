@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface Props {
-  productId: string;
+  productId: string;                 // '' = 신규 상품(버퍼) 모드 — DB 대신 부모 메모리에 보관
   productName: string;
   onClose: () => void;
+  draftImages?: string[] | null;     // 버퍼 모드 초기값
+  onCommitDraft?: (images: string[]) => void; // 버퍼 모드 저장 콜백
 }
 
-export default function ImageDetailEditor({ productId, productName, onClose }: Props) {
+export default function ImageDetailEditor({ productId, productName, onClose, draftImages, onCommitDraft }: Props) {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -19,6 +21,12 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
 
   /* ── 로드 ── */
   useEffect(() => {
+    // 신규 상품(버퍼 모드): DB 조회 없이 부모가 들고 있던 버퍼로 시작
+    if (!productId) {
+      setImages(draftImages || []);
+      setLoading(false);
+      return;
+    }
     async function load() {
       const supabase = createClient();
       const { data: sec } = await supabase
@@ -49,7 +57,8 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
     for (const file of Array.from(files)) {
       /* 한글·특수문자 파일명은 스토리지 키로 못 쓰므로(Invalid key) 확장자만 사용 */
       const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const path = `detail/${productId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      // 신규 상품은 아직 productId가 없으므로 임시 폴더(_new)에 업로드 — URL만 버퍼에 담긴다
+      const path = `detail/${productId || '_new'}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage.from('products').upload(path, file, { upsert: true });
       if (error) { alert(`업로드 실패: ${file.name} (${error.message})`); continue; }
       const { data } = supabase.storage.from('products').getPublicUrl(path);
@@ -62,6 +71,8 @@ export default function ImageDetailEditor({ productId, productName, onClose }: P
 
   /* ── 저장 ── */
   async function handleSave() {
+    // 버퍼 모드: DB에 쓰지 않고 부모 메모리에만 반영 후 닫기 (상품 등록 시 함께 저장)
+    if (!productId) { onCommitDraft?.(images); onClose(); return; }
     setSaving(true);
     const supabase = createClient();
     const content = JSON.stringify({ images });

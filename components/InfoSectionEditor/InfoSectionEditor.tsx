@@ -4,21 +4,23 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
 
 interface Props {
-  productId: string;
+  productId: string;              // '' = 신규 상품(버퍼) 모드 — DB 대신 부모 메모리에 보관
   productName: string;
   onClose: () => void;
+  draftInfo?: InfoContent | null; // 버퍼 모드 초기값
+  onCommitDraft?: (data: InfoContent) => void; // 버퍼 모드 저장 콜백
 }
 
 interface TableRow { k1: string; v1: string; k2: string; v2: string; }
 
-interface InfoContent {
+export interface InfoContent {
   tableRows: TableRow[];
   shipping: string[];
   return_: string[];
   cs: string[];
 }
 
-function makeDefault(productName: string): InfoContent {
+export function makeDefault(productName: string): InfoContent {
   return {
     tableRows: [
       { k1: '제품명', v1: productName, k2: '식품의 유형', v2: '과일' },
@@ -87,13 +89,19 @@ function normalize(raw: any, productName: string): InfoContent {
   };
 }
 
-export default function InfoSectionEditor({ productId, productName, onClose }: Props) {
+export default function InfoSectionEditor({ productId, productName, onClose, draftInfo, onCommitDraft }: Props) {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [data,      setData]      = useState<InfoContent>(makeDefault(productName));
 
   useEffect(() => {
+    // 신규 상품(버퍼 모드): DB 조회 없이 부모가 들고 있던 버퍼로 시작
+    if (!productId) {
+      setData(draftInfo || makeDefault(productName));
+      setLoading(false);
+      return;
+    }
     async function load() {
       const supabase = createClient();
       const { data: sec } = await supabase
@@ -114,6 +122,8 @@ export default function InfoSectionEditor({ productId, productName, onClose }: P
   }, [productId, productName]);
 
   async function handleSave() {
+    // 버퍼 모드: DB에 쓰지 않고 부모 메모리에만 반영 후 닫기 (상품 등록 시 함께 저장)
+    if (!productId) { onCommitDraft?.(data); onClose(); return; }
     setSaving(true);
     const supabase = createClient();
     const content = JSON.stringify(data);
