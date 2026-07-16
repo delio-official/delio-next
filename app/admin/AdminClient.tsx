@@ -24,6 +24,90 @@ const InfoSectionEditor = dynamic(
 );
 import type { InfoContent } from '@/components/InfoSectionEditor/InfoSectionEditor';
 
+/* ===== 상품 카드 미리보기 (스토어프론트 카드와 동일 스타일) ===== */
+const PREVIEW_EMOJI: Record<string, string> = {
+  apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
+  kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
+};
+const PREVIEW_BG: Record<string, string> = {
+  apple:'#FFE8E8', citrus:'#FFF3E0', berry:'#F3E5F5', melon:'#E8F5E9',
+  kiwi:'#F1F8E9', mango:'#FFF9E6', grape:'#EDE7F6', gift:'#E8EAF6',
+};
+interface PreviewProps {
+  name: string; shortDesc: string; price: number; discountRate: number;
+  thumbnailUrl: string; category: string; isDawn: boolean;
+  isNew: boolean; isBest: boolean; badge: string; badgeColor: string;
+  mode: 'pc' | 'mobile';
+}
+function ProductPreviewCard(p: PreviewProps) {
+  const mob = p.mode === 'mobile';
+  const emoji = PREVIEW_EMOJI[p.category] || PREVIEW_EMOJI.default;
+  const bg    = PREVIEW_BG[p.category]    || '#F4EFE6';
+  const rate  = Math.max(0, Math.min(99, Math.round(p.discountRate || 0)));
+  const discounted = rate > 0 ? Math.round(p.price * (1 - rate / 100)) : p.price;
+  const fmt = (n: number) => (n || 0).toLocaleString('ko-KR');
+  const deliveryStyle: React.CSSProperties = p.isDawn
+    ? { background:'#F0FBF4', color:'#1E8A4C', border:'1px solid #7BD4A0' }
+    : { background:'#FFF6EE', color:'#D9600A', border:'1px solid #F4A96A' };
+  return (
+    <div style={{ width: mob ? 172 : 230, display:'flex', flexDirection:'column' }}>
+      {/* 이미지 영역 */}
+      <div style={{ position:'relative', aspectRatio:'1', borderRadius:8, background:'#fff',
+        boxShadow:'0 2px 8px rgba(0,0,0,.06)', overflow:'hidden' }}>
+        {p.thumbnailUrl
+          ? <img src={p.thumbnailUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize: mob ? 46 : 60, background:`linear-gradient(135deg,${bg} 0%,#fff 100%)` }}>{emoji}</div>}
+        <span style={{ position:'absolute', top:8, left:8, fontSize:12, fontWeight:700,
+          padding:'3px 7px', borderRadius:4, letterSpacing:'0.3px', ...deliveryStyle }}>
+          {p.isDawn ? '산지직송' : '자사배송'}
+        </span>
+        {/* 모바일: 우하단 담기 버튼 */}
+        {mob && (
+          <span style={{ position:'absolute', right:8, bottom:8, width:34, height:34, borderRadius:'50%',
+            background:'#fff', boxShadow:'0 1px 4px rgba(0,0,0,.18)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg viewBox="0 0 24 24" width={18} height={18} fill="none" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 001.95 1.53h9.58a2 2 0 001.95-1.53l1.54-8.42H5.05"/>
+            </svg>
+          </span>
+        )}
+      </div>
+      {/* 본문 */}
+      <div style={{ padding:'10px 6px 12px', display:'flex', flexDirection:'column', flex:1 }}>
+        {/* 뱃지 — 모바일 카드는 스토어에서 숨김 */}
+        {!mob && (
+          <div style={{ height:22, display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
+            {p.isNew  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>NEW</span>}
+            {p.isBest && <span style={{ fontSize:11, fontWeight:800, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>인기</span>}
+            {p.badge  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:p.badgeColor || '#1A1A1A', color:'#fff' }}>{p.badge}</span>}
+          </div>
+        )}
+        <div style={{ fontSize: mob ? 14 : 17, fontWeight:600, color:'#1A1A1A', lineHeight:1.4,
+          marginBottom:2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
+          overflow:'hidden', minHeight:'2.8em' }}>
+          {p.name || '상품명을 입력하세요'}
+        </div>
+        {p.shortDesc && (
+          <div style={{ fontSize: mob ? 12 : 13, color:'#8A8A8A', marginBottom:6,
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.5 }}>{p.shortDesc}</div>
+        )}
+        <div style={{ marginTop:'auto', display:'flex', flexDirection:'column' }}>
+          {rate > 0 && (
+            <div style={{ marginBottom:1 }}>
+              <span style={{ fontSize: mob ? 12 : 14, color:'#bbb', textDecoration:'line-through' }}>{fmt(p.price)}원</span>
+            </div>
+          )}
+          <div style={{ display:'flex', alignItems:'baseline', gap:4, flexWrap:'wrap' }}>
+            {rate > 0 && <span style={{ fontSize: mob ? 15 : 19, fontWeight:800, color:'#E53E3E' }}>{rate}%</span>}
+            <span style={{ fontSize: mob ? 15 : 19, fontWeight:800, color:'#1A1A1A' }}>{fmt(discounted)}원</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ===== 타입 ===== */
 type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'homesections'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
@@ -5584,6 +5668,50 @@ export default function AdminClient() {
                   <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
                     disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
                   {!editingProduct && draftInfo ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 상세정보 작성됨</span> : null}
+                </div>
+              </div>
+
+              {/* ── 미리보기 (목록/홈에 보이는 상품 카드) ── */}
+              <div className="adm-formsec">
+                <div className="adm-formsec-title">미리보기</div>
+                <div style={{ fontSize:12, color:'#94A3B8', marginBottom:14 }}>
+                  입력한 내용이 실제 상품 목록에서 어떻게 보이는지 미리 확인할 수 있습니다.
+                </div>
+                <div style={{ display:'flex', gap:32, flexWrap:'wrap', alignItems:'flex-start',
+                  background:'#F8FAFC', border:'1px solid #E5E9EF', borderRadius:12, padding:'24px 28px' }}>
+                  {([
+                    { m: 'pc'     as const, label:'PC' },
+                    { m: 'mobile' as const, label:'모바일' },
+                  ]).map(v => (
+                    <div key={v.m} style={{ display:'flex', flexDirection:'column', gap:10, alignItems:'center' }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'flex', alignItems:'center', gap:5 }}>
+                        {v.m === 'pc'
+                          ? <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                          : <svg viewBox="0 0 24 24" width={15} height={15} fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>}
+                        {v.label}
+                      </span>
+                      <div style={{ background:'#fff', padding: v.m === 'mobile' ? '14px 16px' : '16px 18px',
+                        borderRadius:12, boxShadow:'0 1px 3px rgba(0,0,0,.08)' }}>
+                        <ProductPreviewCard
+                          mode={v.m}
+                          name={pForm.name}
+                          shortDesc={pForm.short_desc || ''}
+                          price={Number(pForm.price) || 0}
+                          discountRate={Number(pForm.discount_rate) || 0}
+                          thumbnailUrl={(pForm.thumbnail_url || uploadedThumbnailRef.current || '').trim()}
+                          category={pForm.category}
+                          isDawn={Boolean(pForm.is_dawn)}
+                          isNew={Boolean(pForm.is_new)}
+                          isBest={Boolean(pForm.is_best)}
+                          badge={pForm.badge?.trim() || ''}
+                          badgeColor={pForm.badge_color || BADGE_DEFAULT_COLOR}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:11, color:'#B0B0B0', marginTop:8 }}>
+                  💡 모바일 카드는 실제 화면과 동일하게 NEW·인기·직접 뱃지가 표시되지 않습니다.
                 </div>
               </div>
 
