@@ -46,7 +46,8 @@ export default function SiteFooter() {
           {/* 입금 계좌 */}
           <div style={{ display:'flex', flexDirection:'column', gap:9, fontSize:14, color:'#999', lineHeight:1.75 }}>
             <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {/* 왼쪽 070(28px·줄높이 49px)과 첫 줄을 맞추기 위한 보정 — 1열로 쌓이는 모바일에선 해제 */}
+            <div className="footer-acct-lines" style={{ display:'flex', flexDirection:'column', gap:6 }}>
               <div>국민은행 469901-04-404587</div>
               <div>예금주 : 송민창(델리오)</div>
             </div>
