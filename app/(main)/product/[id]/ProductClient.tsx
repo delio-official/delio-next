@@ -78,6 +78,8 @@ const BG_MAP: Record<string, string> = {
 
 /* ── 맛 프로파일 설정 ── */
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
+/* 문의 목록 페이지당 개수 (등록 직후 새 문의가 있는 페이지 계산에도 사용) */
+const INQ_PER = 10;
 /* 문의 카테고리 표시 라벨 */
 const INQ_CAT_LABEL: Record<string, string> = {
   '문의': '상품문의', '상품': '상품문의', '배송관련': '배송문의',
@@ -236,15 +238,17 @@ export default function ProductClient() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  /* Q&A 탭 진입 시 최신 데이터 로드 */
-  const refreshInquiries = useCallback(async () => {
+  /* Q&A 탭 진입 시 최신 데이터 로드 (갱신된 목록을 반환 → 등록 직후 페이지 계산에 사용) */
+  const refreshInquiries = useCallback(async (): Promise<ProductInquiry[]> => {
     const { data } = await createClient()
       .from('product_inquiries')
       .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
       .eq('product_id', id)
       .order('created_at', { ascending: true })
       .limit(100);
-    if (data) setInquiries(data as unknown as ProductInquiry[]);
+    const list = (data as unknown as ProductInquiry[]) || [];
+    if (data) setInquiries(list);
+    return list;
   }, [id]); // eslint-disable-line
 
   useEffect(() => {
@@ -929,18 +933,19 @@ export default function ProductClient() {
     setInqSubmitting(true);
     const supabase = createClient();
     if (inqPrivate && !inqPassword.trim()) { alert('비밀 문의는 비밀번호를 설정해야 합니다.'); setInqSubmitting(false); return; }
-    const { data, error } = await supabase.from('product_inquiries').insert({
+    const { error } = await supabase.from('product_inquiries').insert({
       product_id: product!.id,
       user_id: user.id,
       category: inqCategory,
       content: inqContent.trim(),
       is_private: inqPrivate,
       password: inqPrivate ? inqPassword.trim() : null,
-    }).select('id, category, content, is_private, answer, answered_at, created_at').single();
+    });
+    if (error) { setInqSubmitting(false); alert('문의 등록 실패: ' + error.message); return; }
+    /* 목록은 오래된 순 정렬 → 서버에서 다시 읽고, 새 문의가 있는 마지막 페이지로 이동 (새로고침 없이 바로 보이게) */
+    const list = await refreshInquiries();
+    setInqPage(Math.max(0, Math.ceil(list.length / INQ_PER) - 1));
     setInqSubmitting(false);
-    if (error) { alert('문의 등록 실패: ' + error.message); return; }
-    const newInquiry: ProductInquiry = { ...(data as unknown as ProductInquiry), profiles: { name: user.user_metadata?.name || null } };
-    setInquiries(prev => [newInquiry, ...prev]);
     setInqModal(false);
     setInqContent('');
     setInqCategory('문의');
@@ -2543,7 +2548,6 @@ export default function ProductClient() {
                 아직 등록된 문의가 없습니다.
               </div>
             ) : (() => {
-              const INQ_PER = 10;
               const totalPages = Math.ceil(inquiries.length / INQ_PER);
               const paged = inquiries.slice(inqPage * INQ_PER, (inqPage + 1) * INQ_PER);
               return (
