@@ -949,24 +949,23 @@ export default function ProductClient() {
     submittingRef.current = false; setSubmitting(false);
   }
 
-  /* 리뷰 목록 + 상품 평점/리뷰수 재동기화 (작성·수정 후 공통) */
+  /* 리뷰 목록 + 상품 평점/리뷰수 재동기화 (작성·수정 후 공통)
+     ※ review_count/avg_rating 을 여기서 계산해 쓰면 안 된다 — 목록은 최근 50개 제한이라
+       리뷰가 50개를 넘으면 개수가 50으로 깎이고 평점도 '최근 50개 평균'으로 덮어써진다.
+       DB 트리거(on_review_change)가 전체 리뷰로 정확히 갱신하므로 서버 값을 읽기만 한다. */
   async function refreshReviewsAndRating(supabase: ReturnType<typeof createClient>) {
     const { data: refreshed } = await supabase
       .from('reviews').select('*, profiles(name)')
       .eq('product_id', product!.id)
       .order('created_at', { ascending: false }).limit(50);
-    const updatedReviews = (refreshed as Review[]) || [];
-    setReviews(updatedReviews);
+    setReviews((refreshed as Review[]) || []);
 
-    const newCount = updatedReviews.length;
-    const newAvg   = newCount > 0
-      ? Math.round(updatedReviews.reduce((s, r) => s + r.rating, 0) / newCount * 10) / 10
-      : 0;
-    await supabase.from('products').update({
-      review_count: newCount,
-      avg_rating:   newAvg,
-    }).eq('id', product!.id);
-    setProduct(prev => prev ? { ...prev, review_count: newCount, avg_rating: newAvg } : prev);
+    const { data: p } = await supabase
+      .from('products').select('review_count, avg_rating')
+      .eq('id', product!.id).maybeSingle();
+    if (p) setProduct(prev => prev
+      ? { ...prev, review_count: p.review_count ?? 0, avg_rating: p.avg_rating ?? 0 }
+      : prev);
   }
 
   /* 리뷰 모달 닫기 + 입력값 초기화 (작성/수정 공통) */
@@ -1122,6 +1121,19 @@ export default function ProductClient() {
       ? product.seller_score
       : defaultSellerScore(product.category);
 
+  /* 만족도(별점 4점 이상 비율) — 목록(reviews)은 최근 50개 제한이라 그걸로 세면
+     리뷰가 50개를 넘는 순간 분자만 50에서 멈춰 만족도가 실제보다 낮게 나온다. 전체를 세서 구한다. */
+  const [satisfiedCount, setSatisfiedCount] = useState(0);
+  useEffect(() => {
+    if (!product?.id) return;
+    (async () => {
+      const { count } = await createClient()
+        .from('reviews').select('id', { count: 'exact', head: true })
+        .eq('product_id', product.id).gte('rating', 4);
+      setSatisfiedCount(count ?? 0);
+    })();
+  }, [product?.id, reviews.length]);
+
   /* 구매자 맛 평가 집계 (reviews.taste) → 축별 동의율 */
   const tasteReviews = reviews.filter(r => r.taste && Object.keys(r.taste).length > 0);
   const tasteRevealed = tasteReviews.length >= TASTE_REVEAL_MIN;
@@ -1196,7 +1208,7 @@ export default function ProductClient() {
     // 어드민에서 끈 상품은 pill 숨김
     if ((product as { show_stat_pill?: boolean }).show_stat_pill === false) return null;
     const satRate = product.review_count > 0
-      ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
+      ? Math.round(satisfiedCount / product.review_count * 100) : 0;   // 목록(50개 제한) 대신 전체 집계
     const cands: { score: number; text: string }[] = [];
     // 만족도·재구매율(둘 다 %)은 충분한 표본일 때만 후보로
     if (product.review_count >= TASTE_REVEAL_MIN && satRate > 0)
@@ -2058,7 +2070,7 @@ export default function ProductClient() {
             {/* ── 상단 요약: 평점 | 만족도·재구매율·구매자수 (리뷰 5개 이상에서만 지표 공개) ── */}
             {(() => {
               const satisfiedPct = product.review_count > 0
-                ? Math.round(reviews.filter(r => r.rating >= 4).length / product.review_count * 100) : 0;
+                ? Math.round(satisfiedCount / product.review_count * 100) : 0;
               const statsRevealed = product.review_count >= TASTE_REVEAL_MIN;
               return (
                 <div className="tp-summary">
