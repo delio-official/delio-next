@@ -35,5 +35,22 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  /* 차단(블랙리스트) 회원은 이미 로그인 중이어도 즉시 로그아웃.
+     로그인 시점 차단만으로는 기존 세션이 만료될 때까지 계속 이용 가능하므로 여기서도 검사한다. */
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      const supabase = createClient();
+      const { data: prof } = await supabase
+        .from('profiles').select('is_blocked').eq('id', user.id).maybeSingle();
+      if (!alive || !prof?.is_blocked) return;
+      await supabase.auth.signOut();
+      setUser(null);
+      window.location.href = '/login?error=blocked';
+    })();
+    return () => { alive = false; };
+  }, [user]);
+
   return { user, loading, loggedIn: !!user };
 }

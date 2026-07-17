@@ -6,8 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, signInWithKakao, signInWithNaver } from '@/lib/auth';
 import '@/styles/login.css';
 
-/* 차단 회원 안내 — 이메일 로그인과 소셜 콜백 양쪽에서 동일 문구 사용 */
-const BLOCKED_MSG = '이용이 제한된 계정입니다.\n자세한 내용은 고객센터(02-6925-2311)로 문의해주세요.';
+/* 차단 회원 안내 — 이메일 로그인과 소셜 콜백 양쪽에서 동일 문구 사용.
+   번호는 사이트 하단(SiteFooter) 고객센터 번호와 동일하게 유지할 것 */
+const BLOCKED_MSG = '이용이 제한된 계정입니다.\n자세한 내용은 고객센터(070-8064-3601)로 문의해주세요.';
 
 export default function LoginClient() {
   const router = useRouter();
