@@ -51,9 +51,18 @@ export async function signUp(
   return { data, error };
 }
 
+/** 차단(블랙리스트) 회원은 로그인 불가 — 인증은 통과해도 즉시 로그아웃시킨다 */
 export async function signIn(email: string, password: string) {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (!error && data?.user) {
+    const { data: prof } = await supabase
+      .from('profiles').select('is_blocked').eq('id', data.user.id).maybeSingle();
+    if (prof?.is_blocked) {
+      await supabase.auth.signOut();
+      return { data: null, error: { message: 'BLOCKED' } as { message: string } };
+    }
+  }
   return { data, error };
 }
 

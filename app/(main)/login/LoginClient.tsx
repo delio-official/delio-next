@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, signInWithKakao, signInWithNaver } from '@/lib/auth';
 import '@/styles/login.css';
 
+/* 차단 회원 안내 — 이메일 로그인과 소셜 콜백 양쪽에서 동일 문구 사용 */
+const BLOCKED_MSG = '이용이 제한된 계정입니다.\n자세한 내용은 고객센터(02-6925-2311)로 문의해주세요.';
+
 export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,6 +26,13 @@ export default function LoginClient() {
     if (saved) { setEmail(saved); setRemember(true); }
   }, []);
 
+  /* 소셜 로그인 콜백에서 되돌아온 오류 (차단 회원 등) */
+  useEffect(() => {
+    const e = searchParams.get('error');
+    if (e === 'blocked') setError(BLOCKED_MSG);
+    else if (e === 'oauth') setError('소셜 로그인에 실패했습니다. 다시 시도해주세요.');
+  }, [searchParams]);
+
   async function doLogin() {
     if (!email.trim() || !pw) return;
     setLoading(true);
@@ -30,7 +40,7 @@ export default function LoginClient() {
     const { error: err } = await signIn(email.trim(), pw);
     setLoading(false);
     if (err) {
-      setError('이메일 또는 비밀번호를 확인해주세요.');
+      setError(err.message === 'BLOCKED' ? BLOCKED_MSG : '이메일 또는 비밀번호를 확인해주세요.');
       return;
     }
     /* 아이디 저장 */
@@ -85,7 +95,7 @@ export default function LoginClient() {
         </div>
 
         {error && (
-          <p style={{ color: 'var(--color-error)', fontSize: 13, marginBottom: 8, marginTop: -2 }}>
+          <p style={{ color: 'var(--color-error)', fontSize: 13, marginBottom: 8, marginTop: -2, whiteSpace: 'pre-line' }}>
             {error}
           </p>
         )}
