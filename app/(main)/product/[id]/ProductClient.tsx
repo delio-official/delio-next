@@ -67,6 +67,14 @@ interface DetailSection {
   id: string; section_type: string; content: string; sort_order: number;
 }
 
+/* 리뷰 작성자 표시명 마스킹 — 첫 글자만 남기고 **** 로 가린다.
+   일반 회원(본인 이름)과 관리자가 직접 지정한 이름 모두 동일하게 적용.
+   '김신찬' → '김****' / 이미 마스킹된 '김****' 를 넣어도 '김****' (멱등) */
+function maskName(name: string): string {
+  const n = (name || '').trim();
+  return n ? n.charAt(0) + '****' : '';
+}
+
 const EMOJI_MAP: Record<string, string> = {
   apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈',
   kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁', default:'🍑',
@@ -872,15 +880,16 @@ export default function ProductClient() {
       setMediaUploading(false);
     }
 
-    /* 작성자 표시명(마스킹) — profiles RLS 무관하게 직접 저장해 모두에게 보이도록.
-       관리자가 이름을 직접 지정한 경우엔 마스킹 없이 그 값을 그대로 사용 */
+    /* 작성자 표시명 — profiles RLS 무관하게 직접 저장해 모두에게 보이도록.
+       관리자가 지정한 이름도 일반 회원과 똑같이 마스킹한다.
+       '김신찬' → '김****' / 이미 마스킹된 '김****' 를 넣어도 '김****' 로 동일(멱등). */
     let authorName: string | null = null;
     if (isAdmin && newAuthorName.trim()) {
-      authorName = newAuthorName.trim();
+      authorName = maskName(newAuthorName);
     } else {
       const { data: me } = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle();
       const nm = me?.name || (user.user_metadata as { name?: string } | undefined)?.name;
-      if (nm) authorName = nm.charAt(0) + '****';
+      if (nm) authorName = maskName(nm);
     }
 
     /* 수정 모드: 남겨둔 기존 사진 + 새로 올린 사진 / 영상은 새로 올린 게 있으면 교체 */
@@ -893,7 +902,7 @@ export default function ProductClient() {
         image_urls: finalImgs.length > 0 ? finalImgs : null,
         video_url:  finalVideo,
         taste:      Object.keys(newTaste).length > 0 ? newTaste : null,
-        ...(isAdmin && newAuthorName.trim() ? { author_name: newAuthorName.trim() } : {}),
+        ...(isAdmin && newAuthorName.trim() ? { author_name: maskName(newAuthorName) } : {}),
       }).eq('id', editingReviewId);
       submittingRef.current = false; setSubmitting(false);
       if (upErr) { alert('수정 실패: ' + upErr.message); return; }
@@ -3310,12 +3319,14 @@ export default function ProductClient() {
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:13, fontWeight:600, marginBottom:8, color:'var(--color-ink-soft)' }}>
                   작성자 이름
-                  <span style={{ fontSize:12, color:'#999', fontWeight:500, marginLeft:6 }}>관리자 전용 · 비우면 내 이름이 마스킹되어 표시</span>
+                  <span style={{ fontSize:12, color:'#999', fontWeight:500, marginLeft:6 }}>
+                    관리자 전용 · 입력해도 첫 글자만 남고 마스킹됩니다{newAuthorName.trim() ? ` (→ ${maskName(newAuthorName)})` : ''}
+                  </span>
                 </div>
                 <input
                   value={newAuthorName}
                   onChange={e => setNewAuthorName(e.target.value)}
-                  placeholder="예: 김**"
+                  placeholder="예: 김신찬 (김**** 로 표시) · 비우면 내 이름으로"
                   style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
                     borderRadius:10, fontSize:14, outline:'none',
                     fontFamily:'inherit', boxSizing:'border-box', color:'var(--color-ink)' }}
