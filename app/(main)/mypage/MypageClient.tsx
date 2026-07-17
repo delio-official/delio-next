@@ -1064,13 +1064,24 @@ export default function MypageClient() {
     setOrderSearch('');
     setOrderPage(0);
   }
-  /* ── 리뷰 삭제 ── */
+  /* ── 리뷰 삭제 ──
+     서버 경유 필수: 여기서 바로 delete 하면 적립금이 회수되지 않아
+     작성→삭제→재작성으로 포인트를 반복 수령할 수 있고, products.review_count 도 어긋난다. */
   async function handleDeleteReview(id: string) {
-    if (!confirm('리뷰를 삭제할까요?')) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('reviews').delete().eq('id', id);
-    if (error) { alert('삭제 실패: ' + error.message); return; }
-    setMyReviews(prev => prev.filter(r => r.id !== id));
+    if (!confirm('리뷰를 삭제할까요?\n리뷰 작성으로 받은 적립금은 함께 회수됩니다.')) return;
+    try {
+      const res = await fetch('/api/reviews/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId: id }),
+      });
+      const json = await res.json();
+      if (!json.ok) { alert('삭제 실패: ' + (json.error || '')); return; }
+      setMyReviews(prev => prev.filter(r => r.id !== id));
+      if (json.recovered > 0) showToastMsg(`리뷰를 삭제했습니다. (적립금 ${json.recovered}P 회수)`);
+    } catch {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
   }
 
   /* ── 리뷰 수정 시작 ── */

@@ -151,6 +151,10 @@ export default function ProductClient() {
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
+  /* 리뷰 수정 모드 — null이면 새 리뷰 작성. 수정 시 기존 사진/영상은 URL로 다룬다 */
+  const [editingReviewId,  setEditingReviewId]  = useState<string | null>(null);
+  const [editImgUrls,      setEditImgUrls]      = useState<string[]>([]);
+  const [editVideoUrl,     setEditVideoUrl]     = useState<string | null>(null);
   const [mediaUploading,   setMediaUploading]   = useState(false);
   /* 리뷰 사진 드래그 재정렬 (PC 마우스 + 모바일 터치) */
   const reviewDragSrc = useRef<number | null>(null);
@@ -826,10 +830,13 @@ export default function ProductClient() {
 
   async function handleSubmitReview() {
     if (!user) { router.push('/login'); return; }
-    /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
-    if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
-    /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
-    if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
+    /* 수정 모드는 이미 쓴 리뷰를 고치는 것이므로 구매·횟수 검사를 하지 않는다 */
+    if (!editingReviewId) {
+      /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
+      if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
+      /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
+      if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
+    }
     if (!newContent.trim()) { alert('리뷰 내용을 입력해주세요.'); return; }
     if (submittingRef.current) return;   // 이미 제출 중이면 무시 (연타 차단)
     submittingRef.current = true;
@@ -879,6 +886,26 @@ export default function ProductClient() {
       if (nm) authorName = nm.charAt(0) + '****';
     }
 
+    /* 수정 모드: 남겨둔 기존 사진 + 새로 올린 사진 / 영상은 새로 올린 게 있으면 교체 */
+    if (editingReviewId) {
+      const finalImgs  = [...editImgUrls, ...uploadedImageUrls];
+      const finalVideo = uploadedVideoUrl || editVideoUrl;
+      const { error: upErr } = await supabase.from('reviews').update({
+        rating:     newRating,
+        content:    newContent.trim(),
+        image_urls: finalImgs.length > 0 ? finalImgs : null,
+        video_url:  finalVideo,
+        taste:      Object.keys(newTaste).length > 0 ? newTaste : null,
+        ...(isAdmin && newAuthorName.trim() ? { author_name: newAuthorName.trim() } : {}),
+      }).eq('id', editingReviewId);
+      submittingRef.current = false; setSubmitting(false);
+      if (upErr) { alert('수정 실패: ' + upErr.message); return; }
+      await refreshReviewsAndRating(supabase);
+      closeReviewModal();
+      showToast('리뷰가 수정되었습니다.');
+      return;
+    }
+
     const reviewPayload: Record<string, unknown> = {
       product_id: product!.id,
       user_id: user.id,
@@ -922,7 +949,15 @@ export default function ProductClient() {
       } catch { /* 적립 실패는 리뷰 등록에 영향 없음 */ }
     }
 
-    // 리뷰 새로 불러오기
+    await refreshReviewsAndRating(supabase);
+
+    alert(earnedPt > 0 ? `리뷰가 등록됐습니다. ${earnedPt.toLocaleString()}P 적립! 감사합니다 🎉` : '리뷰가 등록됐습니다. 감사합니다!');
+    closeReviewModal();
+    submittingRef.current = false; setSubmitting(false);
+  }
+
+  /* 리뷰 목록 + 상품 평점/리뷰수 재동기화 (작성·수정 후 공통) */
+  async function refreshReviewsAndRating(supabase: ReturnType<typeof createClient>) {
     const { data: refreshed } = await supabase
       .from('reviews').select('*, profiles(name)')
       .eq('product_id', product!.id)
@@ -930,7 +965,6 @@ export default function ProductClient() {
     const updatedReviews = (refreshed as Review[]) || [];
     setReviews(updatedReviews);
 
-    // products.avg_rating + review_count 실시간 반영
     const newCount = updatedReviews.length;
     const newAvg   = newCount > 0
       ? Math.round(updatedReviews.reduce((s, r) => s + r.rating, 0) / newCount * 10) / 10
@@ -940,16 +974,20 @@ export default function ProductClient() {
       avg_rating:   newAvg,
     }).eq('id', product!.id);
     setProduct(prev => prev ? { ...prev, review_count: newCount, avg_rating: newAvg } : prev);
+  }
 
-    alert(earnedPt > 0 ? `리뷰가 등록됐습니다. ${earnedPt.toLocaleString()}P 적립! 감사합니다 🎉` : '리뷰가 등록됐습니다. 감사합니다!');
+  /* 리뷰 모달 닫기 + 입력값 초기화 (작성/수정 공통) */
+  function closeReviewModal() {
     setReviewModalOpen(false);
+    setEditingReviewId(null);
     setNewRating(0);
     setNewContent('');
     setNewAuthorName('');
     setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
-    submittingRef.current = false; setSubmitting(false);
+    setEditImgUrls([]);
+    setEditVideoUrl(null);
   }
 
   /* ── 리뷰 도움됐어요 ── */
@@ -993,6 +1031,44 @@ export default function ProductClient() {
     setInqPrivate(false);
     setInqPassword('');
     alert('문의가 등록되었습니다.');
+  }
+
+  /* ── 리뷰 수정 시작 — 작성 모달을 수정 모드로 재사용 ── */
+  function startEditReview(r: Review) {
+    setEditingReviewId(r.id);
+    setNewRating(r.rating);
+    setNewContent(r.content);
+    setNewTaste((r.taste as Record<string, number>) || {});
+    setEditImgUrls(r.image_urls || []);
+    setEditVideoUrl(r.video_url || null);
+    setNewImages([]);
+    setNewVideo(null);
+    setNewAuthorName(r.author_name || '');
+    setReviewModalOpen(true);
+  }
+
+  /* ── 리뷰 삭제 (본인 또는 관리자) ──
+     서버 경유 필수: 적립금 회수 + review_count 보정을 함께 처리해야 함
+     (클라이언트에서 바로 delete 하면 작성→삭제→재작성으로 포인트 무한 수령 가능) */
+  async function handleDeleteReview(reviewId: string, mine: boolean) {
+    if (!confirm(mine
+      ? '리뷰를 삭제할까요?\n리뷰 작성으로 받은 적립금은 함께 회수됩니다.'
+      : '이 회원의 리뷰를 삭제할까요?\n작성자가 받은 적립금도 함께 회수됩니다.')) return;
+    try {
+      const res = await fetch('/api/reviews/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId }),
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('삭제 실패: ' + (json.error || '')); return; }
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+      setProduct(prev => prev ? { ...prev, review_count: json.reviewCount } : prev);
+      if (mine) setMyReviewCount(c => Math.max(0, c - 1));   // 삭제한 만큼 다시 쓸 수 있게
+      showToast(json.recovered > 0 ? `리뷰를 삭제했습니다. (적립금 ${json.recovered}P 회수)` : '리뷰를 삭제했습니다.');
+    } catch {
+      showToast('삭제 중 오류가 발생했습니다.');
+    }
   }
 
   /* ── 본인 문의 삭제 ── */
@@ -2515,6 +2591,17 @@ export default function ProductClient() {
                       </button>
                     </div>
                     <div style={{ display:'flex', gap:12 }}>
+                      {/* 수정: 본인 리뷰만 (관리자도 자기 것만) / 삭제: 본인 또는 관리자 */}
+                      {user && r.user_id === user.id && (
+                        <button onClick={() => startEditReview(r)}
+                          style={{ background:'none', border:'none', fontSize:12,
+                            color:'var(--color-ink-mute)', cursor:'pointer' }}>수정</button>
+                      )}
+                      {user && (r.user_id === user.id || isAdmin) && (
+                        <button onClick={() => handleDeleteReview(r.id, r.user_id === user.id)}
+                          style={{ background:'none', border:'none', fontSize:12,
+                            color:'#E53935', cursor:'pointer' }}>삭제</button>
+                      )}
                       <button onClick={() => {
                           if (!user) { router.push('/login'); return; }
                           setReportReason(''); setReportDetail(''); setReportTarget(r.id);
@@ -2843,7 +2930,7 @@ export default function ProductClient() {
           style={{ position:'fixed', inset:0, background: isMobile ? '#fff' : 'rgba(0,0,0,0.5)', zIndex:3100,
             display:'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'center',
             padding: isMobile ? 0 : 16 }}
-          onClick={() => setReviewModalOpen(false)}
+          onClick={closeReviewModal}
         >
           <div
             style={{ background:'#fff', width:'100%',
@@ -2858,10 +2945,10 @@ export default function ProductClient() {
             {/* 헤더 */}
             <div style={{ flexShrink:0, position:'relative', display:'flex', alignItems:'center',
               justifyContent:'center', padding:'15px 16px', borderBottom:'1px solid #EEE' }}>
-              <button onClick={() => setReviewModalOpen(false)}
+              <button onClick={closeReviewModal}
                 style={{ position:'absolute', right:12, background:'none', border:'none', fontSize:22,
                   cursor:'pointer', color:'#333', lineHeight:1, padding:'0 4px' }}>✕</button>
-              <span style={{ fontSize:17, fontWeight:700 }}>리뷰 남기기</span>
+              <span style={{ fontSize:17, fontWeight:700 }}>{editingReviewId ? '리뷰 수정' : '리뷰 남기기'}</span>
             </div>
 
             {/* 스크롤 본문 */}
@@ -2974,6 +3061,38 @@ export default function ProductClient() {
                 <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>↔ 사진을 드래그해 순서를 변경할 수 있어요</div>
               )}
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                {/* 수정 모드: 기존에 올려둔 사진 (URL) — ✕로 제거 가능 */}
+                {editImgUrls.map((url, i) => (
+                  <div key={url + i} style={{ position:'relative', width:64, height:64, flexShrink:0 }}>
+                    <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover',
+                      borderRadius:8, border:'1px solid #E8E8E6' }} />
+                    <button
+                      onClick={() => setEditImgUrls(prev => prev.filter((_, j) => j !== i))}
+                      style={{ position:'absolute', top:3, right:3,
+                        width:18, height:18, borderRadius:'50%',
+                        background:'rgba(0,0,0,0.55)', color:'#fff', border:'none',
+                        fontSize:11, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {/* 수정 모드: 기존 영상 */}
+                {editVideoUrl && !newVideo && (
+                  <div style={{ position:'relative', width:64, height:64, flexShrink:0, order:2 }}>
+                    <video src={editVideoUrl} style={{ width:'100%', height:'100%', objectFit:'cover',
+                      borderRadius:8, border:'1px solid #E8E8E6' }} />
+                    <button
+                      onClick={() => setEditVideoUrl(null)}
+                      style={{ position:'absolute', top:3, right:3,
+                        width:18, height:18, borderRadius:'50%',
+                        background:'rgba(0,0,0,0.55)', color:'#fff', border:'none',
+                        fontSize:11, cursor:'pointer', display:'flex',
+                        alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>
+                      ✕
+                    </button>
+                  </div>
+                )}
                 {/* 이미지 프리뷰 */}
                 {newImages.map((file, i) => (
                   <div key={i}
@@ -3033,8 +3152,8 @@ export default function ProductClient() {
                     </button>
                   </div>
                 )}
-                {/* 사진 추가 버튼 */}
-                {newImages.length < 5 && (() => {
+                {/* 사진 추가 버튼 — 수정 모드에선 기존 사진까지 합쳐 5장 제한 */}
+                {editImgUrls.length + newImages.length < 5 && (() => {
                   const imgRef = { current: null as HTMLInputElement | null };
                   return (
                     <>
@@ -3045,14 +3164,14 @@ export default function ProductClient() {
                           cursor:'pointer', display:'flex', flexDirection:'column',
                           alignItems:'center', justifyContent:'center', gap:3, order:-1 }}>
                         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                        <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{newImages.length}/5</span>
+                        <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{editImgUrls.length + newImages.length}/5</span>
                       </button>
                       <input
                         ref={imgRef}
                         type="file" accept="image/*" multiple style={{ display:'none' }}
                         onChange={e => {
                           if (!e.target.files) return;
-                          const files = Array.from(e.target.files).slice(0, 5 - newImages.length);
+                          const files = Array.from(e.target.files).slice(0, 5 - editImgUrls.length - newImages.length);
                           setNewImages(prev => [...prev, ...files]);
                           e.target.value = '';
                         }}
@@ -3061,7 +3180,7 @@ export default function ProductClient() {
                   );
                 })()}
                 {/* 영상 추가 버튼 */}
-                {!newVideo && (() => {
+                {!newVideo && !editVideoUrl && (() => {
                   const vidRef = { current: null as HTMLInputElement | null };
                   return (
                     <>
@@ -3129,7 +3248,8 @@ export default function ProductClient() {
 
             {/* 하단: 받을 수 있는 포인트 + 등록하기 */}
             <div style={{ flexShrink:0, borderTop:'1px solid #EEE', padding:'10px 16px 14px', background:'#fff' }}>
-              {Math.max(reviewPt.text, reviewPt.photo) > 0 && (
+              {/* 적립은 최초 작성 1회만 — 수정 시에는 안내하지 않음 */}
+              {!editingReviewId && Math.max(reviewPt.text, reviewPt.photo) > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:13, marginBottom:8 }}>
                   <span style={{ color:'#888' }}>받을 수 있는 포인트</span>
                   <span style={{ fontWeight:700 }}>
@@ -3146,7 +3266,9 @@ export default function ProductClient() {
                       color:'#fff', border:'none', borderRadius:10, fontSize:15, fontWeight:700,
                       cursor: blocked ? 'not-allowed' : 'pointer',
                       opacity: blocked ? 0.5 : 1, transition:'opacity .15s' }}>
-                    {mediaUploading ? '파일 업로드 중...' : submitting ? '등록 중...' : '등록하기'}
+                    {mediaUploading ? '파일 업로드 중...'
+                      : submitting ? (editingReviewId ? '수정 중...' : '등록 중...')
+                      : (editingReviewId ? '수정 완료' : '등록하기')}
                   </button>
                 );
               })()}
