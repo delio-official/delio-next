@@ -219,7 +219,7 @@ export default function ProductClient() {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   }
-  const [csPhone,             setCsPhone]             = useState('02-6925-2311');
+  const [csPhone,             setCsPhone]             = useState('070-8064-3601');   // 사이트 하단 고객센터 번호와 동일
   const [signupCoupon,        setSignupCoupon]        = useState(5000);
   const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null>(null);
   const [downCoupons,         setDownCoupons]         = useState<PublicCoupon[]>([]);
