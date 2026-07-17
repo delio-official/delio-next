@@ -1129,6 +1129,23 @@ export default function ProductClient() {
     showToast('문의가 수정되었습니다.');
   }
 
+  /* 만족도(별점 4점 이상 비율) — 목록(reviews)은 최근 50개 제한이라 그걸로 세면
+     리뷰가 50개를 넘는 순간 분자만 50에서 멈춰 만족도가 실제보다 낮게 나온다. 전체를 세서 구한다.
+     ※ 훅이므로 반드시 아래 early return 보다 위에 있어야 한다 (로딩 중엔 훅이 실행되지 않아
+       렌더마다 훅 개수가 달라지면 React #310 발생). */
+  const [satisfiedCount, setSatisfiedCount] = useState(0);
+  useEffect(() => {
+    if (!product?.id) return;
+    const pid = product.id;
+    (async () => {
+      const { count } = await createClient()
+        .from('reviews').select('id', { count: 'exact', head: true })
+        .eq('product_id', pid).gte('rating', 4);
+      setSatisfiedCount(count ?? 0);
+    })();
+  }, [product?.id, reviews.length]);
+
+  /* ── 이 아래부터 early return — 훅은 전부 위쪽에 있어야 함 ── */
   if (loading) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:300 }}>
@@ -1163,19 +1180,6 @@ export default function ProductClient() {
     (product.seller_score && Object.keys(product.seller_score).length > 0)
       ? product.seller_score
       : defaultSellerScore(product.category);
-
-  /* 만족도(별점 4점 이상 비율) — 목록(reviews)은 최근 50개 제한이라 그걸로 세면
-     리뷰가 50개를 넘는 순간 분자만 50에서 멈춰 만족도가 실제보다 낮게 나온다. 전체를 세서 구한다. */
-  const [satisfiedCount, setSatisfiedCount] = useState(0);
-  useEffect(() => {
-    if (!product?.id) return;
-    (async () => {
-      const { count } = await createClient()
-        .from('reviews').select('id', { count: 'exact', head: true })
-        .eq('product_id', product.id).gte('rating', 4);
-      setSatisfiedCount(count ?? 0);
-    })();
-  }, [product?.id, reviews.length]);
 
   /* 구매자 맛 평가 집계 (reviews.taste) → 축별 동의율 */
   const tasteReviews = reviews.filter(r => r.taste && Object.keys(r.taste).length > 0);
