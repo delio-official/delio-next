@@ -15,6 +15,12 @@ export async function POST(req: Request) {
 
   const admin = createAdminSupabaseClient();
 
+  /* 관리자 리뷰는 적립 제외 — 홍보용으로 무제한 작성하므로 포인트가 쌓이면 안 됨.
+     point_rewarded 는 건드리지 않는다(false 유지). 마킹해두면 나중에 그 리뷰를 지울 때
+     삭제 API가 '지급됨'으로 보고 받은 적 없는 포인트를 회수해버림. */
+  const { data: me } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
+  if (me?.is_admin === true) return NextResponse.json({ ok: true, granted: 0 });
+
   const { data: review } = await admin
     .from('reviews').select('id, user_id, image_urls, video_url, point_rewarded')
     .eq('id', reviewId).maybeSingle();

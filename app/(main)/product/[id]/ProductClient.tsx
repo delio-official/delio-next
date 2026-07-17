@@ -164,6 +164,12 @@ export default function ProductClient() {
   const REPORT_REASONS = ['욕설·비방', '광고·홍보성', '허위·부적절한 내용', '음란·혐오', '기타'];
   async function submitReport() {
     if (!reportTarget || !user) return;
+    /* 본인 리뷰는 신고 불가 (버튼도 숨기지만 우회 방어) */
+    if (reviews.find(r => r.id === reportTarget)?.user_id === user.id) {
+      showToast('본인이 작성한 리뷰는 신고할 수 없습니다.');
+      setReportTarget(null);
+      return;
+    }
     if (!reportReason) { showToast('신고 사유를 선택해 주세요.'); return; }
     if (reportReason === '기타' && !reportDetail.trim()) { showToast('기타 사유를 입력해 주세요.'); return; }
     setReportSaving(true);
@@ -2602,13 +2608,17 @@ export default function ProductClient() {
                           style={{ background:'none', border:'none', fontSize:12,
                             color:'#E53935', cursor:'pointer' }}>삭제</button>
                       )}
-                      <button onClick={() => {
-                          if (!user) { router.push('/login'); return; }
-                          setReportReason(''); setReportDetail(''); setReportTarget(r.id);
-                        }}
-                        style={{ background:'none', border:'none', fontSize:12,
-                          color:'var(--color-ink-mute)', cursor:'pointer' }}>신고</button>
-                      {isAdmin && r.user_id && (
+                      {/* 신고: 남의 리뷰만 — 본인 리뷰는 신고 대상이 아님 */}
+                      {(!user || r.user_id !== user.id) && (
+                        <button onClick={() => {
+                            if (!user) { router.push('/login'); return; }
+                            setReportReason(''); setReportDetail(''); setReportTarget(r.id);
+                          }}
+                          style={{ background:'none', border:'none', fontSize:12,
+                            color:'var(--color-ink-mute)', cursor:'pointer' }}>신고</button>
+                      )}
+                      {/* 차단: 관리자만, 본인 계정 제외 (스스로를 차단하는 사고 방지) */}
+                      {isAdmin && r.user_id && r.user_id !== user?.id && (
                         <button onClick={async () => {
                             if (!confirm('이 회원을 차단하시겠습니까?')) return;
                             const supabase = createClient();
