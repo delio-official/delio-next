@@ -2690,7 +2690,7 @@ export default function ProductClient() {
                     <div style={{ marginTop:12, padding:'12px 14px', background:'#F7F7F5',
                       borderRadius:8 }}>
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:'#555' }}>🏪 판매자 답변</span>
+                        <span style={{ fontSize:12, fontWeight:700, color:'#555' }}>판매자 답변</span>
                         {isAdmin && (
                           <button onClick={() => { setReplyEditId(r.id); setReplyText(r.seller_reply || ''); }}
                             style={{ background:'none', border:'none', fontSize:12, color:'#888', cursor:'pointer' }}>수정</button>
@@ -2706,12 +2706,12 @@ export default function ProductClient() {
                     <button onClick={() => { setReplyEditId(r.id); setReplyText(''); }}
                       style={{ marginTop:10, background:'none', border:'1px solid #D8D8D4', borderRadius:6,
                         padding:'5px 12px', fontSize:12, color:'#555', cursor:'pointer' }}>
-                      🏪 답변 달기
+                      답변 달기
                     </button>
                   )}
                   {isAdmin && replyEditId === r.id && (
                     <div style={{ marginTop:12, padding:'12px 14px', background:'#F7F7F5', borderRadius:8 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#555', marginBottom:6 }}>🏪 판매자 답변</div>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#555', marginBottom:6 }}>판매자 답변</div>
                       <textarea
                         value={replyText}
                         onChange={e => setReplyText(e.target.value)}
