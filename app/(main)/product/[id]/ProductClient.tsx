@@ -151,6 +151,10 @@ export default function ProductClient() {
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
+  /* 판매자 답변(관리자 전용) — 편집 중인 리뷰 id */
+  const [replyEditId,      setReplyEditId]      = useState<string | null>(null);
+  const [replyText,        setReplyText]        = useState('');
+  const [replySaving,      setReplySaving]      = useState(false);
   /* 리뷰 수정 모드 — null이면 새 리뷰 작성. 수정 시 기존 사진/영상은 URL로 다룬다 */
   const [editingReviewId,  setEditingReviewId]  = useState<string | null>(null);
   const [editImgUrls,      setEditImgUrls]      = useState<string[]>([]);
@@ -317,8 +321,8 @@ export default function ProductClient() {
     // 리뷰 작성 의도로 진입 — ?star=N(별점 반영) 또는 ?review=1(작성만) → 리뷰 작성 모달 열기
     if (tabParam === 'review') {
       const star = Number(sp.get('star'));
-      if (star >= 1 && star <= 5) { setNewRating(star); setReviewModalOpen(true); }
-      else if (sp.get('review') === '1') setReviewModalOpen(true);
+      if (star >= 1 && star <= 5) openReviewModal(star);
+      else if (sp.get('review') === '1') openReviewModal();
     }
     /* 해당 섹션(후기/문의)으로 부드럽게 스크롤 (메인 진입) */
     const targetIdx = tabParam === 'qna' ? 3 : 2;
@@ -922,7 +926,7 @@ export default function ProductClient() {
       if (/ALREADY_REVIEWED/i.test(error.message)) {
         setMyReviewCount(c => c + 1);   // 화면 상태를 실제(초과)에 맞춰 즉시 잠금
         alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.');
-        setReviewModalOpen(false);
+        closeReviewModal();
         return;
       }
       alert('리뷰 등록 중 오류가 발생했습니다.');
@@ -968,9 +972,8 @@ export default function ProductClient() {
       : prev);
   }
 
-  /* 리뷰 모달 닫기 + 입력값 초기화 (작성/수정 공통) */
-  function closeReviewModal() {
-    setReviewModalOpen(false);
+  /* 리뷰 입력값 전체 초기화 */
+  function resetReviewForm() {
     setEditingReviewId(null);
     setNewRating(0);
     setNewContent('');
@@ -980,6 +983,21 @@ export default function ProductClient() {
     setNewVideo(null);
     setEditImgUrls([]);
     setEditVideoUrl(null);
+  }
+
+  /* 리뷰 모달 닫기 + 초기화 (작성/수정 공통) */
+  function closeReviewModal() {
+    setReviewModalOpen(false);
+    resetReviewForm();
+  }
+
+  /* 새 리뷰 작성 모달 열기 — 열 때도 반드시 비운다.
+     닫기 경로(✕·바깥클릭·등록완료)에서만 비우면 그 중 하나라도 빠지는 순간
+     이전 입력이 남아 다음 작성창에 그대로 뜬다. */
+  function openReviewModal(star?: number) {
+    resetReviewForm();
+    if (star && star >= 1 && star <= 5) setNewRating(star);
+    setReviewModalOpen(true);
   }
 
   /* ── 리뷰 도움됐어요 ── */
@@ -1023,6 +1041,31 @@ export default function ProductClient() {
     setInqPrivate(false);
     setInqPassword('');
     alert('문의가 등록되었습니다.');
+  }
+
+  /* ── 판매자 답변 저장/삭제 (관리자) ──
+     서버 경유 필수: reviews RLS가 '본인 리뷰만 수정'이라 여기서 바로 update 하면
+     남의 리뷰에는 0행 갱신 = 조용히 실패한다 (에러도 안 남). */
+  async function saveReply(reviewId: string, text: string) {
+    setReplySaving(true);
+    try {
+      const res = await fetch('/api/reviews/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, reply: text }),
+      });
+      const json = await res.json();
+      setReplySaving(false);
+      if (!json.ok) { showToast('답변 저장 실패: ' + (json.error || '')); return; }
+      setReviews(prev => prev.map(r => r.id === reviewId
+        ? { ...r, seller_reply: json.seller_reply, seller_replied_at: json.seller_replied_at }
+        : r));
+      setReplyEditId(null);
+      showToast(json.seller_reply ? '답변이 등록되었습니다.' : '답변이 삭제되었습니다.');
+    } catch {
+      setReplySaving(false);
+      showToast('답변 저장 중 오류가 발생했습니다.');
+    }
   }
 
   /* ── 리뷰 수정 시작 — 작성 모달을 수정 모드로 재사용 ── */
@@ -2376,7 +2419,7 @@ export default function ProductClient() {
                   if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
                   /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
                   if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
-                  setReviewModalOpen(true);
+                  openReviewModal();
                 }}
                 style={{ padding:'8px 16px', border:'1px solid #D0D0CC', borderRadius:8,
                   background:'#fff', fontSize:13, fontWeight:600, cursor:'pointer',
@@ -2630,15 +2673,58 @@ export default function ProductClient() {
                     </div>
                   </div>
                   {/* 판매자 답변 */}
-                  {r.seller_reply && (
+                  {r.seller_reply && replyEditId !== r.id && (
                     <div style={{ marginTop:12, padding:'12px 14px', background:'#F7F7F5',
                       borderRadius:8 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#555', marginBottom:4 }}>
-                        🏪 판매자 답변
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style={{ fontSize:12, fontWeight:700, color:'#555' }}>🏪 판매자 답변</span>
+                        {isAdmin && (
+                          <button onClick={() => { setReplyEditId(r.id); setReplyText(r.seller_reply || ''); }}
+                            style={{ background:'none', border:'none', fontSize:12, color:'#888', cursor:'pointer' }}>수정</button>
+                        )}
                       </div>
                       <p style={{ fontSize:13, color:'#555', lineHeight:1.7, whiteSpace:'pre-wrap', margin:0 }}>
                         {r.seller_reply}
                       </p>
+                    </div>
+                  )}
+                  {/* 관리자 전용: 답변 달기 / 편집 */}
+                  {isAdmin && !r.seller_reply && replyEditId !== r.id && (
+                    <button onClick={() => { setReplyEditId(r.id); setReplyText(''); }}
+                      style={{ marginTop:10, background:'none', border:'1px solid #D8D8D4', borderRadius:6,
+                        padding:'5px 12px', fontSize:12, color:'#555', cursor:'pointer' }}>
+                      🏪 답변 달기
+                    </button>
+                  )}
+                  {isAdmin && replyEditId === r.id && (
+                    <div style={{ marginTop:12, padding:'12px 14px', background:'#F7F7F5', borderRadius:8 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#555', marginBottom:6 }}>🏪 판매자 답변</div>
+                      <textarea
+                        value={replyText}
+                        onChange={e => setReplyText(e.target.value)}
+                        rows={3}
+                        placeholder="고객에게 남길 답변을 입력하세요."
+                        style={{ width:'100%', padding:'10px 12px', border:'1px solid #E0DFDB', borderRadius:6,
+                          fontSize:13, lineHeight:1.7, resize:'none', outline:'none',
+                          fontFamily:'inherit', boxSizing:'border-box', color:'var(--color-ink)' }}
+                      />
+                      <div style={{ display:'flex', gap:6, justifyContent:'flex-end', marginTop:8 }}>
+                        {r.seller_reply && (
+                          <button onClick={() => saveReply(r.id, '')} disabled={replySaving}
+                            style={{ background:'none', border:'1px solid #E8C4C4', borderRadius:6,
+                              padding:'6px 12px', fontSize:12, color:'#E53935', cursor:'pointer' }}>답변 삭제</button>
+                        )}
+                        <button onClick={() => setReplyEditId(null)} disabled={replySaving}
+                          style={{ background:'none', border:'1px solid #D8D8D4', borderRadius:6,
+                            padding:'6px 12px', fontSize:12, color:'#555', cursor:'pointer' }}>취소</button>
+                        <button onClick={() => saveReply(r.id, replyText)} disabled={replySaving || !replyText.trim()}
+                          style={{ background:'#1A1A1A', border:'none', borderRadius:6, color:'#fff',
+                            padding:'6px 14px', fontSize:12, fontWeight:700,
+                            cursor: (replySaving || !replyText.trim()) ? 'not-allowed' : 'pointer',
+                            opacity: (replySaving || !replyText.trim()) ? 0.5 : 1 }}>
+                          {replySaving ? '저장 중...' : '등록'}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -3349,16 +3349,27 @@ export default function AdminClient() {
     setReviewsLoading(false);
   }
 
-  /* 리뷰 판매자 답변 저장 */
+  /* 리뷰 판매자 답변 저장 — 서버 경유 필수.
+     여기서 바로 update 하면 reviews RLS("본인 리뷰만 수정")에 막혀 0행 갱신 = 조용히 실패한다.
+     (에러도 안 나서 저장된 것처럼 보였고, 실제로 답변이 하나도 저장돼 있지 않았음) */
   async function saveReviewReply(reviewId: string, reply: string) {
     setReviewReplySaving(true);
-    const supabase = createClient();
-    const payload = { seller_reply: reply.trim() || null, seller_replied_at: reply.trim() ? new Date().toISOString() : null };
-    const { error } = await supabase.from('reviews').update(payload).eq('id', reviewId);
-    setReviewReplySaving(false);
-    if (error) { alert('답변 저장 실패: ' + error.message); return; }
-    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, ...payload } : r));
-    setSelectedReview(prev => prev && prev.id === reviewId ? { ...prev, ...payload } : prev);
+    try {
+      const res = await fetch('/api/reviews/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, reply }),
+      });
+      const json = await res.json();
+      setReviewReplySaving(false);
+      if (!json.ok) { alert('답변 저장 실패: ' + (json.error || '')); return; }
+      const payload = { seller_reply: json.seller_reply, seller_replied_at: json.seller_replied_at };
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, ...payload } : r));
+      setSelectedReview(prev => prev && prev.id === reviewId ? { ...prev, ...payload } : prev);
+    } catch {
+      setReviewReplySaving(false);
+      alert('답변 저장 중 오류가 발생했습니다.');
+    }
   }
 
   async function loadEvents() {
