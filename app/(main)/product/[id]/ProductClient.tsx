@@ -780,42 +780,29 @@ export default function ProductClient() {
     })();
   }, [user]);
 
-  /* 구매 지표: 재구매율(2회+ 구매자 비율) · 최근 30일 구매자 수 */
+  /* 구매 지표 — DB 함수로 집계 (add_product_buyer_stats_rpc.sql)
+     여기서 order_items 를 직접 세면 안 된다: RLS가 '본인 주문만' 이라
+     비로그인 방문자에겐 0명으로 나와 "N명이 구매했어요"가 통째로 숨겨졌었음.
+     RPC는 서버에서 집계해 숫자만 돌려주므로 개인정보는 계속 잠긴 채 누구나 같은 값을 본다.
+     관리자 리뷰 1건 = 표시용 구매 1건 가산도 함수 안에서 처리 (정산에는 무관). */
   useEffect(() => {
     if (!product?.id) return;
     (async () => {
-      const { data: items } = await createClient()
-        .from('order_items')
-        .select('order_id, orders!inner(user_id, created_at, status)')
-        .eq('product_id', product.id)
-        .limit(5000);
-      if (!items) return;
-      const now = Date.now();
-      const since30 = now - 30 * 86400000;
-      const since7  = now - 7  * 86400000;
-      /* 유저별 { order_id → 주문시각 } */
-      const userOrders: Record<string, Map<string, number>> = {};
-      (items as unknown as { order_id: string; orders: { user_id: string | null; created_at: string; status: string } }[]).forEach(it => {
-        const o = it.orders;
-        if (!o?.user_id || !['paid', 'delivered', 'confirmed'].includes(o.status)) return;
-        (userOrders[o.user_id] ||= new Map<string, number>()).set(it.order_id, new Date(o.created_at).getTime());
-      });
-      const buyers = Object.keys(userOrders);
-      const repurchasers = buyers.filter(u => userOrders[u].size >= 2);
-      const recent30 = buyers.filter(u => [...userOrders[u].values()].some(t => t >= since30)).length;
-      const recent7buy = buyers.filter(u => [...userOrders[u].values()].some(t => t >= since7)).length;
-      /* 최근 7일 재구매자 = 2회+ 구매자 중, 2번째 이후 주문이 최근 7일 이내 */
-      const recent7repurchase = repurchasers.filter(u => {
-        const times = [...userOrders[u].values()].sort((a, b) => a - b);
-        return times.slice(1).some(t => t >= since7);
-      }).length;
+      const { data, error } = await createClient()
+        .rpc('get_product_buyer_stats', { p_product_id: product.id });
+      if (error) { console.error('구매 지표 조회 실패:', error); return; }
+      const s = (Array.isArray(data) ? data[0] : data) as {
+        buyers: number; repurchase: number; recent: number;
+        repurchasers: number; recent7buy: number; recent7repurchase: number;
+      } | undefined;
+      if (!s) return;
       setBuyerStats({
-        buyers: buyers.length,
-        repurchase: buyers.length > 0 ? Math.round(repurchasers.length / buyers.length * 100) : 0,
-        recent: recent30,
-        repurchasers: repurchasers.length,
-        recent7buy,
-        recent7repurchase,
+        buyers: s.buyers ?? 0,
+        repurchase: s.repurchase ?? 0,
+        recent: s.recent ?? 0,
+        repurchasers: s.repurchasers ?? 0,
+        recent7buy: s.recent7buy ?? 0,
+        recent7repurchase: s.recent7repurchase ?? 0,
       });
     })();
   }, [product?.id]);
