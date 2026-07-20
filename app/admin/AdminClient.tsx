@@ -6924,9 +6924,6 @@ export default function AdminClient() {
           {/* ===== 주문 관리 ===== */}
           {panel === 'orders' && (
             <div className="adm-content">
-              <div className="adm-info-box" style={{ marginBottom: 16 }}>
-                📦 <strong>상태 변경:</strong> 상세 버튼 클릭 → 상태 버튼으로 변경. 변경 사항은 Supabase에 즉시 저장됩니다.
-              </div>
               {/* 주문 처리 단계 바 — 클릭 시 해당 상태로 필터 */}
               <div className="adm-card" style={{ marginBottom: 16 }}>
                 <div style={{ display:'flex', alignItems:'center', padding:'14px 8px 8px', flexWrap:'wrap' }}>
@@ -7258,7 +7255,6 @@ export default function AdminClient() {
                 const megaGroups = menus.filter(m => !m.parent && m.show_in_mega).sort((a,b)=>a.sort_order-b.sort_order);
                 return (
                   <>
-                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 헤더 <strong>메가드롭다운</strong>에 뜨는 컬럼입니다. <strong>카테고리 대분류</strong>(국산과일…)와 <strong>메뉴 그룹</strong>(브랜드소개관…)이 나란히 떠요.</div>
                     {/* 미리보기 */}
                     <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
                       <div style={{ fontWeight:800, fontSize:13, marginBottom:12 }}>🖥 실제 메가드롭다운 미리보기</div>
@@ -7346,7 +7342,6 @@ export default function AdminClient() {
                 );
                 return (
                   <>
-                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 PC 헤더 <strong>상단 가로 메뉴</strong>. 노출 체크한 메뉴가 헤더 상단에 뜹니다.</div>
                     <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
                       <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 상단바 미리보기</div>
                       <div style={{ display:'flex', gap:24, flexWrap:'wrap', fontWeight:700 }}>
@@ -7381,7 +7376,6 @@ export default function AdminClient() {
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
                 return (
                   <>
-                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>상품목록 상단</strong> 구조입니다. <strong>대분류</strong> 탭(국산과일·수입과일)을 누르면 그 아래 <strong>소분류</strong>가 필탭으로 뜹니다. 여기서 추가·수정하면 <strong>메가메뉴</strong>에도 함께 반영돼요. <strong>노출</strong> 체크한 것만 실제로 보입니다.</div>
                     {/* 미리보기 */}
                     <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
                       <div style={{ fontWeight:800, fontSize:13, marginBottom:12 }}>🖥 상품목록 상단 미리보기</div>
@@ -7463,7 +7457,6 @@ export default function AdminClient() {
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
                 return (
                   <>
-                    <div className="adm-info-box" style={{ marginBottom:12 }}>💡 <strong>{surfaceName}</strong>에 뜨는 항목입니다. <strong>노출</strong> 체크한 것만 실제 화면에 나옵니다.</div>
                     <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
                       <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 {surfaceName} 미리보기</div>
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -8223,30 +8216,6 @@ export default function AdminClient() {
                     )
                   }
 
-                  {/* SQL 안내 */}
-                  {popups.length === 0 && !popupsLoading && (
-                    <div className="adm-info-box adm-info-mt10">
-                      💡 <strong>팝업 테이블이 없으면</strong> Supabase SQL Editor에서 아래 쿼리를 실행하세요:<br/>
-                      <code style={{ fontSize:11, display:'block', marginTop:6, background:'rgba(0,0,0,0.06)', padding:'8px 12px', borderRadius:6, whiteSpace:'pre-wrap' }}>
-{`CREATE TABLE IF NOT EXISTS popups (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title text,
-  image_url text,
-  link_url text NOT NULL DEFAULT '/',
-  width int NOT NULL DEFAULT 400,
-  position text NOT NULL DEFAULT 'center',
-  is_active boolean NOT NULL DEFAULT true,
-  starts_at timestamptz,
-  ends_at timestamptz,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE popups ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "popups_select_all" ON popups FOR SELECT USING (true);
-CREATE POLICY "popups_all_admin" ON popups FOR ALL USING (is_current_user_admin());
-GRANT ALL ON popups TO authenticated, anon;`}
-                      </code>
-                    </div>
-                  )}
                 </>
               )}
 
@@ -9255,11 +9224,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== FAQ 관리 ===== */}
           {panel === 'faq' && (
             <div className="adm-content">
-              <div className="adm-info-box" style={{ marginBottom:12 }}>
-                💡 <strong>FAQ</strong>는 고객센터 페이지에 카테고리별로 그룹 표시됩니다. {canDragFaq
-                  ? <>⠿ 행을 <strong>드래그</strong>해서 순서를 바꾸세요 (저장 자동).</>
-                  : <>순서를 바꾸려면 위에서 <strong>카테고리를 선택</strong>하세요. (전체·검색 상태에선 순서 숨김)</>}
-              </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <AdmSelect value={faqCatFilter} onChange={v => { setFaqCatFilter(v); setFaqPage(1); }}
@@ -9928,9 +9892,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
           {/* ===== 농가 정산 ===== */}
           {panel === 'farmsettle' && (
             <div className="adm-content">
-              <div className="adm-info-box" style={{ marginBottom:12 }}>
-                💡 농가가 제공한 <strong>공급가</strong> 기준으로 선택 월의 <strong>배송완료·구매확정</strong> 주문을 농가별 집계합니다. <strong>정산액 = 공급가 × 판매수량</strong>, 마진 = 매출 − 정산액.
-              </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
                   <input type="month" className="adm-input-text" value={farmSettleMonth}
