@@ -7255,28 +7255,41 @@ export default function AdminClient() {
                 const megaGroups = menus.filter(m => !m.parent && m.show_in_mega).sort((a,b)=>a.sort_order-b.sort_order);
                 return (
                   <>
-                    {/* 미리보기 */}
-                    <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                      <div style={{ fontWeight:800, fontSize:13, marginBottom:12 }}>🖥 실제 메가드롭다운 미리보기</div>
-                      <div style={{ display:'flex', gap:28, flexWrap:'wrap' }}>
-                        {majors.map(m => (
-                          <div key={m.id} style={{ minWidth:110 }}>
-                            <div style={{ fontWeight:800, borderBottom:'2px solid #1A1A1A', paddingBottom:6, marginBottom:8 }}>{m.label}</div>
-                            <div style={{ fontSize:12, color:'#94A3B8', marginBottom:5 }}>전체보기</div>
-                            {filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                              <div key={s.id} style={{ fontSize:12.5, color:'#374151', marginBottom:5 }}>{s.label}</div>
-                            ))}
+                    {/* 미리보기 — 실제 사이트 메가드롭다운과 동일하게 렌더 */}
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>실제 메가드롭다운 미리보기</div>
+                      {(() => {
+                        // 실제 화면과 동일: 카테고리 대분류(전체보기+소분류) + 메뉴 그룹을 컬럼으로
+                        const cols = [
+                          ...majors.map(m => ({
+                            key: 'm' + m.id, title: m.label,
+                            items: ['전체보기', ...filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => s.label)],
+                          })),
+                          ...megaGroups.map(g => ({
+                            key: 'g' + g.id, title: g.label,
+                            items: menus.filter(l => l.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(l => l.label),
+                          })),
+                        ];
+                        return (
+                          <div style={{ background:'#FAFAF8', padding:14, borderRadius:8, border:'1px solid #EEE' }}>
+                            <div style={{ background:'#fff', border:'1.5px solid #D8D8D2', boxShadow:'0 6px 24px rgba(0,0,0,0.10)' }}>
+                              <div style={{ display:'flex', gap:0, padding:'26px 24px 18px', alignItems:'flex-start' }}>
+                                {cols.map((c, i) => (
+                                  <div key={c.key} style={{ flex:1, padding: i===0 ? '0 32px 0 0' : '0 32px', textAlign:'center', minWidth:0 }}>
+                                    <div style={{ position:'relative', fontSize:19, fontWeight:700, color:'#1A1A1A', paddingBottom:10, marginBottom:12, whiteSpace:'nowrap' }}>
+                                      {c.title}
+                                      <span style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:64, height:2, background:'#1A1A1A' }} />
+                                    </div>
+                                    {c.items.map((label, j) => (
+                                      <div key={j} style={{ fontSize:14.5, color:'#555', padding:'6px 0', whiteSpace:'nowrap' }}>{label}</div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
-                        ))}
-                        {megaGroups.map(g => (
-                          <div key={g.id} style={{ minWidth:110 }}>
-                            <div style={{ fontWeight:800, borderBottom:'2px solid #1A1A1A', paddingBottom:6, marginBottom:8 }}>{g.label}</div>
-                            {menus.filter(l => l.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(l => (
-                              <div key={l.id} style={{ fontSize:12.5, color:'#374151', marginBottom:5 }}>{l.label}</div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
                     </div>
                     {/* 컬럼 추가 */}
                     <div className="adm-toolbar">
