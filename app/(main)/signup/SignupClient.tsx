@@ -425,7 +425,7 @@ export default function SignupClient() {
             <div className="su-lbl">이메일<em>*</em></div>
             <div className="su-ctrl">
               <div className="su-email-row">
-                <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`} placeholder="예: delio"
+                <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`}
                   value={emailUser} onChange={e => { setEmailUser(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 <span className="su-at">@</span>
                 {showDirect && (
