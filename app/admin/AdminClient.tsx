@@ -7499,7 +7499,7 @@ export default function AdminClient() {
                     {/* 정렬·태그 필탭 */}
                     <div className="adm-toolbar" style={{ marginTop:18 }}>
                       <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>정렬 · 태그 필탭 <span style={{ color:'#CBD5E1' }}>(보기 방식 — 신상품·당도순 등)</span></span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
                     </div>
                     {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
                       <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
@@ -7531,7 +7531,7 @@ export default function AdminClient() {
                     </div>
                     <div className="adm-toolbar">
                       <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭(정렬/태그) 노출 관리</span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
                     </div>
                     {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
                       <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
