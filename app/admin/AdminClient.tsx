@@ -7293,7 +7293,7 @@ export default function AdminClient() {
                     </div>
                     {/* 컬럼 추가 */}
                     <div className="adm-toolbar">
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>컬럼 추가 →</span></div>
+                      <div className="adm-toolbar-left" />
                       <div className="adm-toolbar-right">
                         <button className="adm-btn adm-btn-outline" onClick={() => addCategory(null)}>+ 카테고리 컬럼</button>
                         <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })}>+ 메뉴 컬럼</button>
