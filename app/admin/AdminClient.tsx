@@ -7355,10 +7355,13 @@ export default function AdminClient() {
                 );
                 return (
                   <>
-                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 상단바 미리보기</div>
-                      <div style={{ display:'flex', gap:24, flexWrap:'wrap', fontWeight:700 }}>
-                        {shown.length===0 ? <span className="adm-muted" style={{ fontWeight:600 }}>노출 항목 없음</span> : shown.map(m => <span key={m.id}>{m.label}</span>)}
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>상단바 미리보기</div>
+                      {/* 실제 PC 헤더 상단 메뉴바와 동일 (흰 바탕·큰 글씨·넓은 간격) */}
+                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 28px', display:'flex', gap:40, alignItems:'center', flexWrap:'wrap' }}>
+                        {shown.length===0 ? <span className="adm-muted">노출 항목 없음</span> : shown.map(m => (
+                          <span key={m.id} style={{ fontSize:19, fontWeight:400, color:'#1A1A1A', whiteSpace:'nowrap' }}>{m.label}</span>
+                        ))}
                       </div>
                     </div>
                     <div className="adm-toolbar"><div className="adm-toolbar-left" /><div className="adm-toolbar-right">
@@ -7389,30 +7392,34 @@ export default function AdminClient() {
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
                 return (
                   <>
-                    {/* 미리보기 */}
-                    <div className="adm-card" style={{ padding:'16px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                      <div style={{ fontWeight:800, fontSize:13, marginBottom:12 }}>🖥 상품목록 상단 미리보기</div>
-                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
-                        <span style={{ ...chip, background:'#1A1A1A', color:'#fff', borderColor:'#1A1A1A', fontWeight:700 }}>전체</span>
-                        {shownMajors.map(m => <span key={m.id} style={{ ...chip, borderColor:'#86EFAC', color:'#15803D', fontWeight:700 }}>{m.label}</span>)}
-                        {shownMajors.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출된 대분류 없음</span>}
-                      </div>
-                      {shownMajors.map(m => {
-                        const ss = subsOf(m.tab_value).filter(s => s.show_in_category && s.is_active);
-                        if (!ss.length) return null;
-                        return (
-                          <div key={m.id} style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:6 }}>
-                            <span style={{ fontSize:11.5, color:'#94A3B8', minWidth:76 }}>{m.label} ▸</span>
-                            {ss.map(s => <span key={s.id} style={chip}>{s.label}</span>)}
-                          </div>
-                        );
-                      })}
-                      {shownTags.length>0 && (
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginTop:10, paddingTop:10, borderTop:'1px dashed #FCD34D' }}>
-                          <span style={{ fontSize:11.5, color:'#94A3B8', minWidth:76 }}>정렬·태그 ▸</span>
-                          {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
+                    {/* 미리보기 — 실제 상품목록 상단(대분류 탭 + 소분류 필터)처럼 */}
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>상품목록 상단 미리보기</div>
+                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'18px 22px' }}>
+                        {/* 대분류 탭 — 실제처럼 글씨 + 선택(전체) 하단 검정바 */}
+                        <div style={{ display:'flex', gap:26, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid #EEE', paddingBottom:2 }}>
+                          <span style={{ fontSize:15, fontWeight:700, color:'#1A1A1A', paddingBottom:10, borderBottom:'2px solid #1A1A1A', marginBottom:'-1px' }}>전체</span>
+                          {shownMajors.map(m => <span key={m.id} style={{ fontSize:15, fontWeight:500, color:'#8A8A8A', paddingBottom:10 }}>{m.label}</span>)}
+                          {shownMajors.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출된 대분류 없음</span>}
                         </div>
-                      )}
+                        {/* 소분류 필터 필 */}
+                        {shownMajors.map(m => {
+                          const ss = subsOf(m.tab_value).filter(s => s.show_in_category && s.is_active);
+                          if (!ss.length) return null;
+                          return (
+                            <div key={m.id} style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginTop:12 }}>
+                              <span style={{ fontSize:12, color:'#94A3B8', minWidth:72 }}>{m.label}</span>
+                              {ss.map(s => <span key={s.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{s.label}</span>)}
+                            </div>
+                          );
+                        })}
+                        {shownTags.length>0 && (
+                          <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginTop:14, paddingTop:12, borderTop:'1px dashed #EEE' }}>
+                            <span style={{ fontSize:12, color:'#94A3B8', minWidth:72 }}>정렬·태그</span>
+                            {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {/* 대분류·소분류 트리 (메가메뉴 공유) */}
                     <div className="adm-toolbar">
@@ -7470,10 +7477,10 @@ export default function AdminClient() {
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
                 return (
                   <>
-                    <div className="adm-card" style={{ padding:'14px 18px', marginBottom:16, border:'1px solid #FCD34D', background:'#FFFBEB' }}>
-                      <div style={{ fontWeight:800, fontSize:13, marginBottom:10 }}>🖥 {surfaceName} 미리보기</div>
-                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                        {shownTags.map(t => <span key={t.id} style={chip}>{t.label}</span>)}
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{surfaceName} 미리보기</div>
+                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
                         {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
                       </div>
                     </div>
