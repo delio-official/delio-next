@@ -7439,9 +7439,9 @@ export default function AdminClient() {
                       <div key={m.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                         {mIn(m,'label','메뉴명','1 1 120px')}
                         {mIn(m,'href','/경로','1 1 130px')}
-                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={m.show_in_header} onChange={e => updateMenu(m.id, { show_in_header: e.target.checked })} />상단바</label>
-                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={m.is_active} onChange={e => updateMenu(m.id, { is_active: e.target.checked })} />활성</label>
-                        <button type="button" onClick={() => deleteMenu(m.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>상단바 <AdmToggle on={m.show_in_header} onChange={v => updateMenu(m.id, { show_in_header: v })} title="상단바 노출" /></span>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>활성 <AdmToggle on={m.is_active} onChange={v => updateMenu(m.id, { is_active: v })} title="활성" /></span>
+                        <button type="button" onClick={() => deleteMenu(m.id)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
                   </>
@@ -7503,18 +7503,18 @@ export default function AdminClient() {
                           </span>
                           <span style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', flexShrink:0 }}>대분류</span>
                           {catLabel(m)}
-                          <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={m.show_in_category} onChange={e => updateFt(m.id, { show_in_category: e.target.checked })} />노출</label>
-                          <button type="button" onClick={() => deleteCategory(m)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                          <AdmToggle on={m.show_in_category} onChange={v => updateFt(m.id, { show_in_category: v })} title="노출" />
+                          <button type="button" onClick={() => deleteCategory(m)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                         </div>
                         {subsOf(m.tab_value).map(s => (
                           <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
                             <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
                             {catLabel(s)}
-                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.show_in_category} onChange={e => updateFt(s.id, { show_in_category: e.target.checked })} />노출</label>
-                            <button type="button" onClick={() => deleteCategory(s)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+                            <AdmToggle on={s.show_in_category} onChange={v => updateFt(s.id, { show_in_category: v })} title="노출" />
+                            <button type="button" onClick={() => deleteCategory(s)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ fontSize:12, color:'#1A8A4C', background:'#fff', border:'1px dashed #BBF7D0', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 소분류 추가</button>
+                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 }}>+ 소분류 추가</button>
                       </div>
                     ))}
                     {/* 정렬·태그 필탭 */}
@@ -7530,9 +7530,9 @@ export default function AdminClient() {
                         </span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                         <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
-                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t.show_in_category} onChange={e => updateFt(t.id, { show_in_category: e.target.checked })} />노출</label>
+                        <AdmToggle on={t.show_in_category} onChange={v => updateFt(t.id, { show_in_category: v })} title="노출" />
                         <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
                   </>
@@ -7564,9 +7564,9 @@ export default function AdminClient() {
                         </span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                         <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
-                        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569' }}><input type="checkbox" checked={t[flagKey]} onChange={e => updateFt(t.id, { [flagKey]: e.target.checked } as Partial<FilterTab>)} />노출</label>
+                        <AdmToggle on={!!t[flagKey]} onChange={v => updateFt(t.id, { [flagKey]: v } as Partial<FilterTab>)} title="노출" />
                         <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
                   </>
