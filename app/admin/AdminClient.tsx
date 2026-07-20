@@ -4878,10 +4878,11 @@ export default function AdminClient() {
   }
 
   /* ========== 서브 컴포넌트 ========== */
-  function NavItem({ panel: p, icon, label, badge }: { panel: PanelKey; icon: React.ReactNode; label: string; badge?: number }) {
+  /* 사이드바 메뉴 — 아이콘 제거, 글씨만 (icon prop은 호출부 호환 위해 받기만 하고 렌더 안 함) */
+  function NavItem({ panel: p, label, badge }: { panel: PanelKey; icon?: React.ReactNode; label: string; badge?: number }) {
     return (
       <a className={`adm-nav-item${panel === p ? ' active' : ''}`} onClick={() => go(p)}>
-        {icon}{label}
+        {label}
         {badge ? <span className="adm-nav-badge">{badge}</span> : null}
       </a>
     );
@@ -7501,10 +7502,11 @@ export default function AdminClient() {
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
-                  <div className="adm-btn-group">
-                    <button className={`adm-seg-btn${farmTypeFilter===''?' active':''}`} onClick={() => setFarmTypeFilter('')}>전체</button>
+                  {/* 농가 유형 — 글씨만 + 선택 시 하단 검정바 */}
+                  <div className="adm-tabs" style={{ marginBottom:0 }}>
+                    <button className={`adm-tab${farmTypeFilter===''?' active':''}`} onClick={() => setFarmTypeFilter('')}>전체</button>
                     {farmTypes.map(t => (
-                      <button key={t} className={`adm-seg-btn${farmTypeFilter===t?' active':''}`} onClick={() => setFarmTypeFilter(t)}>{t}</button>
+                      <button key={t} className={`adm-tab${farmTypeFilter===t?' active':''}`} onClick={() => setFarmTypeFilter(t)}>{t}</button>
                     ))}
                   </div>
                 </div>
