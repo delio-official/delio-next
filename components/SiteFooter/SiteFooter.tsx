@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
 
 /* 전 페이지 공용 푸터 — 사업자정보 상시 노출(결제형 심사 필수) */
 export default function SiteFooter() {
@@ -48,8 +49,8 @@ export default function SiteFooter() {
             <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>입금 계좌안내</div>
             {/* 왼쪽 070(28px·줄높이 49px)과 첫 줄을 맞추기 위한 보정 — 1열로 쌓이는 모바일에선 해제 */}
             <div className="footer-acct-lines" style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              <div>국민은행 469901-04-404587</div>
-              <div>예금주 : 송민창(델리오)</div>
+              <div>{BANK_LINE}</div>
+              <div>예금주 : {BANK_HOLDER}</div>
             </div>
             <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize:13.5, padding:'9px 16px', borderRadius:6 }}>
               입금 시 주문자 성함 기재

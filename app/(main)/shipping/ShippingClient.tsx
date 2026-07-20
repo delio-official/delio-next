@@ -86,7 +86,7 @@ export default function ShippingClient() {
           {[
             { icon: '⚡', label: '최단 배송', value: '익일 도착' },
             { icon: '🎁', label: '무료배송', value: '5만원 이상' },
-            { icon: '📞', label: '고객센터', value: '평일 09~18시' },
+            { icon: '📞', label: '고객센터', value: '평일 09~18시 (점심 12~13시 제외)' },
           ].map(c => (
             <div key={c.label} style={{
               background: '#F7F7F5', borderRadius: 12, padding: '16px 12px', textAlign: 'center',

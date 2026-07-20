@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import '@/styles/order-complete.css';
+import { BANK_LINE, BANK_HOLDER, CS_PHONE, CS_HOURS, CS_LUNCH } from '@/lib/company';
 
 export default function OrderCompleteClient() {
   const sp = useSearchParams();
@@ -35,9 +36,9 @@ export default function OrderCompleteClient() {
         <div style={{ marginBottom:24, background:'#FFF9E6', border:'1.5px solid #FFE082', borderRadius:12,
           padding:'18px 22px', maxWidth:380, width:'100%', textAlign:'left' }}>
           <div style={{ fontSize:13, fontWeight:800, marginBottom:8, color:'#7A5800' }}>입금 계좌 안내</div>
-          <p style={{ fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>국민은행 469901-04-404587</p>
+          <p style={{ fontSize:15, fontWeight:800, color:'#1A1A1A', marginBottom:4 }}>{BANK_LINE}</p>
           <p style={{ fontSize:13, color:'#666', lineHeight:1.7 }}>
-            예금주: 델리오<br />
+            예금주: {BANK_HOLDER}<br />
             입금자명을 주문자명(<b>{orderNo}</b> 주문)과 맞춰주시면 확인이 빠릅니다.<br />
             입금 확인은 영업일 기준 순차 처리됩니다.
           </p>
@@ -63,7 +64,7 @@ export default function OrderCompleteClient() {
         <p style={{ fontSize:13, color:'#666', lineHeight:1.8 }}>
           · 산지배송: 오전 11시 이전 결제 완료 시 → 당일수확 → 당일배송<br/>
           · 자사배송: 오전 11시 이전 결제 완료 시 → 결제 후 1~2 영업일 소요<br/>
-          · 문의: 070-8064-3601 (평일 09~18시)
+          · 문의: {CS_PHONE} ({CS_HOURS} · 점심 {CS_LUNCH} 제외)
         </p>
       </div>
     </div>

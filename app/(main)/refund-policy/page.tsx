@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { CS_PHONE, CS_HOURS, CS_LUNCH, CS_HOLIDAY } from '@/lib/company';
 
 export const metadata: Metadata = {
   title: '취소/환불 정책 | 델리오',
@@ -102,7 +103,8 @@ export default function RefundPolicyPage() {
           </h2>
           <p style={{ fontSize: 14, lineHeight: 2, color: '#333' }}>
             취소·교환·환불 관련 문의는 아래로 연락 주세요.<br />
-            운영시간: 평일 09:00 ~ 18:00 (주말·공휴일 휴무)<br />
+            고객센터: {CS_PHONE}<br />
+            운영시간: {CS_HOURS} (점심시간 {CS_LUNCH} · {CS_HOLIDAY} 휴무)<br />
             이메일: help@delio.co.kr
           </p>
         </section>

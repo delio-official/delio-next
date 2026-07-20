@@ -11,7 +11,9 @@ export const CS_EMAIL   = 'deli_o@naver.com';     // 고객센터 이메일
 /** 상세정보/안내에 쓰는 상담시간 한 줄 (점심시간 포함). */
 export const CS_HOURS_LINE = `운영시간: ${CS_HOURS} 점심시간 ${CS_LUNCH} 휴무일: ${CS_HOLIDAY}`;
 
-/** 입금 계좌 안내. ⚠️ 계좌번호·예금주는 실제 계좌와 반드시 일치해야 함. */
+/** 입금 계좌 안내. ⚠️ 계좌번호·예금주는 실제 계좌와 반드시 일치해야 함.
+ *  2026-07 사장님 확정: 국민은행 469901-04-404587 / 예금주 송민창(델리오). */
 export const BANK_NAME    = '국민은행';
-export const BANK_ACCOUNT = '469201-04-404587';
+export const BANK_ACCOUNT = '469901-04-404587';
 export const BANK_HOLDER  = '송민창(델리오)';
+export const BANK_LINE    = `${BANK_NAME} ${BANK_ACCOUNT}`;
