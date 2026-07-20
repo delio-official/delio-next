@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { CS_PHONE, CS_HOURS_LINE } from '@/lib/company';
 
 interface Props {
   productId: string;              // '' = 신규 상품(버퍼) 모드 — DB 대신 부모 메모리에 보관
@@ -10,10 +11,6 @@ interface Props {
   draftInfo?: InfoContent | null; // 버퍼 모드 초기값
   onCommitDraft?: (data: InfoContent) => void; // 버퍼 모드 저장 콜백
 }
-
-/* 고객센터 번호 — 사이트 하단(SiteFooter) 표기와 동일하게 유지할 것.
-   상품고시정보는 법적 표기사항이라 실제 번호와 달라지면 안 됨. */
-const CS_PHONE = '070-8064-3601';
 
 interface TableRow { k1: string; v1: string; k2: string; v2: string; }
 
@@ -48,7 +45,7 @@ export function makeDefault(productName: string): InfoContent {
     ],
     cs: [
       `고객센터 전화: ${CS_PHONE}`,
-      '운영시간: 평일 09:00~18:00 (주말·공휴일 휴무)',
+      CS_HOURS_LINE,
       '상품 관련 문의는 수령 후 1~2일 이내에 접수해 주세요.',
       '이미지 첨부 시 보다 빠른 처리가 가능합니다.',
     ],

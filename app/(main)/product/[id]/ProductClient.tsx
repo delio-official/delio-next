@@ -18,6 +18,7 @@ import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { imgThumb } from '@/lib/img';
 import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { CS_PHONE, CS_HOURS_LINE } from '@/lib/company';
 
 /* ── 타입 ── */
 interface Product {
@@ -236,7 +237,7 @@ export default function ProductClient() {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   }
-  const [csPhone,             setCsPhone]             = useState('070-8064-3601');   // 사이트 하단 고객센터 번호와 동일
+  const [csPhone,             setCsPhone]             = useState(CS_PHONE);   // lib/company 단일 소스
   const [signupCoupon,        setSignupCoupon]        = useState(5000);
   const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null>(null);
   const [downCoupons,         setDownCoupons]         = useState<PublicCoupon[]>([]);
@@ -418,7 +419,7 @@ export default function ProductClient() {
         ],
         cs: [
           `고객센터 전화: ${csPhone}`,
-          '운영시간: 평일 09:00~18:00 (주말·공휴일 휴무)',
+          CS_HOURS_LINE,
           '상품 관련 문의는 수령 후 1~2일 이내에 접수해 주세요.',
           '이미지 첨부 시 보다 빠른 처리가 가능합니다.',
         ],
