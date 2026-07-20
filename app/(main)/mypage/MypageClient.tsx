@@ -160,10 +160,27 @@ const STATUS_GROUP_LABEL: Record<string, string> = {
 };
 /* 상품(농가)별 배송상태 라벨 */
 const SHIP_LABEL: Record<string, string> = { preparing:'상품 준비중', shipped:'배송중', delivered:'배송완료' };
-/* 주문의 농가(상품)별 송장 단위 — tracking_number 기준 distinct */
+/* 주문의 농가(상품)별 송장 단위 — tracking_number 기준 distinct.
+   운송장은 두 방식으로 저장돼 있다:
+   · 신규(농가별 분리): order_items.tracking_number
+   · 구(주문 단위): orders.tracking_number  ← 농가별 분리 기능 이전 주문들
+   item에 운송장이 하나도 없으면 주문 단위(구 방식)로 폴백해야 옛 주문도 배송조회가 뜬다. */
 interface ShipUnit { carrierId: string; trackingNumber: string; label: string; ship_status: string | null; }
 function shipUnits(o: Order): ShipUnit[] {
   const items = (o.order_items || []).filter(it => it.tracking_number);
+
+  // 구 방식: item엔 운송장이 없는데 주문 단위에는 있는 경우 → 주문 전체를 한 송장으로
+  if (items.length === 0) {
+    if (!o.tracking_number) return [];
+    const names = (o.order_items || []).map(it => it.product_name);
+    return [{
+      carrierId: o.courier || 'kr.cjlogistics',
+      trackingNumber: o.tracking_number,
+      ship_status: o.status === 'delivered' || o.status === 'confirmed' ? 'delivered' : null,
+      label: (names[0] || '주문상품') + (names.length > 1 ? ` 외 ${names.length - 1}건` : ''),
+    }];
+  }
+
   const map = new Map<string, { carrierId: string; names: string[]; farm: string | null; ship_status: string | null }>();
   for (const it of items) {
     const tno = it.tracking_number!;
