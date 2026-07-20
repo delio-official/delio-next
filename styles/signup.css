@@ -31,10 +31,6 @@ body { background: #fff; }
       align-items: flex-start;
       border-bottom: 1px solid #EBEBEB;
     }
-    .su-row-sep {
-      border-bottom: 1px solid #CCCCCC;
-      margin: 0;
-    }
     .su-lbl {
       width: 130px;
       flex-shrink: 0;

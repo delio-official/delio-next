@@ -550,10 +550,7 @@ export default function SignupClient() {
             </div>
           </div>
 
-          {/* 구분선 */}
-          <div className="su-row-sep" />
-
-          {/* 약관 */}
+          {/* 약관 (위 행의 기본 구분선을 그대로 사용 — 별도 진한 구분선 제거) */}
           <div className="su-row su-row-terms" ref={rowTermsRef}>
             <div className="su-lbl su-lbl-terms">이용약관동의<em>*</em></div>
             <div className="su-ctrl su-ctrl-terms">
