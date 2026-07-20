@@ -2192,6 +2192,9 @@ export default function AdminClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panel]);
 
+  /* 메뉴 순서변경 드래그 중인 행 id (훅이므로 early return 위에 선언) */
+  const dragRow = useRef<string | null>(null);
+
   /* ── Early return: 모든 Hook 선언 이후에만 위치 가능 ── */
   if (!adminChecked) {
     return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:14, color:'#94A3B8' }}>확인 중...</div>;
@@ -2587,8 +2590,8 @@ export default function AdminClient() {
     loadFilterTabs();
   }
 
-  /* 드래그 순서변경 — 같은 그룹(같은 parent) 안에서만 재배치 후 sort_order 재부여 */
-  const dragRow = useRef<string | null>(null);
+  /* 드래그 순서변경 — 같은 그룹(같은 parent) 안에서만 재배치 후 sort_order 재부여.
+     (dragRow ref는 훅이라 early return 위 hook 영역에 선언되어 있음) */
   async function reorderFilterTabs(draggedId: string, targetId: string) {
     if (draggedId === targetId) return;
     const dragged = filterTabs.find(t => t.id === draggedId);
