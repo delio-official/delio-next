@@ -5987,7 +5987,6 @@ export default function AdminClient() {
           <div className="adm-modal" style={{ maxWidth:540, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">{editingFt ? '필탭 수정' : '필탭 추가'}</span>
-              <button className="adm-modal-close" onClick={() => setFtModal(false)}>✕</button>
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -6097,7 +6096,7 @@ export default function AdminClient() {
               <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setFtModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFilterTab}>
-                  {editingFt ? '수정 완료' : '필탭 추가'}
+                  {editingFt ? '수정 완료' : '추가'}
                 </button>
               </div>
             </div>
