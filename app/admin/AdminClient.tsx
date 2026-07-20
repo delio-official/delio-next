@@ -7493,35 +7493,10 @@ export default function AdminClient() {
                         )}
                       </div>
                     </div>
-                    {/* 대분류·소분류 트리 (메가메뉴 공유) */}
-                    <div className="adm-toolbar">
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>대분류 · 소분류 <span style={{ color:'#CBD5E1' }}>(메가메뉴와 공유 — 여기 수정하면 메가메뉴도 반영)</span></span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => addCategory(null)}>+ 대분류</button></div>
+                    {/* 대분류·소분류는 메가메뉴 탭에서 일원 관리 (여기선 미리보기만) */}
+                    <div className="adm-muted" style={{ fontSize:12.5, padding:'10px 2px 4px' }}>
+                      대분류·소분류(카테고리)는 <strong style={{ color:'#475569' }}>메뉴 관리 &gt; 메가메뉴</strong> 탭에서 추가·수정·순서 변경하세요. (여기선 미리보기만 표시됩니다)
                     </div>
-                    {majors.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>대분류 없음</div> : majors.map(m => (
-                      <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>대분류</div>
-                        <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}
-                          onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', m.id); dragRow.current = null; }}>
-                          <span style={{ width:16, flexShrink:0 }} />
-                          <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
-                          {catLabel(m)}
-                          <AdmToggle on={m.show_in_category} onChange={v => updateFt(m.id, { show_in_category: v })} title="노출" />
-                          <button type="button" onClick={() => deleteCategory(m)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
-                        </div>
-                        {subsOf(m.tab_value).map(s => (
-                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}
-                            onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
-                            <span style={{ width:16, flexShrink:0, textAlign:'center', color:'#CBD5E1', fontSize:14 }}>└</span>
-                            <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
-                            {catLabel(s)}
-                            <AdmToggle on={s.show_in_category} onChange={v => updateFt(s.id, { show_in_category: v })} title="노출" />
-                            <button type="button" onClick={() => deleteCategory(s)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
-                          </div>
-                        ))}
-                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 }}>+ 소분류 추가</button>
-                      </div>
-                    ))}
                     {/* 정렬·태그 필탭 */}
                     <div className="adm-toolbar" style={{ marginTop:18 }}>
                       <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>정렬 · 태그 필탭 <span style={{ color:'#CBD5E1' }}>(보기 방식 — 신상품·당도순 등)</span></span></div>
