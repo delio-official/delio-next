@@ -113,6 +113,11 @@ export default function ProductClient() {
   const { user }  = useAuth();
   const requireLogin = useLoginGuard();
 
+  /* 비회원 동작 → 로그인/회원가입으로 보내되, 끝나면 이 상품페이지로 돌아오도록 next 를 실어보낸다.
+     (next 없이 /login 만 호출하면 로그인 후 메인으로 가버림) */
+  const gotoLogin  = () => router.push(`/login?next=${encodeURIComponent(`/product/${id}`)}`);
+  const gotoSignup = () => router.push(`/signup?next=${encodeURIComponent(`/product/${id}`)}`);
+
   const [product,    setProduct]    = useState<Product | null>(null);
   const [options,    setOptions]    = useState<ProductOption[]>([]);
   const [farm,       setFarm]       = useState<Farm | null>(null);
@@ -594,7 +599,7 @@ export default function ProductClient() {
     }
   }
   async function claimCoupons() {
-    if (!user) { setCouponDownOpen(false); router.push('/login'); return; }
+    if (!user) { setCouponDownOpen(false); gotoSignup(); return; }   // 쿠폰팩은 신규회원 대상 → 회원가입으로
     setClaiming(true);
     const n = await claimAllPublic(user.id);
     setClaiming(false);
@@ -617,7 +622,7 @@ export default function ProductClient() {
 
   /* 농장 찜(팔로우) — 상품 찜과 별개 */
   async function toggleFarmWish() {
-    if (!user) { router.push('/login'); return; }
+    if (!user) { gotoLogin(); return; }
     if (!farm) return;
     const supabase = createClient();
     if (farmWished) {
@@ -834,7 +839,7 @@ export default function ProductClient() {
   }
 
   async function handleSubmitReview() {
-    if (!user) { router.push('/login'); return; }
+    if (!user) { gotoLogin(); return; }
     /* 수정 모드는 이미 쓴 리뷰를 고치는 것이므로 구매·횟수 검사를 하지 않는다 */
     if (!editingReviewId) {
       /* 관리자는 구매 여부와 무관하게 작성 가능 (작성 버튼 조건과 동일하게 맞춤) */
@@ -1026,7 +1031,7 @@ export default function ProductClient() {
 
   /* ── 상품 문의 제출 ── */
   async function submitInquiry() {
-    if (!user) { router.push('/login'); return; }
+    if (!user) { gotoLogin(); return; }
     if (!inqContent.trim()) { alert('문의 내용을 입력해주세요.'); return; }
     setInqSubmitting(true);
     const supabase = createClient();
@@ -1815,7 +1820,7 @@ export default function ProductClient() {
 
               {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
               {!user && (
-                <Link href="/login" className="signup-coupon-banner">
+                <Link href={`/signup?next=${encodeURIComponent(`/product/${id}`)}`} className="signup-coupon-banner">
                   <div className="signup-coupon-banner-left">
                     <span className="signup-coupon-icon" aria-hidden>
                       <svg viewBox="0 0 24 24" width="28" height="28">
@@ -2428,7 +2433,7 @@ export default function ProductClient() {
               <span style={{ fontSize:18, fontWeight:700 }}>리뷰 <span style={{ fontSize:15, color:'var(--color-ink-mute)', fontWeight:500 }}>({product.review_count})</span></span>
               <button
                 onClick={() => {
-                  if (!user) { router.push('/login'); return; }
+                  if (!user) { gotoLogin(); return; }
                   if (!hasPurchased && !isAdmin) { alert('구매하신 상품만 리뷰를 작성할 수 있어요.'); return; }
                   /* 산 횟수만큼만 리뷰 — 관리자는 예외 (DB 트리거 trg_enforce_single_review와 동일 규칙) */
                   if (!canWriteReview) { alert('이미 구매하신 횟수만큼 리뷰를 작성하셨어요.\n마이페이지 > 리뷰에서 수정할 수 있습니다.'); return; }
@@ -2666,7 +2671,7 @@ export default function ProductClient() {
                       {/* 신고: 남의 리뷰만 — 본인 리뷰는 신고 대상이 아님 */}
                       {(!user || r.user_id !== user.id) && (
                         <button onClick={() => {
-                            if (!user) { router.push('/login'); return; }
+                            if (!user) { gotoLogin(); return; }
                             setReportReason(''); setReportDetail(''); setReportTarget(r.id);
                           }}
                           style={{ background:'none', border:'none', fontSize:12,
@@ -2775,7 +2780,7 @@ export default function ProductClient() {
                 <div className="qna-header-sub">상품의 궁금한 점을 해결해 드립니다.</div>
               </div>
               <button className="qna-btn-filled"
-                onClick={() => { if (!user) { router.push('/login'); return; } setInqModal(true); }}>
+                onClick={() => { if (!user) { gotoLogin(); return; } setInqModal(true); }}>
                 상품문의하기
               </button>
             </div>
