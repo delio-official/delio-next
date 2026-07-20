@@ -9046,9 +9046,6 @@ GRANT ALL ON popups TO authenticated, anon;`}
 
             return (
               <div className="adm-content">
-                <div className="adm-info-box" style={{ marginBottom:12 }}>
-                  💡 리워드는 <strong>피추천인이 첫 구매(배송완료)</strong>하면 <strong>추천인</strong>에게 <strong>5,000원 쿠폰</strong>이 <strong>자동 지급</strong>됩니다. (아래 "추천인"이 리워드 수령자)
-                </div>
                 <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                   {[
                     ['누적 총 추천 수',  `${total.toLocaleString()}건`],
