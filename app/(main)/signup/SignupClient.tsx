@@ -426,6 +426,7 @@ export default function SignupClient() {
             <div className="su-ctrl">
               <div className="su-email-row">
                 <input type="text" className={`su-input${fieldErrors.email ? ' su-err' : ''}`}
+                  autoComplete="off" name="signup-email-local"
                   value={emailUser} onChange={e => { setEmailUser(e.target.value); resetEmailCheck(); if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: '' })); }} />
                 <span className="su-at">@</span>
                 {showDirect && (
@@ -459,6 +460,7 @@ export default function SignupClient() {
             <div className="su-ctrl">
               <div style={{ position: 'relative' }}>
                 <input type={showPw ? 'text' : 'password'} className={`su-input${fieldErrors.pw ? ' su-err' : ''}`} placeholder="8자 이상 입력해주세요"
+                  autoComplete="new-password" name="signup-new-password"
                   style={{ paddingRight: 44 }}
                   value={pw} onChange={e => { setPw(e.target.value); if (fieldErrors.pw) setFieldErrors(p => ({ ...p, pw: '' })); }} />
                 <PwEye shown={showPw} onToggle={() => setShowPw(v => !v)} />
@@ -506,6 +508,7 @@ export default function SignupClient() {
             <div className="su-ctrl">
               <div style={{ position: 'relative' }}>
                 <input type={showPw2 ? 'text' : 'password'} className={`su-input${fieldErrors.pw2 ? ' su-err' : ''}`} placeholder="비밀번호를 한번 더 입력해주세요"
+                  autoComplete="new-password" name="signup-new-password-confirm"
                   style={{ paddingRight: 44 }}
                   value={pw2} onChange={e => { setPw2(e.target.value); if (fieldErrors.pw2) setFieldErrors(p => ({ ...p, pw2: '' })); }} />
                 <PwEye shown={showPw2} onToggle={() => setShowPw2(v => !v)} />
