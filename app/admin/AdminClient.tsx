@@ -2596,8 +2596,11 @@ export default function AdminClient() {
     if (draggedId === targetId) return;
     const dragged = filterTabs.find(t => t.id === draggedId);
     const target  = filterTabs.find(t => t.id === targetId);
-    if (!dragged || !target || (dragged.parent || '') !== (target.parent || '')) return;
-    const group = filterTabs.filter(t => (t.parent || '') === (dragged.parent || '')).sort((a, b) => a.sort_order - b.sort_order);
+    if (!dragged || !target) return;
+    // 그룹 키: 소분류는 parent, 최상위는 카테고리(#cat)/필탭(#filtag) 구분 (섞이지 않게)
+    const keyOf = (t: FilterTab) => t.parent || (t.tab_type === 'category' ? '#cat' : '#filtag');
+    if (keyOf(dragged) !== keyOf(target)) return;
+    const group = filterTabs.filter(t => keyOf(t) === keyOf(dragged)).sort((a, b) => a.sort_order - b.sort_order);
     const from = group.findIndex(t => t.id === draggedId);
     const to   = group.findIndex(t => t.id === targetId);
     const next = [...group];
@@ -7436,7 +7439,9 @@ export default function AdminClient() {
                       <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_header:true, parent:null, label:'새 메뉴', href:'/' })}>+ 메뉴 추가</button>
                     </div></div>
                     {navItems.map(m => (
-                      <div key={m.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                      <div key={m.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}
+                        onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', m.id); dragRow.current = null; }}>
+                        <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                         {mIn(m,'label','메뉴명','1 1 120px')}
                         {mIn(m,'href','/경로','1 1 130px')}
                         <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>상단바 <AdmToggle on={m.show_in_header} onChange={v => updateMenu(m.id, { show_in_header: v })} title="상단바 노출" /></span>
@@ -7496,19 +7501,20 @@ export default function AdminClient() {
                     </div>
                     {majors.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>대분류 없음</div> : majors.map(m => (
                       <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
-                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
-                          <span style={{ display:'inline-flex', gap:4 }}>
-                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, -1)}>▲</button>
-                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, 1)}>▼</button>
-                          </span>
-                          <span style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', flexShrink:0 }}>대분류</span>
+                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>대분류</div>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}
+                          onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', m.id); dragRow.current = null; }}>
+                          <span style={{ width:16, flexShrink:0 }} />
+                          <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                           {catLabel(m)}
                           <AdmToggle on={m.show_in_category} onChange={v => updateFt(m.id, { show_in_category: v })} title="노출" />
                           <button type="button" onClick={() => deleteCategory(m)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                         </div>
                         {subsOf(m.tab_value).map(s => (
-                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
-                            <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8 }}
+                            onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
+                            <span style={{ width:16, flexShrink:0, textAlign:'center', color:'#CBD5E1', fontSize:14 }}>└</span>
+                            <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                             {catLabel(s)}
                             <AdmToggle on={s.show_in_category} onChange={v => updateFt(s.id, { show_in_category: v })} title="노출" />
                             <button type="button" onClick={() => deleteCategory(s)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
@@ -7523,11 +7529,9 @@ export default function AdminClient() {
                       <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
                     </div>
                     {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
-                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
-                        <span style={{ display:'inline-flex', gap:4 }}>
-                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
-                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
-                        </span>
+                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
+                        onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
+                        <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                         <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
                         <AdmToggle on={t.show_in_category} onChange={v => updateFt(t.id, { show_in_category: v })} title="노출" />
@@ -7557,11 +7561,9 @@ export default function AdminClient() {
                       <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 필탭 추가</button></div>
                     </div>
                     {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
-                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}>
-                        <span style={{ display:'inline-flex', gap:4 }}>
-                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, -1)}>▲</button>
-                          <button type="button" className="adm-row-btn" style={{ padding:'2px 7px' }} onClick={() => moveFilterTab(t, 1)}>▼</button>
-                        </span>
+                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
+                        onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
+                        <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                         <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                         <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
                         <AdmToggle on={!!t[flagKey]} onChange={v => updateFt(t.id, { [flagKey]: v } as Partial<FilterTab>)} title="노출" />
