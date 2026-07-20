@@ -108,6 +108,25 @@ function ProductPreviewCard(p: PreviewProps) {
   );
 }
 
+/* 토글 스위치 (마케팅 동의 버튼식) — 켜짐=검정 */
+function AdmToggle({ on, onChange, title }: { on: boolean; onChange: (v: boolean) => void; title?: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} title={title} onClick={() => onChange(!on)}
+      style={{ width: 38, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
+        background: on ? '#1A1A1A' : '#D1D5DB', position: 'relative', transition: 'background .15s' }}>
+      <span style={{ position: 'absolute', top: 2, left: on ? 18 : 2, width: 18, height: 18, borderRadius: '50%',
+        background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }} />
+    </button>
+  );
+}
+
+/* 드래그 핸들(순서변경 그립) */
+function DragHandle() {
+  return (
+    <span aria-hidden style={{ cursor: 'grab', color: '#B8B8B8', fontSize: 15, lineHeight: 1, flexShrink: 0, userSelect: 'none', letterSpacing: '-2px' }}>⠿⠿</span>
+  );
+}
+
 /* ===== 타입 ===== */
 type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'homesections'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
@@ -2566,6 +2585,39 @@ export default function AdminClient() {
       supabase.from('filter_tabs').update({ sort_order: a.sort_order }).eq('id', b.id),
     ]);
     loadFilterTabs();
+  }
+
+  /* 드래그 순서변경 — 같은 그룹(같은 parent) 안에서만 재배치 후 sort_order 재부여 */
+  const dragRow = useRef<string | null>(null);
+  async function reorderFilterTabs(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    const dragged = filterTabs.find(t => t.id === draggedId);
+    const target  = filterTabs.find(t => t.id === targetId);
+    if (!dragged || !target || (dragged.parent || '') !== (target.parent || '')) return;
+    const group = filterTabs.filter(t => (t.parent || '') === (dragged.parent || '')).sort((a, b) => a.sort_order - b.sort_order);
+    const from = group.findIndex(t => t.id === draggedId);
+    const to   = group.findIndex(t => t.id === targetId);
+    const next = [...group];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const supabase = createClient();
+    await Promise.all(next.map((t, i) => supabase.from('filter_tabs').update({ sort_order: (i + 1) * 10 }).eq('id', t.id)));
+    loadFilterTabs();
+  }
+  async function reorderMenus(draggedId: string, targetId: string) {
+    if (draggedId === targetId) return;
+    const dragged = menus.find(t => t.id === draggedId);
+    const target  = menus.find(t => t.id === targetId);
+    if (!dragged || !target || (dragged.parent || '') !== (target.parent || '')) return;
+    const group = menus.filter(t => (t.parent || '') === (dragged.parent || '')).sort((a, b) => a.sort_order - b.sort_order);
+    const from = group.findIndex(t => t.id === draggedId);
+    const to   = group.findIndex(t => t.id === targetId);
+    const next = [...group];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const supabase = createClient();
+    await Promise.all(next.map((t, i) => supabase.from('menu_items').update({ sort_order: (i + 1) * 10 }).eq('id', t.id)));
+    loadMenus();
   }
 
   /* ========== 상단 메뉴 관리 (menu_items) ========== */
@@ -7291,58 +7343,71 @@ export default function AdminClient() {
                         );
                       })()}
                     </div>
-                    {/* 컬럼 추가 */}
-                    <div className="adm-toolbar">
-                      <div className="adm-toolbar-left" />
-                      <div className="adm-toolbar-right">
-                        <button className="adm-btn adm-btn-outline" onClick={() => addCategory(null)}>+ 카테고리 컬럼</button>
-                        <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })}>+ 메뉴 컬럼</button>
-                      </div>
+                    {(() => {
+                      // 공통 스타일
+                      const rowSt: React.CSSProperties = { display:'flex', gap:8, alignItems:'center', marginBottom:8 };
+                      const leadSt: React.CSSProperties = { width:16, flexShrink:0, textAlign:'center', color:'#CBD5E1', fontSize:14 };
+                      const handleSt: React.CSSProperties = { cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' };
+                      const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' };
+                      const addSt: React.CSSProperties = { width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 };
+                      return (
+                    <>
+                    {/* 컬럼 추가 — 소분류 추가와 동일 스타일(검정 점선·상단 카드 폭에 맞춤) */}
+                    <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+                      <button type="button" onClick={() => addCategory(null)} style={{ ...addSt, marginTop:0 }}>+ 카테고리</button>
+                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={{ ...addSt, marginTop:0 }}>+ 메뉴 그룹</button>
                     </div>
                     {/* 카테고리 대분류 컬럼 */}
                     {majors.map(m => (
                       <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
-                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
-                          <span style={{ display:'inline-flex', gap:4 }}>
-                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, -1)}>▲</button>
-                            <button className="adm-row-btn" style={{ padding:'2px 6px' }} onClick={() => moveFilterTab(m, 1)}>▼</button>
-                          </span>
-                          <span style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', flexShrink:0 }}>카테고리</span>
+                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>카테고리</div>
+                        {/* 대분류 행 */}
+                        <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', m.id); dragRow.current = null; }}>
+                          <span style={leadSt} />
+                          <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {ftText(m)}
-                          <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={m.is_active} onChange={e => updateFt(m.id, { is_active: e.target.checked })} />노출</label>
-                          <button type="button" onClick={() => deleteCategory(m)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                          <AdmToggle on={m.is_active} onChange={v => updateFt(m.id, { is_active: v })} title="노출" />
+                          <button type="button" onClick={() => deleteCategory(m)} style={delSt}>삭제</button>
                         </div>
+                        {/* 소분류 행 */}
                         {filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16 }}>
-                            <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+                          <div key={s.id} style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
+                            <span style={leadSt}>└</span>
+                            <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {ftText(s)}
-                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.is_active} onChange={e => updateFt(s.id, { is_active: e.target.checked })} />노출</label>
-                            <button type="button" onClick={() => deleteCategory(s)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+                            <AdmToggle on={s.is_active} onChange={v => updateFt(s.id, { is_active: v })} title="노출" />
+                            <button type="button" onClick={() => deleteCategory(s)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ fontSize:12, color:'#1A8A4C', background:'#fff', border:'1px dashed #BBF7D0', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 소분류 추가</button>
+                        <button type="button" onClick={() => addCategory(m.tab_value)} style={addSt}>+ 소분류 추가</button>
                       </div>
                     ))}
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => (
                       <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: g.is_active ? 1 : 0.55 }}>
-                        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginBottom:10 }}>
-                          <span style={{ fontSize:11, fontWeight:800, color:'#2563EB', flexShrink:0 }}>메뉴 그룹</span>
+                        <div style={{ fontSize:11, fontWeight:800, color:'#2563EB', marginBottom:8 }}>메뉴 그룹</div>
+                        <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', g.id); dragRow.current = null; }}>
+                          <span style={leadSt} />
+                          <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
-                          <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={g.is_active} onChange={e => updateMenu(g.id, { is_active: e.target.checked })} />노출</label>
-                          <button type="button" onClick={() => deleteMenu(g.id)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer', flexShrink:0 }}>삭제</button>
+                          <AdmToggle on={g.is_active} onChange={v => updateMenu(g.id, { is_active: v })} title="노출" />
+                          <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
                         {menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                          <div key={s.id} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, marginLeft:16, opacity: s.is_active ? 1 : 0.5 }}>
-                            <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
+                          <div key={s.id} style={{ ...rowSt, opacity: s.is_active ? 1 : 0.5 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', s.id); dragRow.current = null; }}>
+                            <span style={leadSt}>└</span>
+                            <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {mText(s)}
-                            <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#475569', flexShrink:0 }}><input type="checkbox" checked={s.is_active} onChange={e => updateMenu(s.id, { is_active: e.target.checked })} />노출</label>
-                            <button type="button" onClick={() => deleteMenu(s.id)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+                            <AdmToggle on={s.is_active} onChange={v => updateMenu(s.id, { is_active: v })} title="노출" />
+                            <button type="button" onClick={() => deleteMenu(s.id)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'7px 10px', cursor:'pointer', width:'100%', marginTop:4 }}>+ 하위 링크</button>
+                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={addSt}>+ 소분류 추가</button>
                       </div>
                     ))}
+                    </>
+                      );
+                    })()}
                   </>
                 );
               })()) : menuTab === 'header' ? (menusLoading ? <PanelLoading /> : (() => {
