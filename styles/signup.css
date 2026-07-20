@@ -90,6 +90,9 @@ body { background: #fff; }
     /* ── Email ── */
     .su-email-row { display: flex; align-items: center; gap: 8px; }
     .su-email-row .su-input { flex: 1; min-width: 0; }
+    /* 휴대폰 본인인증 버튼 폭을 이메일 입력칸과 동일하게 (이메일 행과 같은 flex 구조) */
+    .su-verify-row { display: flex; align-items: center; gap: 8px; }
+    .su-verify-spacer { flex: 1; min-width: 0; }
     .su-email-check {
       flex-shrink: 0; height: 50px; padding: 0 16px;
       background: #1A1A1A; color: #fff; border: none; border-radius: 6px;

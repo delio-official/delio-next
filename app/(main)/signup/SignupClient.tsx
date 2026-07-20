@@ -356,10 +356,17 @@ export default function SignupClient() {
                     </div>
                   ) : (
                     <>
-                      <button type="button" onClick={startVerify} disabled={verifyLoading}
-                        style={{ width:'100%', padding:'14px 0', borderRadius:8, border:'none', background: verifyLoading?'#C8C8C8':'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor: verifyLoading?'default':'pointer', fontFamily:'inherit' }}>
-                        {verifyLoading ? '인증 진행 중...' : '휴대폰 본인인증'}
-                      </button>
+                      {/* 버튼 폭을 이메일 입력칸과 동일하게 — 이메일 행(@·도메인·중복확인)과 같은 flex 구조를
+                          보이지 않는 자리표시로 재현해 flex:1 버튼이 이메일 입력칸과 픽셀 단위로 일치하게 함 */}
+                      <div className="su-verify-row">
+                        <button type="button" onClick={startVerify} disabled={verifyLoading}
+                          style={{ flex:1, minWidth:0, height:50, padding:0, borderRadius:8, border:'none', background: verifyLoading?'#C8C8C8':'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor: verifyLoading?'default':'pointer', fontFamily:'inherit' }}>
+                          {verifyLoading ? '인증 진행 중...' : '휴대폰 본인인증'}
+                        </button>
+                        <span className="su-at" aria-hidden style={{ visibility:'hidden' }}>@</span>
+                        <span className="su-verify-spacer" aria-hidden />
+                        <span className="su-email-check" aria-hidden style={{ visibility:'hidden', pointerEvents:'none' }}>중복확인</span>
+                      </div>
                       <div style={{ fontSize:12, color:'#94A3B8', marginTop:8, lineHeight:1.5 }}>본인인증하면 이름·생년월일·성별·휴대폰번호가 자동으로 입력됩니다.</div>
                     </>
                   )}
