@@ -1682,12 +1682,18 @@
   height: 3.75cqw;
   font-size: 1.35cqw;
 }
+/* PC/모바일 이미지 분기 */
+.brand-intro-mob { display: none; }
 @media (max-width: 768px) {
-  .brand-btn {
-    width: auto;
-    padding: 0 16px;
-    height: 34px;
-    font-size: 13px;
-    gap: 5px;
-  }
+  .brand-intro-pc  { display: none; }
+  .brand-intro-mob { display: block; }
+}
+/* 모바일 버튼 — 모바일 이미지(768x4923) 버튼에 맞춤. 이미지와 같은 컨테이너 비율(cqw)이라
+   화면 크기가 바뀌어도 이미지 속 버튼과 정확히 겹친다. */
+.brand-btn-m {
+  left: 50.65%;
+  width: 15.49%;
+  height: 4.17cqw;
+  font-size: 1.75cqw;
+  gap: 0.6cqw;
 }
