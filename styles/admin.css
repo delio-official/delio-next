@@ -394,7 +394,8 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   transition: color .12s;
 }
 .adm-tab:hover { color: var(--text); }
-.adm-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* 선택 탭: 검정 글씨 + 하단 검정바 (당근 비즈 스타일) */
+.adm-tab.active { color: #1A1A1A; border-bottom-color: #1A1A1A; }
 .adm-tab-count {
   font-size: 11px; font-weight: 700; background: #E2E8F0; color: #475569;
   padding: 1px 6px; border-radius: 2px;

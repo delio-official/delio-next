@@ -7229,12 +7229,15 @@ export default function AdminClient() {
           {/* ===== 메뉴 관리 ===== */}
           {panel === 'menu' && (
             <div className="adm-content">
-              {/* 위치 탭 */}
-              <div className="adm-btn-group" style={{ marginBottom:14, flexWrap:'wrap' }}>
-                {([['mega','🧭 메가메뉴'],['header','📌 상단바'],['productlist','📋 상품목록'],['shortcut','📱 모바일 서랍'],['home','🏠 퀵가이드']] as const).map(([k,lb]) => (
-                  <button key={k} className={`adm-seg-btn${menuTab===k?' active':''}`} onClick={() => setMenuTab(k)}>{lb}</button>
-                ))}
-              </div>
+              {/* 위치 탭 — 글씨만 표기 + 선택 시 하단 검정바 (이모지 제거) */}
+              <TabBtns active={menuTab} setActive={k => setMenuTab(k as typeof menuTab)}
+                tabs={[
+                  { id:'mega',        label:'메가메뉴' },
+                  { id:'header',      label:'상단바' },
+                  { id:'productlist', label:'상품목록' },
+                  { id:'shortcut',    label:'모바일 서랍' },
+                  { id:'home',        label:'퀵가이드' },
+                ]} />
 
               {menuTab === 'mega' ? (menusLoading || ftLoading ? <PanelLoading /> : (() => {
                 const ftText = (t: FilterTab) => (
