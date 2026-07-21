@@ -6468,14 +6468,14 @@ export default function AdminClient() {
                     value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">농가 소개</label>
-                  <textarea className="adm-textarea" rows={2} placeholder="농가 소개 (상세 상단 좌측에 표시)"
+                  <label className="adm-label">브랜드 소개</label>
+                  <textarea className="adm-textarea" rows={8} style={{ width:'100%' }} placeholder="브랜드 소개 (상세 상단 좌측에 표시)"
                     value={farmForm.intro} onChange={e => setFarmForm(p => ({ ...p, intro: e.target.value }))} />
                 </div>
 
-                {/* 대표 썸네일 */}
+                {/* 브랜드 썸네일 */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">대표 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진)</span></label>
+                  <label className="adm-label">브랜드 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진)</span></label>
                   <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                     {farmForm.thumbnail_url ? (
                       <div style={{ position:'relative', width:130, height:96 }}>
@@ -6491,9 +6491,9 @@ export default function AdminClient() {
                   </div>
                 </div>
 
-                {/* 농가 로고 (원형 — 메인 브랜드 직송관 카드 농가명 좌측 동그라미) */}
+                {/* 브랜드 로고 (원형 — 메인 브랜드 직송관 카드 농가명 좌측 동그라미) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">농가 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(메인 브랜드 직송관 카드 · 동그라미 · 정사각 권장 400×400)</span></label>
+                  <label className="adm-label">브랜드 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(메인 브랜드 직송관 카드 · 동그라미 · 정사각 권장 400×400)</span></label>
                   <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                     {farmForm.logo_url ? (
                       <div style={{ position:'relative', width:80, height:80 }}>
@@ -6509,9 +6509,9 @@ export default function AdminClient() {
                   </div>
                 </div>
 
-                {/* 랜딩 이미지 (여러 장) */}
+                {/* 브랜드 소개 이미지 (여러 장) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">랜딩 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서로 표시)</span></label>
+                  <label className="adm-label">브랜드 소개 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서로 표시)</span></label>
                   <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1 }}>
                     {farmForm.landing_images.map((url, i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -6525,7 +6525,7 @@ export default function AdminClient() {
                       </div>
                     ))}
                     <label style={{ alignSelf:'flex-start', fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer' }}>
-                      {farmImgUploading ? '업로드 중...' : '+ 랜딩 이미지 추가'}
+                      {farmImgUploading ? '업로드 중...' : '+ 브랜드 소개 이미지 추가'}
                       <input type="file" accept="image/*" multiple hidden onChange={async e => { const files = Array.from(e.target.files || []); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); e.target.value=''; }} />
                     </label>
                   </div>
@@ -7800,8 +7800,8 @@ export default function AdminClient() {
                             <td className="adm-mono adm-num">{(f.review_count || 0) > 0 ? <>{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
                             <td className="adm-mono adm-num">{(f.wish_count || 0).toLocaleString()}</td>
                             <td style={{ display:'flex', gap:6 }}>
-                              <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openFarmDetail(f)}>분석</button>
                               <button className="adm-row-btn" onClick={() => openFarmModal(f)}>수정</button>
+                              <button className="adm-row-btn" onClick={() => openFarmDetail(f)}>분석</button>
                               <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFarm(f.id)}>삭제</button>
                             </td>
                           </tr>
