@@ -8143,13 +8143,17 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
-              <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+              <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
-                  { l:'전체 리뷰', v:`${reviews.length}건`, red:false },
-                  { l:'미답변', v:`${reviewUnansweredCount}건`, red:true },
-                  { l:'평균 평점', v:`★ ${reviewAvgRating.toFixed(1)}`, red:false },
+                  /* st 이 있으면 클릭 필터. 평균 평점은 지표라 필터가 아님(st: null) */
+                  { l:'전체 리뷰',  v:`${reviews.length}건`,                     st:'all' as const,        red:false },
+                  { l:'미답변',    v:`${reviewUnansweredCount}건`,              st:'unanswered' as const, red:true },
+                  { l:'답변완료',  v:`${reviews.length - reviewUnansweredCount}건`, st:'answered' as const,   red:false },
+                  { l:'평균 평점',  v:`★ ${reviewAvgRating.toFixed(1)}`,          st:null,                  red:false },
                 ].map(k => (
-                  <div key={k.l} className="adm-kpi-card">
+                  <div key={k.l} className="adm-kpi-card"
+                    style={k.st ? { cursor:'pointer', outline: reviewAnswered === k.st ? '2px solid #1A1A1A' : 'none' } : undefined}
+                    onClick={k.st ? () => { setReviewAnswered(k.st); setReviewPage(1); } : undefined}>
                     <div className="adm-kpi-label">{k.l}</div>
                     <div className="adm-kpi-value adm-kpi-value-mt" style={k.red && reviewUnansweredCount>0 ? { color:'#DC2626' } : undefined}>{k.v}</div>
                   </div>
@@ -8159,8 +8163,6 @@ export default function AdminClient() {
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={reviewRating} onChange={v => { setReviewRating(v); setReviewPage(1); }}
                     options={[{ value:'', label:'별점 전체' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
-                  <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
-                    options={[{ value:'all', label:'전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
