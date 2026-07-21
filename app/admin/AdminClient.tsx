@@ -1990,6 +1990,8 @@ export default function AdminClient() {
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
   const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
   const [reviewFarm, setReviewFarm] = useState('');            // '' = 전체 농가, 아니면 farm_id
+  /* 리뷰 상태 필터 — 베스트 / 신고됨 / 도움돼요. 서로 배타적이지 않아 '보는 관점'으로 하나만 고름 */
+  const [reviewFlag, setReviewFlag] = useState<'' | 'best' | 'reported' | 'liked'>('');
   const [reviewAnswered, setReviewAnswered] = useState<'all'|'unanswered'|'answered'>('all');
   const [reviewSearch, setReviewSearch] = useState('');
   const [reviewFrom, setReviewFrom] = useState('');
@@ -5398,6 +5400,11 @@ export default function AdminClient() {
     const matchRating = !reviewRating || r.rating === Number(reviewRating);
     const matchAns = reviewAnswered === 'all' || (reviewAnswered === 'answered' ? !!r.seller_reply : !r.seller_reply);
     const matchFarm = !reviewFarm || r.products?.farm_id === reviewFarm;
+    const matchFlag =
+      !reviewFlag ? true
+      : reviewFlag === 'best'     ? !!r.is_best
+      : reviewFlag === 'reported' ? (r.report_count || 0) > 0
+      :                             (r.likes_count || 0) > 0;
     const q = reviewSearch.trim().toLowerCase();
     /* 검색 대상: 리뷰 내용 · 작성자(이름/이메일) · 농가명 · 상품명 */
     const matchSearch = !q || [
@@ -5406,7 +5413,7 @@ export default function AdminClient() {
     ].some(v => v.toLowerCase().includes(q));
     const matchFrom = !reviewFrom || r.created_at >= new Date(`${reviewFrom}T00:00:00`).toISOString();
     const matchTo   = !reviewTo   || r.created_at <= new Date(`${reviewTo}T23:59:59`).toISOString();
-    return matchRating && matchAns && matchFarm && matchSearch && matchFrom && matchTo;
+    return matchRating && matchAns && matchFarm && matchFlag && matchSearch && matchFrom && matchTo;
   });
   const reviewTotalPages = Math.max(1, Math.ceil(filteredReviews.length / reviewPageSize));
   const reviewCurPage = Math.min(reviewPage, reviewTotalPages);
@@ -8175,6 +8182,13 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
                     options={[{ value:'all', label:'답변상태 전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
+                  <AdmSelect value={reviewFlag} onChange={v => { setReviewFlag(v as ''|'best'|'reported'|'liked'); setReviewPage(1); }}
+                    options={[
+                      { value:'', label:'상태 전체' },
+                      { value:'best', label:'베스트' },
+                      { value:'reported', label:'신고됨' },
+                      { value:'liked', label:'도움돼요' },
+                    ]} />
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
