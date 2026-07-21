@@ -7278,7 +7278,7 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         <tr>
-                          <th>상품명</th><th>브랜드</th><th>카테고리</th><th>정상가</th><th>판매가</th>
+                          <th>상품명</th><th>브랜드</th><th>카테고리</th><th className="adm-num">정상가</th><th className="adm-num">판매가</th>
                           <th>할인율</th><th>상태</th><th>관리</th>
                         </tr>
                       </thead>
@@ -7290,8 +7290,8 @@ export default function AdminClient() {
                             <td>{p.name}</td>
                             <td>{farms.find(f => f.id === p.farm_id)?.name || '-'}</td>
                             <td>{catOptions[p.category] || CAT_LABEL[p.category] || p.category}</td>
-                            <td className="adm-mono adm-muted"><s>{fmtPrice(p.price)}원</s></td>
-                            <td className="adm-mono"><strong>{fmtPrice(p.discounted_price)}원</strong></td>
+                            <td className="adm-mono adm-num adm-muted"><s>{fmtPrice(p.price)}원</s></td>
+                            <td className="adm-mono adm-num"><strong>{fmtPrice(p.discounted_price)}원</strong></td>
                             <td>{p.discount_rate > 0 ? <span className="adm-badge badge-refund">{Math.round(p.discount_rate)}%</span> : '-'}</td>
                             <td>
                               {(() => {
@@ -7619,7 +7619,7 @@ export default function AdminClient() {
                 {farmsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>브랜드명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
+                      <thead><tr><th>브랜드명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th className="adm-num">상품</th><th className="adm-num">리뷰</th><th className="adm-num">찜</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredFarms.length === 0 ? (
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 브랜드 없음' : '조건에 맞는 브랜드 없음'}</td></tr>
@@ -7630,9 +7630,9 @@ export default function AdminClient() {
                             <td className="adm-muted">{f.region || '-'}</td>
                             <td>{(f.items || []).length ? (f.items || []).join(', ') : '-'}</td>
                             <td>{f.carrier ? <span className="adm-badge badge-carrier">{f.carrier}</span> : '-'}</td>
-                            <td className="adm-mono" style={{ fontSize:12 }}>{f.active_count || 0}<span style={{ color:'#CBD5E1' }}>/{f.product_count || 0}</span></td>
-                            <td className="adm-mono" style={{ fontSize:12 }}>{(f.review_count || 0) > 0 ? <>{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
-                            <td className="adm-mono">{(f.wish_count || 0).toLocaleString()}</td>
+                            <td className="adm-mono adm-num">{f.active_count || 0}<span style={{ color:'#CBD5E1' }}>/{f.product_count || 0}</span></td>
+                            <td className="adm-mono adm-num">{(f.review_count || 0) > 0 ? <>{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>
+                            <td className="adm-mono adm-num">{(f.wish_count || 0).toLocaleString()}</td>
                             <td style={{ display:'flex', gap:6 }}>
                               <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openFarmDetail(f)}>분석</button>
                               <button className="adm-row-btn" onClick={() => openFarmModal(f)}>수정</button>
@@ -7686,7 +7686,7 @@ export default function AdminClient() {
                 {reviewsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>별점</th><th>내용</th><th>작성자(아이디)</th><th>상품</th><th>답변</th><th>베스트</th><th>👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>별점</th><th>내용</th><th>작성자(아이디)</th><th>상품</th><th>답변</th><th>베스트</th><th className="adm-num">👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredReviews.length === 0 ? (
                           <tr><td colSpan={10} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
@@ -7694,18 +7694,18 @@ export default function AdminClient() {
                           <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>
                             <td><StarRating rating={r.rating} size={13} /></td>
                             <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.content}</td>
-                            <td style={{ fontSize:12, lineHeight:1.35 }}>
+                            <td style={{ lineHeight:1.35 }}>
                               <div style={{ fontWeight:600 }}>{r.profiles?.name || '익명'}</div>
                               <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || '-'}</div>
                             </td>
-                            <td className="adm-muted" style={{ fontSize:12 }}>{r.products?.name || '-'}</td>
+                            <td className="adm-muted">{r.products?.name || '-'}</td>
                             <td>
                               {r.seller_reply
                                 ? <span className="adm-badge badge-done">완료</span>
                                 : <span className="adm-badge badge-wait" style={{ color:'#DC2626' }}>미답변</span>}
                             </td>
                             <td><Toggle defaultOn={r.is_best} onChange={v => toggleReviewBest(r.id, v)} /></td>
-                            <td className="adm-mono" style={{ fontSize:12 }}>{r.likes_count || 0}</td>
+                            <td className="adm-mono adm-num">{r.likes_count || 0}</td>
                             <td>
                               {(r.report_count || 0) > 0
                                 ? <span className="adm-badge badge-off" style={{ cursor:'default' }}>{r.report_count}</span>
@@ -7780,7 +7780,7 @@ export default function AdminClient() {
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
                                       <td style={{ fontWeight:700 }}>{c.name}</td>
                                       <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
-                                      <td className="adm-muted" style={{ fontSize:12 }}>
+                                      <td className="adm-muted">
                                         {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
@@ -7821,10 +7821,10 @@ export default function AdminClient() {
                             ) : pagedCoupons.map(c => (
                               <tr key={c.id}>
                                 <td>{c.name}</td>
-                                <td className="adm-mono" style={{ fontSize:12 }}>{c.code || '-'}</td>
+                                <td className="adm-mono">{c.code || '-'}</td>
                                 <td>{c.discount_type === 'percent' ? '정률' : '정액'}</td>
                                 <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
-                                <td className="adm-muted" style={{ fontSize:12 }}>{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
+                                <td className="adm-muted">{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
                                 <td><Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} /></td>
                                 <td>
                                   <div style={{ display:'flex', gap:6 }}>
@@ -7873,8 +7873,8 @@ export default function AdminClient() {
                                 <td>{l.name} <span className="adm-muted" style={{ fontSize:11 }}>{l.email}</span></td>
                                 <td style={{ fontWeight:600 }}>{l.couponName}</td>
                                 <td><strong>{l.discountLabel}</strong></td>
-                                <td className="adm-muted" style={{ fontSize:12 }}>{l.source}</td>
-                                <td className="adm-muted" style={{ fontSize:12 }}>{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
+                                <td className="adm-muted">{l.source}</td>
+                                <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
                                 <td>
                                   <span className={`adm-badge ${l.status === '사용완료' ? 'badge-off' : l.status === '만료' ? 'badge-off' : 'badge-on'}`}>{l.status}</span>
                                 </td>
@@ -8039,7 +8039,7 @@ export default function AdminClient() {
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
                                       <td style={{ fontWeight:700 }}>{c.name}</td>
                                       <td style={{ fontWeight:800 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
-                                      <td className="adm-muted" style={{ fontSize:12 }}>
+                                      <td className="adm-muted">
                                         {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
@@ -8099,7 +8099,7 @@ export default function AdminClient() {
                       <div className="adm-table-wrap">
                         <table className="adm-table">
                           <thead>
-                            <tr><th>이름</th><th>이메일</th><th>등급</th><th>보유 포인트</th><th>관리</th></tr>
+                            <tr><th>이름</th><th>이메일</th><th>등급</th><th className="adm-num">보유 포인트</th><th>관리</th></tr>
                           </thead>
                           <tbody>
                             {filteredPointMembers.length === 0 ? (
@@ -8107,13 +8107,13 @@ export default function AdminClient() {
                             ) : pagedPointMembers.map(m => (
                               <tr key={m.id}>
                                 <td style={{ fontWeight:500 }}>{m.name}</td>
-                                <td className="adm-muted" style={{ fontSize:12 }}>{m.email}</td>
+                                <td className="adm-muted">{m.email}</td>
                                 <td>
                                   <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade]||'badge-normal'}`}>
                                     {GRADE_LABEL[m.grade]||m.grade}
                                   </span>
                                 </td>
-                                <td className="adm-mono" style={{ fontWeight:600, color: (m.point_balance||0) > 0 ? '#2D7A4D' : '#94A3B8' }}>
+                                <td className="adm-mono adm-num" style={{ fontWeight:600, color: (m.point_balance||0) > 0 ? '#2D7A4D' : '#94A3B8' }}>
                                   {fmtPrice(m.point_balance||0)}P
                                 </td>
                                 <td>
@@ -8146,7 +8146,7 @@ export default function AdminClient() {
                   <div className="adm-card">
                     <div className="adm-table-wrap">
                       <table className="adm-table">
-                        <thead><tr><th>일시</th><th>회원</th><th>구분</th><th>포인트</th><th>사유</th></tr></thead>
+                        <thead><tr><th>일시</th><th>회원</th><th>구분</th><th className="adm-num">포인트</th><th>사유</th></tr></thead>
                         <tbody>
                           {pointLogs.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 기간 포인트 내역이 없습니다.</td></tr>
@@ -8159,10 +8159,10 @@ export default function AdminClient() {
                                   {l.amount >= 0 ? '적립' : '사용'}
                                 </span>
                               </td>
-                              <td className="adm-mono" style={{ fontWeight:600, color: l.amount >= 0 ? '#2D7A4D' : '#DC2626' }}>
+                              <td className="adm-mono adm-num" style={{ fontWeight:600, color: l.amount >= 0 ? '#2D7A4D' : '#DC2626' }}>
                                 {l.amount >= 0 ? '+' : ''}{fmtPrice(l.amount)}P
                               </td>
-                              <td className="adm-muted" style={{ fontSize:12 }}>{l.description || '-'}</td>
+                              <td className="adm-muted">{l.description || '-'}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -9006,7 +9006,7 @@ export default function AdminClient() {
                 {membersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>가입경로</th><th>등급</th><th>포인트</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>가입경로</th><th>등급</th><th className="adm-num">포인트</th><th>상태</th><th>가입일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredMembers.length === 0 ? (
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
@@ -9018,8 +9018,8 @@ export default function AdminClient() {
                               {m.memo && <span title={m.memo} style={{ marginRight:4, cursor:'help' }}>📌</span>}
                               {m.name}
                             </td>
-                            <td className="adm-muted" style={{ fontSize:12 }}>{m.email}</td>
-                            <td className="adm-muted" style={{ fontSize:12 }}>{m.phone || '-'}</td>
+                            <td className="adm-muted">{m.email}</td>
+                            <td className="adm-muted">{m.phone || '-'}</td>
                             <td>
                               {(() => { const pm = PROVIDER_META[providerKey(m.provider)]; return (
                                 <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700, background:pm.bg, color:pm.color }}>{pm.label}</span>
@@ -9030,7 +9030,7 @@ export default function AdminClient() {
                                 {GRADE_LABEL[m.grade] || m.grade}
                               </span>
                             </td>
-                            <td className="adm-mono">{(m.point_balance||0).toLocaleString()}P</td>
+                            <td className="adm-mono adm-num">{(m.point_balance||0).toLocaleString()}P</td>
                             <td>
                               {m.is_blocked
                                 ? <span className="adm-badge badge-off">블랙리스트</span>
@@ -9085,9 +9085,9 @@ export default function AdminClient() {
                         ) : withdrawnList.map(w => (
                           <tr key={w.id}>
                             <td className="adm-muted">{fmtDateShort(w.withdrawn_at)}</td>
-                            <td className="adm-muted" style={{ fontSize:12 }}>{w.email || '-'}</td>
-                            <td className="adm-muted" style={{ fontSize:12 }}>{w.phone || '-'}</td>
-                            <td style={{ fontSize:13 }}>{w.reason || '-'}</td>
+                            <td className="adm-muted">{w.email || '-'}</td>
+                            <td className="adm-muted">{w.phone || '-'}</td>
+                            <td>{w.reason || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -9228,7 +9228,7 @@ export default function AdminClient() {
                                   <td style={{ fontWeight:700 }}>{rc.discount_value.toLocaleString()}원</td>
                                   <td className="adm-muted">{fmtDateShort(rc.created_at)}</td>
                                   <td>{rc.is_used ? <span className="adm-badge badge-off">사용됨</span> : <span className="adm-badge badge-on">미사용</span>}</td>
-                                  <td className="adm-muted" style={{ fontSize:12 }}>{rc.is_used ? (rc.used_at ? `사용 ${fmtDateShort(rc.used_at)}` : '사용됨') : (rc.expires_at ? `만료 ${fmtDateShort(rc.expires_at)}` : '무제한')}</td>
+                                  <td className="adm-muted">{rc.is_used ? (rc.used_at ? `사용 ${fmtDateShort(rc.used_at)}` : '사용됨') : (rc.expires_at ? `만료 ${fmtDateShort(rc.expires_at)}` : '무제한')}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -9308,8 +9308,8 @@ export default function AdminClient() {
                             <tr key={inq.id} style={{ cursor:'pointer' }} onClick={() => setSelectedInquiry(inq)}>
                               <td><span className="adm-badge badge-paid">{inq.inquiry_type}</span></td>
                               <td>{inq.company}</td>
-                              <td className="adm-mono" style={{ fontSize:12 }}>{inq.contact}</td>
-                              <td className="adm-muted" style={{ fontSize:12 }}>{inq.email}</td>
+                              <td className="adm-mono">{inq.contact}</td>
+                              <td className="adm-muted">{inq.email}</td>
                               <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inq.message}</td>
                               <td className="adm-muted">{fmtDate(inq.created_at)}</td>
                               <td>
@@ -9661,7 +9661,7 @@ export default function AdminClient() {
                                     <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
                                     <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
                                   </td>
-                                  <td className="adm-mono" style={{ fontSize:12 }}>{r.orders?.order_no || '-'}</td>
+                                  <td className="adm-mono">{r.orders?.order_no || '-'}</td>
                                   <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
                                   <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                   <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
@@ -9675,7 +9675,7 @@ export default function AdminClient() {
                                 <tr key={o.id}>
                                   <td><span className="adm-badge badge-off">{o.status === 'cancelled' ? '관리자취소' : '관리자환불'}</span></td>
                                   <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
-                                  <td className="adm-mono" style={{ fontSize:12 }}>{o.order_no}</td>
+                                  <td className="adm-mono">{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
                                   <td className="adm-muted">관리자 취소</td>
                                   <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
@@ -10257,7 +10257,7 @@ export default function AdminClient() {
                                 <span style={{ marginRight:4 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
                                 <strong>{r.result_label || r.result_type || '—'}</strong>
                               </td>
-                              <td style={{ fontSize:11 }}>
+                              <td>
                                 <span className="adm-badge badge-normal" style={{ marginRight:2 }}>{AXIS1_LABEL[r.axis1 || ''] || r.axis1}</span>
                                 <span className="adm-badge badge-normal" style={{ marginRight:2 }}>{AXIS2_LABEL[r.axis2 || ''] || r.axis2}</span>
                                 <span className="adm-badge badge-normal">{AXIS3_LABEL[r.axis3 || ''] || r.axis3}</span>
@@ -10274,7 +10274,7 @@ export default function AdminClient() {
                                 {r.gender === 'male' ? '남성' : r.gender === 'female' ? '여성' : r.gender === 'none' ? '미응답' : '—'}
                               </td>
                               <td className="adm-muted">{r.age_group ? r.age_group.replace('s','대').replace('plus','대+') : '—'}</td>
-                              <td className="adm-muted" style={{ fontSize:11 }}>{r.purchase_purpose || '—'}</td>
+                              <td className="adm-muted">{r.purchase_purpose || '—'}</td>
                               <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                             </tr>
                           ));
