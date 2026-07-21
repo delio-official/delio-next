@@ -239,7 +239,8 @@ interface AdminFarm {
   name: string;
   farmer_name: string | null;
   region: string | null;
-  farm_type: string | null;
+  farm_type: string | null;   // 사용 안 함(과거 노지/비닐하우스). items 로 대체
+  items: string[] | null;     // 취급 품목(복수)
   intro: string | null;
   carrier: string | null;
   thumbnail_url: string | null;
@@ -1531,9 +1532,10 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
   const [farmImgUploading, setFarmImgUploading] = useState(false);
-  const [farmTypeFilter, setFarmTypeFilter] = useState('');
+  const [farmTypeFilter, setFarmTypeFilter] = useState('');   // 농가 목록 품목 탭 필터
+  const [farmListSearch, setFarmListSearch] = useState('');    // 농가 목록 검색(품목·농가명·대표자명)
 
 
   /* ── 상품 등록/수정 모달 ── */
@@ -2683,7 +2685,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, intro, carrier, thumbnail_url, logo_url, landing_images, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, thumbnail_url, logo_url, landing_images, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -2748,10 +2750,10 @@ export default function AdminClient() {
   function openFarmModal(farm?: AdminFarm) {
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', farm_type: farm.farm_type || '', intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', farm_type: '', intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] });
+      setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] });
     }
     setFarmModal(true);
   }
@@ -2762,7 +2764,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
     if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
-    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, farm_type: farmForm.farm_type || null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
+    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, items: farmForm.items.length ? farmForm.items : null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
     if (editingFarm) {
       // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
       const editPayload = editingFarm.slug ? payload : { ...payload, slug };
@@ -2777,6 +2779,12 @@ export default function AdminClient() {
     setFarmSaving(false);
     setFarmModal(false);
   }
+
+  /* 농가 폼 '취급 품목' 후보 — 등록된 소분류 카테고리(실제 품목) + 이미 쓰이는 품목 */
+  const itemPresets: string[] = [...new Set([
+    ...filterTabs.filter(t => t.tab_type === 'category' && t.parent).map(t => t.label),
+    ...farms.flatMap(f => f.items || []),
+  ])].sort();
 
   async function deleteFarm(id: string) {
     if (!confirm('이 농가를 삭제하시겠습니까? 연결된 상품의 농가 정보도 해제됩니다.')) return;
@@ -6279,17 +6287,44 @@ export default function AdminClient() {
                     value={farmForm.region} onChange={e => setFarmForm(p => ({ ...p, region: e.target.value }))} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">농가 유형 <span style={{ fontWeight:400, color:'#94A3B8' }}>(재배 형태)</span></label>
+                  <label className="adm-label">취급 품목 <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
                   <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'center' }}>
-                    <div className="adm-btn-group">
-                      {FARM_TYPE_PRESETS.map(t => (
-                        <button key={t} type="button" className={`adm-seg-btn${farmForm.farm_type===t?' active':''}`}
-                          onClick={() => setFarmForm(p => ({ ...p, farm_type: t }))}>{t}</button>
+                    {/* 등록된 품목(소분류 카테고리) 칩 — 클릭해서 여러 개 켜고 끔 */}
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                      {itemPresets.map(t => {
+                        const on = farmForm.items.includes(t);
+                        return (
+                          <button key={t} type="button"
+                            onClick={() => setFarmForm(p => ({ ...p, items: on ? p.items.filter(x => x !== t) : [...p.items, t] }))}
+                            style={{ fontSize:12.5, fontWeight:600, padding:'7px 13px', borderRadius:999, cursor:'pointer',
+                              border:`1px solid ${on ? '#1A1A1A' : '#E2E8F0'}`, background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#64748B' }}>
+                            {t}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* 목록에 없는 품목 직접 추가 */}
+                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:150 }} placeholder="직접 추가 후 Enter"
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        const v = (e.target as HTMLInputElement).value.trim();
+                        if (!v) return;
+                        setFarmForm(p => p.items.includes(v) ? p : ({ ...p, items: [...p.items, v] }));
+                        (e.target as HTMLInputElement).value = '';
+                      }} />
+                  </div>
+                  {farmForm.items.length > 0 && (
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8, width:'100%' }}>
+                      {farmForm.items.map(t => (
+                        <span key={t} style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, background:'#F1F5F9', border:'1px solid #E2E8F0', borderRadius:999, padding:'5px 10px' }}>
+                          {t}
+                          <button type="button" onClick={() => setFarmForm(p => ({ ...p, items: p.items.filter(x => x !== t) }))}
+                            style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8', fontSize:14, lineHeight:1, padding:0 }}>×</button>
+                        </span>
                       ))}
                     </div>
-                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="직접 입력(예: 친환경/유기농)"
-                      value={farmForm.farm_type} onChange={e => setFarmForm(p => ({ ...p, farm_type: e.target.value }))} />
-                  </div>
+                  )}
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">담당 택배사</label>
@@ -7552,21 +7587,30 @@ export default function AdminClient() {
 
           {/* ===== 농가 관리 ===== */}
           {panel === 'farms' && (() => {
-            const farmTypes = [...new Set(farms.map(f => f.farm_type).filter(Boolean) as string[])];
-            const filteredFarms = farms.filter(f => !farmTypeFilter || f.farm_type === farmTypeFilter);
+            /* 품목 탭 — 농가들이 실제 취급하는 품목 모음. 복수 품목 농가는 각 품목 탭에 모두 노출 */
+            const farmItems = [...new Set(farms.flatMap(f => f.items || []))].sort();
+            const kw = farmListSearch.trim().toLowerCase();
+            const filteredFarms = farms.filter(f => {
+              if (farmTypeFilter && !(f.items || []).includes(farmTypeFilter)) return false;
+              if (!kw) return true;
+              return [f.name, f.farmer_name || '', ...(f.items || [])]
+                .some(v => v.toLowerCase().includes(kw));
+            });
             return (
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
-                  {/* 농가 유형 — 글씨만 + 선택 시 하단 검정바 */}
+                  {/* 품목 탭 — 글씨만 + 선택 시 하단 검정바 */}
                   <div className="adm-tabs" style={{ marginBottom:0 }}>
                     <button className={`adm-tab${farmTypeFilter===''?' active':''}`} onClick={() => setFarmTypeFilter('')}>전체</button>
-                    {farmTypes.map(t => (
+                    {farmItems.map(t => (
                       <button key={t} className={`adm-tab${farmTypeFilter===t?' active':''}`} onClick={() => setFarmTypeFilter(t)}>{t}</button>
                     ))}
                   </div>
                 </div>
                 <div className="adm-toolbar-right">
+                  <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·농가명·대표자명 검색"
+                    value={farmListSearch} onChange={e => setFarmListSearch(e.target.value)} />
                   <button className="adm-btn adm-btn-outline" onClick={loadFarms}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 농가 등록</button>
                 </div>
@@ -7575,16 +7619,16 @@ export default function AdminClient() {
                 {farmsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>농가 유형</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
+                      <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredFarms.length === 0 ? (
-                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '해당 유형 농가 없음'}</td></tr>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '조건에 맞는 농가 없음'}</td></tr>
                         ) : filteredFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
                             <td>{f.farmer_name || '-'}</td>
                             <td className="adm-muted">{f.region || '-'}</td>
-                            <td>{f.farm_type || '-'}</td>
+                            <td>{(f.items || []).length ? (f.items || []).join(', ') : '-'}</td>
                             <td>{f.carrier ? <span className="adm-badge badge-carrier">{f.carrier}</span> : '-'}</td>
                             <td className="adm-mono" style={{ fontSize:12 }}>{f.active_count || 0}<span style={{ color:'#CBD5E1' }}>/{f.product_count || 0}</span></td>
                             <td className="adm-mono" style={{ fontSize:12 }}>{(f.review_count || 0) > 0 ? <>{(f.avg_rating || 0).toFixed(1)} <span className="adm-muted">({f.review_count})</span></> : <span className="adm-muted">-</span>}</td>

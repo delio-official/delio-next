@@ -30,7 +30,7 @@ export default function FarmsClient() {
       const supabase = createClient();
       const { data } = await supabase
         .from('farms')
-        .select('id, slug, name, region, farm_type, intro, thumbnail_url')
+        .select('id, slug, name, region, farm_type, items, intro, thumbnail_url')
         .eq('is_own', false) // 자사센터(델리오) 제외 — 파트너농가만 노출
         .order('name');
       setFarms((data as Farm[]) || []);

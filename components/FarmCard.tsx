@@ -8,24 +8,30 @@ export interface FarmCardItem {
   slug: string;
   name: string;
   region: string | null;
-  farm_type: string | null;
+  farm_type: string | null;      // 사용 안 함(과거 노지/비닐하우스)
+  items?: string[] | null;       // 취급 품목(복수)
   thumbnail_url: string | null;
   intro: string | null;
 }
 
-const EMOJI_MAP: Record<string, string> = {
-  apple: '🍎', citrus: '🍊', berry: '🫐', melon: '🍈',
-  kiwi: '🥝', mango: '🥭', grape: '🍇', gift: '🎁', default: '🍑',
-};
-const TYPE_LABEL: Record<string, string> = {
-  apple: '사과', citrus: '감귤류', berry: '베리류', melon: '참외/멜론',
-  kiwi: '키위', mango: '망고', grape: '포도',
-};
+/* 품목명(한글) → 이모지. 부분일치로 찾음(예: '유기농 블루베리' → 🫐) */
+const ITEM_EMOJI: Array<[string, string]> = [
+  ['사과', '🍎'], ['감귤', '🍊'], ['귤', '🍊'], ['블루베리', '🫐'], ['베리', '🫐'],
+  ['참외', '🍈'], ['멜론', '🍈'], ['키위', '🥝'], ['망고', '🥭'], ['포도', '🍇'],
+  ['토마토', '🍅'], ['복숭아', '🍑'], ['배', '🍐'], ['수박', '🍉'], ['딸기', '🍓'],
+];
+function emojiOf(items: string[]): string {
+  for (const it of items) {
+    const hit = ITEM_EMOJI.find(([k]) => it.includes(k));
+    if (hit) return hit[1];
+  }
+  return '🍑';
+}
 
 export function FarmCard({ farm, onRemove }: { farm: FarmCardItem; onRemove?: () => void }) {
-  const type = farm.farm_type?.toLowerCase() || 'default';
-  const emoji = EMOJI_MAP[type] || EMOJI_MAP.default;
-  const typeLabel = TYPE_LABEL[type] || '과일';
+  const items = farm.items || [];
+  const emoji = emojiOf(items);
+  const typeLabel = items.length ? items.join(' · ') : '과일';
 
   return (
     <Link href={`/farm/${farm.slug}`}

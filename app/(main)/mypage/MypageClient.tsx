@@ -1033,7 +1033,7 @@ export default function MypageClient() {
           .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,product_options(stock))')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
-          .select('id, farms(id,slug,name,region,farm_type,intro,thumbnail_url,hero_image_url,logo_url)')
+          .select('id, farms(id,slug,name,region,farm_type,items,intro,thumbnail_url,hero_image_url,logo_url)')
           .eq('user_id', user!.id).limit(40),
       ]);
       setWishlist(((data as unknown as WishItem[]) || []).map(w => ({

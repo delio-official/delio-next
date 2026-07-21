@@ -37,7 +37,7 @@ interface ProductOption {
   id: string; label: string; add_price: number; stock: number; manage_stock?: boolean | null; is_default: boolean; group_name: string | null; is_required: boolean | null; parent_label?: string | null;
 }
 interface Farm {
-  id: string; name: string; region: string; farm_type: string;
+  id: string; name: string; region: string; farm_type: string; items?: string[] | null;
   intro: string | null; slug: string; thumbnail_url: string | null;
   is_own?: boolean | null;
 }
@@ -1720,7 +1720,7 @@ export default function ProductClient() {
                           <polyline points="9 18 15 12 9 6"/>
                         </svg>
                       </div>
-                      <div className="brand-card-sub">{farm.region} · {farm.farm_type}</div>
+                      <div className="brand-card-sub">{[farm.region, (farm.items || []).join(' · ')].filter(Boolean).join(' · ')}</div>
                       {farm.intro && <div className="brand-card-desc">{farm.intro}</div>}
                     </div>
                     <div className="brand-card-wish">

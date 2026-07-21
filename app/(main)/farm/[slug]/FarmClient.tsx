@@ -14,7 +14,7 @@ import { SingleStar } from '@/components/StarRating';
 import '@/styles/category.css';
 
 interface Farm {
-  id: string; slug: string; name: string; region: string; farm_type: string;
+  id: string; slug: string; name: string; region: string; farm_type: string; items?: string[] | null;
   intro: string | null; story: string | null;
   thumbnail_url: string | null; hero_image_url: string | null;
   landing_images: string[] | null;
@@ -260,7 +260,14 @@ export default function FarmClient() {
     );
   }
 
-  const emoji = EMOJI_MAP[farm.farm_type?.toLowerCase()] || EMOJI_MAP.default;
+  /* 취급 품목(한글) 기준 이모지 — 예: 블루베리 🫐 / 토마토 🍅 */
+  const ITEM_EMOJI: Array<[string, string]> = [
+    ['사과','🍎'], ['감귤','🍊'], ['귤','🍊'], ['블루베리','🫐'], ['베리','🫐'],
+    ['참외','🍈'], ['멜론','🍈'], ['키위','🥝'], ['망고','🥭'], ['포도','🍇'],
+    ['토마토','🍅'], ['복숭아','🍑'], ['배','🍐'], ['수박','🍉'], ['딸기','🍓'],
+  ];
+  const emoji = (farm.items || []).reduce<string | null>((acc, it) =>
+    acc || (ITEM_EMOJI.find(([k]) => it.includes(k))?.[1] ?? null), null) || EMOJI_MAP.default;
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
