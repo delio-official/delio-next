@@ -558,6 +558,10 @@ interface FarmRawItem {
   orders: { status: string; created_at: string; user_id: string | null } | null;
 }
 interface FarmRawReview { id: string; rating: number; content: string; created_at: string; product_id: string }
+interface FarmRawOption {
+  id: string; product_id: string; label: string | null; group_name: string | null;
+  purchase_price: number | null; shipping_fee: number | null; supply_price: number | null;
+}
 
 /* 증감 종류
    money/count : 변화율(%)   · 증가=초록
@@ -595,7 +599,7 @@ function FaDelta({ cur, prev, kind }: { cur: number; prev: number; kind: DeltaKi
 
 /* 원자료를 받아 기간별 지표를 계산. 조회는 한 번만 하고 기간 전환은 전부 여기서 다시 계산한다. */
 function computeFarmStats(
-  items: FarmRawItem[], reviews: FarmRawReview[],
+  items: FarmRawItem[], reviews: FarmRawReview[], options: FarmRawOption[],
   prodName: Map<string, string>, chartFrom: Date, chartTo: Date,
 ) {
   const now = new Date();
@@ -698,7 +702,30 @@ function computeFarmStats(
 
   const recentReviews = reviews.slice(0, 5).map(r => ({ ...r, product_name: prodName.get(r.product_id) || '' }));
 
-  return { cur, prev, cumulative, monthly, topProducts, recentReviews };
+  /* 공급가 미입력 진단
+     - now  : 지금 옵션에 매입가가 비어 있는 것. 채우면 앞으로의 주문부터 정산액에 반영됨
+     - past : 이미 팔린 주문 중 공급가 0으로 박제된 것. 지금 채워도 소급되지 않음
+     공급가가 0이면 총이익이 매출 전액으로 잡혀 실제보다 부풀려진다. */
+  const missingNow = options
+    .filter(o => !o.supply_price)
+    .map(o => ({
+      product: prodName.get(o.product_id) || '(삭제된 상품)',
+      option: [o.group_name, o.label].filter(Boolean).join(' · ') || '기본',
+    }));
+
+  const pastMap: Record<string, { product: string; option: string; qty: number; amount: number }> = {};
+  items.filter(it => FA_SALES_ST.includes(it.orders?.status || '') && !it.supply_price).forEach(it => {
+    const product = prodName.get(it.product_id) || '(삭제된 상품)';
+    const option = it.option_label || '기본';
+    const k = product + '||' + option;
+    if (!pastMap[k]) pastMap[k] = { product, option, qty: 0, amount: 0 };
+    pastMap[k].qty += it.quantity || 0;
+    pastMap[k].amount += it.subtotal || 0;
+  });
+  const missingPast = Object.values(pastMap).sort((a, b) => b.amount - a.amount);
+  const missingPastAmount = missingPast.reduce((s, m) => s + m.amount, 0);
+
+  return { cur, prev, cumulative, monthly, topProducts, recentReviews, missingNow, missingPast, missingPastAmount };
 }
 
 /* 주문 단계 플로우 (대시보드·주문관리 공용) — 스마트스토어식 */
@@ -2231,7 +2258,7 @@ export default function AdminClient() {
   const [farmDetailLoading, setFarmDetailLoading] = useState(false);
   /* 원자료만 담아두고 기간별 지표는 화면에서 계산 — 3/6/12개월·달력 전환 때 재조회하지 않기 위함 */
   const [farmRaw, setFarmRaw] = useState<{
-    items: FarmRawItem[]; reviews: FarmRawReview[]; prodName: Map<string, string>;
+    items: FarmRawItem[]; reviews: FarmRawReview[]; options: FarmRawOption[]; prodName: Map<string, string>;
   } | null>(null);
   const [farmChartMonths, setFarmChartMonths] = useState(6);   // 3 / 6 / 12
   const [farmChartFrom, setFarmChartFrom] = useState('');      // 달력 직접 지정(비면 개월수 사용)
@@ -2881,7 +2908,7 @@ export default function AdminClient() {
     const prodIds = (prods || []).map((p: { id: string }) => p.id);
     const prodName = new Map<string, string>((prods || []).map((p: { id: string; name: string }) => [p.id, p.name]));
     if (prodIds.length === 0) {
-      setFarmRaw({ items: [], reviews: [], prodName });
+      setFarmRaw({ items: [], reviews: [], options: [], prodName });
       setFarmDetailLoading(false); return;
     }
     /* 취소·환불까지 전부 가져온다 — 반품·취소율을 내려면 실패한 주문도 있어야 함 */
@@ -2895,7 +2922,11 @@ export default function AdminClient() {
     const { data: revs } = await supabase.from('reviews')
       .select('id, rating, content, created_at, product_id')
       .in('product_id', prodIds).order('created_at', { ascending: false }).limit(500);
-    setFarmRaw({ items, reviews: (revs || []) as FarmRawReview[], prodName });
+    /* 공급가 미입력 진단용 — 지금 옵션에 매입가가 비어 있는지 확인 */
+    const { data: opts } = await supabase.from('product_options')
+      .select('id, product_id, label, group_name, purchase_price, shipping_fee, supply_price')
+      .in('product_id', prodIds).limit(2000);
+    setFarmRaw({ items, reviews: (revs || []) as FarmRawReview[], options: (opts || []) as FarmRawOption[], prodName });
     setFarmDetailLoading(false);
   }
 
@@ -6428,7 +6459,7 @@ export default function AdminClient() {
                 const cTo = useCustom
                   ? new Date(new Date(farmChartTo).getFullYear(), new Date(farmChartTo).getMonth() + 1, 1)
                   : new Date(today.getFullYear(), today.getMonth() + 1, 1);
-                const d = computeFarmStats(farmRaw.items, farmRaw.reviews, farmRaw.prodName, cFrom, cTo);
+                const d = computeFarmStats(farmRaw.items, farmRaw.reviews, farmRaw.options, farmRaw.prodName, cFrom, cTo);
                 const maxM = Math.max(...d.monthly.map(m => m.amount), 1);
                 const hasSales = d.monthly.some(m => m.amount > 0);
 
@@ -6467,6 +6498,54 @@ export default function AdminClient() {
                         </div>
                       ))}
                     </div>
+
+                    {/* 1-b) 공급가 미입력 경고 — 총이익이 부풀려지는 원인을 그 자리에서 알려줌 */}
+                    {(d.missingNow.length > 0 || d.missingPast.length > 0) && (
+                      <div style={{ background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:12, padding:'12px 16px', marginBottom:12, textAlign:'left' }}>
+                        <div style={{ fontSize:12.5, fontWeight:700, color:'#92400E' }}>
+                          공급가(매입가)가 비어 있어 정산액·총이익이 실제와 다릅니다
+                        </div>
+                        <div style={{ fontSize:11.5, color:'#B45309', marginTop:3, lineHeight:1.6 }}>
+                          공급가가 0이면 총이익이 매출 전액으로 잡혀 실제보다 크게 보입니다.
+                        </div>
+                        {d.missingNow.length > 0 && (
+                          <div style={{ marginTop:9 }}>
+                            <div style={{ fontSize:11.5, fontWeight:700, color:'#92400E' }}>
+                              지금 채워야 할 옵션 {d.missingNow.length}개
+                              <span style={{ fontWeight:400 }}> — 상품 수정 → 옵션의 매입가</span>
+                            </div>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:5 }}>
+                              {d.missingNow.slice(0, 12).map((m, i) => (
+                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E' }}>
+                                  {m.product} <span style={{ color:'#D97706' }}>· {m.option}</span>
+                                </span>
+                              ))}
+                              {d.missingNow.length > 12 && (
+                                <span style={{ fontSize:11, color:'#B45309', alignSelf:'center' }}>외 {d.missingNow.length - 12}개</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {d.missingPast.length > 0 && (
+                          <div style={{ marginTop:9 }}>
+                            <div style={{ fontSize:11.5, fontWeight:700, color:'#92400E' }}>
+                              이미 팔린 주문 {fmtPrice(d.missingPastAmount)}원어치
+                              <span style={{ fontWeight:400 }}> — 주문 시점 값이 저장되어 지금 채워도 소급되지 않습니다</span>
+                            </div>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:5 }}>
+                              {d.missingPast.slice(0, 8).map((m, i) => (
+                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E' }}>
+                                  {m.product} <span style={{ color:'#D97706' }}>· {m.option}</span> <b>{m.qty}개</b>
+                                </span>
+                              ))}
+                              {d.missingPast.length > 8 && (
+                                <span style={{ fontSize:11, color:'#B45309', alignSelf:'center' }}>외 {d.missingPast.length - 8}건</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* 2) 월별 매출 추이 */}
                     <div style={{ ...cardBox, marginBottom:12 }}>
