@@ -5166,7 +5166,7 @@ export default function AdminClient() {
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
-      case 'reviews':   loadReviews(); break;
+      case 'reviews':   loadReviews(); loadFarms(); break;   // farms = 농가 필터 드롭다운 목록
       case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); loadCouponLogs(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
