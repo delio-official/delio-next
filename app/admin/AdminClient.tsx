@@ -280,8 +280,9 @@ interface AdminReview {
   is_best: boolean;
   likes_count: number;
   image_urls: string[] | null;
-  report_count?: number;
-  report_reasons?: string[];
+  report_count?: number;                 // 확인 대기(pending) 신고 수. 기각한 건 제외
+  report_reasons?: string[];             // 대기 중 신고 사유 (표시용)
+  report_items?: { id: string; reason: string | null; created_at: string; status: string }[];
   created_at: string;
   seller_reply?: string | null;
   seller_replied_at?: string | null;
@@ -3640,18 +3641,28 @@ export default function AdminClient() {
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
-        .select('review_id, reason, created_at')
+        .select('id, review_id, reason, created_at, status')
         .order('created_at', { ascending: false })
         .limit(1000),
     ]);
+    /* 기각(dismissed)한 신고는 건수에서 빼되 기록은 남긴다 —
+       같은 사람이 반복해서 허위 신고를 하는지 봐야 하기 때문 */
     const countMap: Record<string, number> = {};
     const reasonMap: Record<string, string[]> = {};
-    (reportCounts || []).forEach((r: { review_id: string; reason: string | null }) => {
+    const itemMap: Record<string, { id: string; reason: string | null; created_at: string; status: string }[]> = {};
+    type RepRow = { id: string; review_id: string; reason: string | null; created_at: string; status?: string | null };
+    (reportCounts as RepRow[] | null || []).forEach(r => {
+      const st = r.status || 'pending';
+      (itemMap[r.review_id] ||= []).push({ id: r.id, reason: r.reason, created_at: r.created_at, status: st });
+      if (st !== 'pending') return;
       countMap[r.review_id] = (countMap[r.review_id] || 0) + 1;
       if (r.reason) { (reasonMap[r.review_id] ||= []).push(r.reason); }
     });
     const reviews = (data || []).map((r: Record<string, unknown>) => ({
-      ...r, report_count: countMap[r.id as string] || 0, report_reasons: reasonMap[r.id as string] || [],
+      ...r,
+      report_count: countMap[r.id as string] || 0,
+      report_reasons: reasonMap[r.id as string] || [],
+      report_items: itemMap[r.id as string] || [],
     }));
     setReviews(reviews as unknown as AdminReview[]);
     setReviewsLoading(false);
@@ -4782,6 +4793,26 @@ export default function AdminClient() {
     const supabase = createClient();
     await supabase.from('reviews').update({ is_best: newVal }).eq('id', id);
     setReviews(prev => prev.map(r => r.id === id ? { ...r, is_best: newVal } : r));
+  }
+
+  /* 신고 기각 — 행을 지우지 않고 상태만 바꿔 기록을 남긴다 */
+  async function dismissReport(reviewId: string, reportId: string) {
+    if (!confirm('이 신고를 기각할까요?\n신고 건수에서 빠지고, 기록은 남습니다.')) return;
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('review_reports')
+      .update({ status: 'dismissed', resolved_at: new Date().toISOString(), resolved_by: user?.email || null })
+      .eq('id', reportId).select('id');
+    if (error) { alert('기각 실패: ' + error.message); return; }
+    const apply = (r: AdminReview): AdminReview => {
+      if (r.id !== reviewId) return r;
+      const items = (r.report_items || []).map(it => it.id === reportId ? { ...it, status: 'dismissed' } : it);
+      const pending = items.filter(it => it.status === 'pending');
+      return { ...r, report_items: items, report_count: pending.length,
+        report_reasons: pending.map(it => it.reason || '').filter(Boolean) };
+    };
+    setReviews(prev => prev.map(apply));
+    setSelectedReview(prev => (prev ? apply(prev) : prev));
   }
 
   async function deleteReview(id: string) {
@@ -8158,6 +8189,30 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
+              {/* 확인 대기 신고 알림 — 예전 안내 박스 자리 */}
+              {(() => {
+                const rep = reviews.filter(r => (r.report_count || 0) > 0);
+                if (rep.length === 0) return null;
+                const total = rep.reduce((s, r) => s + (r.report_count || 0), 0);
+                return (
+                  <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:12,
+                    padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                    <div style={{ flex:1, minWidth:200, textAlign:'left' }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#B91C1C' }}>
+                        신고된 리뷰 {rep.length}건 (신고 {total}건)이 확인 대기 중입니다
+                      </div>
+                      <div style={{ fontSize:11.5, color:'#DC2626', marginTop:3 }}>
+                        리뷰를 열어 신고 사유를 확인하고, 신고 거리가 아니면 기각하세요.
+                      </div>
+                    </div>
+                    <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 14px', fontSize:12.5, flexShrink:0 }}
+                      onClick={() => { setReviewFlag('reported'); setReviewAnswered('all'); setReviewPage(1); }}>
+                      신고된 리뷰만 보기
+                    </button>
+                  </div>
+                );
+              })()}
+
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                 {[
                   /* st 이 있으면 클릭 필터. 평균 평점은 지표라 필터가 아님(st: null) */
@@ -11437,14 +11492,46 @@ export default function AdminClient() {
               </div>
 
               {/* 신고 사유 */}
-              {selectedReview.report_reasons && selectedReview.report_reasons.length > 0 && (
-                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, padding:'10px 14px' }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'#B91C1C', marginBottom:6 }}>🚨 신고 사유 ({selectedReview.report_reasons.length}건)</div>
-                  <ul style={{ margin:0, paddingLeft:18, fontSize:13, color:'#7F1D1D', lineHeight:1.7 }}>
-                    {selectedReview.report_reasons.map((rs, i) => <li key={i}>{rs}</li>)}
-                  </ul>
-                </div>
-              )}
+              {(selectedReview.report_items || []).length > 0 && (() => {
+                const items = selectedReview.report_items || [];
+                const pending = items.filter(it => it.status === 'pending');
+                const dismissed = items.filter(it => it.status !== 'pending');
+                return (
+                  <div style={{ background: pending.length ? '#FEF2F2' : '#F8FAFC',
+                    border:`1px solid ${pending.length ? '#FECACA' : '#E2E8F0'}`, borderRadius:8, padding:'10px 14px' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color: pending.length ? '#B91C1C' : '#64748B', marginBottom:8 }}>
+                      신고 {pending.length ? `${pending.length}건 확인 대기` : '없음 (전부 기각)'}
+                      {dismissed.length > 0 && <span style={{ fontWeight:400, color:'#94A3B8' }}> · 기각 {dismissed.length}건</span>}
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {items.map(it => {
+                        const done = it.status !== 'pending';
+                        return (
+                          <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, background:'#fff',
+                            border:'1px solid #F1F5F9', borderRadius:6, padding:'7px 10px' }}>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:12.5, color: done ? '#94A3B8' : '#7F1D1D',
+                                textDecoration: done ? 'line-through' : 'none', wordBreak:'break-all' }}>
+                                {it.reason || '(사유 없음)'}
+                              </div>
+                              <div style={{ fontSize:10.5, color:'#94A3B8', marginTop:2 }}>{fmtDate(it.created_at)}</div>
+                            </div>
+                            {done
+                              ? <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>기각됨</span>
+                              : <button className="adm-row-btn" style={{ flexShrink:0 }}
+                                  onClick={() => dismissReport(selectedReview.id, it.id)}>신고 기각</button>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {pending.length > 0 && (
+                      <div style={{ fontSize:11, color:'#B45309', marginTop:7, lineHeight:1.5 }}>
+                        신고 거리가 아니라고 판단되면 기각하세요. 건수에서 빠지고 기록은 남습니다.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 리뷰 내용 */}
               <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', whiteSpace:'pre-wrap' }}>
