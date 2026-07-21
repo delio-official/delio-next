@@ -6254,12 +6254,12 @@ export default function AdminClient() {
         </div>
       )}
 
-      {farmModal && (
-        <div className="adm-modal-bg open" onClick={() => setFarmModal(false)}>
-          <div className="adm-modal adm-modal-farm" onClick={e => e.stopPropagation()}>
-            <div className="adm-modal-head">
+      {farmModal && panel === 'farms' && (
+        <div className="adm-productpage">
+          <div className="adm-productpage-inner">
+            <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
               <span className="adm-modal-title">{editingFarm ? '농가 수정' : '농가 등록'}</span>
-              <button className="adm-modal-close" onClick={() => setFarmModal(false)}>✕</button>
+              <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={() => setFarmModal(false)}>← 목록으로</button>
             </div>
             <div className="adm-modal-body">
               <div className="adm-detail-grid adm-farm-grid">
@@ -6364,7 +6364,7 @@ export default function AdminClient() {
               <div className="adm-flex-gap adm-flex-end adm-mt-20">
                 <button className="adm-btn adm-btn-outline" onClick={() => setFarmModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFarm} disabled={farmSaving}>
-                  {farmSaving ? '저장 중...' : editingFarm ? '수정' : '농가 등록'}
+                  {farmSaving ? '저장 중...' : editingFarm ? '수정 완료' : '농가 등록'}
                 </button>
               </div>
             </div>
