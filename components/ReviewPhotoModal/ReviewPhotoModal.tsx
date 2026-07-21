@@ -15,7 +15,6 @@ export interface RPReview {
   authorName?: string | null;
   isBest?: boolean;
   createdAt?: string | null;
-  likesCount?: number;
 }
 export interface RPProduct {
   id: string;
@@ -57,8 +56,6 @@ export default function ReviewPhotoModal({
   footerNode?: React.ReactNode; // 있으면 기본 푸터(찜·구매하기) 대신 이걸 렌더 (예: 내 리뷰 수정/삭제)
 }) {
   const [activeImg, setActiveImg] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(review.likesCount || 0);
   const [isMobile, setIsMobile] = useState(false);
   const [photoHover, setPhotoHover] = useState(false);
   const touchStartX = useRef(0);
@@ -67,7 +64,7 @@ export default function ReviewPhotoModal({
     f(); window.addEventListener('resize', f);
     return () => window.removeEventListener('resize', f);
   }, [breakpoint]);
-  useEffect(() => { setActiveImg(0); setLiked(false); setLikeCount(review.likesCount || 0); }, [review.id, review.likesCount]);
+  useEffect(() => { setActiveImg(0); }, [review.id]);
 
   const bg = product?.bg || '#F4EFE6';
   const emoji = product?.emoji || '🍑';
@@ -168,13 +165,9 @@ export default function ReviewPhotoModal({
       )}
       <div style={{ marginBottom: 14 }}><StarRating rating={review.rating} size={15} /></div>
       <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
-      {(review.createdAt || review.likesCount != null) && (
+      {review.createdAt && (
         <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12.5, color: '#bbb' }}>{review.createdAt ? fmtDate(review.createdAt) : ''}</span>
-          <button onClick={() => { setLiked(v => !v); setLikeCount(v => liked ? v - 1 : v + 1); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 999, border: `1.5px solid ${liked ? '#E53935' : '#E0E0E0'}`, background: liked ? '#FFF5F5' : '#fff', color: liked ? '#E53935' : '#888', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            <span>{liked ? '♥' : '♡'}</span>
-            도움돼요 {likeCount > 0 && likeCount}
-          </button>
+          <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.createdAt)}</span>
         </div>
       )}
     </div>

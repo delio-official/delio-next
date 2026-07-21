@@ -57,7 +57,8 @@ export function orderColumn(sec: string, mode: SectionMode): { col: string; asc:
   if (mode === 'latest') return { col: 'created_at', asc: false };
   if (mode === 'views')  return { col: 'view_count', asc: false };
   if (mode === 'popular') {
-    if (sec === 'reviewhl') return { col: 'likes_count', asc: false };
+    // 리뷰 하이라이트는 '도움돼요'를 없앴으므로 평점 높은 순으로 대체
+    if (sec === 'reviewhl') return { col: 'rating', asc: false };
     return { col: 'review_count', asc: false }; // 상품
   }
   return { col: 'created_at', asc: false };

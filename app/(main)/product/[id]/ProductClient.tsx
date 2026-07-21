@@ -58,7 +58,7 @@ interface ProductInquiry {
 interface Review {
   id: string; rating: number; content: string; created_at: string;
   image_urls: string[] | null; video_url: string | null;
-  likes_count: number; is_best: boolean;
+  is_best: boolean;
   seller_reply?: string | null;
   user_id?: string | null;
   taste?: ReviewTaste | null;
@@ -99,7 +99,7 @@ const inqCatLabel = (c: string) => INQ_CAT_LABEL[c] || (c ? `${c}` : '상품문�
 
 // Stars → StarRating 공유 컴포넌트 사용
 
-type SortKey = 'latest' | 'helpful' | 'rating';
+type SortKey = 'latest' | 'rating';
 
 const INFO_KEYS = [
   ['제품명', '식품의 유형'],
@@ -228,7 +228,6 @@ export default function ProductClient() {
   const [isMobile,            setIsMobile]            = useState(false);
   const [siteDispatchCutoff,  setSiteDispatchCutoff]  = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [likedReviews, setLikedReviews] = useState<Set<string>>(new Set());
   const [couponDownOpen,      setCouponDownOpen]      = useState(false);
   /* 모달/풀스크린 열림 동안 뒷 배경 스크롤 잠금 */
   useBodyScrollLock(inqModal || reviewModalOpen || photoGalleryOpen || couponDownOpen);
@@ -1016,21 +1015,6 @@ export default function ProductClient() {
     setReviewModalOpen(true);
   }
 
-  /* ── 리뷰 도움됐어요 ── */
-  async function toggleReviewLike(reviewId: string, currentCount: number) {
-    const already = likedReviews.has(reviewId);
-    const newCount = already ? Math.max(0, currentCount - 1) : currentCount + 1;
-    setLikedReviews(prev => {
-      const next = new Set(prev);
-      already ? next.delete(reviewId) : next.add(reviewId);
-      return next;
-    });
-    setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, likes_count: newCount } : r));
-    const supabase = createClient();
-    await supabase.from('reviews').update({ likes_count: newCount }).eq('id', reviewId);
-    showToast(already ? '취소되었습니다.' : '도움이 됐어요! 👍');
-  }
-
   /* ── 상품 문의 제출 ── */
   async function submitInquiry() {
     if (!user) { gotoLogin(); return; }
@@ -1210,7 +1194,6 @@ export default function ProductClient() {
     : reviews;
   const sortedReviews = [...filteredReviews].sort((a, b) => {
     if (reviewSort === 'rating')  return b.rating - a.rating;
-    if (reviewSort === 'helpful') return (b.likes_count || 0) - (a.likes_count || 0);
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
   /* 내가 쓴 리뷰는 정렬과 무관하게 항상 최상단 고정 (안정 정렬) */
@@ -1350,7 +1333,7 @@ export default function ProductClient() {
           const author = rv.author_name || (rv.profiles?.name ? `${rv.profiles.name.charAt(0)}**` : '익명');
           return (
             <ReviewPhotoModal
-              review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], videoUrl: rv.video_url, rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at, likesCount: rv.likes_count || 0 }}
+              review={{ id: rv.id, images: selItem.siblingUrls.filter(Boolean) as string[], videoUrl: rv.video_url, rating: rv.rating, content: rv.content, authorName: author, isBest: rv.is_best, createdAt: rv.created_at}}
               product={{ id: product.id, name: product.name, thumbnail: product.thumbnail_url, discountRate: product.discount_rate, price: product.price, discountedPrice: product.discounted_price, avgRating: product.avg_rating, reviewCount: product.review_count }}
               onClose={() => { if (galleryFromReview) closeAll(); else setSelectedGalleryIdx(null); }}
               onPrev={curRevIdx > 0 ? () => goRev(curRevIdx - 1) : undefined}
@@ -1535,7 +1518,7 @@ export default function ProductClient() {
                             }}>{selItem.review.content}</p>
                           </div>
 
-                          {/* ④ 날짜 + 도움돼요 */}
+                          {/* ④ 날짜 */}
                           <div style={{
                             flexShrink: 0, padding: '10px 16px',
                             borderTop: '1px solid #F0F0F0',
@@ -1548,15 +1531,6 @@ export default function ProductClient() {
                             }}>
                               {new Date(selItem.review.created_at).toLocaleDateString('ko-KR')}
                             </span>
-                            <button onClick={() => toggleReviewLike(selItem.review!.id, selItem.review!.likes_count || 0)} style={{
-                              display: 'flex', alignItems: 'center', gap: 5,
-                              background: likedReviews.has(selItem.review!.id) ? '#FFF5F5' : '#fff',
-                              border: `1px solid ${likedReviews.has(selItem.review!.id) ? '#E53935' : '#D8D8D8'}`,
-                              borderRadius: 99, padding: '6px 14px',
-                              fontSize: 12, color: likedReviews.has(selItem.review!.id) ? '#E53935' : '#555', cursor: 'pointer', fontWeight: 600,
-                            }}>
-                              {likedReviews.has(selItem.review!.id) ? '♥' : '👍'} 도움돼요 {selItem.review.likes_count || 0}
-                            </button>
                           </div>
                         </>
                       ) : (
@@ -2509,8 +2483,8 @@ export default function ProductClient() {
             {/* 정렬 탭 */}
             <div style={{ display:'flex', justifyContent:'flex-end', gap:4,
               marginBottom:16 }}>
-              {(['최신순','추천순','평점순'] as const).map((label, i) => {
-                const val: SortKey = (['latest','helpful','rating'] as SortKey[])[i];
+              {(['최신순','평점순'] as const).map((label, i) => {
+                const val: SortKey = (['latest','rating'] as SortKey[])[i];
                 const active = reviewSort === val;
                 return (
                   <button key={label} onClick={() => { setReviewSort(val); setReviewPage(0); }}
@@ -2642,22 +2616,7 @@ export default function ProductClient() {
                     </div>
                   )}
                   <div style={{ display:'flex', alignItems:'center',
-                    justifyContent:'space-between' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                      <button onClick={() => toggleReviewLike(r.id, r.likes_count || 0)}
-                        style={{ display:'flex', alignItems:'center', gap:5,
-                          background: likedReviews.has(r.id) ? '#FFF5F5' : 'none',
-                          border:`1px solid ${likedReviews.has(r.id) ? '#E53935' : '#DDDDD9'}`,
-                          borderRadius:99, padding:'5px 12px',
-                          fontSize:12, color: likedReviews.has(r.id) ? '#E53935' : 'var(--color-ink-mute)', cursor:'pointer' }}>
-                        <svg viewBox="0 0 24 24" width="13" height="13"
-                          fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-                          <path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-                        </svg>
-                        리뷰가 도움 됐어요 {r.likes_count || 0}
-                      </button>
-                    </div>
+                    justifyContent:'flex-end' }}>
                     <div style={{ display:'flex', gap:12 }}>
                       {/* 수정: 본인 리뷰만 (관리자도 자기 것만) / 삭제: 본인 또는 관리자 */}
                       {user && r.user_id === user.id && (

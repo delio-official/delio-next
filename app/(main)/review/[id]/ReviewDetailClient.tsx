@@ -12,7 +12,6 @@ interface Review {
   content: string;
   created_at: string;
   image_urls: string[];
-  likes_count: number;
   is_best: boolean;
   products: {
     id: string;
@@ -49,8 +48,6 @@ export default function ReviewDetailClient() {
   const [review, setReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -65,10 +62,7 @@ export default function ReviewDetailClient() {
         `)
         .eq('id', id)
         .single();
-      if (data) {
-        setReview(data as Review);
-        setLikeCount((data as Review).likes_count || 0);
-      }
+      if (data) setReview(data as Review);
       setLoading(false);
     }
     if (id) load();
@@ -97,11 +91,6 @@ export default function ReviewDetailClient() {
   const bg    = BG_MAP[cat] || '#F4EFE6';
   const images = review.image_urls || [];
   const prod  = review.products;
-
-  function handleLike() {
-    setLiked(v => !v);
-    setLikeCount(v => liked ? v - 1 : v + 1);
-  }
 
   return (
     <div style={{ background: '#f9f9f7', minHeight: '100vh' }}>
@@ -187,24 +176,6 @@ export default function ReviewDetailClient() {
             {review.content}
           </p>
 
-          {/* 좋아요 */}
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F4F4F4', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              onClick={handleLike}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 18px', borderRadius: 999,
-                border: `1.5px solid ${liked ? '#E53935' : '#E0E0E0'}`,
-                background: liked ? '#FFF5F5' : '#fff',
-                color: liked ? '#E53935' : '#888',
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                transition: 'all .15s',
-              }}
-            >
-              <span style={{ fontSize: 16 }}>{liked ? '♥' : '♡'}</span>
-              도움됐어요 {likeCount > 0 && likeCount}
-            </button>
-          </div>
         </div>
 
         {/* ── 연결 상품 ── */}

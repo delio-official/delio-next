@@ -278,7 +278,6 @@ interface AdminReview {
   rating: number;
   content: string;
   is_best: boolean;
-  likes_count: number;
   image_urls: string[] | null;
   report_count?: number;                 // 확인 대기(pending) 신고 수. 기각한 건 제외
   report_reasons?: string[];             // 대기 중 신고 사유 (표시용)
@@ -1991,8 +1990,8 @@ export default function AdminClient() {
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
   const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
   const [reviewFarm, setReviewFarm] = useState('');            // '' = 전체 농가, 아니면 farm_id
-  /* 리뷰 상태 필터 — 베스트 / 신고됨 / 도움돼요. 서로 배타적이지 않아 '보는 관점'으로 하나만 고름 */
-  const [reviewFlag, setReviewFlag] = useState<'' | 'best' | 'reported' | 'liked'>('');
+  /* 리뷰 상태 필터 — 베스트 / 신고됨. 서로 배타적이지 않아 '보는 관점'으로 하나만 고름 */
+  const [reviewFlag, setReviewFlag] = useState<'' | 'best' | 'reported'>('');
   const [reviewAnswered, setReviewAnswered] = useState<'all'|'unanswered'|'answered'>('all');
   const [reviewSearch, setReviewSearch] = useState('');
   const [reviewFrom, setReviewFrom] = useState('');
@@ -3637,7 +3636,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
       supabase.from('reviews')
-        .select('id, product_id, rating, content, is_best, likes_count, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
+        .select('id, product_id, rating, content, is_best, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
@@ -5433,9 +5432,8 @@ export default function AdminClient() {
     const matchFarm = !reviewFarm || r.products?.farm_id === reviewFarm;
     const matchFlag =
       !reviewFlag ? true
-      : reviewFlag === 'best'     ? !!r.is_best
-      : reviewFlag === 'reported' ? (r.report_count || 0) > 0
-      :                             (r.likes_count || 0) > 0;
+      : reviewFlag === 'best' ? !!r.is_best
+      :                         (r.report_count || 0) > 0;
     const q = reviewSearch.trim().toLowerCase();
     /* 검색 대상: 리뷰 내용 · 작성자(이름/이메일) · 농가명 · 상품명 */
     const matchSearch = !q || [
@@ -8237,12 +8235,11 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
                     options={[{ value:'all', label:'답변상태 전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
-                  <AdmSelect value={reviewFlag} onChange={v => { setReviewFlag(v as ''|'best'|'reported'|'liked'); setReviewPage(1); }}
+                  <AdmSelect value={reviewFlag} onChange={v => { setReviewFlag(v as ''|'best'|'reported'); setReviewPage(1); }}
                     options={[
                       { value:'', label:'상태 전체' },
                       { value:'best', label:'베스트' },
                       { value:'reported', label:'신고됨' },
-                      { value:'liked', label:'도움돼요' },
                     ]} />
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
@@ -11488,7 +11485,7 @@ export default function AdminClient() {
               <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
                 <div><span style={{ color:'#64748B' }}>작성자</span> <strong>{selectedReview.profiles?.name || '익명'}</strong> <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
                 <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>상품</span> <strong>{selectedReview.products?.name || '-'}</strong></div>
-                <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)} <span style={{ marginLeft:12, color:'#64748B' }}>👍</span> {selectedReview.likes_count || 0}</div>
+                <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)}</div>
               </div>
 
               {/* 신고 사유 */}

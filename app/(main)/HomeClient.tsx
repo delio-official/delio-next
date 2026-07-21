@@ -832,7 +832,7 @@ export default function HomeClient() {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'reviewhl');
-      const sel = 'id, rating, content, image_urls, likes_count, author_name, products(id, name, category, avg_rating, review_count, thumbnail_url)';
+      const sel = 'id, rating, content, image_urls, author_name, products(id, name, category, avg_rating, review_count, thumbnail_url)';
       let data;
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
         ({ data } = await supabase.from('reviews').select(sel).in('id', cfg.ids));
@@ -844,7 +844,7 @@ export default function HomeClient() {
           .limit(Math.max(24, cfg.count * 4)));
       }
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
-      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; likes_count: number | null; author_name: string | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null; thumbnail_url: string | null } | null };
+      type Row = { id: string; rating: number; content: string; image_urls: string[] | null; author_name: string | null; products: { id: string; name: string; category: string; avg_rating: number | null; review_count: number | null; thumbnail_url: string | null } | null };
       let rows = ((data || []) as unknown as Row[])
         .filter(r => r.image_urls && r.image_urls.length > 0 && r.products);
       if (cfg.mode === 'manual' && cfg.ids.length > 0) rows = orderByIds(rows, cfg.ids);

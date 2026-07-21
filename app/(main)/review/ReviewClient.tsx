@@ -15,7 +15,6 @@ interface Review {
   content: string;
   created_at: string;
   image_urls: string[];
-  likes_count: number;
   is_best: boolean;
   author_name: string | null;
   video_url: string | null;
@@ -276,7 +275,7 @@ export default function ReviewClient() {
         const prod = modalReview.products;
         return (
           <ReviewPhotoModal
-            review={{ id: modalReview.id, images: modalReview.image_urls || [], videoUrl: modalReview.video_url, rating: modalReview.rating, content: modalReview.content, authorName: modalReview.author_name || modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at, likesCount: modalReview.likes_count }}
+            review={{ id: modalReview.id, images: modalReview.image_urls || [], videoUrl: modalReview.video_url, rating: modalReview.rating, content: modalReview.content, authorName: modalReview.author_name || modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at}}
             product={prod ? { id: prod.id, name: prod.name, thumbnail: prod.thumbnail_url, discountRate: prod.discount_rate, price: prod.price, discountedPrice: prod.discounted_price, avgRating: prod.avg_rating, reviewCount: prod.review_count } : null}
             onClose={() => setModalReview(null)}
             onPrev={idx > 0 ? () => setModalReview(list[idx - 1]) : undefined}
