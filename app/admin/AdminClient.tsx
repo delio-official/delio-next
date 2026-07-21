@@ -433,7 +433,7 @@ const TITLES: Record<PanelKey, string> = {
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  refund:'환불 관리', settlement:'정산 관리', farmsettle:'농가 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
+  refund:'환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
 const FAQ_CATS: Record<string, string> = {
@@ -1535,10 +1535,10 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
         <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="농가 매입가"
+        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="브랜드 매입가"
           value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>매입가</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="농가 배송비"
+        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="브랜드 배송비"
           value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>배송비</span>
         <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
@@ -2292,7 +2292,7 @@ export default function AdminClient() {
     (data as Record<string, unknown>[] | null || []).forEach(row => {
       const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
       const farmId = prod?.farm_id ?? null;
-      const farmName = prod?.farms?.name ?? '농가 미지정';
+      const farmName = prod?.farms?.name ?? '브랜드 미지정';
       const key = farmId ?? '__none__';
       const qty = Number(row.quantity) || 0;
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
@@ -2309,7 +2309,7 @@ export default function AdminClient() {
   }
   /* 정산 완료 처리 (upsert) */
   async function markFarmSettled(row: { farmId: string|null; sales: number; payout: number; margin: number }) {
-    if (!row.farmId) { alert('농가 미지정 항목은 정산할 수 없습니다.'); return; }
+    if (!row.farmId) { alert('브랜드 미지정 항목은 정산할 수 없습니다.'); return; }
     const supabase = createClient();
     const { error } = await supabase.from('farm_settlements').upsert({
       farm_id: row.farmId, period: farmSettleMonth,
@@ -5632,9 +5632,9 @@ export default function AdminClient() {
                 </div>
                 {pForm.is_dawn && (
                 <div style={{ gridColumn:'1 / -1' }}>
-                  <label className="adm-label">연결 농가 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
+                  <label className="adm-label">연결 브랜드 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
                   <div style={{ position:'relative' }}>
-                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="농가 없음 — 이름으로 검색"
+                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="브랜드 없음 — 이름으로 검색"
                       value={farmPickOpen ? farmSearch : (farmList.find(fm => fm.id === pForm.farm_id)?.name || '')}
                       onFocus={() => { setFarmPickOpen(true); setFarmSearch(''); }}
                       onBlur={() => setTimeout(() => setFarmPickOpen(false), 150)}
@@ -5645,7 +5645,7 @@ export default function AdminClient() {
                         <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, maxHeight:220,
                           overflowY:'auto', background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 6px 18px rgba(0,0,0,0.1)' }}>
                           <div onMouseDown={() => { setPForm(f => ({ ...f, farm_id: null })); setFarmPickOpen(false); }}
-                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>농가 없음</div>
+                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>브랜드 없음</div>
                           {matched.map(fm => (
                             <div key={fm.id} onMouseDown={() => { setPForm(f => ({ ...f, farm_id: fm.id })); setFarmPickOpen(false); }}
                               style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, fontWeight: pForm.farm_id===fm.id ? 700 : 400,
@@ -5771,7 +5771,7 @@ export default function AdminClient() {
                 </div>
                 {/* 농가 공급가 (농가 정산 기준) */}
                 <div style={{ marginTop:12 }}>
-                  <label className="adm-label">농가 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 농가에게 줄 정산 단가</span></label>
+                  <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 브랜드에 줄 정산 단가</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pForm.supply_price || ''}
                     onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
                   {pForm.supply_price > 0 && pForm.price > 0 && (() => {
@@ -6483,7 +6483,7 @@ export default function AdminClient() {
                 /* 요청 색: 매출=파랑 / 정산액=빨강 / 총이익=초록 / 누적=검정 */
                 const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind; unit?: string }[] = [
                   { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money', unit:'원' },
-                  { label:'농가 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
+                  { label:'브랜드 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
                   { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money', unit:'원' },
                   { label:'누적 매출액', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
                 ];
@@ -7053,7 +7053,7 @@ export default function AdminClient() {
               )}
               {/* 배송 추적 정보 입력 — 농가(상품)별 송장 */}
               <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (농가별 송장)</div>
+                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (브랜드별 송장)</div>
                 {(() => {
                   const items = selectedOrder.order_items || [];
                   const farmIds = [...new Set(items.map(i => i.farm_id || '__none'))];
@@ -7066,7 +7066,7 @@ export default function AdminClient() {
                     return (
                       <div key={fid} style={{ marginBottom:10, padding:'10px 12px', border:'1px solid #E2E8F0', borderRadius:8 }}>
                         <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
-                          {first?.farm_name || '농가 미지정'}
+                          {first?.farm_name || '브랜드 미지정'}
                           {carrier && <span style={{ fontSize:11, color:'#94A3B8', fontWeight:500, marginLeft:6 }}>지정: {COURIER_NAMES[carrier] || carrier}</span>}
                           {shipped && <span style={{ fontSize:11, color:'#2D7A4D', fontWeight:700, marginLeft:6 }}>✓ 발송</span>}
                         </div>
@@ -7223,7 +7223,7 @@ export default function AdminClient() {
             <div className="adm-nav-group">
               <div className="adm-nav-label">정산·설정</div>
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="정산 관리" />
-              <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="농가 정산" />
+              <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="브랜드 정산" />
               <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
               <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
@@ -10534,7 +10534,7 @@ export default function AdminClient() {
                 return (
                   <div className="adm-kpi-grid adm-kpi-mb16" style={{ gridTemplateColumns:'repeat(3, 1fr)' }}>
                     <div className="adm-kpi-card"><div className="adm-kpi-label">매출 합계</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.sales)}원</div></div>
-                    <div className="adm-kpi-card"><div className="adm-kpi-label">농가 정산액(공급가)</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.payout)}원</div></div>
+                    <div className="adm-kpi-card"><div className="adm-kpi-label">브랜드 정산액(공급가)</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.payout)}원</div></div>
                     <div className="adm-kpi-card"><div className="adm-kpi-label">마진</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{fmtPrice(t.margin)}원</div></div>
                   </div>
                 );
@@ -10543,7 +10543,7 @@ export default function AdminClient() {
                 {farmSettleLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>농가</th><th className="adm-num">판매수량</th><th className="adm-num">매출</th><th className="adm-num">정산액(공급가)</th><th className="adm-num">마진</th><th>상태</th><th>처리</th></tr></thead>
+                      <thead><tr><th>브랜드</th><th className="adm-num">판매수량</th><th className="adm-num">매출</th><th className="adm-num">정산액(공급가)</th><th className="adm-num">마진</th><th>상태</th><th>처리</th></tr></thead>
                       <tbody>
                         {farmSettleRows.length === 0 ? (
                           <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 월 정산 내역이 없습니다.</td></tr>
