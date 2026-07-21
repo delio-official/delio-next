@@ -245,8 +245,8 @@ interface AdminFarm {
   carrier: string | null;
   /* 출고마감시간 — null이면 사이트 전체 설정을 따름. 값이 있으면 이 브랜드 상품의 기본값 */
   dispatch_cutoff: string | null;
-  bank_name: string | null;      // 기록용(정산 자동연동 아님)
-  bank_account: string | null;
+  /* 은행정보는 farms에 두지 않음 — farms는 anon 조회가 열려 있어 계좌가 노출됨.
+     관리자 전용 farm_bank_info 테이블에 분리 보관 */
   thumbnail_url: string | null;
   logo_url: string | null;
   landing_images: string[] | null;
@@ -2694,7 +2694,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, bank_name, bank_account, thumbnail_url, logo_url, landing_images, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -2760,14 +2760,23 @@ export default function AdminClient() {
     setFarmMemo('');
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: farm.bank_name || '', bank_account: farm.bank_account || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: '', bank_account: '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
       loadFarmMemos(farm.id);
+      loadFarmBank(farm.id);
     } else {
       setEditingFarm(null);
       setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', thumbnail_url: '', logo_url: '', landing_images: [] });
       setFarmMemos([]);
     }
     setFarmModal(true);
+  }
+
+  /* 은행정보 — 관리자 전용 별도 테이블(farm_bank_info)에서 조회 */
+  async function loadFarmBank(farmId: string) {
+    const supabase = createClient();
+    const { data } = await supabase.from('farm_bank_info')
+      .select('bank_name, bank_account').eq('farm_id', farmId).maybeSingle();
+    setFarmForm(p => ({ ...p, bank_name: data?.bank_name || '', bank_account: data?.bank_account || '' }));
   }
 
   /* ===== 브랜드 운영 메모 (최신이 위로 쌓임) ===== */
@@ -2805,7 +2814,8 @@ export default function AdminClient() {
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
     if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
-    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, items: farmForm.items.length ? farmForm.items : null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, dispatch_cutoff: farmForm.dispatch_cutoff || null, bank_name: farmForm.bank_name.trim() || null, bank_account: farmForm.bank_account.trim() || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
+    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, items: farmForm.items.length ? farmForm.items : null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, dispatch_cutoff: farmForm.dispatch_cutoff || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
+    let farmId = editingFarm?.id || '';
     if (editingFarm) {
       // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
       const editPayload = editingFarm.slug ? payload : { ...payload, slug };
@@ -2814,8 +2824,20 @@ export default function AdminClient() {
       else { alert('수정 실패: ' + error.message); setFarmSaving(false); return; }
     } else {
       const { data, error } = await supabase.from('farms').insert({ ...payload, slug }).select().single();
-      if (!error && data) { setFarms(prev => [...prev, data as AdminFarm]); setFarmList(prev => [...prev, { id: (data as AdminFarm).id, name: (data as AdminFarm).name }]); }
+      if (!error && data) { farmId = (data as AdminFarm).id; setFarms(prev => [...prev, data as AdminFarm]); setFarmList(prev => [...prev, { id: (data as AdminFarm).id, name: (data as AdminFarm).name }]); }
       else { alert('등록 실패: ' + (error?.message || '')); setFarmSaving(false); return; }
+    }
+
+    /* 은행정보는 farms가 아니라 관리자 전용 테이블에 저장 (farms는 고객도 조회 가능) */
+    const bn = farmForm.bank_name.trim(), ba = farmForm.bank_account.trim();
+    if (farmId) {
+      if (bn || ba) {
+        const { error: bErr } = await supabase.from('farm_bank_info')
+          .upsert({ farm_id: farmId, bank_name: bn || null, bank_account: ba || null, updated_at: new Date().toISOString() }, { onConflict: 'farm_id' });
+        if (bErr) alert('은행정보 저장 실패: ' + bErr.message);
+      } else {
+        await supabase.from('farm_bank_info').delete().eq('farm_id', farmId);
+      }
     }
     setFarmSaving(false);
     setFarmModal(false);
