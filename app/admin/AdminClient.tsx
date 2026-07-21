@@ -5742,9 +5742,13 @@ export default function AdminClient() {
                   <label className="adm-label">출발 마감 시간</label>
                   {/* ''(비움) = 상위를 따라감: 브랜드에 값이 있으면 브랜드, 없으면 사이트 전체 설정 */}
                   {(() => {
-                    const farmCut = farms.find(fm => fm.id === pForm.farm_id)?.dispatch_cutoff || '';
+                    /* 저장 시 자사배송(is_dawn=false)은 farm_id가 자사센터로 강제 교체됨(3001줄).
+                       미리보기도 같은 규칙을 따라야 표시와 실제 저장값이 어긋나지 않음 */
+                    const effFarmId = pForm.is_dawn ? pForm.farm_id : (farmList.find(fm => fm.is_own)?.id ?? pForm.farm_id);
+                    const farmCut = farms.find(fm => fm.id === effFarmId)?.dispatch_cutoff || '';
                     const inherited = farmCut || siteSettings.dispatch_cutoff || '';
-                    const src = farmCut ? '브랜드 설정' : '전체 설정';
+                    const farmNm = farms.find(fm => fm.id === effFarmId)?.name || '브랜드';
+                    const src = farmCut ? `${farmNm} 설정` : '전체 설정';
                     return (
                       <>
                         <AdmSelect className="adm-cs-full" value={pForm.dispatch_cutoff || ''}
