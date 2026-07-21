@@ -571,25 +571,27 @@ interface FarmRawOption {
    flat        : 색 없음, 화살표 '-' 고정 (평균 객단가) */
 type DeltaKind = 'money' | 'count' | 'rate' | 'inverse' | 'rating' | 'flat';
 
-function FaDelta({ cur, prev, kind }: { cur: number; prev: number; kind: DeltaKind }) {
+function FaDelta({ cur, prev, kind, unit }: { cur: number; prev: number; kind: DeltaKind; unit?: string }) {
   const GRAY = '#94A3B8', UP = '#16A34A', DOWN = '#DC2626';
-  if (kind === 'flat') {
-    return <div style={{ fontSize:11, color:GRAY, marginTop:3 }}>— 전월대비</div>;
-  }
+  const none = <div style={{ fontSize:11, color:GRAY, marginTop:3 }}>— 전월대비</div>;
+  if (kind === 'flat') return none;
+
   const diff = cur - prev;
-  const same = Math.abs(diff) < 1e-9;
-  /* 전월이 0이면 변화율을 낼 수 없음(0으로 나눔) — 비율/평점은 폭으로 표기하므로 영향 없음 */
-  const pctBase = kind === 'money' || kind === 'count';
-  if (same || (pctBase && prev === 0)) {
-    return <div style={{ fontSize:11, color:GRAY, marginTop:3 }}>— 전월대비</div>;
-  }
+  if (Math.abs(diff) < 1e-9) return none;          // 전월과 값이 같음
+
   const up = diff > 0;
   const good = kind === 'inverse' ? !up : up;
   const color = good ? UP : DOWN;
+  const pctBase = kind === 'money' || kind === 'count';
+
+  /* 전월이 0이면 변화율(÷0)을 낼 수 없다. 대신 늘어난 양을 그대로 보여준다.
+     비율(%p)·평점(점수차)은 애초에 뺄셈이라 이 문제가 없음. */
   const text =
-    pctBase       ? `${Math.abs(diff / prev * 100).toFixed(1)}%`
-    : kind === 'rating' ? `${Math.abs(diff).toFixed(1)}점`
-    :                     `${Math.abs(diff).toFixed(1)}%p`;
+    pctBase && prev === 0 ? (unit === '원' ? `${fmtPrice(Math.abs(diff))}원` : `${Math.abs(diff).toLocaleString()}${unit || ''}`)
+    : pctBase             ? `${Math.abs(diff / prev * 100).toFixed(1)}%`
+    : kind === 'rating'   ? `${Math.abs(diff).toFixed(1)}점`
+    :                       `${Math.abs(diff).toFixed(1)}%p`;
+
   return (
     <div style={{ fontSize:11, color, marginTop:3, fontWeight:600 }}>
       {up ? '↑' : '↓'} {text} <span style={{ fontWeight:400 }}>전월대비</span>
@@ -6464,10 +6466,10 @@ export default function AdminClient() {
                 const hasSales = d.monthly.some(m => m.amount > 0);
 
                 /* 요청 색: 매출=파랑 / 정산액=빨강 / 총이익=초록 / 누적=검정 */
-                const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind }[] = [
-                  { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money' },
-                  { label:'농가 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money' },
-                  { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money' },
+                const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind; unit?: string }[] = [
+                  { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money', unit:'원' },
+                  { label:'농가 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
+                  { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money', unit:'원' },
                   { label:'누적 매출액', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
                 ];
                 const rateCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind }[] = [
@@ -6475,11 +6477,11 @@ export default function AdminClient() {
                   { label:'반품·취소율', value:`${d.cur.cancelRate.toFixed(1)}%`, cur:d.cur.cancelRate, prev:d.prev.cancelRate, kind:'inverse' },
                   { label:'평균 평점',   value:d.cur.reviewCount ? d.cur.avgRating.toFixed(1) : '-', cur:d.cur.avgRating, prev:d.prev.avgRating, kind:'rating' },
                 ];
-                const countCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind }[] = [
-                  { label:'주문 건수',   value:`${d.cur.orderCount.toLocaleString()}건`,  cur:d.cur.orderCount,  prev:d.prev.orderCount,  kind:'count' },
-                  { label:'판매 수량',   value:`${d.cur.qty.toLocaleString()}개`,         cur:d.cur.qty,         prev:d.prev.qty,         kind:'count' },
+                const countCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind; unit?: string }[] = [
+                  { label:'주문 건수',   value:`${d.cur.orderCount.toLocaleString()}건`,  cur:d.cur.orderCount,  prev:d.prev.orderCount,  kind:'count', unit:'건' },
+                  { label:'판매 수량',   value:`${d.cur.qty.toLocaleString()}개`,         cur:d.cur.qty,         prev:d.prev.qty,         kind:'count', unit:'개' },
                   { label:'평균 객단가', value:`${fmtPrice(d.cur.aov)}원`,                cur:d.cur.aov,         prev:d.prev.aov,         kind:'flat' },
-                  { label:'리뷰 수',     value:`${d.cur.reviewCount.toLocaleString()}건`, cur:d.cur.reviewCount, prev:d.prev.reviewCount, kind:'count' },
+                  { label:'리뷰 수',     value:`${d.cur.reviewCount.toLocaleString()}건`, cur:d.cur.reviewCount, prev:d.prev.reviewCount, kind:'count', unit:'건' },
                 ];
                 const cardBox: React.CSSProperties = { background:'#FAFAF8', border:'1px solid #F0F0EE', borderRadius:12, padding:'14px 16px', textAlign:'left' };
                 const cardLabel: React.CSSProperties = { fontSize:11.5, color:'#94A3B8', fontWeight:600 };
@@ -6494,7 +6496,7 @@ export default function AdminClient() {
                           <div style={{ fontSize:19, fontWeight:800, color:c.color, marginTop:5, letterSpacing:'-0.4px' }}>{c.value}</div>
                           {c.label === '누적 매출액'
                             ? <div style={{ fontSize:11, color:'#94A3B8', marginTop:3 }}>등록일~현재</div>
-                            : <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />}
+                            : <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} unit={c.unit} />}
                         </div>
                       ))}
                     </div>
@@ -6617,7 +6619,7 @@ export default function AdminClient() {
                         <div key={c.label} style={cardBox}>
                           <div style={cardLabel}>{c.label}</div>
                           <div style={{ fontSize:19, fontWeight:800, color:'#1A1A1A', marginTop:5 }}>{c.value}</div>
-                          <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />
+                          <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} unit={c.unit} />
                         </div>
                       ))}
                     </div>
