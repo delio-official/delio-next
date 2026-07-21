@@ -547,6 +547,160 @@ function cutoffLabel(t: string): string {
   return `${ampm} ${h12}시${m ? ' 30분' : ''}`;
 }
 
+/* ===== 브랜드 분석 — 지표 계산 & 증감 표시 =====
+   매출 인정 기준은 정산 탭과 동일(배송완료·구매확정). 두 화면 숫자가 어긋나면 정산 분쟁이 남. */
+const FA_SALES_ST  = ['delivered', 'confirmed'];
+const FA_CANCEL_ST = ['cancelled', 'refunded'];
+
+interface FarmRawItem {
+  order_id: string; product_id: string; option_label: string | null;
+  quantity: number; subtotal: number; supply_price: number | null;
+  orders: { status: string; created_at: string; user_id: string | null } | null;
+}
+interface FarmRawReview { id: string; rating: number; content: string; created_at: string; product_id: string }
+
+/* 증감 종류
+   money/count : 변화율(%)   · 증가=초록
+   rate        : 변화폭(%p)  · 증가=초록
+   inverse     : 변화폭(%p)  · 증가=빨강 (낮을수록 좋은 지표 — 반품·취소율)
+   rating      : 점수차       · 증가=초록
+   flat        : 색 없음, 화살표 '-' 고정 (평균 객단가) */
+type DeltaKind = 'money' | 'count' | 'rate' | 'inverse' | 'rating' | 'flat';
+
+function FaDelta({ cur, prev, kind }: { cur: number; prev: number; kind: DeltaKind }) {
+  const GRAY = '#94A3B8', UP = '#16A34A', DOWN = '#DC2626';
+  if (kind === 'flat') {
+    return <div style={{ fontSize:11, color:GRAY, marginTop:3 }}>— 전월대비</div>;
+  }
+  const diff = cur - prev;
+  const same = Math.abs(diff) < 1e-9;
+  /* 전월이 0이면 변화율을 낼 수 없음(0으로 나눔) — 비율/평점은 폭으로 표기하므로 영향 없음 */
+  const pctBase = kind === 'money' || kind === 'count';
+  if (same || (pctBase && prev === 0)) {
+    return <div style={{ fontSize:11, color:GRAY, marginTop:3 }}>— 전월대비</div>;
+  }
+  const up = diff > 0;
+  const good = kind === 'inverse' ? !up : up;
+  const color = good ? UP : DOWN;
+  const text =
+    pctBase       ? `${Math.abs(diff / prev * 100).toFixed(1)}%`
+    : kind === 'rating' ? `${Math.abs(diff).toFixed(1)}점`
+    :                     `${Math.abs(diff).toFixed(1)}%p`;
+  return (
+    <div style={{ fontSize:11, color, marginTop:3, fontWeight:600 }}>
+      {up ? '↑' : '↓'} {text} <span style={{ fontWeight:400 }}>전월대비</span>
+    </div>
+  );
+}
+
+/* 원자료를 받아 기간별 지표를 계산. 조회는 한 번만 하고 기간 전환은 전부 여기서 다시 계산한다. */
+function computeFarmStats(
+  items: FarmRawItem[], reviews: FarmRawReview[],
+  prodName: Map<string, string>, chartFrom: Date, chartTo: Date,
+) {
+  const now = new Date();
+  const curFrom  = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const inRange = (iso: string | undefined, f: Date, t: Date) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return d >= f && d < t;
+  };
+
+  /* 한 기간의 금액·건수 지표 */
+  const agg = (f: Date, t: Date) => {
+    const sold = items.filter(it => FA_SALES_ST.includes(it.orders?.status || '') && inRange(it.orders?.created_at, f, t));
+    let sales = 0, payout = 0, qty = 0;
+    const orderSet = new Set<string>();
+    sold.forEach(it => {
+      const q = it.quantity || 0;
+      sales  += it.subtotal || 0;
+      payout += (it.supply_price || 0) * q;   // 공급가에 농가 배송비가 이미 포함되어 있음
+      qty    += q;
+      if (it.order_id) orderSet.add(it.order_id);
+    });
+    const orderCount = orderSet.size;
+
+    /* 반품·취소율 = 취소·환불 주문수 / 전체 주문수 (해당 기간에 이 브랜드 상품이 담긴 주문 기준) */
+    const periodAll = items.filter(it => inRange(it.orders?.created_at, f, t));
+    const allOrders = new Set(periodAll.map(it => it.order_id));
+    const badOrders = new Set(periodAll.filter(it => FA_CANCEL_ST.includes(it.orders?.status || '')).map(it => it.order_id));
+    const cancelRate = allOrders.size ? badOrders.size / allOrders.size * 100 : 0;
+
+    /* 재구매율 = 기간 내 주문 중 '그 고객의 이 브랜드 첫 주문이 아닌' 주문의 비율 */
+    const firstSeen = new Map<string, number>();
+    items.filter(it => FA_SALES_ST.includes(it.orders?.status || '')).forEach(it => {
+      const u = it.orders?.user_id; if (!u || !it.orders?.created_at) return;
+      const ts = new Date(it.orders.created_at).getTime();
+      if (!firstSeen.has(u) || ts < (firstSeen.get(u) as number)) firstSeen.set(u, ts);
+    });
+    const seenOrder = new Set<string>();
+    let repeatOrders = 0, totalUserOrders = 0;
+    sold.forEach(it => {
+      const u = it.orders?.user_id; const oid = it.order_id;
+      if (!u || !oid || seenOrder.has(oid)) return;
+      seenOrder.add(oid);
+      totalUserOrders++;
+      if (new Date(it.orders!.created_at).getTime() > (firstSeen.get(u) as number)) repeatOrders++;
+    });
+    const repurchase = totalUserOrders ? repeatOrders / totalUserOrders * 100 : 0;
+
+    const revs = reviews.filter(r => inRange(r.created_at, f, t));
+    const avgRating = revs.length ? revs.reduce((s, r) => s + (r.rating || 0), 0) / revs.length : 0;
+
+    return {
+      sales, payout, margin: sales - payout, qty, orderCount,
+      aov: orderCount ? Math.round(sales / orderCount) : 0,
+      reviewCount: revs.length, avgRating, repurchase, cancelRate,
+    };
+  };
+
+  const cur  = agg(curFrom,  new Date(now.getFullYear(), now.getMonth() + 1, 1));
+  const prev = agg(prevFrom, curFrom);
+
+  /* 누적 매출액 — 등록일~현재 (기간 제한 없음) */
+  const cumulative = items
+    .filter(it => FA_SALES_ST.includes(it.orders?.status || ''))
+    .reduce((s, it) => s + (it.subtotal || 0), 0);
+
+  /* 월별 매출 추이 — 선택 기간을 월 단위로 채움(매출 없는 달도 0으로 표시) */
+  const mMap: Record<string, number> = {};
+  const cursor = new Date(chartFrom.getFullYear(), chartFrom.getMonth(), 1);
+  while (cursor < chartTo) {
+    mMap[`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`] = 0;
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  items.filter(it => FA_SALES_ST.includes(it.orders?.status || '') && inRange(it.orders?.created_at, chartFrom, chartTo))
+    .forEach(it => {
+      const d = new Date(it.orders!.created_at);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (k in mMap) mMap[k] += it.subtotal || 0;
+    });
+  const monthly = Object.entries(mMap).map(([ym, amount]) => ({ ym, amount })).sort((a, b) => a.ym.localeCompare(b.ym));
+
+  /* 인기 상품 TOP5 — 상품+옵션 단위. 마진액 = 매출 - 공급가×수량 */
+  const pMap: Record<string, { name: string; option: string; orders: Set<string>; amount: number; margin: number; qty: number }> = {};
+  items.filter(it => FA_SALES_ST.includes(it.orders?.status || '')).forEach(it => {
+    const nm = prodName.get(it.product_id) || '(삭제된 상품)';
+    const op = it.option_label || '';
+    const key = nm + ' ' + op;
+    if (!pMap[key]) pMap[key] = { name: nm, option: op, orders: new Set(), amount: 0, margin: 0, qty: 0 };
+    const q = it.quantity || 0;
+    pMap[key].amount += it.subtotal || 0;
+    pMap[key].margin += (it.subtotal || 0) - (it.supply_price || 0) * q;
+    pMap[key].qty    += q;
+    if (it.order_id) pMap[key].orders.add(it.order_id);
+  });
+  const topProducts = Object.values(pMap)
+    .map(v => ({ name: v.name, option: v.option, orders: v.orders.size, amount: v.amount, margin: v.margin, qty: v.qty }))
+    .sort((a, b) => b.amount - a.amount).slice(0, 5);
+
+  const recentReviews = reviews.slice(0, 5).map(r => ({ ...r, product_name: prodName.get(r.product_id) || '' }));
+
+  return { cur, prev, cumulative, monthly, topProducts, recentReviews };
+}
+
 /* 주문 단계 플로우 (대시보드·주문관리 공용) — 스마트스토어식 */
 const ORDER_STAGES: { key: string; label: string }[] = [
   { key:'paid',      label:'신규주문' },
@@ -2075,12 +2229,13 @@ export default function AdminClient() {
   const [farmDetailOpen, setFarmDetailOpen] = useState(false);
   const [farmDetailTarget, setFarmDetailTarget] = useState<AdminFarm | null>(null);
   const [farmDetailLoading, setFarmDetailLoading] = useState(false);
-  const [farmDetail, setFarmDetail] = useState<{
-    sales: number; payout: number; margin: number; qty: number; orderCount: number;
-    topProducts: { name: string; qty: number; amount: number }[];
-    monthly: { ym: string; amount: number }[];
-    recentReviews: { id: string; rating: number; content: string; created_at: string; product_name: string }[];
+  /* 원자료만 담아두고 기간별 지표는 화면에서 계산 — 3/6/12개월·달력 전환 때 재조회하지 않기 위함 */
+  const [farmRaw, setFarmRaw] = useState<{
+    items: FarmRawItem[]; reviews: FarmRawReview[]; prodName: Map<string, string>;
   } | null>(null);
+  const [farmChartMonths, setFarmChartMonths] = useState(6);   // 3 / 6 / 12
+  const [farmChartFrom, setFarmChartFrom] = useState('');      // 달력 직접 지정(비면 개월수 사용)
+  const [farmChartTo,   setFarmChartTo]   = useState('');
 
   async function loadFarmSettlement(month: string) {
     setFarmSettleLoading(true);
@@ -2719,40 +2874,28 @@ export default function AdminClient() {
   }
 
   async function openFarmDetail(farm: AdminFarm) {
-    setFarmDetailTarget(farm); setFarmDetailOpen(true); setFarmDetailLoading(true); setFarmDetail(null);
+    setFarmDetailTarget(farm); setFarmDetailOpen(true); setFarmDetailLoading(true); setFarmRaw(null);
+    setFarmChartMonths(6); setFarmChartFrom(''); setFarmChartTo('');
     const supabase = createClient();
     const { data: prods } = await supabase.from('products').select('id, name').eq('farm_id', farm.id);
     const prodIds = (prods || []).map((p: { id: string }) => p.id);
-    const prodName = new Map((prods || []).map((p: { id: string; name: string }) => [p.id, p.name]));
+    const prodName = new Map<string, string>((prods || []).map((p: { id: string; name: string }) => [p.id, p.name]));
     if (prodIds.length === 0) {
-      setFarmDetail({ sales:0, payout:0, margin:0, qty:0, orderCount:0, topProducts:[], monthly:[], recentReviews:[] });
+      setFarmRaw({ items: [], reviews: [], prodName });
       setFarmDetailLoading(false); return;
     }
-    // 주문항목(배송완료/구매확정)
-    const items: { order_id: string; product_id: string; quantity: number; subtotal: number; supply_price: number|null; orders: { created_at: string } | null }[] = [];
+    /* 취소·환불까지 전부 가져온다 — 반품·취소율을 내려면 실패한 주문도 있어야 함 */
+    const items: FarmRawItem[] = [];
     for (let i = 0; i < prodIds.length; i += 200) {
       const { data: it } = await supabase.from('order_items')
-        .select('order_id, product_id, quantity, subtotal, supply_price, orders!inner(status, created_at)')
-        .in('product_id', prodIds.slice(i, i + 200)).in('orders.status', ['delivered','confirmed']).limit(10000);
-      if (it) items.push(...(it as unknown as typeof items));
+        .select('order_id, product_id, option_label, quantity, subtotal, supply_price, orders!inner(status, created_at, user_id)')
+        .in('product_id', prodIds.slice(i, i + 200)).limit(10000);
+      if (it) items.push(...(it as unknown as FarmRawItem[]));
     }
-    let sales = 0, payout = 0, qty = 0;
-    const orderSet = new Set<string>();
-    const pMap: Record<string, { qty: number; amount: number }> = {};
-    const mMap: Record<string, number> = {};
-    items.forEach(it => {
-      const q = it.quantity || 0; sales += it.subtotal || 0; payout += (it.supply_price || 0) * q; qty += q;
-      if (it.order_id) orderSet.add(it.order_id);
-      const nm = (prodName.get(it.product_id) as string) || '(상품)';
-      if (!pMap[nm]) pMap[nm] = { qty: 0, amount: 0 }; pMap[nm].qty += q; pMap[nm].amount += it.subtotal || 0;
-      const ca = it.orders?.created_at; if (ca) { const d = new Date(ca); const ym = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}`; mMap[ym] = (mMap[ym] || 0) + (it.subtotal || 0); }
-    });
-    const topProducts = Object.entries(pMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
-    const monthly = Object.entries(mMap).map(([ym, amount]) => ({ ym, amount })).sort((a, b) => a.ym.localeCompare(b.ym)).slice(-6);
-    // 최근 리뷰
-    const { data: revs } = await supabase.from('reviews').select('id, rating, content, created_at, product_id').in('product_id', prodIds).order('created_at', { ascending: false }).limit(3);
-    const recentReviews = (revs || []).map((r: { id: string; rating: number; content: string; created_at: string; product_id: string }) => ({ id: r.id, rating: r.rating, content: r.content, created_at: r.created_at, product_name: (prodName.get(r.product_id) as string) || '' }));
-    setFarmDetail({ sales, payout, margin: sales - payout, qty, orderCount: orderSet.size, topProducts, monthly, recentReviews });
+    const { data: revs } = await supabase.from('reviews')
+      .select('id, rating, content, created_at, product_id')
+      .in('product_id', prodIds).order('created_at', { ascending: false }).limit(500);
+    setFarmRaw({ items, reviews: (revs || []) as FarmRawReview[], prodName });
     setFarmDetailLoading(false);
   }
 
@@ -6270,73 +6413,174 @@ export default function AdminClient() {
       {/* 농가 상세 분석 모달 */}
       {farmDetailOpen && (
         <div className="adm-modal-bg open" onClick={() => setFarmDetailOpen(false)}>
-          <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:720, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
-            <div className="adm-modal-head">
-              <span className="adm-modal-title">📊 {farmDetailTarget?.name} 분석</span>
+          <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:880, width:'96vw', maxHeight:'92vh', overflowY:'auto' }}>
+            <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
+              <span className="adm-modal-title">{farmDetailTarget?.name} 분석</span>
               <button className="adm-modal-close" onClick={() => setFarmDetailOpen(false)}>✕</button>
             </div>
             <div className="adm-modal-body">
-              {farmDetailLoading || !farmDetail ? <PanelLoading /> : (() => {
-                const d = farmDetail;
+              {farmDetailLoading || !farmRaw ? <PanelLoading /> : (() => {
+                /* 차트 기간 — 달력을 직접 지정했으면 그 값, 아니면 최근 N개월 */
+                const today = new Date();
+                const useCustom = !!(farmChartFrom && farmChartTo);
+                const cFrom = useCustom ? new Date(farmChartFrom)
+                  : new Date(today.getFullYear(), today.getMonth() - (farmChartMonths - 1), 1);
+                const cTo = useCustom
+                  ? new Date(new Date(farmChartTo).getFullYear(), new Date(farmChartTo).getMonth() + 1, 1)
+                  : new Date(today.getFullYear(), today.getMonth() + 1, 1);
+                const d = computeFarmStats(farmRaw.items, farmRaw.reviews, farmRaw.prodName, cFrom, cTo);
                 const maxM = Math.max(...d.monthly.map(m => m.amount), 1);
+                const hasSales = d.monthly.some(m => m.amount > 0);
+
+                /* 요청 색: 매출=파랑 / 정산액=빨강 / 총이익=초록 / 누적=검정 */
+                const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind }[] = [
+                  { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money' },
+                  { label:'농가 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money' },
+                  { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money' },
+                  { label:'누적 매출액', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
+                ];
+                const rateCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind }[] = [
+                  { label:'재구매율',    value:`${d.cur.repurchase.toFixed(1)}%`, cur:d.cur.repurchase, prev:d.prev.repurchase, kind:'rate' },
+                  { label:'반품·취소율', value:`${d.cur.cancelRate.toFixed(1)}%`, cur:d.cur.cancelRate, prev:d.prev.cancelRate, kind:'inverse' },
+                  { label:'평균 평점',   value:d.cur.reviewCount ? d.cur.avgRating.toFixed(1) : '-', cur:d.cur.avgRating, prev:d.prev.avgRating, kind:'rating' },
+                ];
+                const countCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind }[] = [
+                  { label:'주문 건수',   value:`${d.cur.orderCount.toLocaleString()}건`,  cur:d.cur.orderCount,  prev:d.prev.orderCount,  kind:'count' },
+                  { label:'판매 수량',   value:`${d.cur.qty.toLocaleString()}개`,         cur:d.cur.qty,         prev:d.prev.qty,         kind:'count' },
+                  { label:'평균 객단가', value:`${fmtPrice(d.cur.aov)}원`,                cur:d.cur.aov,         prev:d.prev.aov,         kind:'flat' },
+                  { label:'리뷰 수',     value:`${d.cur.reviewCount.toLocaleString()}건`, cur:d.cur.reviewCount, prev:d.prev.reviewCount, kind:'count' },
+                ];
+                const cardBox: React.CSSProperties = { background:'#FAFAF8', border:'1px solid #F0F0EE', borderRadius:12, padding:'14px 16px', textAlign:'left' };
+                const cardLabel: React.CSSProperties = { fontSize:11.5, color:'#94A3B8', fontWeight:600 };
+
                 return (
                   <>
-                    {/* 핵심 지표 */}
-                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginBottom:14 }}>
-                      {[
-                        ['총 매출(확정)', `${fmtPrice(d.sales)}원`, '#1A1A1A'],
-                        ['농가 정산액', `${fmtPrice(d.payout)}원`, '#2563EB'],
-                        ['마진(매출-정산)', `${fmtPrice(d.margin)}원`, '#16A34A'],
-                        ['판매 수량', `${d.qty.toLocaleString()}개`, '#7C3AED'],
-                        ['주문 건수', `${d.orderCount.toLocaleString()}건`, '#1A1A1A'],
-                        ['평균 평점', farmDetailTarget?.review_count ? `★ ${(farmDetailTarget.avg_rating||0).toFixed(1)} (${farmDetailTarget.review_count})` : '리뷰 없음', '#C8841C'],
-                      ].map(([l, v, c]) => (
-                        <div key={l} className="adm-kpi-card">
-                          <div className="adm-kpi-label">{l}</div>
-                          <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
+                    {/* 1) 금액 지표 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:12 }}>
+                      {topCards.map(c => (
+                        <div key={c.label} style={cardBox}>
+                          <div style={cardLabel}>{c.label}</div>
+                          <div style={{ fontSize:19, fontWeight:800, color:c.color, marginTop:5, letterSpacing:'-0.4px' }}>{c.value}</div>
+                          {c.label === '누적 매출액'
+                            ? <div style={{ fontSize:11, color:'#94A3B8', marginTop:3 }}>등록일~현재</div>
+                            : <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />}
                         </div>
                       ))}
                     </div>
 
-                    {/* 월별 매출 추이 */}
-                    <div className="adm-card" style={{ padding:'14px 16px', marginBottom:14 }}>
-                      <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>월별 매출 추이 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(최근 6개월)</span></div>
-                      {d.monthly.length === 0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>매출 데이터 없음</div> : (
-                        <div style={{ display:'flex', alignItems:'flex-end', gap:10, height:120 }}>
-                          {d.monthly.map(m => (
-                            <div key={m.ym} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                              <div style={{ fontSize:10, color:'#64748B' }}>{(m.amount/10000).toFixed(0)}만</div>
-                              <div style={{ width:'100%', maxWidth:40, height:`${Math.max(4, m.amount/maxM*90)}px`, background:'#3B82F6', borderRadius:'4px 4px 0 0' }} />
-                              <div style={{ fontSize:10, color:'#94A3B8' }}>{m.ym.slice(5)}</div>
-                            </div>
-                          ))}
+                    {/* 2) 월별 매출 추이 */}
+                    <div style={{ ...cardBox, marginBottom:12 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:14 }}>
+                        <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>월별 매출 추이</span>
+                        <div style={{ display:'flex', gap:6, marginLeft:'auto' }}>
+                          {[3, 6, 12].map(n => {
+                            const on = !useCustom && farmChartMonths === n;
+                            return (
+                              <button key={n} type="button"
+                                onClick={() => { setFarmChartMonths(n); setFarmChartFrom(''); setFarmChartTo(''); }}
+                                style={{ fontSize:12, fontWeight:600, padding:'5px 12px', borderRadius:8, cursor:'pointer',
+                                  border:`1px solid ${on ? '#1A1A1A' : '#E2E8F0'}`, background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#64748B' }}>
+                                {n}개월
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                          <input type="date" className="adm-input-text" style={{ fontSize:12, padding:'5px 8px' }}
+                            value={farmChartFrom} onChange={e => setFarmChartFrom(e.target.value)} />
+                          <span style={{ color:'#CBD5E1' }}>~</span>
+                          <input type="date" className="adm-input-text" style={{ fontSize:12, padding:'5px 8px' }}
+                            value={farmChartTo} onChange={e => setFarmChartTo(e.target.value)} />
+                          {useCustom && (
+                            <button type="button" onClick={() => { setFarmChartFrom(''); setFarmChartTo(''); }}
+                              style={{ fontSize:11, color:'#94A3B8', background:'none', border:'none', cursor:'pointer' }}>초기화</button>
+                          )}
+                        </div>
+                      </div>
+                      {!hasSales ? (
+                        <div className="adm-muted" style={{ fontSize:12, padding:'26px 0', textAlign:'center' }}>이 기간에 매출이 없습니다</div>
+                      ) : (
+                        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:150 }}>
+                          {d.monthly.map(m => {
+                            const h = Math.max(3, m.amount / maxM * 108);
+                            return (
+                              <div key={m.ym} title={`${m.ym.replace('-', '년 ')}월 · ${fmtPrice(m.amount)}원`}
+                                style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:5 }}>
+                                <div style={{ fontSize:10.5, color:'#64748B', fontWeight:600, whiteSpace:'nowrap' }}>
+                                  {m.amount > 0 ? `${Math.round(m.amount / 10000).toLocaleString()}만` : ''}
+                                </div>
+                                <div style={{ width:'100%', maxWidth:44, height:h, background: m.amount > 0 ? '#2563EB' : '#E2E8F0', borderRadius:'4px 4px 0 0' }} />
+                                <div style={{ fontSize:10.5, color:'#94A3B8' }}>{Number(m.ym.slice(5))}월</div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
 
-                    {/* 인기 상품 + 최근 리뷰 */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-                      <div className="adm-card">
-                        <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
-                        <table className="adm-table" style={{ marginTop:4 }}>
-                          <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
-                          <tbody>
-                            {d.topProducts.length === 0 ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'16px 0' }}>판매 없음</td></tr>
-                              : d.topProducts.map((r, i) => <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:5 }}>{i+1}</span>{r.name}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>)}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div className="adm-card">
-                        <div className="adm-card-head"><span className="adm-card-title">최근 리뷰</span></div>
-                        <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:10 }}>
-                          {d.recentReviews.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>리뷰 없음</div>
-                            : d.recentReviews.map(rv => (
-                              <div key={rv.id} style={{ borderBottom:'1px solid #F1F5F9', paddingBottom:8 }}>
-                                <div style={{ fontSize:11, color:'#C8841C', fontWeight:700 }}>{'★'.repeat(rv.rating)}<span style={{ color:'#E2E8F0' }}>{'★'.repeat(5-rv.rating)}</span> <span style={{ color:'#94A3B8' }}>· {rv.product_name}</span></div>
-                                <div style={{ fontSize:12, color:'#475569', marginTop:3, lineHeight:1.5, overflow:'hidden', textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{rv.content}</div>
-                              </div>
-                            ))}
+                    {/* 3) 비율 지표 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:12 }}>
+                      {rateCards.map(c => (
+                        <div key={c.label} style={cardBox}>
+                          <div style={cardLabel}>{c.label}</div>
+                          <div style={{ fontSize:19, fontWeight:800, color:'#1A1A1A', marginTop:5 }}>
+                            {c.label === '평균 평점' && c.value !== '-' && <span style={{ color:'#C8841C', marginRight:4 }}>★</span>}
+                            {c.value}
+                          </div>
+                          <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />
                         </div>
+                      ))}
+                    </div>
+
+                    {/* 4) 건수 지표 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:12 }}>
+                      {countCards.map(c => (
+                        <div key={c.label} style={cardBox}>
+                          <div style={cardLabel}>{c.label}</div>
+                          <div style={{ fontSize:19, fontWeight:800, color:'#1A1A1A', marginTop:5 }}>{c.value}</div>
+                          <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 5) 인기 상품 TOP 5 */}
+                    <div className="adm-card" style={{ marginBottom:12 }}>
+                      <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>상품명</th><th>옵션</th><th>주문 건수</th><th>매출액</th><th>마진액</th></tr></thead>
+                        <tbody>
+                          {d.topProducts.length === 0
+                            ? <tr><td colSpan={5} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>판매 없음</td></tr>
+                            : d.topProducts.map((r, i) => (
+                              <tr key={r.name + r.option}>
+                                <td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i + 1}</span>{r.name}</td>
+                                <td className="adm-muted">{r.option || '-'}</td>
+                                <td className="adm-mono">{r.orders.toLocaleString()}건</td>
+                                <td className="adm-mono" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                                <td className="adm-mono" style={{ fontWeight:600, color: r.margin >= 0 ? '#16A34A' : '#DC2626' }}>
+                                  {r.margin >= 0 ? '+' : '-'}{fmtPrice(Math.abs(r.margin))}원
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 6) 최근 리뷰 */}
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">최근 리뷰</span></div>
+                      <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:10 }}>
+                        {d.recentReviews.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>리뷰 없음</div>
+                          : d.recentReviews.map(rv => (
+                            <div key={rv.id} style={{ borderBottom:'1px solid #F1F5F9', paddingBottom:8, textAlign:'left' }}>
+                              <div style={{ fontSize:11, color:'#C8841C', fontWeight:700 }}>
+                                {'★'.repeat(rv.rating)}<span style={{ color:'#E2E8F0' }}>{'★'.repeat(5 - rv.rating)}</span>
+                                <span style={{ color:'#94A3B8', fontWeight:400 }}> · {rv.product_name} · {fmtDateShort(rv.created_at)}</span>
+                              </div>
+                              <div style={{ fontSize:12.5, color:'#475569', marginTop:3, lineHeight:1.5, overflow:'hidden',
+                                textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{rv.content}</div>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </>
