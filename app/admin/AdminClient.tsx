@@ -286,7 +286,7 @@ interface AdminReview {
   seller_reply?: string | null;
   seller_replied_at?: string | null;
   profiles: { name: string | null; email: string } | null;
-  products: { name: string } | null;
+  products: { name: string; farm_id: string | null } | null;
 }
 
 interface AdminEvent {
@@ -1989,6 +1989,7 @@ export default function AdminClient() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
   const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
+  const [reviewFarm, setReviewFarm] = useState('');            // '' = 전체 농가, 아니면 farm_id
   const [reviewAnswered, setReviewAnswered] = useState<'all'|'unanswered'|'answered'>('all');
   const [reviewSearch, setReviewSearch] = useState('');
   const [reviewFrom, setReviewFrom] = useState('');
@@ -3633,7 +3634,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
       supabase.from('reviews')
-        .select('id, product_id, rating, content, is_best, likes_count, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name)')
+        .select('id, product_id, rating, content, is_best, likes_count, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
@@ -5389,16 +5390,23 @@ export default function AdminClient() {
   });
 
   /* 리뷰 필터·페이지 */
+  /* 리뷰 목록 농가 필터 — '' 이면 전체 */
+  const reviewFarmName = (r: AdminReview) => farms.find(f => f.id === r.products?.farm_id)?.name || '';
   const reviewUnansweredCount = reviews.filter(r => !r.seller_reply).length;
   const reviewAvgRating = reviews.length ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) : 0;
   const filteredReviews = reviews.filter(r => {
     const matchRating = !reviewRating || r.rating === Number(reviewRating);
     const matchAns = reviewAnswered === 'all' || (reviewAnswered === 'answered' ? !!r.seller_reply : !r.seller_reply);
+    const matchFarm = !reviewFarm || r.products?.farm_id === reviewFarm;
     const q = reviewSearch.trim().toLowerCase();
-    const matchSearch = !q || (r.content || '').toLowerCase().includes(q) || (r.profiles?.email || '').toLowerCase().includes(q) || (r.profiles?.name || '').toLowerCase().includes(q);
+    /* 검색 대상: 리뷰 내용 · 작성자(이름/이메일) · 농가명 · 상품명 */
+    const matchSearch = !q || [
+      r.content || '', r.profiles?.email || '', r.profiles?.name || '',
+      reviewFarmName(r), r.products?.name || '',
+    ].some(v => v.toLowerCase().includes(q));
     const matchFrom = !reviewFrom || r.created_at >= new Date(`${reviewFrom}T00:00:00`).toISOString();
     const matchTo   = !reviewTo   || r.created_at <= new Date(`${reviewTo}T23:59:59`).toISOString();
-    return matchRating && matchAns && matchSearch && matchFrom && matchTo;
+    return matchRating && matchAns && matchFarm && matchSearch && matchFrom && matchTo;
   });
   const reviewTotalPages = Math.max(1, Math.ceil(filteredReviews.length / reviewPageSize));
   const reviewCurPage = Math.min(reviewPage, reviewTotalPages);
@@ -8162,11 +8170,15 @@ export default function AdminClient() {
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={reviewRating} onChange={v => { setReviewRating(v); setReviewPage(1); }}
-                    options={[{ value:'', label:'별점 전체' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
+                    options={[{ value:'', label:'전체 별점' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
+                  <AdmSelect value={reviewFarm} onChange={v => { setReviewFarm(v); setReviewPage(1); }}
+                    options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                  <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
+                    options={[{ value:'all', label:'답변상태 전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
-                  <input type="text" className="adm-input-text" placeholder="내용·작성자(이름/이메일) 검색"
+                  <input type="text" className="adm-input-text" style={{ minWidth:260 }} placeholder="리뷰 내용·작성자·농가명·상품명 검색"
                     value={reviewSearch} onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
