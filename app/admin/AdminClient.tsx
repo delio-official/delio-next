@@ -8179,7 +8179,7 @@ export default function AdminClient() {
                   <AdmSelect value={reviewRating} onChange={v => { setReviewRating(v); setReviewPage(1); }}
                     options={[{ value:'', label:'전체 별점' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
                   <AdmSelect value={reviewFarm} onChange={v => { setReviewFarm(v); setReviewPage(1); }}
-                    options={[{ value:'', label:'전체 농가' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
                     options={[{ value:'all', label:'답변상태 전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
                   <AdmSelect value={reviewFlag} onChange={v => { setReviewFlag(v as ''|'best'|'reported'|'liked'); setReviewPage(1); }}
@@ -8192,7 +8192,7 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={reviewFrom} onChange={e => { setReviewFrom(e.target.value); setReviewPage(1); }} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={reviewTo} onChange={e => { setReviewTo(e.target.value); setReviewPage(1); }} />
-                  <input type="text" className="adm-input-text" style={{ minWidth:260 }} placeholder="리뷰 내용·작성자·농가명·상품명 검색"
+                  <input type="text" className="adm-input-text" style={{ minWidth:260 }} placeholder="리뷰 내용·작성자·브랜드명·상품명 검색"
                     value={reviewSearch} onChange={e => { setReviewSearch(e.target.value); setReviewPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
