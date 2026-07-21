@@ -1088,7 +1088,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                         <div style={{ fontSize:11, color:'#64748B', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.email || '-'}</div>
                         <div style={{ fontSize:11, color:'#94A3B8' }}>{m.phone}</div>
                       </div>
-                      <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade] || 'badge-normal'}`} style={{ fontSize:10 }}>
+                      <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade] || 'badge-normal'}`}>
                         {GRADE_LABEL_MAP[m.grade] || m.grade}
                       </span>
                     </label>
@@ -7505,7 +7505,7 @@ export default function AdminClient() {
                       {orders.slice(0, 5).map(o => (
                         <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer' }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
                           <span className="adm-muted" style={{ fontSize:12 }}>{o.recipient}</span>
-                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`} style={{ fontSize:10 }}>
+                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
                             {STATUS_LABEL[o.status] || o.status}
                           </span>
                         </div>
@@ -8273,7 +8273,7 @@ export default function AdminClient() {
                             <td>
                               {r.seller_reply
                                 ? <span className="adm-badge badge-done">완료</span>
-                                : <span className="adm-badge badge-wait" style={{ color:'#DC2626' }}>미답변</span>}
+                                : <span className="adm-badge badge-off">미답변</span>}
                             </td>
                             {/* 노출 = 베스트 노출 토글 (고객 화면 숨김 기능은 아직 없음) */}
                             <td><Toggle defaultOn={r.is_best} onChange={v => toggleReviewBest(r.id, v)} /></td>
@@ -10027,7 +10027,7 @@ export default function AdminClient() {
                             <td>{c.attachments && c.attachments.length > 0 ? <span style={{ fontSize:13 }}>📎 {c.attachments.length}</span> : '-'}</td>
                             <td className="adm-muted">{fmtDate(c.created_at)}</td>
                             <td>
-                              <span className={`adm-badge ${c.status === 'answered' ? 'badge-done' : 'badge-wait'}`}>
+                              <span className={`adm-badge ${c.status === 'answered' ? 'badge-done' : 'badge-off'}`}>
                                 {c.status === 'answered' ? '답변완료' : '대기중'}
                               </span>
                             </td>
@@ -10115,7 +10115,7 @@ export default function AdminClient() {
                               <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</td>
                               <td>{q.is_private ? '🔒' : '-'}</td>
                               <td>
-                                <span className={`adm-badge ${q.answer ? 'badge-done' : 'badge-wait'}`}>
+                                <span className={`adm-badge ${q.answer ? 'badge-done' : 'badge-off'}`}>
                                   {q.answer ? '답변완료' : '대기중'}
                                 </span>
                               </td>
@@ -11450,7 +11450,7 @@ export default function AdminClient() {
                       <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
                         <div>
                           <span className="adm-mono" style={{ fontSize:11, color:'#94A3B8' }}>{o.order_no}</span>
-                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status]||'badge-wait'}`} style={{ marginLeft:6, fontSize:10 }}>{STATUS_LABEL[o.status]||o.status}</span>
+                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status]||'badge-wait'}`} style={{ marginLeft:6 }}>{STATUS_LABEL[o.status]||o.status}</span>
                         </div>
                         <div style={{ fontWeight:600 }}>{fmtPrice(o.final_amount)}원</div>
                       </div>
@@ -11715,7 +11715,7 @@ export default function AdminClient() {
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span className="adm-badge badge-paid">{selectedProductInquiry.category}</span>
                 {selectedProductInquiry.is_private && <span style={{ fontSize:12 }}>🔒 비밀문의</span>}
-                <span className={`adm-badge ${selectedProductInquiry.answer ? 'badge-done' : 'badge-wait'}`}>
+                <span className={`adm-badge ${selectedProductInquiry.answer ? 'badge-done' : 'badge-off'}`}>
                   {selectedProductInquiry.answer ? '답변완료' : '대기중'}
                 </span>
               </div>
