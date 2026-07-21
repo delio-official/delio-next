@@ -91,6 +91,7 @@ interface MyReview {
   id: string; rating: number; content: string; created_at: string;
   image_urls: string[] | null; video_url: string | null;
   taste: ReviewTaste | null;
+  seller_reply: string | null;
   products: { name: string; thumbnail_url: string | null; id: string } | null;
 }
 interface RecentProduct {
@@ -660,7 +661,7 @@ export default function MypageClient() {
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('reviews')
-          .select('id,product_id,rating,content,created_at,image_urls,video_url,taste,products(id,name,thumbnail_url)')
+          .select('id,product_id,rating,content,created_at,image_urls,video_url,taste,seller_reply,products(id,name,thumbnail_url)')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(30),
@@ -4421,7 +4422,7 @@ export default function MypageClient() {
         const idx = myReviews.findIndex(x => x.id === r.id);
         return (
           <ReviewPhotoModal
-            review={{ id: r.id, images: r.image_urls || [], videoUrl: r.video_url, rating: r.rating, content: r.content, createdAt: r.created_at }}
+            review={{ id: r.id, images: r.image_urls || [], videoUrl: r.video_url, rating: r.rating, content: r.content, createdAt: r.created_at, sellerReply: r.seller_reply }}
             product={r.products ? { id: r.products.id, name: r.products.name, thumbnail: r.products.thumbnail_url } : null}
             onClose={() => setReviewPhotoModal(null)}
             onPrev={idx > 0 ? () => setReviewPhotoModal(myReviews[idx - 1]) : undefined}

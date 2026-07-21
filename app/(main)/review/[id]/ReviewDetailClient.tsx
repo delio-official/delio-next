@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import { SellerReply } from '@/components/SellerReply';
 
 interface Review {
   id: string;
@@ -13,6 +14,7 @@ interface Review {
   created_at: string;
   image_urls: string[];
   is_best: boolean;
+  seller_reply: string | null;
   products: {
     id: string;
     name: string;
@@ -175,6 +177,7 @@ export default function ReviewDetailClient() {
           <p style={{ fontSize: 15, color: '#333', lineHeight: 1.85, marginTop: 20, whiteSpace: 'pre-wrap' }}>
             {review.content}
           </p>
+          <SellerReply reply={review.seller_reply} />
 
         </div>
 

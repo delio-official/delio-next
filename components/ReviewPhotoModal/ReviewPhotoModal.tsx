@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { imgThumb } from '@/lib/img';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import { SellerReply } from '@/components/SellerReply';
 
 /* 정규화된 리뷰/상품 데이터 — 세 곳(메인·리뷰페이지·상품상세)에서 이 형태로 맞춰 넘긴다 */
 export interface RPReview {
@@ -15,6 +16,7 @@ export interface RPReview {
   authorName?: string | null;
   isBest?: boolean;
   createdAt?: string | null;
+  sellerReply?: string | null;
 }
 export interface RPProduct {
   id: string;
@@ -165,6 +167,7 @@ export default function ReviewPhotoModal({
       )}
       <div style={{ marginBottom: 14 }}><StarRating rating={review.rating} size={15} /></div>
       <p style={{ fontSize: 14, color: '#333', lineHeight: 1.85, margin: 0, whiteSpace: 'pre-wrap' }}>{review.content}</p>
+      <SellerReply reply={review.sellerReply} />
       {review.createdAt && (
         <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 12.5, color: '#bbb' }}>{fmtDate(review.createdAt)}</span>

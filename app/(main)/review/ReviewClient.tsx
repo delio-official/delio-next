@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { StarRating, SingleStar } from '@/components/StarRating';
+import { SellerReply } from '@/components/SellerReply';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -18,6 +19,7 @@ interface Review {
   is_best: boolean;
   author_name: string | null;
   video_url: string | null;
+  seller_reply: string | null;
   products: {
     id: string; name: string; thumbnail_url: string | null;
     category: string; avg_rating: number; review_count: number;
@@ -210,6 +212,7 @@ export default function ReviewClient() {
                         <p style={{ fontSize: 14, color: '#333', lineHeight: 1.75, marginTop: 7, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                           {r.content}
                         </p>
+                        <SellerReply reply={r.seller_reply} compact />
                         {r.image_urls?.length > 0 && (
                           <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                             {r.image_urls.slice(0, 4).map((url, i) => (
@@ -275,7 +278,7 @@ export default function ReviewClient() {
         const prod = modalReview.products;
         return (
           <ReviewPhotoModal
-            review={{ id: modalReview.id, images: modalReview.image_urls || [], videoUrl: modalReview.video_url, rating: modalReview.rating, content: modalReview.content, authorName: modalReview.author_name || modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at}}
+            review={{ id: modalReview.id, images: modalReview.image_urls || [], videoUrl: modalReview.video_url, rating: modalReview.rating, content: modalReview.content, sellerReply: modalReview.seller_reply, authorName: modalReview.author_name || modalReview.profiles?.name || '익명', isBest: modalReview.is_best, createdAt: modalReview.created_at}}
             product={prod ? { id: prod.id, name: prod.name, thumbnail: prod.thumbnail_url, discountRate: prod.discount_rate, price: prod.price, discountedPrice: prod.discounted_price, avgRating: prod.avg_rating, reviewCount: prod.review_count } : null}
             onClose={() => setModalReview(null)}
             onPrev={idx > 0 ? () => setModalReview(list[idx - 1]) : undefined}
