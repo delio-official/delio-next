@@ -6484,7 +6484,7 @@ export default function AdminClient() {
                   { label:'리뷰 수',     value:`${d.cur.reviewCount.toLocaleString()}건`, cur:d.cur.reviewCount, prev:d.prev.reviewCount, kind:'count', unit:'건' },
                 ];
                 const cardBox: React.CSSProperties = { background:'#FAFAF8', border:'1px solid #F0F0EE', borderRadius:12, padding:'14px 16px', textAlign:'left' };
-                const cardLabel: React.CSSProperties = { fontSize:11.5, color:'#94A3B8', fontWeight:600 };
+                const cardLabel: React.CSSProperties = { fontSize:11.5, color:'#1A1A1A', fontWeight:600 };
 
                 return (
                   <>
