@@ -8260,29 +8260,29 @@ export default function AdminClient() {
                 {reviewsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>별점</th><th>내용</th><th>작성자(아이디)</th><th>상품</th><th>답변</th><th>베스트</th><th className="adm-num">👍</th><th>🚨</th><th>작성일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>별점</th><th>내용</th><th>상품명</th><th>작성자</th><th>답변</th><th>노출</th><th>신고</th><th>작성일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredReviews.length === 0 ? (
-                          <tr><td colSpan={10} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
                         ) : pagedReviews.map(r => (
                           <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>
                             <td><StarRating rating={r.rating} size={13} /></td>
                             <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.content}</td>
+                            <td className="adm-muted">{r.products?.name || '-'}</td>
                             <td style={{ lineHeight:1.35 }}>
                               <div style={{ fontWeight:600 }}>{r.profiles?.name || '익명'}</div>
                               <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || '-'}</div>
                             </td>
-                            <td className="adm-muted">{r.products?.name || '-'}</td>
                             <td>
                               {r.seller_reply
                                 ? <span className="adm-badge badge-done">완료</span>
                                 : <span className="adm-badge badge-wait" style={{ color:'#DC2626' }}>미답변</span>}
                             </td>
+                            {/* 노출 = 베스트 노출 토글 (고객 화면 숨김 기능은 아직 없음) */}
                             <td><Toggle defaultOn={r.is_best} onChange={v => toggleReviewBest(r.id, v)} /></td>
-                            <td className="adm-mono adm-num">{r.likes_count || 0}</td>
                             <td>
                               {(r.report_count || 0) > 0
-                                ? <span className="adm-badge badge-off" style={{ cursor:'default' }}>{r.report_count}</span>
+                                ? <span className="adm-badge badge-off" style={{ cursor:'default' }}>신고 {r.report_count}건</span>
                                 : <span className="adm-muted">-</span>}
                             </td>
                             <td className="adm-muted">{fmtDate(r.created_at)}</td>
