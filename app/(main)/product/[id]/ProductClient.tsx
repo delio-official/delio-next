@@ -40,6 +40,7 @@ interface Farm {
   id: string; name: string; region: string; farm_type: string; items?: string[] | null;
   intro: string | null; slug: string; thumbnail_url: string | null;
   is_own?: boolean | null;
+  dispatch_cutoff?: string | null;   // 브랜드 출고마감(상품에 값이 없을 때 적용)
 }
 interface ProductInquiry {
   id: string;
@@ -2023,8 +2024,8 @@ export default function ProductClient() {
                 )}
                 </div>{/* /pd-mob-hide (옵션·수량) */}
 
-                {/* 출발 안내 — 상품별 설정 우선, 없으면 전체 설정, 둘 다 없으면 숨김 */}
-                {(product.dispatch_cutoff || siteDispatchCutoff) && (
+                {/* 출발 안내 — 상품 → 브랜드 → 사이트 전체 순으로 상속. 셋 다 없으면 숨김 */}
+                {(product.dispatch_cutoff || farm?.dispatch_cutoff || siteDispatchCutoff) && (
                   <div className="pd-dispatch-notice">
                     <svg viewBox="0 0 24 24" width="18" height="18"
                       fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -2035,7 +2036,7 @@ export default function ProductClient() {
                     </svg>
                     <div>
                       <div style={{ fontSize:13, fontWeight:600 }}>
-                        오늘 출발 {product.dispatch_cutoff || siteDispatchCutoff} 마감
+                        오늘 출발 {product.dispatch_cutoff || farm?.dispatch_cutoff || siteDispatchCutoff} 마감
                       </div>
                       <div style={{ fontSize:12, color:'var(--color-ink-mute)' }}>
                         지금 주문 시 내일 발송됩니다

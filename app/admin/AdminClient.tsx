@@ -243,6 +243,10 @@ interface AdminFarm {
   items: string[] | null;     // 취급 품목(복수)
   intro: string | null;
   carrier: string | null;
+  /* 출고마감시간 — null이면 사이트 전체 설정을 따름. 값이 있으면 이 브랜드 상품의 기본값 */
+  dispatch_cutoff: string | null;
+  bank_name: string | null;      // 기록용(정산 자동연동 아님)
+  bank_account: string | null;
   thumbnail_url: string | null;
   logo_url: string | null;
   landing_images: string[] | null;
@@ -1532,7 +1536,11 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
+  /* 브랜드 운영 메모(누적) — 회원 메모와 동일 구조. 수정 모드에서만 사용 */
+  const [farmMemo, setFarmMemo] = useState('');
+  const [farmMemoSaving, setFarmMemoSaving] = useState(false);
+  const [farmMemos, setFarmMemos] = useState<{ id: string; content: string; admin_name: string|null; created_at: string }[]>([]);
   const [farmImgUploading, setFarmImgUploading] = useState(false);
   const [farmTypeFilter, setFarmTypeFilter] = useState('');   // 농가 목록 품목 탭 필터
   const [farmListSearch, setFarmListSearch] = useState('');    // 브랜드 목록 검색(품목·브랜드명·대표자명)
@@ -1566,7 +1574,8 @@ export default function AdminClient() {
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
     sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
-    dispatch_cutoff: '11:00', brix: null, badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
+    dispatch_cutoff: '', brix: null,   // ''=상속(농가 → 사이트 전체). 값 박으면 상위 변경이 반영 안 됨
+ badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
     is_best: false, is_dawn: false, is_active: true, show_stat_pill: true, farm_id: null, sort_order: 0,
     seller_score: null,
   };
@@ -2685,7 +2694,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, thumbnail_url, logo_url, landing_images, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, bank_name, bank_account, thumbnail_url, logo_url, landing_images, created_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -2748,14 +2757,46 @@ export default function AdminClient() {
   }
 
   function openFarmModal(farm?: AdminFarm) {
+    setFarmMemo('');
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: farm.bank_name || '', bank_account: farm.bank_account || '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
+      loadFarmMemos(farm.id);
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] });
+      setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', thumbnail_url: '', logo_url: '', landing_images: [] });
+      setFarmMemos([]);
     }
     setFarmModal(true);
+  }
+
+  /* ===== 브랜드 운영 메모 (최신이 위로 쌓임) ===== */
+  async function loadFarmMemos(farmId: string) {
+    const supabase = createClient();
+    const { data } = await supabase.from('farm_memos')
+      .select('id, content, admin_name, created_at')
+      .eq('farm_id', farmId).order('created_at', { ascending: false });
+    setFarmMemos(data || []);
+  }
+
+  async function addFarmMemo(farmId: string) {
+    if (!farmMemo.trim()) return;
+    setFarmMemoSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('farm_memos')
+      .insert({ farm_id: farmId, content: farmMemo.trim(), admin_name: user?.email || null })
+      .select('id, content, admin_name, created_at').single();
+    setFarmMemoSaving(false);
+    if (error) { alert('메모 저장 실패: ' + error.message); return; }
+    setFarmMemos(prev => [data, ...prev]);
+    setFarmMemo('');
+  }
+
+  async function deleteFarmMemo(id: string) {
+    const supabase = createClient();
+    await supabase.from('farm_memos').delete().eq('id', id);
+    setFarmMemos(prev => prev.filter(m => m.id !== id));
   }
 
   async function saveFarm() {
@@ -2764,7 +2805,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
     if (!slug) slug = 'farm-' + Date.now().toString(36);   // 한글 자모/특수문자만이면 빈 slug 방지(=404)
-    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, items: farmForm.items.length ? farmForm.items : null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
+    const payload = { name: farmForm.name.trim(), farmer_name: farmForm.farmer_name || null, region: farmForm.region || null, items: farmForm.items.length ? farmForm.items : null, intro: farmForm.intro || null, carrier: farmForm.carrier || null, dispatch_cutoff: farmForm.dispatch_cutoff || null, bank_name: farmForm.bank_name.trim() || null, bank_account: farmForm.bank_account.trim() || null, thumbnail_url: farmForm.thumbnail_url || null, logo_url: farmForm.logo_url || null, landing_images: farmForm.landing_images.length ? farmForm.landing_images : null };
     if (editingFarm) {
       // 기존에 slug가 비어있던 농가(404 나던)는 수정 시 새 slug로 채워줌
       const editPayload = editingFarm.slug ? payload : { ...payload, slug };
@@ -5676,10 +5717,28 @@ export default function AdminClient() {
               <div style={{ fontSize:13, fontWeight:700, color:'#475569', marginBottom:12 }}>배송</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label className="adm-label">출발 마감 시간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(기본 오전 11시)</span></label>
-                  <AdmSelect className="adm-cs-full" value={pForm.dispatch_cutoff || ''}
-                    onChange={v => setPForm(f => ({ ...f, dispatch_cutoff: v }))}
-                    options={[{ value:'', label:'전체 설정 적용' }, ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) }))]} />
+                  <label className="adm-label">출발 마감 시간</label>
+                  {/* ''(비움) = 상위를 따라감: 브랜드에 값이 있으면 브랜드, 없으면 사이트 전체 설정 */}
+                  {(() => {
+                    const farmCut = farms.find(fm => fm.id === pForm.farm_id)?.dispatch_cutoff || '';
+                    const inherited = farmCut || siteSettings.dispatch_cutoff || '';
+                    const src = farmCut ? '브랜드 설정' : '전체 설정';
+                    return (
+                      <>
+                        <AdmSelect className="adm-cs-full" value={pForm.dispatch_cutoff || ''}
+                          onChange={v => setPForm(f => ({ ...f, dispatch_cutoff: v }))}
+                          options={[
+                            { value:'', label: inherited ? `${src} 따름 (${cutoffLabel(inherited)})` : '상위 설정 따름' },
+                            ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) })),
+                          ]} />
+                        <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:5 }}>
+                          {pForm.dispatch_cutoff
+                            ? '이 상품만 따로 지정된 상태입니다. 상위 설정을 바꿔도 이 상품은 그대로 유지됩니다.'
+                            : '비워두면 상위 설정을 따라갑니다.'}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -6282,9 +6341,34 @@ export default function AdminClient() {
                     value={farmForm.farmer_name} onChange={e => setFarmForm(p => ({ ...p, farmer_name: e.target.value }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">지역/주소</label>
-                  <input type="text" className="adm-input-text adm-input-full" placeholder="예: 제주특별자치도 서귀포시 남원읍"
-                    value={farmForm.region} onChange={e => setFarmForm(p => ({ ...p, region: e.target.value }))} />
+                  <label className="adm-label">지역/주소 <span style={{ fontWeight:400, color:'#94A3B8' }}>(시·도 → 시·군·구 → 상세주소)</span></label>
+                  {/* 상품등록 원산지와 동일한 계층 입력. region 한 칸에 '시도 시군구 상세' 형태로 저장 */}
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', flex:1 }}>
+                    {(() => {
+                      const parts = (farmForm.region || '').split(' ');
+                      const sido = SIDO_LIST.includes(parts[0]) ? parts[0] : '';
+                      /* 시·도가 목록에 없으면(옛 자유입력 데이터) 전체를 상세주소로 넘겨서 값이 사라지지 않게 함 */
+                      const sigungu = sido ? (parts[1] || '') : '';
+                      const detail  = sido ? parts.slice(2).join(' ') : (farmForm.region || '');
+                      const sigunguList = SIGUNGU_MAP[sido] || [];
+                      const setRegion = (s: string, sg: string, d: string) =>
+                        setFarmForm(p => ({ ...p, region: [s, sg, d].filter(Boolean).join(' ') }));
+                      return (
+                        <>
+                          <AdmSelect style={{ flex:'0 0 160px' }} value={sido}
+                            onChange={v => setRegion(v, '', detail)}
+                            options={[{ value:'', label:'시·도 선택' }, ...SIDO_LIST.map(s => ({ value:s, label:s }))]} />
+                          {sido && sigunguList.length > 0 && (
+                            <AdmSelect style={{ flex:'0 0 160px' }} value={sigungu}
+                              onChange={v => setRegion(sido, v, detail)}
+                              options={[{ value:'', label:'시·군·구 선택' }, ...sigunguList.map(s => ({ value:s, label:s }))]} />
+                          )}
+                          <input className="adm-input-text" style={{ flex:1, minWidth:180 }} placeholder="상세주소 (읍·면·동, 도로명 등)"
+                            value={detail} onChange={e => setRegion(sido, sigungu, e.target.value)} />
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">취급 품목 <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
@@ -6331,6 +6415,31 @@ export default function AdminClient() {
                   <AdmSelect className="adm-cs-full" value={farmForm.carrier}
                     onChange={v => setFarmForm(p => ({ ...p, carrier: v }))}
                     options={['', 'CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'].map(c => ({ value:c, label:c || '택배사 선택' }))} />
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">출고마감시간</label>
+                  {/* 비워두면 사이트 전체 설정을 따라감. 값을 넣으면 이 브랜드 상품의 기본값이 됨 */}
+                  <AdmSelect className="adm-cs-full" value={farmForm.dispatch_cutoff}
+                    onChange={v => setFarmForm(p => ({ ...p, dispatch_cutoff: v }))}
+                    options={[
+                      { value:'', label: `전체 설정 적용${siteSettings.dispatch_cutoff ? ` (현재 ${cutoffLabel(siteSettings.dispatch_cutoff)})` : ''}` },
+                      ...CUTOFF_TIMES.map(t => ({ value:t, label:cutoffLabel(t) })),
+                    ]} />
+                </div>
+                <div className="adm-form-row adm-form-row-full">
+                  <div style={{ fontSize:12, color:'#94A3B8', marginTop:-4 }}>
+                    출고마감시간을 비워두면 사이트 전체 설정을 따라갑니다. 여기서 정하면 이 브랜드로 등록하는 상품의 기본값이 되고, 상품별로 다시 바꿀 수 있습니다.
+                  </div>
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">은행명</label>
+                  <input type="text" className="adm-input-text adm-input-full" placeholder="예: 국민은행"
+                    value={farmForm.bank_name} onChange={e => setFarmForm(p => ({ ...p, bank_name: e.target.value }))} />
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">계좌번호 <span style={{ fontWeight:400, color:'#94A3B8' }}>(관리자만 열람)</span></label>
+                  <input type="text" className="adm-input-text adm-input-full" placeholder="예: 123456-01-234567"
+                    value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">농가 소개</label>
@@ -6396,6 +6505,37 @@ export default function AdminClient() {
                   </div>
                 </div>
               </div>
+
+              {/* ===== 운영 메모 (등록된 브랜드만. 작성 즉시 저장되고 최신이 위로 쌓임) ===== */}
+              {editingFarm ? (
+                <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #E2E8F0' }}>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:8, textAlign:'left' }}>운영 메모</div>
+                  <textarea className="adm-textarea" rows={2} placeholder="상담·특이사항을 적어주세요. 등록하면 날짜·시간이 자동으로 기록됩니다."
+                    value={farmMemo} onChange={e => setFarmMemo(e.target.value)} />
+                  <button onClick={() => addFarmMemo(editingFarm.id)} disabled={farmMemoSaving || !farmMemo.trim()}
+                    className="adm-btn adm-btn-outline" style={{ marginTop:8, height:32, padding:'0 14px', fontSize:13 }}>
+                    {farmMemoSaving ? '저장 중...' : '+ 메모 추가'}
+                  </button>
+                  {farmMemos.length > 0 && (
+                    <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
+                      {farmMemos.map(fm => (
+                        <div key={fm.id} style={{ background:'#F8FAFC', borderRadius:8, padding:'8px 12px', fontSize:13, textAlign:'left' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                            <span style={{ fontSize:11, color:'#94A3B8' }}>{fmtDate(fm.created_at)}{fm.admin_name ? ` · ${fm.admin_name}` : ''}</span>
+                            <button onClick={() => deleteFarmMemo(fm.id)} style={{ background:'none', border:'none', color:'#DC2626', fontSize:11, cursor:'pointer' }}>삭제</button>
+                          </div>
+                          <div style={{ color:'#334155', whiteSpace:'pre-wrap', lineHeight:1.5 }}>{fm.content}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid #E2E8F0', fontSize:12, color:'#94A3B8', textAlign:'left' }}>
+                  운영 메모는 브랜드를 등록한 뒤 수정 화면에서 작성할 수 있습니다.
+                </div>
+              )}
+
               <div className="adm-flex-gap adm-flex-end adm-mt-20">
                 <button className="adm-btn adm-btn-outline" onClick={() => setFarmModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFarm} disabled={farmSaving}>
