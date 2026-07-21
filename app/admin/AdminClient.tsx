@@ -425,7 +425,7 @@ interface CsInquiryAdmin {
 
 /* ===== 상수 ===== */
 const TITLES: Record<PanelKey, string> = {
-  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', menu:'메뉴 관리', farms:'농가 관리',
+  dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', menu:'메뉴 관리', farms:'브랜드 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
@@ -1535,7 +1535,7 @@ export default function AdminClient() {
   const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
   const [farmImgUploading, setFarmImgUploading] = useState(false);
   const [farmTypeFilter, setFarmTypeFilter] = useState('');   // 농가 목록 품목 탭 필터
-  const [farmListSearch, setFarmListSearch] = useState('');    // 농가 목록 검색(품목·농가명·대표자명)
+  const [farmListSearch, setFarmListSearch] = useState('');    // 브랜드 목록 검색(품목·브랜드명·대표자명)
 
 
   /* ── 상품 등록/수정 모달 ── */
@@ -2759,7 +2759,7 @@ export default function AdminClient() {
   }
 
   async function saveFarm() {
-    if (!farmForm.name.trim()) { alert('농가명을 입력해주세요.'); return; }
+    if (!farmForm.name.trim()) { alert('브랜드명을 입력해주세요.'); return; }
     setFarmSaving(true);
     const supabase = createClient();
     let slug = farmForm.name.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9가-힣-]/g, '').replace(/^-+|-+$/g, '');
@@ -2787,7 +2787,7 @@ export default function AdminClient() {
   ])].sort();
 
   async function deleteFarm(id: string) {
-    if (!confirm('이 농가를 삭제하시겠습니까? 연결된 상품의 농가 정보도 해제됩니다.')) return;
+    if (!confirm('이 브랜드를 삭제하시겠습니까? 연결된 상품의 브랜드 정보도 해제됩니다.')) return;
     const supabase = createClient();
     await supabase.from('farms').delete().eq('id', id);
     setFarms(prev => prev.filter(f => f.id !== id));
@@ -6181,7 +6181,7 @@ export default function AdminClient() {
         </div>
       )}
 
-      {/* ===== 농가 등록/수정 모달 ===== */}
+      {/* ===== 브랜드 등록/수정 (페이지형) ===== */}
       {/* 농가 상세 분석 모달 */}
       {farmDetailOpen && (
         <div className="adm-modal-bg open" onClick={() => setFarmDetailOpen(false)}>
@@ -6266,13 +6266,13 @@ export default function AdminClient() {
         <div className="adm-productpage">
           <div className="adm-productpage-inner">
             <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
-              <span className="adm-modal-title">{editingFarm ? '농가 수정' : '농가 등록'}</span>
+              <span className="adm-modal-title">{editingFarm ? '브랜드 수정' : '브랜드 등록'}</span>
               <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={() => setFarmModal(false)}>← 목록으로</button>
             </div>
             <div className="adm-modal-body">
               <div className="adm-detail-grid adm-farm-grid">
                 <div className="adm-form-row">
-                  <label className="adm-label">농가명 <span className="adm-required">*</span></label>
+                  <label className="adm-label">브랜드명 <span className="adm-required">*</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 서귀포 감귤농원"
                     value={farmForm.name} onChange={e => setFarmForm(p => ({ ...p, name: e.target.value }))} />
                 </div>
@@ -6399,7 +6399,7 @@ export default function AdminClient() {
               <div className="adm-flex-gap adm-flex-end adm-mt-20">
                 <button className="adm-btn adm-btn-outline" onClick={() => setFarmModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFarm} disabled={farmSaving}>
-                  {farmSaving ? '저장 중...' : editingFarm ? '수정 완료' : '농가 등록'}
+                  {farmSaving ? '저장 중...' : editingFarm ? '수정 완료' : '브랜드 등록'}
                 </button>
               </div>
             </div>
@@ -6685,7 +6685,7 @@ export default function AdminClient() {
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
-              <NavItem panel="farms"    icon={<Icon.Farms />}    label="농가 관리" />
+              <NavItem panel="farms"    icon={<Icon.Farms />}    label="브랜드 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </div>
             <div className="adm-nav-group">
@@ -7609,20 +7609,20 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div className="adm-toolbar-right">
-                  <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·농가명·대표자명 검색"
+                  <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·브랜드명·대표자명 검색"
                     value={farmListSearch} onChange={e => setFarmListSearch(e.target.value)} />
                   <button className="adm-btn adm-btn-outline" onClick={loadFarms}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 농가 등록</button>
+                  <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 브랜드 등록</button>
                 </div>
               </div>
               <div className="adm-card">
                 {farmsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>농가명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
+                      <thead><tr><th>브랜드명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th>상품</th><th>리뷰</th><th>❤️찜</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredFarms.length === 0 ? (
-                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 농가 없음' : '조건에 맞는 농가 없음'}</td></tr>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 브랜드 없음' : '조건에 맞는 브랜드 없음'}</td></tr>
                         ) : filteredFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
