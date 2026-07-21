@@ -326,7 +326,7 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 .adm-table-wrap { overflow-x: auto; }
 .adm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .adm-table th {
-  text-align: left; padding: 10px 14px;
+  text-align: center; padding: 10px 14px;
   font-size: 11px; font-weight: 700; color: var(--text-mute);
   text-transform: uppercase; letter-spacing: 0.4px;
   background: #F8FAFC; border-bottom: 1px solid var(--border);
@@ -335,14 +335,15 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 .adm-table td {
   padding: 11px 14px; border-bottom: 1px solid #F1F5F9;
   vertical-align: middle; white-space: nowrap;
+  text-align: center; justify-content: center;   /* flex로 짠 셀(관리 버튼 등)도 가운데로 */
 }
+.adm-table td > div { justify-content: center; }
 .adm-table tr:last-child td { border-bottom: none; }
 .adm-table tr:hover td { background: #F8FAFC; }
 .adm-table input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: var(--accent); }
 .adm-mono { font-variant-numeric: tabular-nums; font-family: inherit; font-size: 13px; }
-/* 금액·수량 등 숫자 컬럼: 우측정렬 + 자릿수 폭 고정 */
+/* 숫자 컬럼: 자릿수 폭 고정(정렬은 전체 가운데 기준을 따름) */
 .adm-num { font-variant-numeric: tabular-nums; font-family: inherit; font-size: 13px; }
-.adm-table th.adm-num, .adm-table td.adm-num { text-align: right; }
 /* 가운데 정렬 테이블(주문관리 등) */
 .adm-table-center th, .adm-table-center td { text-align: center; }
 .adm-table-center td > div { justify-content: center; }
