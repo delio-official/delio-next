@@ -10,7 +10,7 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
-import { SELLER_AXES } from '@/lib/taste';
+import { SELLER_AXES, TASTE_AXES, axisLevelLabel, type ReviewTaste } from '@/lib/taste';
 import SectionCuration from '@/components/admin/SectionCuration';
 import dynamic from 'next/dynamic';
 
@@ -280,6 +280,7 @@ interface AdminReview {
   content: string;
   is_best: boolean;
   image_urls: string[] | null;
+  taste?: ReviewTaste | null;            // 구매자가 고른 맛 프로파일 5축(당도·산도·과즙·식감·신선도)
   report_count?: number;                 // 확인 대기(pending) 신고 수. 기각한 건 제외
   report_reasons?: string[];             // 대기 중 신고 사유 (표시용)
   report_items?: { id: string; reason: string | null; created_at: string; status: string }[];
@@ -3641,7 +3642,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
       supabase.from('reviews')
-        .select('id, product_id, user_id, rating, content, is_best, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
+        .select('id, product_id, user_id, rating, content, is_best, image_urls, taste, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
@@ -11625,6 +11626,28 @@ export default function AdminClient() {
                   {selectedReview.image_urls.map((url, i) => (
                     <img key={i} src={url} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
                   ))}
+                </div>
+              )}
+
+              {/* 맛 프로파일 — 구매자가 고른 단계를 별점 대신 라벨 그대로 보여준다 */}
+              {selectedReview.taste && Object.keys(selectedReview.taste).length > 0 && (
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>맛 프로파일 평가</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:6 }}>
+                    {TASTE_AXES.map(axis => {
+                      const lv = selectedReview.taste?.[axis.key];
+                      return (
+                        <div key={axis.key} style={{ background: lv ? axis.bg : '#F8FAFC',
+                          border:'1px solid #F0F0EE', borderRadius:8, padding:'8px 6px', textAlign:'center' }}>
+                          <div style={{ fontSize:11, color:'#64748B', fontWeight:600 }}>{axis.label}</div>
+                          <div style={{ fontSize:11.5, fontWeight:700, marginTop:4, lineHeight:1.35,
+                            color: lv ? axis.hex : '#CBD5E1', wordBreak:'keep-all' }}>
+                            {lv ? axisLevelLabel(axis, lv) : '미평가'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
