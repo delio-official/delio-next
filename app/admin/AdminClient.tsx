@@ -11637,11 +11637,11 @@ export default function AdminClient() {
                     {TASTE_AXES.map(axis => {
                       const lv = selectedReview.taste?.[axis.key];
                       return (
-                        <div key={axis.key} style={{ background: lv ? axis.bg : '#F8FAFC',
+                        <div key={axis.key} style={{ background:'#F8FAFC',
                           border:'1px solid #F0F0EE', borderRadius:8, padding:'8px 6px', textAlign:'center' }}>
-                          <div style={{ fontSize:11, color:'#64748B', fontWeight:600 }}>{axis.label}</div>
+                          <div style={{ fontSize:11, color:'#94A3B8', fontWeight:600 }}>{axis.label}</div>
                           <div style={{ fontSize:11.5, fontWeight:700, marginTop:4, lineHeight:1.35,
-                            color: lv ? axis.hex : '#CBD5E1', wordBreak:'keep-all' }}>
+                            color: lv ? '#1A1A1A' : '#CBD5E1', wordBreak:'keep-all' }}>
                             {lv ? axisLevelLabel(axis, lv) : '미평가'}
                           </div>
                         </div>
