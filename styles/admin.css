@@ -907,6 +907,8 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 .adm-input-w140 { max-width: 140px; }
 .adm-input-sender { max-width: 200px; }
 .adm-form-row-full { grid-column: 1 / -1; }
+/* 그리드 안에서 쓰는 폼 — 행 여백을 grid gap 에 맡겨 세로 길이를 줄인다(모달 스크롤 방지) */
+.adm-form-compact .adm-form-row { margin-bottom: 0; }
 
 /* Flex 유틸리티 */
 .adm-flex-gap { display: flex; gap: 8px; }
