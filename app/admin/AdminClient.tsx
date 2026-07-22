@@ -4579,6 +4579,18 @@ export default function AdminClient() {
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'shipped' } : o));
       setSelectedOrder(s => s ? { ...s, status: 'shipped' } : s);
     }
+
+    /* 반대 방향도 맞춘다 — 상세에서만 넣으면 목록의 송장 칸이 비어 보인다.
+       모든 상품이 같은 송장 하나로 발송된 경우에만 주문 단위에 반영한다.
+       브랜드별로 송장이 갈린 주문은 주문 단위 하나로 대표할 수 없으므로 건드리지 않는다. */
+    const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
+    if (trks.length === 1) {
+      const only = trks[0] as string;
+      const oc = newItems.find(i => i.tracking_number === only)?.courier || null;
+      await supabase.from('orders').update({ courier: oc, tracking_number: only }).eq('id', selectedOrder.id);
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, courier: oc, tracking_number: only } : o));
+      setSelectedOrder(s => s ? { ...s, courier: oc, tracking_number: only } : s);
+    }
     setSavingTracking(false);
   }
 
@@ -4648,7 +4660,28 @@ export default function AdminClient() {
     const cid = courierSel || o.courier || 'kr.cjlogistics';
     const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
     if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
-    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: cid, tracking_number: trk } : x));
+
+    /* 목록 입력은 주문 단위, 상세의 '브랜드별 송장'은 order_items 단위로 저장 위치가 다르다.
+       목록에서만 넣으면 상세가 비어 보이므로 같은 값으로 order_items 도 채운다.
+       단, 상세에서 브랜드별로 따로 넣은 송장은 덮어쓰지 않는다
+       (비어 있거나, 직전에 이 목록 입력으로 채워졌던 항목만 갱신). */
+    const prevTrk = (o.tracking_number || '').trim();
+    const targetIds = (o.order_items || [])
+      .filter(i => i.id && (!i.tracking_number || i.tracking_number === prevTrk))
+      .map(i => i.id as string);
+    if (targetIds.length > 0) {
+      await supabase.from('order_items')
+        .update({ courier: cid, tracking_number: trk, ship_status: 'shipped', shipped_at: new Date().toISOString() })
+        .in('id', targetIds);
+    }
+    const tset = new Set(targetIds);
+    const syncItems = (x: Order) => ({
+      ...x, courier: cid, tracking_number: trk,
+      order_items: (x.order_items || []).map(i =>
+        i.id && tset.has(i.id) ? { ...i, courier: cid, tracking_number: trk, ship_status: 'shipped' } : i),
+    });
+    setOrders(prev => prev.map(x => x.id === o.id ? syncItems(x) : x));
+    setSelectedOrder(s2 => (s2 && s2.id === o.id ? syncItems(s2) : s2));
     // 배송 시작 알림 — 수령인 + 주문자 양쪽
     notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[cid] || cid || '택배사', trackingNumber: trk });
     // 상태 동기화 (배송중/배송완료)
