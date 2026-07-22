@@ -8316,7 +8316,11 @@ export default function AdminClient() {
                                 : <span className="adm-muted">-</span>}
                             </td>
                             <td className="adm-muted">{fmtDate(r.created_at)}</td>
-                            <td><button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteReview(r.id)}>삭제</button></td>
+                            {/* 보기 = 행 클릭과 같은 동작(답변 화면 열기). 삭제는 그 안에서 */}
+                            <td style={{ display:'flex', gap:6 }}>
+                              <button className="adm-row-btn"
+                                onClick={e => { e.stopPropagation(); setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>보기</button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
