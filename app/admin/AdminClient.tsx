@@ -11611,9 +11611,12 @@ export default function AdminClient() {
                 );
               })()}
 
-              {/* 리뷰 내용 */}
-              <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', whiteSpace:'pre-wrap' }}>
-                {selectedReview.content}
+              {/* 리뷰 내용 — 아래 '판매자 답변'과 구분되도록 같은 형식의 제목을 붙인다 */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>리뷰 내용</div>
+                <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', whiteSpace:'pre-wrap' }}>
+                  {selectedReview.content}
+                </div>
               </div>
 
               {/* 이미지 */}
@@ -11627,7 +11630,7 @@ export default function AdminClient() {
 
               {/* 판매자 답변 */}
               <div style={{ borderTop:'1px solid #F0F0F0', paddingTop:14 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>💬 판매자 답변 {selectedReview.seller_reply ? '(작성됨 · 상품 상세에 노출)' : ''}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>판매자 답변 {selectedReview.seller_reply ? '(작성됨 · 상품 상세에 노출)' : ''}</div>
                 <textarea className="adm-input-text" style={{ width:'100%', minHeight:80, resize:'vertical', lineHeight:1.6 }}
                   placeholder="고객 리뷰에 대한 판매자 답변을 입력하세요. (상품 상세 리뷰에 함께 노출됩니다)"
                   value={reviewReply} onChange={e => setReviewReply(e.target.value)} />
