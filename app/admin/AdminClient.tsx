@@ -275,6 +275,7 @@ interface AdminProfile {
 interface AdminReview {
   id: string;
   product_id: string;
+  user_id: string | null;
   rating: number;
   content: string;
   is_best: boolean;
@@ -1999,6 +2000,10 @@ export default function AdminClient() {
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewPageSize, setReviewPageSize] = useState(30);
   const [reviewReply, setReviewReply] = useState('');
+  /* 리뷰에 연결된 주문 정보. reviews.order_item_id 가 한 번도 저장된 적이 없어
+     (컬럼만 있고 쓰는 코드가 없음) 회원+상품으로 역추적한다. */
+  const [reviewOrder, setReviewOrder] = useState<{ order_no: string; created_at: string; option_label: string | null } | null>(null);
+  const [reviewOrderLoading, setReviewOrderLoading] = useState(false);
   const [reviewReplySaving, setReviewReplySaving] = useState(false);
 
   /* ── 이벤트 ── */
@@ -3636,7 +3641,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
       supabase.from('reviews')
-        .select('id, product_id, rating, content, is_best, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
+        .select('id, product_id, user_id, rating, content, is_best, image_urls, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id)')
         .order('created_at', { ascending: false })
         .limit(100),
       supabase.from('review_reports')
@@ -3670,6 +3675,31 @@ export default function AdminClient() {
   /* 리뷰 판매자 답변 저장 — 서버 경유 필수.
      여기서 바로 update 하면 reviews RLS("본인 리뷰만 수정")에 막혀 0행 갱신 = 조용히 실패한다.
      (에러도 안 나서 저장된 것처럼 보였고, 실제로 답변이 하나도 저장돼 있지 않았음) */
+  /* 리뷰 상세 열기 — 행 클릭과 '보기' 버튼 공용 */
+  async function openReviewDetail(r: AdminReview) {
+    setSelectedReview(r);
+    setReviewReply(r.seller_reply || '');
+    setReviewOrder(null);
+    if (!r.user_id) return;                       // 관리자 작성 등 주문이 없는 리뷰
+    setReviewOrderLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase.from('order_items')
+      .select('option_label, orders!inner(order_no, created_at, user_id)')
+      .eq('product_id', r.product_id)
+      .eq('orders.user_id', r.user_id)
+      .limit(50);
+    setReviewOrderLoading(false);
+    type Row = { option_label: string | null; orders: { order_no: string; created_at: string } | null };
+    const rows = ((data || []) as unknown as Row[]).filter(x => x.orders);
+    if (rows.length === 0) return;
+    /* 리뷰 작성일 이전 주문 중 가장 최근 것 = 이 리뷰를 쓰게 한 주문으로 본다 */
+    const wrote = new Date(r.created_at).getTime();
+    const before = rows.filter(x => new Date(x.orders!.created_at).getTime() <= wrote);
+    const pick = (before.length ? before : rows)
+      .sort((a, b) => new Date(b.orders!.created_at).getTime() - new Date(a.orders!.created_at).getTime())[0];
+    setReviewOrder({ order_no: pick.orders!.order_no, created_at: pick.orders!.created_at, option_label: pick.option_label });
+  }
+
   async function saveReviewReply(reviewId: string, reply: string) {
     setReviewReplySaving(true);
     try {
@@ -8295,7 +8325,7 @@ export default function AdminClient() {
                         {filteredReviews.length === 0 ? (
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
                         ) : pagedReviews.map(r => (
-                          <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>
+                          <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => openReviewDetail(r)}>
                             <td><StarRating rating={r.rating} size={13} /></td>
                             <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.content}</td>
                             <td className="adm-muted">{r.products?.name || '-'}</td>
@@ -8319,7 +8349,7 @@ export default function AdminClient() {
                             {/* 보기 = 행 클릭과 같은 동작(답변 화면 열기). 삭제는 그 안에서 */}
                             <td style={{ display:'flex', gap:6 }}>
                               <button className="adm-row-btn"
-                                onClick={e => { e.stopPropagation(); setSelectedReview(r); setReviewReply(r.seller_reply || ''); }}>보기</button>
+                                onClick={e => { e.stopPropagation(); openReviewDetail(r); }}>보기</button>
                             </td>
                           </tr>
                         ))}
@@ -11507,12 +11537,20 @@ export default function AdminClient() {
           <div className="adm-float-modal" style={{ maxWidth:520 }} onClick={e => e.stopPropagation()}>
             {/* 헤더 */}
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <StarRating rating={selectedReview.rating} size={14} />
-                {selectedReview.report_count ? (
-                  <span className="adm-badge badge-off">🚨 신고 {selectedReview.report_count}건</span>
-                ) : null}
-                {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
+              <div style={{ textAlign:'left', minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <StarRating rating={selectedReview.rating} size={14} />
+                  {selectedReview.report_count ? (
+                    <span className="adm-badge badge-off">신고 {selectedReview.report_count}건</span>
+                  ) : null}
+                  {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
+                </div>
+                {/* 주문 정보 — 회원+상품으로 역추적한 값 */}
+                <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:4 }}>
+                  {reviewOrderLoading ? '주문 조회 중...'
+                    : reviewOrder ? <>주문 {reviewOrder.order_no} · {fmtDate(reviewOrder.created_at)}</>
+                    : '연결된 주문 없음'}
+                </div>
               </div>
               <button onClick={() => setSelectedReview(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
@@ -11520,9 +11558,17 @@ export default function AdminClient() {
             <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:14 }}>
               {/* 작성자 + 상품 */}
               <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
-                <div><span style={{ color:'#64748B' }}>작성자</span> <strong>{selectedReview.profiles?.name || '익명'}</strong> <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
-                <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>상품</span> <strong>{selectedReview.products?.name || '-'}</strong></div>
+                <div><span style={{ color:'#64748B' }}>작성자</span> {selectedReview.profiles?.name || '익명'} <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
+                <div style={{ marginTop:4 }}>
+                  <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
+                  {reviewOrder?.option_label && <span style={{ color:'#94A3B8' }}> ({reviewOrder.option_label})</span>}
+                </div>
                 <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)}</div>
+                <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:'#64748B' }}>별점</span>
+                  <StarRating rating={selectedReview.rating} size={12} />
+                  <span>{selectedReview.rating}.0</span>
+                </div>
               </div>
 
               {/* 신고 사유 */}
