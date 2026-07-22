@@ -11537,20 +11537,18 @@ export default function AdminClient() {
           <div className="adm-float-modal" style={{ maxWidth:520 }} onClick={e => e.stopPropagation()}>
             {/* 헤더 */}
             <div style={{ padding:'16px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              <div style={{ textAlign:'left', minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                  <StarRating rating={selectedReview.rating} size={14} />
-                  {selectedReview.report_count ? (
-                    <span className="adm-badge badge-off">신고 {selectedReview.report_count}건</span>
-                  ) : null}
-                  {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
-                </div>
+              {/* 별점은 아래 정보 박스에 있으므로 헤더에서는 뺀다 */}
+              <div style={{ textAlign:'left', minWidth:0, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 {/* 주문 정보 — 회원+상품으로 역추적한 값 */}
-                <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:4 }}>
+                <div style={{ fontSize:12, color:'#64748B' }}>
                   {reviewOrderLoading ? '주문 조회 중...'
                     : reviewOrder ? <>주문 {reviewOrder.order_no} · {fmtDate(reviewOrder.created_at)}</>
                     : '연결된 주문 없음'}
                 </div>
+                {selectedReview.report_count ? (
+                  <span className="adm-badge badge-off">신고 {selectedReview.report_count}건</span>
+                ) : null}
+                {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
               </div>
               <button onClick={() => setSelectedReview(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
