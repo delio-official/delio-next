@@ -11534,152 +11534,156 @@ export default function AdminClient() {
 
       {/* ===== 리뷰 상세 모달 ===== */}
       {selectedReview && (
-        <div className="adm-float-overlay" onClick={() => setSelectedReview(null)}>
-          <div className="adm-float-modal" style={{ maxWidth:520 }} onClick={e => e.stopPropagation()}>
-            {/* 헤더 */}
-            <div style={{ padding:'16px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              {/* 별점은 아래 정보 박스에 있으므로 헤더에서는 뺀다 */}
-              <div style={{ textAlign:'left', minWidth:0, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                {/* 주문 정보 — 회원+상품으로 역추적한 값 */}
-                <div style={{ fontSize:12, color:'#64748B' }}>
+        <div className="adm-modal-bg open" onClick={() => setSelectedReview(null)}>
+          {/* 다른 상세(주문 상세 등)와 같은 규격 — adm-modal-wide + 2단 배치로 스크롤 없이 한 화면에 */}
+          <div className="adm-modal adm-modal-wide" onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0 }}>
+                <span className="adm-modal-title">리뷰 상세</span>
+                <span style={{ fontSize:12, color:'#94A3B8' }}>
                   {reviewOrderLoading ? '주문 조회 중...'
                     : reviewOrder ? <>주문 {reviewOrder.order_no} · {fmtDate(reviewOrder.created_at)}</>
                     : '연결된 주문 없음'}
-                </div>
+                </span>
                 {selectedReview.report_count ? (
                   <span className="adm-badge badge-off">신고 {selectedReview.report_count}건</span>
                 ) : null}
                 {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
               </div>
-              <button onClick={() => setSelectedReview(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+              <button className="adm-modal-close" onClick={() => setSelectedReview(null)}>✕</button>
             </div>
 
-            <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:14 }}>
-              {/* 작성자 + 상품 */}
-              <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
-                <div><span style={{ color:'#64748B' }}>작성자</span> {selectedReview.profiles?.name || '익명'} <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
-                <div style={{ marginTop:4 }}>
-                  <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
-                  {reviewOrder?.option_label && <span style={{ color:'#94A3B8' }}> ({reviewOrder.option_label})</span>}
-                </div>
-                <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)}</div>
-                <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:'#64748B' }}>별점</span>
-                  <StarRating rating={selectedReview.rating} size={12} />
-                  <span>{selectedReview.rating}.0</span>
-                </div>
-              </div>
+            <div className="adm-modal-body">
+              <div className="adm-detail-2col">
+                {/* ── 좌: 리뷰 원문 ── */}
+                <div className="adm-detail-col" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13, textAlign:'left' }}>
+                    <div><span style={{ color:'#64748B' }}>작성자</span> {selectedReview.profiles?.name || '익명'} <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
+                    <div style={{ marginTop:4 }}>
+                      <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
+                      {reviewOrder?.option_label && <span style={{ color:'#94A3B8' }}> ({reviewOrder.option_label})</span>}
+                    </div>
+                    <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)}</div>
+                    <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ color:'#64748B' }}>별점</span>
+                      <StarRating rating={selectedReview.rating} size={12} />
+                      <span>{selectedReview.rating}.0</span>
+                    </div>
+                  </div>
 
-              {/* 신고 사유 */}
-              {(selectedReview.report_items || []).length > 0 && (() => {
-                const items = selectedReview.report_items || [];
-                const pending = items.filter(it => it.status === 'pending');
-                const dismissed = items.filter(it => it.status !== 'pending');
-                return (
-                  <div style={{ background: pending.length ? '#FEF2F2' : '#F8FAFC',
-                    border:`1px solid ${pending.length ? '#FECACA' : '#E2E8F0'}`, borderRadius:8, padding:'10px 14px' }}>
-                    <div style={{ fontSize:12, fontWeight:700, color: pending.length ? '#B91C1C' : '#64748B', marginBottom:8 }}>
-                      신고 {pending.length ? `${pending.length}건 확인 대기` : '없음 (전부 기각)'}
-                      {dismissed.length > 0 && <span style={{ fontWeight:400, color:'#94A3B8' }}> · 기각 {dismissed.length}건</span>}
+                  <div style={{ textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>리뷰 내용</div>
+                    <div style={{ fontSize:13.5, lineHeight:1.75, color:'#1A1A1A', whiteSpace:'pre-wrap',
+                      maxHeight:190, overflowY:'auto' }}>
+                      {selectedReview.content}
                     </div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      {items.map(it => {
-                        const done = it.status !== 'pending';
-                        return (
-                          <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, background:'#fff',
-                            border:'1px solid #F1F5F9', borderRadius:6, padding:'7px 10px' }}>
-                            <div style={{ flex:1, minWidth:0 }}>
-                              <div style={{ fontSize:12.5, color: done ? '#94A3B8' : '#7F1D1D',
-                                textDecoration: done ? 'line-through' : 'none', wordBreak:'break-all' }}>
-                                {it.reason || '(사유 없음)'}
+                  </div>
+
+                  {selectedReview.image_urls && selectedReview.image_urls.length > 0 && (
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {selectedReview.image_urls.map((url, i) => (
+                        <img key={i} src={url} alt="" style={{ width:72, height:72, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 우: 맛 프로파일 · 신고 · 답변 ── */}
+                <div className="adm-detail-col" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {/* 맛 프로파일 — 구매자가 고른 단계를 별점 대신 라벨 그대로 */}
+                  {selectedReview.taste && Object.keys(selectedReview.taste).length > 0 && (
+                    <div style={{ textAlign:'left' }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>맛 프로파일 평가</div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:5 }}>
+                        {TASTE_AXES.map(axis => {
+                          const lv = selectedReview.taste?.[axis.key];
+                          return (
+                            <div key={axis.key} style={{ background:'#F8FAFC', border:'1px solid #F0F0EE',
+                              borderRadius:8, padding:'7px 4px', textAlign:'center' }}>
+                              <div style={{ fontSize:10.5, color:'#94A3B8', fontWeight:600 }}>{axis.label}</div>
+                              <div style={{ fontSize:11, fontWeight:700, marginTop:3, lineHeight:1.3,
+                                color: lv ? '#1A1A1A' : '#CBD5E1', wordBreak:'keep-all' }}>
+                                {lv ? axisLevelLabel(axis, lv) : '미평가'}
                               </div>
-                              <div style={{ fontSize:10.5, color:'#94A3B8', marginTop:2 }}>{fmtDate(it.created_at)}</div>
                             </div>
-                            {done
-                              ? <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>기각됨</span>
-                              : <button className="adm-row-btn" style={{ flexShrink:0 }}
-                                  onClick={() => dismissReport(selectedReview.id, it.id)}>신고 기각</button>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {pending.length > 0 && (
-                      <div style={{ fontSize:11, color:'#B45309', marginTop:7, lineHeight:1.5 }}>
-                        신고 거리가 아니라고 판단되면 기각하세요. 건수에서 빠지고 기록은 남습니다.
+                          );
+                        })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* 신고 — 건별로 기각 */}
+                  {(selectedReview.report_items || []).length > 0 && (() => {
+                    const items = selectedReview.report_items || [];
+                    const pending = items.filter(it => it.status === 'pending');
+                    const dismissed = items.filter(it => it.status !== 'pending');
+                    return (
+                      <div style={{ background: pending.length ? '#FEF2F2' : '#F8FAFC',
+                        border:`1px solid ${pending.length ? '#FECACA' : '#E2E8F0'}`, borderRadius:8,
+                        padding:'9px 12px', textAlign:'left', maxHeight:150, overflowY:'auto' }}>
+                        <div style={{ fontSize:12, fontWeight:700, color: pending.length ? '#B91C1C' : '#64748B', marginBottom:6 }}>
+                          신고 {pending.length ? `${pending.length}건 확인 대기` : '없음 (전부 기각)'}
+                          {dismissed.length > 0 && <span style={{ fontWeight:400, color:'#94A3B8' }}> · 기각 {dismissed.length}건</span>}
+                        </div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                          {items.map(it => {
+                            const done = it.status !== 'pending';
+                            return (
+                              <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, background:'#fff',
+                                border:'1px solid #F1F5F9', borderRadius:6, padding:'6px 9px' }}>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:12, color: done ? '#94A3B8' : '#7F1D1D',
+                                    textDecoration: done ? 'line-through' : 'none', wordBreak:'break-all' }}>
+                                    {it.reason || '(사유 없음)'}
+                                  </div>
+                                  <div style={{ fontSize:10.5, color:'#94A3B8', marginTop:2 }}>{fmtDate(it.created_at)}</div>
+                                </div>
+                                {done
+                                  ? <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>기각됨</span>
+                                  : <button className="adm-row-btn" style={{ flexShrink:0 }}
+                                      onClick={() => dismissReport(selectedReview.id, it.id)}>신고 기각</button>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 판매자 답변 */}
+                  <div style={{ textAlign:'left' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>
+                      판매자 답변 {selectedReview.seller_reply
+                        ? <span style={{ fontWeight:400, color:'#94A3B8' }}>(작성됨 · 고객 화면에 노출 중)</span>
+                        : <span style={{ fontWeight:400, color:'#94A3B8' }}>(미작성)</span>}
+                    </div>
+                    <textarea className="adm-input-text" style={{ width:'100%', height:110, resize:'vertical', lineHeight:1.6, padding:'8px 10px' }}
+                      placeholder="고객 리뷰에 대한 판매자 답변을 입력하세요. (상품 상세 리뷰에 함께 노출됩니다)"
+                      value={reviewReply} onChange={e => setReviewReply(e.target.value)} />
+                    {selectedReview.seller_reply && (
+                      <button className="adm-row-btn" style={{ marginTop:6 }} disabled={reviewReplySaving}
+                        onClick={() => { setReviewReply(''); saveReviewReply(selectedReview.id, ''); }}>답변 삭제</button>
                     )}
                   </div>
-                );
-              })()}
-
-              {/* 리뷰 내용 — 아래 '판매자 답변'과 구분되도록 같은 형식의 제목을 붙인다 */}
-              <div>
-                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>리뷰 내용</div>
-                <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', whiteSpace:'pre-wrap' }}>
-                  {selectedReview.content}
                 </div>
               </div>
 
-              {/* 이미지 */}
-              {selectedReview.image_urls && selectedReview.image_urls.length > 0 && (
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {selectedReview.image_urls.map((url, i) => (
-                    <img key={i} src={url} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
-                  ))}
-                </div>
-              )}
-
-              {/* 맛 프로파일 — 구매자가 고른 단계를 별점 대신 라벨 그대로 보여준다 */}
-              {selectedReview.taste && Object.keys(selectedReview.taste).length > 0 && (
-                <div>
-                  <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>맛 프로파일 평가</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:6 }}>
-                    {TASTE_AXES.map(axis => {
-                      const lv = selectedReview.taste?.[axis.key];
-                      return (
-                        <div key={axis.key} style={{ background:'#F8FAFC',
-                          border:'1px solid #F0F0EE', borderRadius:8, padding:'8px 6px', textAlign:'center' }}>
-                          <div style={{ fontSize:11, color:'#94A3B8', fontWeight:600 }}>{axis.label}</div>
-                          <div style={{ fontSize:11.5, fontWeight:700, marginTop:4, lineHeight:1.35,
-                            color: lv ? '#1A1A1A' : '#CBD5E1', wordBreak:'keep-all' }}>
-                            {lv ? axisLevelLabel(axis, lv) : '미평가'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* 판매자 답변 */}
-              <div style={{ borderTop:'1px solid #F0F0F0', paddingTop:14 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>판매자 답변 {selectedReview.seller_reply ? '(작성됨 · 상품 상세에 노출)' : ''}</div>
-                <textarea className="adm-input-text" style={{ width:'100%', minHeight:80, resize:'vertical', lineHeight:1.6 }}
-                  placeholder="고객 리뷰에 대한 판매자 답변을 입력하세요. (상품 상세 리뷰에 함께 노출됩니다)"
-                  value={reviewReply} onChange={e => setReviewReply(e.target.value)} />
-                <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:8 }}>
-                  {selectedReview.seller_reply && (
-                    <button className="adm-btn adm-btn-outline" disabled={reviewReplySaving}
-                      onClick={() => { setReviewReply(''); saveReviewReply(selectedReview.id, ''); }}>답변 삭제</button>
-                  )}
-                  <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
-                    onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
-                    {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
-                  </button>
-                </div>
-              </div>
-
-              {/* 삭제 버튼 */}
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, paddingTop:8, borderTop:'1px solid #F0F0F0' }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
+              {/* 하단 — 좌: 삭제 / 우: 닫기·등록 */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+                gap:8, marginTop:16, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
                 <button className="adm-btn" style={{ background:'#DC2626', color:'#fff', border:'none' }}
                   onClick={async () => {
                     if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
                     await deleteReview(selectedReview.id);
                     setSelectedReview(null);
-                  }}>
-                  삭제
-                </button>
+                  }}>리뷰 삭제</button>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
+                  <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
+                    onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
+                    {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
