@@ -5107,7 +5107,8 @@ export default function AdminClient() {
       setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false });
     } else {
       setEditingCoupon(null);
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
+      /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false });
     }
     setCouponModal(true);
   }
@@ -12224,6 +12225,8 @@ export default function AdminClient() {
               <span className="adm-modal-title">{editingCoupon ? '쿠폰 수정' : '쿠폰 생성'}</span>
             </div>
             <div className="adm-modal-body">
+              {/* ── 기본 정보 ── */}
+              <div className="adm-formsec-title">기본 정보</div>
               <div className="adm-detail-grid adm-form-compact">
                 <div className="adm-form-row">
                   <label className="adm-label">쿠폰명 *</label>
@@ -12235,11 +12238,10 @@ export default function AdminClient() {
                   <input type="text" className="adm-input-text" placeholder="예: 첫 구매 시 사용 가능"
                     value={couponForm.description} onChange={e => setCouponForm(p => ({ ...p, description: e.target.value }))} />
                 </div>
-
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">쿠폰 코드</label>
+                  <label className="adm-label">쿠폰 코드 <span style={{ fontWeight:400, color:'#94A3B8' }}>(미입력 시 자동생성)</span></label>
                   <div className="adm-flex-center-gap" style={{ flex:1 }}>
-                    <input type="text" className="adm-input-text" style={{ flex:1 }} placeholder="예: WELCOME10 (미입력 시 자동생성)"
+                    <input type="text" className="adm-input-text" style={{ flex:1 }} placeholder="예: WELCOME10"
                       value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} />
                     <button type="button" onClick={() => setCouponForm(p => ({ ...p, code: genCouponCode() }))}
                       style={{ padding:'0 14px', height:34, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
@@ -12247,21 +12249,24 @@ export default function AdminClient() {
                     </button>
                   </div>
                 </div>
+              </div>
 
+              {/* ── 할인 설정 ── */}
+              <div className="adm-formsec-title" style={{ marginTop:22 }}>할인 설정</div>
+              <div className="adm-detail-grid adm-form-compact">
                 <div className="adm-form-row">
-                  <label className="adm-label">할인 유형</label>
+                  <label className="adm-label">할인 유형 *</label>
                   <AdmSelect value={couponForm.discount_type} onChange={v => setCouponForm(p => ({ ...p, discount_type: v as 'percent'|'fixed' }))}
                     options={[{ value:'percent', label:'정률 (%)' }, { value:'fixed', label:'정액 (원)' }]} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">할인값</label>
+                  <label className="adm-label">할인값 *</label>
                   <div className="adm-flex-center-gap">
                     <input type="number" className="adm-input-text adm-input-w100" min={0}
                       value={couponForm.discount_value} onChange={e => setCouponForm(p => ({ ...p, discount_value: Number(e.target.value) }))} />
                     <span className="adm-muted">{couponForm.discount_type === 'percent' ? '%' : '원'}</span>
                   </div>
                 </div>
-
                 <div className="adm-form-row">
                   <label className="adm-label">최소 주문금액</label>
                   <div className="adm-flex-center-gap">
@@ -12271,23 +12276,27 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">최대 할인금액</label>
+                  <label className="adm-label">최대 할인금액 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 정률 쿠폰만 해당</span></label>
                   <div className="adm-flex-center-gap">
                     <input type="number" className="adm-input-text adm-input-w100" min={0} placeholder="제한없음"
                       value={couponForm.max_discount_amount} onChange={e => setCouponForm(p => ({ ...p, max_discount_amount: e.target.value }))} />
                     <span className="adm-muted">원</span>
                   </div>
                 </div>
+              </div>
 
+              {/* ── 유효 기간 ── */}
+              <div className="adm-formsec-title" style={{ marginTop:22 }}>유효 기간</div>
+              <div className="adm-detail-grid adm-form-compact">
                 <div className="adm-form-row">
                   <label className="adm-label">시작일</label>
-                  <input type="date" className="adm-input-text"
+                  <input type="date" className="adm-input-date"
                     value={couponForm.starts_at} onChange={e => setCouponForm(p => ({ ...p, starts_at: e.target.value }))} />
                 </div>
                 {/* 일반 쿠폰만 고정 만료일 사용. 신규회원 쿠폰은 가입일 기준이라 숨김 */}
                 {!couponForm.signup_grant ? (
                   <div className="adm-form-row">
-                    <label className="adm-label">만료일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(고정 날짜)</span></label>
+                    <label className="adm-label">만료일 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 비우면 무제한</span></label>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
                       <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12.5, cursor:'pointer', whiteSpace:'nowrap' }}>
                         <input type="checkbox" checked={!couponForm.expires_at}
@@ -12295,15 +12304,14 @@ export default function AdminClient() {
                         무제한
                       </label>
                       {couponForm.expires_at && (
-                        <input type="date" className="adm-input-text" style={{ flex:1 }}
+                        <input type="date" className="adm-input-date" style={{ flex:1 }}
                           value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
                       )}
                     </div>
                   </div>
                 ) : <div />}
-
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">유효기간 <span style={{ fontWeight:400, color:'#94A3B8' }}>(발급일 기준)</span></label>
+                  <label className="adm-label">유효기간 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 발급일 기준, 입력 시 만료일보다 우선 적용</span></label>
                   <div className="adm-flex-center-gap">
                     <input type="number" min={1} className="adm-input-text adm-input-w100" placeholder="예: 30"
                       value={couponForm.valid_days} onChange={e => setCouponForm(p => ({ ...p, valid_days: e.target.value }))} />
@@ -12315,30 +12323,28 @@ export default function AdminClient() {
                     </span>
                   </div>
                 </div>
-
-                {/* 토글 4개 — 한 줄에 묶어 세로 길이를 줄임 */}
-                <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">옵션</label>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:8 }}>
-                    {[
-                      { l:'활성 여부', on:couponForm.is_active,     set:(v:boolean)=>setCouponForm(p=>({...p,is_active:v})),     d:'끄면 어디에도 노출·사용되지 않습니다.' },
-                      { l:'회원 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 직접 받을 수 있습니다.' },
-                      { l:'가입 자동지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 지급. 여러 개 켜면 모두 지급.' },
-                      { l:'멤버십 월발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 탭의 등급별 월 발급 목록에 나타납니다.' },
-                    ].map(t => (
-                      <div key={t.l} style={{ border:'1px solid #F0F0EE', borderRadius:8, padding:'8px 10px', background:'#FAFAF8' }}>
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:6 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:'#1A1A1A' }}>{t.l}</span>
-                          <Toggle defaultOn={t.on} onChange={t.set} />
-                        </div>
-                        <div style={{ fontSize:10.5, color:'#94A3B8', marginTop:4, lineHeight:1.4 }}>{t.d}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
 
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:16, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
+              {/* ── 발급 설정 (토글 세로 나열) ── */}
+              <div className="adm-formsec-title" style={{ marginTop:22 }}>발급 설정</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {[
+                  { l:'활성 여부', on:couponForm.is_active,     set:(v:boolean)=>setCouponForm(p=>({...p,is_active:v})),     d:'비활성 시 발급 및 사용 불가' },
+                  { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)' },
+                  { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음' },
+                  { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정' },
+                ].map(t => (
+                  <div key={t.l} style={{ border:'1px solid #F0F0EE', borderRadius:8, padding:'11px 14px', background:'#FAFAF8', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{t.l}</div>
+                      <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:3, lineHeight:1.4 }}>{t.d}</div>
+                    </div>
+                    <Toggle defaultOn={t.on} onChange={t.set} />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setCouponModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveCoupon} disabled={couponSaving}>
                   {couponSaving ? '저장 중...' : '저장'}
