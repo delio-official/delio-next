@@ -11790,43 +11790,53 @@ export default function AdminClient() {
                   })}
                 </div>
 
-                {/* 회원 선택 목록 */}
-                {giveCouponMode === 'select' && (
-                  <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:14 }}>
-                    {/* 전체 체크박스 앞 · 검색 뒤. 검색을 넓게, 체크박스는 좁게 */}
-                    <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:10, alignItems:'center' }}>
-                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-                        <input type="checkbox"
-                          checked={filtered.length > 0 && filtered.every(m => giveCouponIds.has(m.id))}
-                          onChange={e => {
-                            setGiveCouponIds(prev => {
-                              const next = new Set(prev);
-                              if (e.target.checked) filtered.forEach(m => next.add(m.id));
-                              else filtered.forEach(m => next.delete(m.id));
-                              return next;
-                            });
-                          }} />
-                        전체
-                      </label>
-                      <input type="text" className="adm-input-text" placeholder="이름·연락처·이메일 검색" style={{ flex:1, height:34 }}
-                        value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
-                    </div>
-                    <div style={{ maxHeight:240, overflowY:'auto' }}>
-                      {filtered.length === 0 ? (
-                        <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>회원 없음</div>
-                      ) : filtered.map(m => (
-                        <label key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 14px', borderBottom:'1px solid #F4F4F4', cursor:'pointer', background: giveCouponIds.has(m.id) ? '#EFF6FF' : '#fff' }}>
-                          <input type="checkbox" checked={giveCouponIds.has(m.id)}
-                            onChange={() => setGiveCouponIds(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })} />
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
-                            <div style={{ fontSize:11, color:'#94A3B8' }}>{m.email}{m.phone ? ` · ${m.phone}` : ''}</div>
-                          </div>
+                {/* 회원 선택 목록 — 두 모드 높이를 맞춰 모달이 점프하지 않도록 영역을 항상 렌더 */}
+                <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:14 }}>
+                  {giveCouponMode === 'select' ? (
+                    <>
+                      {/* 전체 체크박스 앞 · 검색 뒤. 검색을 넓게, 체크박스는 좁게 */}
+                      <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:10, alignItems:'center' }}>
+                        <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                          <input type="checkbox"
+                            checked={filtered.length > 0 && filtered.every(m => giveCouponIds.has(m.id))}
+                            onChange={e => {
+                              setGiveCouponIds(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) filtered.forEach(m => next.add(m.id));
+                                else filtered.forEach(m => next.delete(m.id));
+                                return next;
+                              });
+                            }} />
+                          전체
                         </label>
-                      ))}
+                        <input type="text" className="adm-input-text" placeholder="이름·연락처·이메일 검색" style={{ flex:1, height:34 }}
+                          value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
+                      </div>
+                      {/* 고정 높이 — 검색 결과 수가 바뀌어도 모달이 출렁이지 않도록 maxHeight 대신 height */}
+                      <div style={{ height:240, overflowY:'auto' }}>
+                        {filtered.length === 0 ? (
+                          <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>회원 없음</div>
+                        ) : filtered.map(m => (
+                          <label key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 14px', borderBottom:'1px solid #F4F4F4', cursor:'pointer', background: giveCouponIds.has(m.id) ? '#EFF6FF' : '#fff' }}>
+                            <input type="checkbox" checked={giveCouponIds.has(m.id)}
+                              onChange={() => setGiveCouponIds(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })} />
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
+                              <div style={{ fontSize:11, color:'#94A3B8' }}>{m.email}{m.phone ? ` · ${m.phone}` : ''}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    /* 전체 회원 모드 — 목록 자리를 안내로 채워 회원선택 모드와 같은 높이 유지 */
+                    <div style={{ height:288, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, color:'#64748B', padding:'0 20px', textAlign:'center' }}>
+                      <div style={{ fontSize:34 }}>🎟️</div>
+                      <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A' }}>전체 회원 {members.length.toLocaleString()}명에게 지급</div>
+                      <div style={{ fontSize:12, lineHeight:1.6 }}>가입한 모든 회원에게 이 쿠폰이 발급됩니다.<br/>특정 회원에게만 주려면 ‘회원 선택’을 누르세요.</div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* 취소/지급 — 크기 통일, 우측 하단 정렬 */}
                 <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
