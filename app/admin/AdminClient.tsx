@@ -5562,7 +5562,10 @@ export default function AdminClient() {
   const memCur = Math.min(Math.max(1, memPage), Math.max(1, Math.ceil(filteredMembers.length / memSize)));
   const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
   const cpCur = Math.min(Math.max(1, cpPage), Math.max(1, Math.ceil(coupons.length / cpSize)));
-  const pagedCoupons = coupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
+  /* 아래 '전체 쿠폰' 목록에서는 신규회원 웰컴 쿠폰(signup_grant)을 뺀다 —
+     위 '신규회원 웰컴 쿠폰팩' 분류에서만 관리하도록. */
+  const generalCoupons = coupons.filter(c => !c.signup_grant);
+  const pagedCoupons = generalCoupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
   /* 멤버십 관리 탭 월발급 체크박스용 — 활성 멤버십 쿠폰 목록 */
   const membershipCoupons = coupons.filter(c => c.is_membership && c.is_active);
   /* 쿠폰 지급 내역 필터/페이징 */
@@ -8475,7 +8478,7 @@ export default function AdminClient() {
                         <table className="adm-table">
                           <thead><tr><th>쿠폰명</th><th>코드</th><th>할인 유형</th><th>할인값</th><th>만료일</th><th>활성</th><th>관리</th></tr></thead>
                           <tbody>
-                            {coupons.length === 0 ? (
+                            {generalCoupons.length === 0 ? (
                               <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>쿠폰 없음</td></tr>
                             ) : pagedCoupons.map(c => (
                               <tr key={c.id}>
@@ -8499,7 +8502,7 @@ export default function AdminClient() {
                       </div>
                     )}
                   </div>
-                  <Pager page={cpCur} pageSize={cpSize} total={coupons.length} onPage={setCpPage} onPageSize={setCpSize} />
+                  <Pager page={cpCur} pageSize={cpSize} total={generalCoupons.length} onPage={setCpPage} onPageSize={setCpSize} />
                 </>
               ) : (
                 <>
