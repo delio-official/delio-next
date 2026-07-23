@@ -12290,7 +12290,7 @@ export default function AdminClient() {
               <div className="adm-detail-grid adm-form-compact">
                 <div className="adm-form-row">
                   <label className="adm-label">시작일</label>
-                  <input type="date" className="adm-input-date"
+                  <input type="date" className="adm-input-text"
                     value={couponForm.starts_at} onChange={e => setCouponForm(p => ({ ...p, starts_at: e.target.value }))} />
                 </div>
                 {/* 일반 쿠폰만 고정 만료일 사용. 신규회원 쿠폰은 가입일 기준이라 숨김 */}
@@ -12304,7 +12304,7 @@ export default function AdminClient() {
                         무제한
                       </label>
                       {couponForm.expires_at && (
-                        <input type="date" className="adm-input-date" style={{ flex:1 }}
+                        <input type="date" className="adm-input-text" style={{ flex:1 }}
                           value={couponForm.expires_at} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value }))} />
                       )}
                     </div>
