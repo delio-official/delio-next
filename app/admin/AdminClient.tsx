@@ -8685,12 +8685,12 @@ export default function AdminClient() {
                     const today = new Date().toISOString().slice(0,10);
                     return (
                       <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
-                        <div className="adm-card-head" style={{ alignItems:'center' }}>
+                        <div className="adm-card-head" style={{ alignItems:'center', borderBottom:'none' }}>
                           <span className="adm-card-title">멤버십 월발급 쿠폰팩</span>
                           <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
                         </div>
-                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
-                          여기에 등록한 쿠폰을 <strong>위 등급 설정</strong>의 ‘월 발급 쿠폰’에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
+                        <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'0 18px 12px' }}>
+                          여기에 등록한 쿠폰을 <strong style={{ fontWeight:600 }}>위 등급 설정</strong>의 ‘월 발급 쿠폰’에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
                         </div>
                         {pack.length === 0 ? (
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 멤버십 쿠폰이 없습니다. 우측 “+ 멤버십 쿠폰 추가”로 만드세요.</div>
