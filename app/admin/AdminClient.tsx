@@ -4108,6 +4108,26 @@ export default function AdminClient() {
     setBanners(prev => prev.map(x => x.id === b.id ? { ...x, is_active: !b.is_active } : x));
   }
 
+  /* 배너 순서 이동 — 같은 type(메인/중간/카테고리) 안에서만.
+     이동 후 sort_order 를 0부터 다시 부여해 중복·빈 번호도 함께 정리한다. */
+  const [bannerReordering, setBannerReordering] = useState(false);
+  async function moveBanner(b: AdminBanner, dir: -1 | 1) {
+    if (bannerReordering) return;
+    const group = banners.filter(x => x.type === b.type).sort((a, z) => a.sort_order - z.sort_order);
+    const i = group.findIndex(x => x.id === b.id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= group.length) return;   // 끝이면 무시
+    [group[i], group[j]] = [group[j], group[i]];        // 자리 교환
+    setBannerReordering(true);
+    const supabase = createClient();
+    /* 새 순서대로 0,1,2… 재부여 */
+    await Promise.all(group.map((x, idx) =>
+      supabase.from('banners').update({ sort_order: idx }).eq('id', x.id)));
+    const orderMap = new Map(group.map((x, idx) => [x.id, idx]));
+    setBanners(prev => prev.map(x => orderMap.has(x.id) ? { ...x, sort_order: orderMap.get(x.id)! } : x));
+    setBannerReordering(false);
+  }
+
   /* ========== 사이트 설정 ========== */
   async function loadSettings() {
     const supabase = createClient();
@@ -8910,7 +8930,7 @@ export default function AdminClient() {
               {/* ── 배너 탭 (메인 / 중간 / 카테고리) ── */}
               {(bannerTab === 'tab-banner' || bannerTab === 'tab-mid' || bannerTab === 'tab-catpromo') && (() => {
                 const bannerType = bannerTab === 'tab-banner' ? 'main' : bannerTab === 'tab-mid' ? 'mid' : 'cat_promo';
-                const list = banners.filter(b => b.type === bannerType);
+                const list = banners.filter(b => b.type === bannerType).sort((a, z) => a.sort_order - z.sort_order);
                 const totView = list.reduce((s, b) => s + (b.view_count || 0), 0);
                 const totClick = list.reduce((s, b) => s + (b.click_count || 0), 0);
                 const avgCtr = totView > 0 ? (totClick / totView * 100) : 0;
@@ -8953,7 +8973,25 @@ export default function AdminClient() {
                                 <button onClick={() => toggleBannerActive(b)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: b.is_active?'#DCFCE7':'#F1F5F9', color: b.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
                                   {b.is_active ? '노출중' : '숨김'}
                                 </button>
-                                <span style={{ fontSize:11, color:'#94A3B8' }}>순서 {b.sort_order}</span>
+                                {/* 순서 이동 — 같은 배너 종류 안에서 앞/뒤로 */}
+                                {(() => {
+                                  const grp = list; const gi = grp.findIndex(x => x.id === b.id);
+                                  const arrow = (dir: -1 | 1, disabled: boolean, label: string) => (
+                                    <button onClick={() => moveBanner(b, dir)} disabled={disabled || bannerReordering} title={label}
+                                      style={{ width:22, height:22, borderRadius:6, border:'1px solid #E2E8F0', background:'#fff',
+                                        cursor: disabled ? 'default' : 'pointer', color: disabled ? '#CBD5E1' : '#475569',
+                                        fontSize:12, lineHeight:1, display:'inline-flex', alignItems:'center', justifyContent:'center', padding:0 }}>
+                                      {dir === -1 ? '↑' : '↓'}
+                                    </button>
+                                  );
+                                  return (
+                                    <div style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                                      {arrow(-1, gi <= 0, '앞으로')}
+                                      {arrow(1, gi >= grp.length - 1, '뒤로')}
+                                      <span style={{ fontSize:11, color:'#94A3B8', marginLeft:2 }}>{gi + 1}번째</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               <div className="adm-muted" style={{ fontSize:12, marginBottom:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>🔗 {b.link_url || '/'}</div>
                               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:10 }}>
