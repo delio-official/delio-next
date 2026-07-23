@@ -11753,15 +11753,19 @@ export default function AdminClient() {
       {/* ===== 쿠폰 지급 모달 ===== */}
       {giveCouponModal && giveCouponTarget && (() => {
         const filtered = members.filter(m => {
-          const q = giveCouponSearch.toLowerCase();
-          return !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+          const q = giveCouponSearch.trim().toLowerCase();
+          /* 이름·이메일·연락처로 검색 (연락처는 숫자만 비교) */
+          const digits = q.replace(/[^0-9]/g, '');
+          return !q
+            || m.name.toLowerCase().includes(q)
+            || m.email.toLowerCase().includes(q)
+            || (!!digits && (m.phone || '').replace(/[^0-9]/g, '').includes(digits));
         });
         return (
           <div className="adm-float-overlay" onClick={() => setGiveCouponModal(false)}>
             <div className="adm-float-modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
                 <span style={{ fontSize:15, fontWeight:700 }}>쿠폰 지급</span>
-                <button onClick={() => setGiveCouponModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
               </div>
               <div style={{ padding:'18px 22px' }}>
                 <div style={{ background:'#F8FAFC', borderRadius:8, padding:'12px 14px', marginBottom:16 }}>
@@ -11771,26 +11775,27 @@ export default function AdminClient() {
                   </div>
                 </div>
 
-                {/* 대상 선택 */}
+                {/* 대상 선택 — 선택된 쪽은 테두리만 두껍게(배경색 채우지 않음) */}
                 <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-                  {([['all','전체 회원'],['select','회원 선택']] as const).map(([v,l]) => (
-                    <button key={v} onClick={() => setGiveCouponMode(v)}
-                      style={{ flex:1, padding:'9px 0', borderRadius:8, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
-                        borderColor: giveCouponMode === v ? '#1A1A1A' : '#E2E8F0',
-                        background: giveCouponMode === v ? '#1A1A1A' : '#fff',
-                        color: giveCouponMode === v ? '#fff' : '#64748B' }}>
-                      {l}{v === 'all' ? ` (${members.length})` : ''}
-                    </button>
-                  ))}
+                  {([['all','전체 회원'],['select','회원 선택']] as const).map(([v,l]) => {
+                    const on = giveCouponMode === v;
+                    return (
+                      <button key={v} onClick={() => setGiveCouponMode(v)}
+                        style={{ flex:1, padding:'9px 0', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', background:'#fff',
+                          border: on ? '2px solid #1A1A1A' : '1px solid #E2E8F0',
+                          color: on ? '#1A1A1A' : '#64748B' }}>
+                        {l}{v === 'all' ? ` (${members.length})` : ''}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* 회원 선택 목록 */}
                 {giveCouponMode === 'select' && (
                   <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:14 }}>
-                    <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
-                      <input type="text" className="adm-input-text" placeholder="이름·이메일 검색" style={{ flex:1 }}
-                        value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
-                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    {/* 전체 체크박스 앞 · 검색 뒤. 검색을 넓게, 체크박스는 좁게 */}
+                    <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:10, alignItems:'center' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
                         <input type="checkbox"
                           checked={filtered.length > 0 && filtered.every(m => giveCouponIds.has(m.id))}
                           onChange={e => {
@@ -11803,6 +11808,8 @@ export default function AdminClient() {
                           }} />
                         전체
                       </label>
+                      <input type="text" className="adm-input-text" placeholder="이름·연락처·이메일 검색" style={{ flex:1, height:34 }}
+                        value={giveCouponSearch} onChange={e => setGiveCouponSearch(e.target.value)} />
                     </div>
                     <div style={{ maxHeight:240, overflowY:'auto' }}>
                       {filtered.length === 0 ? (
@@ -11813,7 +11820,7 @@ export default function AdminClient() {
                             onChange={() => setGiveCouponIds(prev => { const n = new Set(prev); n.has(m.id) ? n.delete(m.id) : n.add(m.id); return n; })} />
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
-                            <div style={{ fontSize:11, color:'#94A3B8' }}>{m.email}</div>
+                            <div style={{ fontSize:11, color:'#94A3B8' }}>{m.email}{m.phone ? ` · ${m.phone}` : ''}</div>
                           </div>
                         </label>
                       ))}
@@ -11821,9 +11828,10 @@ export default function AdminClient() {
                   </div>
                 )}
 
-                <div style={{ display:'flex', gap:8 }}>
-                  <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => setGiveCouponModal(false)}>취소</button>
-                  <button className="adm-btn adm-btn-primary" style={{ flex:2 }} onClick={giveCoupon} disabled={giveCouponSaving}>
+                {/* 취소/지급 — 크기 통일, 우측 하단 정렬 */}
+                <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+                  <button className="adm-btn adm-btn-outline" style={{ minWidth:96 }} onClick={() => setGiveCouponModal(false)}>취소</button>
+                  <button className="adm-btn adm-btn-primary" style={{ minWidth:96 }} onClick={giveCoupon} disabled={giveCouponSaving}>
                     {giveCouponSaving ? '지급 중...' : '쿠폰 지급'}
                   </button>
                 </div>
