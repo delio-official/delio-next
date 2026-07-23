@@ -2165,6 +2165,7 @@ export default function AdminClient() {
   /* ── 배너 ── */
   const [banners, setBanners] = useState<AdminBanner[]>([]);
   const [bannersLoading, setBannersLoading] = useState(false);
+  const [bannerReordering, setBannerReordering] = useState(false);   // 배너 순서 저장 중 연타 방지
   const [bannerModal, setBannerModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
   const BANNER_EMPTY = { type: 'main', link_url: '/', is_active: true };
@@ -4109,8 +4110,8 @@ export default function AdminClient() {
   }
 
   /* 배너 순서 이동 — 같은 type(메인/중간/카테고리) 안에서만.
-     이동 후 sort_order 를 0부터 다시 부여해 중복·빈 번호도 함께 정리한다. */
-  const [bannerReordering, setBannerReordering] = useState(false);
+     이동 후 sort_order 를 0부터 다시 부여해 중복·빈 번호도 함께 정리한다.
+     (bannerReordering 상태는 훅이라 early return 앞, 다른 useState 와 함께 선언) */
   async function moveBanner(b: AdminBanner, dir: -1 | 1) {
     if (bannerReordering) return;
     const group = banners.filter(x => x.type === b.type).sort((a, z) => a.sort_order - z.sort_order);
