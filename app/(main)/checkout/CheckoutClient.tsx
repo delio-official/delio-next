@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
 import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
+import { fbInitiateCheckout, fbPurchase } from '@/lib/metaPixel';
 import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -306,6 +307,7 @@ export default function CheckoutClient() {
     if (!beganCheckoutRef.current && items.length > 0) {
       beganCheckoutRef.current = true;
       gaBeginCheckout(items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), subtotal);
+      fbInitiateCheckout(items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), subtotal);
     }
   }, [items, subtotal]);
 
@@ -441,6 +443,7 @@ export default function CheckoutClient() {
           }),
         }).catch(() => {});
         gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
+        fbPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
         router.push(`/order-complete?order=${order.order_no}&point=${Math.floor(total * 0.01)}`);
         return;
       } else if (payMethod === 'vbank') {
@@ -576,6 +579,7 @@ export default function CheckoutClient() {
 
       clearCart(); clearOrderPrefs();
       gaPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
+      fbPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
       router.push(`/order-complete?order=${verifyData.orderNo}&point=${verifyData.earnedPoint}`);
 
     } catch (err) {

@@ -8,6 +8,7 @@ import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { addToCart, getCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { getDownloadableCoupons, claimAllPublic, type PublicCoupon } from '@/lib/coupons';
 import { gaViewItem, gaAddToCart } from '@/lib/gtag';
+import { fbViewContent, fbAddToCart } from '@/lib/metaPixel';
 import { useAuth } from '@/hooks/useAuth';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -709,12 +710,14 @@ export default function ProductClient() {
     });
     const totalQ = list.reduce((s, p) => s + p.qty, 0);
     gaAddToCart({ id: product.id, name: product.name, price: base, quantity: totalQ, category: product.category });
+    fbAddToCart({ id: product.id, name: product.name, price: base, quantity: totalQ, category: product.category });
     return true;
   }
   /* GA4: 상품 조회 */
   useEffect(() => {
     if (product) {
       gaViewItem({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
+      fbViewContent({ id: product.id, name: product.name, price: product.discounted_price ?? product.price, category: product.category });
       try { createClient().rpc('bump_product_view', { p_id: product.id }); } catch { /* noop */ }
     }
   }, [product?.id]); // eslint-disable-line react-hooks/exhaustive-deps
