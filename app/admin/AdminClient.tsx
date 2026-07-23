@@ -8485,7 +8485,12 @@ export default function AdminClient() {
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
-                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
+                                      <td>
+                                        <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                                          <Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} />
+                                          {c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}
+                                        </div>
+                                      </td>
                                       <td>
                                         <div style={{ display:'flex', gap:6 }}>
                                           <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
@@ -8526,7 +8531,12 @@ export default function AdminClient() {
                                 <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
                                 <td className="adm-muted">{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
                                 <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
-                                <td><Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} /></td>
+                                <td>
+                                  <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                                    <Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} />
+                                    {c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}
+                                  </div>
+                                </td>
                                 <td>
                                   <div style={{ display:'flex', gap:6 }}>
                                     <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
@@ -8745,7 +8755,12 @@ export default function AdminClient() {
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
-                                      <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
+                                      <td>
+                                        <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                                          <Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} />
+                                          {c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}
+                                        </div>
+                                      </td>
                                       <td>
                                         <div style={{ display:'flex', gap:6 }}>
                                           <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => openGiveCouponModal(c)}>지급</button>
