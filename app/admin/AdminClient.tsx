@@ -8426,12 +8426,12 @@ export default function AdminClient() {
                     const totalAmt = pack.filter(c => c.is_active && c.discount_type === 'fixed').reduce((s,c) => s + c.discount_value, 0);
                     return (
                       <div className="adm-card" style={{ marginBottom:16 }}>
-                        <div className="adm-card-head" style={{ alignItems:'center' }}>
+                        <div className="adm-card-head" style={{ alignItems:'center', borderBottom:'none' }}>
                           <span className="adm-card-title">신규 회원가입 쿠폰팩</span>
                           <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openSignupCouponModal}>+ 신규회원 쿠폰 추가</button>
                         </div>
-                        <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
-                          신규 회원이 가입하면 아래 쿠폰이 <strong>각자 가입일 기준으로 자동 발급</strong>됩니다. (정액 합계 <strong>{fmtPrice(totalAmt)}원</strong> · {pack.filter(c=>c.is_active).length}종 활성)
+                        <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'0 18px 12px' }}>
+                          신규 회원이 가입하면 아래 쿠폰이 <strong style={{ fontWeight:600 }}>각자 가입일 기준으로 자동 발급</strong>됩니다. (정액 합계 <strong style={{ fontWeight:600 }}>{fmtPrice(totalAmt)}원</strong> · {pack.filter(c=>c.is_active).length}종 활성)
                         </div>
                         {pack.length === 0 ? (
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 신규회원 쿠폰이 없습니다. 우측 “+ 신규회원 쿠폰 추가”로 만드세요.</div>
