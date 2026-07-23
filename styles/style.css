@@ -482,7 +482,7 @@ input, select, textarea { font-family: inherit; }
 .cat-drawer-panel {
   position: absolute;
   left: 0; top: 0; bottom: 58px; width: 100%;
-  background: #F7F7F5;
+  background: #FFFFFF;
   transform: translateX(-100%);
   transition: transform .3s cubic-bezier(0.4,0,0.2,1);
   display: flex; flex-direction: column;
@@ -507,7 +507,8 @@ input, select, textarea { font-family: inherit; }
 }
 .cat-drawer-name { flex: 1; font-size: 16px; font-weight: 500; color: var(--color-ink); }
 /* 아코디언 */
-.cat-drawer-acc-item { background: #fff; margin-bottom: 1px; }
+/* 패널이 흰색이 되면서 margin-bottom 1px 로 만들던 회색 구분선이 사라지므로 실선으로 대체 */
+.cat-drawer-acc-item { background: #fff; border-bottom: 1px solid #F0F0EE; }
 .cat-drawer-acc-header {
   display: flex; align-items: center; gap: 12px;
   padding: 13px 16px; cursor: pointer; transition: background .15s;
@@ -570,7 +571,7 @@ input, select, textarea { font-family: inherit; }
 .cd-promo-empty {
   margin: 12px 12px 0;
   border-radius: 8px;
-  background: #F7F7F5;
+  background: #FFFFFF;
   border: 1px solid #EBEBE8;
 }
 .cd-promo-empty > div { padding: 28px 16px !important; }
