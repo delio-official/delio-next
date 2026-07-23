@@ -8972,7 +8972,7 @@ export default function AdminClient() {
                             onDragOver={e => e.preventDefault()}
                             onDrop={() => { if (dragRow.current) reorderBanners(dragRow.current, b.id); }}
                             title="드래그해서 순서 변경"
-                            style={{ flexShrink:0, width:96, cursor:'grab', border:'1px solid #E2E8F0', borderRadius:8, overflow:'hidden', background:'#fff' }}>
+                            style={{ flexShrink:0, width:168, cursor:'grab', border:'1px solid #E2E8F0', borderRadius:8, overflow:'hidden', background:'#fff' }}>
                             <div style={{ position:'relative' }}>
                               {b.image_url
                                 ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'2.2/1', objectFit:'cover', display:'block', background:'#F0F0EE', pointerEvents:'none' }} />
