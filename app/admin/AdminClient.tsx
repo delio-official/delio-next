@@ -3528,7 +3528,7 @@ export default function AdminClient() {
     const sourceOf = (gp: string | null, c: { signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined) => {
       if (gp && /^\d{4}-\d{2}$/.test(gp)) return `멤버십 월발급 (${gp})`;
       if (gp && gp.startsWith('bday')) return '생일쿠폰';
-      if (c?.signup_grant) return '신규회원 웰컴';
+      if (c?.signup_grant) return '신규 회원가입';
       if (c?.is_membership) return '멤버십';
       if (c?.is_public) return '다운로드/이벤트';
       return '수동/기타';
@@ -5562,8 +5562,8 @@ export default function AdminClient() {
   const memCur = Math.min(Math.max(1, memPage), Math.max(1, Math.ceil(filteredMembers.length / memSize)));
   const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
   const cpCur = Math.min(Math.max(1, cpPage), Math.max(1, Math.ceil(coupons.length / cpSize)));
-  /* 아래 '전체 쿠폰' 목록에서는 신규회원 웰컴 쿠폰(signup_grant)을 뺀다 —
-     위 '신규회원 웰컴 쿠폰팩' 분류에서만 관리하도록. */
+  /* 아래 '전체 쿠폰' 목록에서는 신규 회원가입 쿠폰(signup_grant)을 뺀다 —
+     위 '신규 회원가입 쿠폰팩' 분류에서만 관리하도록. */
   const generalCoupons = coupons.filter(c => !c.signup_grant);
   const pagedCoupons = generalCoupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
   /* 멤버십 관리 탭 월발급 체크박스용 — 활성 멤버십 쿠폰 목록 */
@@ -8419,7 +8419,7 @@ export default function AdminClient() {
                       </div>
                     ))}
                   </div>
-                  {/* 신규회원 웰컴 쿠폰팩 (signup_grant) */}
+                  {/* 신규 회원가입 쿠폰팩 (signup_grant) */}
                   {(() => {
                     const pack = coupons.filter(c => c.signup_grant);
                     const today = new Date().toISOString().slice(0,10);
@@ -8427,7 +8427,7 @@ export default function AdminClient() {
                     return (
                       <div className="adm-card" style={{ marginBottom:16 }}>
                         <div className="adm-card-head" style={{ alignItems:'center' }}>
-                          <span className="adm-card-title">신규회원 웰컴 쿠폰팩</span>
+                          <span className="adm-card-title">신규 회원가입 쿠폰팩</span>
                           <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto' }} onClick={openSignupCouponModal}>+ 신규회원 쿠폰 추가</button>
                         </div>
                         <div className="adm-muted" style={{ fontSize:12, margin:'2px 0 12px' }}>
