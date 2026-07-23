@@ -4109,19 +4109,20 @@ export default function AdminClient() {
     setBanners(prev => prev.map(x => x.id === b.id ? { ...x, is_active: !b.is_active } : x));
   }
 
-  /* 배너 순서 이동 — 같은 type(메인/중간/카테고리) 안에서만.
-     이동 후 sort_order 를 0부터 다시 부여해 중복·빈 번호도 함께 정리한다.
+  /* 배너 순서 드래그 재배치 — 같은 type(메인/중간/카테고리) 안에서만.
+     dragged 를 target 자리로 옮긴 뒤 sort_order 를 0부터 다시 부여(중복·빈 번호 정리).
      (bannerReordering 상태는 훅이라 early return 앞, 다른 useState 와 함께 선언) */
-  async function moveBanner(b: AdminBanner, dir: -1 | 1) {
-    if (bannerReordering) return;
-    const group = banners.filter(x => x.type === b.type).sort((a, z) => a.sort_order - z.sort_order);
-    const i = group.findIndex(x => x.id === b.id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= group.length) return;   // 끝이면 무시
-    [group[i], group[j]] = [group[j], group[i]];        // 자리 교환
+  async function reorderBanners(draggedId: string, targetId: string) {
+    if (bannerReordering || draggedId === targetId) return;
+    const dragged = banners.find(x => x.id === draggedId);
+    const target  = banners.find(x => x.id === targetId);
+    if (!dragged || !target || dragged.type !== target.type) return;   // 다른 종류끼리는 이동 불가
+    const group = banners.filter(x => x.type === dragged.type).sort((a, z) => a.sort_order - z.sort_order);
+    const from = group.findIndex(x => x.id === draggedId);
+    const to   = group.findIndex(x => x.id === targetId);
+    group.splice(to, 0, group.splice(from, 1)[0]);   // dragged 를 target 위치로
     setBannerReordering(true);
     const supabase = createClient();
-    /* 새 순서대로 0,1,2… 재부여 */
     await Promise.all(group.map((x, idx) =>
       supabase.from('banners').update({ sort_order: idx }).eq('id', x.id)));
     const orderMap = new Map(group.map((x, idx) => [x.id, idx]));
@@ -8956,6 +8957,35 @@ export default function AdminClient() {
                       }}>+ 배너 등록</button>
                     </div>
                   </div>
+
+                  {/* 노출 순서 — 썸네일을 드래그해서 순서 변경 */}
+                  {list.length > 1 && (
+                    <div className="adm-card" style={{ padding:'12px 14px', marginBottom:16 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>
+                        노출 순서 <span style={{ fontWeight:400, color:'#94A3B8' }}>— 아래 썸네일을 드래그해서 순서를 바꾸세요 (고객 화면에 이 순서로 표시)</span>
+                      </div>
+                      <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4, opacity: bannerReordering ? 0.5 : 1 }}>
+                        {list.map((b, idx) => (
+                          <div key={b.id} draggable
+                            onDragStart={() => { dragRow.current = b.id; }}
+                            onDragEnd={() => { dragRow.current = null; }}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={() => { if (dragRow.current) reorderBanners(dragRow.current, b.id); }}
+                            title="드래그해서 순서 변경"
+                            style={{ flexShrink:0, width:96, cursor:'grab', border:'1px solid #E2E8F0', borderRadius:8, overflow:'hidden', background:'#fff' }}>
+                            <div style={{ position:'relative' }}>
+                              {b.image_url
+                                ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'2.2/1', objectFit:'cover', display:'block', background:'#F0F0EE', pointerEvents:'none' }} />
+                                : <div style={{ width:'100%', aspectRatio:'2.2/1', background:'#F0F0EE' }} />}
+                              <span style={{ position:'absolute', top:3, left:3, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:10, fontWeight:700, borderRadius:4, padding:'1px 5px' }}>{idx + 1}</span>
+                              {!b.is_active && <span style={{ position:'absolute', top:3, right:3, background:'#64748B', color:'#fff', fontSize:9, borderRadius:4, padding:'1px 4px' }}>숨김</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {bannersLoading
                     ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
                     : list.length === 0
@@ -8974,25 +9004,7 @@ export default function AdminClient() {
                                 <button onClick={() => toggleBannerActive(b)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: b.is_active?'#DCFCE7':'#F1F5F9', color: b.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
                                   {b.is_active ? '노출중' : '숨김'}
                                 </button>
-                                {/* 순서 이동 — 같은 배너 종류 안에서 앞/뒤로 */}
-                                {(() => {
-                                  const grp = list; const gi = grp.findIndex(x => x.id === b.id);
-                                  const arrow = (dir: -1 | 1, disabled: boolean, label: string) => (
-                                    <button onClick={() => moveBanner(b, dir)} disabled={disabled || bannerReordering} title={label}
-                                      style={{ width:22, height:22, borderRadius:6, border:'1px solid #E2E8F0', background:'#fff',
-                                        cursor: disabled ? 'default' : 'pointer', color: disabled ? '#CBD5E1' : '#475569',
-                                        fontSize:12, lineHeight:1, display:'inline-flex', alignItems:'center', justifyContent:'center', padding:0 }}>
-                                      {dir === -1 ? '↑' : '↓'}
-                                    </button>
-                                  );
-                                  return (
-                                    <div style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-                                      {arrow(-1, gi <= 0, '앞으로')}
-                                      {arrow(1, gi >= grp.length - 1, '뒤로')}
-                                      <span style={{ fontSize:11, color:'#94A3B8', marginLeft:2 }}>{gi + 1}번째</span>
-                                    </div>
-                                  );
-                                })()}
+                                <span style={{ fontSize:11, color:'#94A3B8' }}>{list.findIndex(x => x.id === b.id) + 1}번째</span>
                               </div>
                               <div className="adm-muted" style={{ fontSize:12, marginBottom:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>🔗 {b.link_url || '/'}</div>
                               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:10 }}>
