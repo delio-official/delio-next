@@ -10407,7 +10407,7 @@ export default function AdminClient() {
                 return (
                   <div className="adm-float-overlay" onClick={() => setRefundDetail(null)}>
                     <div className="adm-float-modal" style={{ maxWidth:480, padding:28 }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
                         <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>환불 신청 상세</h3>
                         <button onClick={() => setRefundDetail(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
                       </div>
@@ -11451,7 +11451,7 @@ export default function AdminClient() {
             onClick={e => e.stopPropagation()}>
 
             {/* 헤더 */}
-            <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
+            <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <span style={{ fontSize:15, fontWeight:700 }}>{selectedMember.name}</span>
                 <span className={`adm-badge ${GRADE_BADGE_CLS[selectedMember.grade]||'badge-normal'}`}>{GRADE_LABEL[selectedMember.grade]||selectedMember.grade}</span>
@@ -11764,7 +11764,7 @@ export default function AdminClient() {
         return (
           <div className="adm-float-overlay" onClick={() => setGiveCouponModal(false)}>
             <div className="adm-float-modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding:'18px 22px', borderBottom:'1px solid #F0F0F0' }}>
+              <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid #F0F0F0' }}>
                 <span style={{ fontSize:15, fontWeight:700 }}>쿠폰 지급</span>
               </div>
               <div style={{ padding:'18px 22px' }}>

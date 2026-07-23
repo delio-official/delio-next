@@ -606,10 +606,10 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 }
 .adm-modal-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 20px;
+  padding: 20px 20px 16px;   /* 제목을 살짝 아래로: 위 여백을 조금 더 줌 */
   border-bottom: 1px solid var(--border);
 }
-.adm-modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.adm-modal-title { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
 .adm-modal-close {
   width: 30px; height: 30px;
   background: none; border: none; cursor: pointer;
