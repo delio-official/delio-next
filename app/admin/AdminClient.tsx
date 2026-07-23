@@ -12222,7 +12222,6 @@ export default function AdminClient() {
           <div className="adm-modal" style={{ maxWidth:760, width:'96vw' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">{editingCoupon ? '쿠폰 수정' : '쿠폰 생성'}</span>
-              <button className="adm-modal-close" onClick={() => setCouponModal(false)}>✕</button>
             </div>
             <div className="adm-modal-body">
               <div className="adm-detail-grid adm-form-compact">
