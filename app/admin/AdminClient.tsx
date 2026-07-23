@@ -752,6 +752,24 @@ function computeFarmStats(
   return { cur, prev, cumulative, monthly, topProducts, recentReviews, missingNow, missingPast, missingPastAmount };
 }
 
+/* 쿠폰 발급/사용 현황 셀 — "발급 N / 사용 M 사용률%" + 진행 막대.
+   사용률은 요청대로 파랑. 발급 0이면 '-' 표시(0으로 나눔 방지). */
+function CouponUsageCell({ issued, used }: { issued: number; used: number }) {
+  if (!issued) return <span className="adm-muted">-</span>;
+  const rate = used / issued * 100;
+  return (
+    <div style={{ textAlign:'left', minWidth:140 }}>
+      <div style={{ fontSize:12.5, whiteSpace:'nowrap' }}>
+        {issued.toLocaleString()}건 <span style={{ color:'#CBD5E1' }}>/</span> {used.toLocaleString()}건
+        <span style={{ color:'#2563EB', fontWeight:700, marginLeft:5 }}>{rate.toFixed(1)}%</span>
+      </div>
+      <div style={{ height:5, borderRadius:999, background:'#EEF2F6', marginTop:5, overflow:'hidden' }}>
+        <div style={{ height:'100%', width:`${Math.min(100, rate)}%`, background:'#2563EB', borderRadius:999 }} />
+      </div>
+    </div>
+  );
+}
+
 /* 주문 단계 플로우 (대시보드·주문관리 공용) — 스마트스토어식 */
 const ORDER_STAGES: { key: string; label: string }[] = [
   { key:'paid',      label:'신규주문' },
@@ -2220,6 +2238,8 @@ export default function AdminClient() {
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
   const [couponStats, setCouponStats] = useState({ issued: 0, used: 0 });
+  /* 쿠폰별 발급/사용 집계 — 목록의 '발급/사용(사용률)' 칸용 */
+  const [couponUsage, setCouponUsage] = useState<Record<string, { issued: number; used: number }>>({});
   const [bannerTab, setBannerTab] = useState('tab-banner');
   const [inquiryTab, setInquiryTab] = useState('tab-general');
   const [inquiryFrom, setInquiryFrom] = useState('');
@@ -5040,13 +5060,22 @@ export default function AdminClient() {
   async function loadCoupons() {
     setCouponsLoading(true);
     const supabase = createClient();
-    const [{ data }, issuedRes, usedRes] = await Promise.all([
+    const [{ data }, issuedRes, usedRes, ucRows] = await Promise.all([
       supabase.from('coupons').select('*').order('created_at', { ascending: false }),
       supabase.from('user_coupons').select('id', { count: 'exact', head: true }),
       supabase.from('user_coupons').select('id', { count: 'exact', head: true }).eq('is_used', true),
+      // 쿠폰별 발급/사용 집계용 원자료
+      supabase.from('user_coupons').select('coupon_id, is_used').limit(20000),
     ]);
     setCoupons((data || []) as AdminCoupon[]);
     setCouponStats({ issued: issuedRes.count || 0, used: usedRes.count || 0 });
+    const per: Record<string, { issued: number; used: number }> = {};
+    ((ucRows.data || []) as { coupon_id: string; is_used: boolean }[]).forEach(r => {
+      if (!r.coupon_id) return;
+      (per[r.coupon_id] ||= { issued: 0, used: 0 }).issued++;
+      if (r.is_used) per[r.coupon_id].used++;
+    });
+    setCouponUsage(per);
     setCouponsLoading(false);
   }
 
@@ -8438,7 +8467,7 @@ export default function AdminClient() {
                         ) : (
                           <div className="adm-table-wrap">
                             <table className="adm-table">
-                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
+                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>발급 / 사용 (사용률)</th><th>상태</th><th>관리</th></tr></thead>
                               <tbody>
                                 {pack.map(c => {
                                   const relative = c.valid_days != null;
@@ -8451,6 +8480,7 @@ export default function AdminClient() {
                                         {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
+                                      <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
                                       <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
                                       <td>
                                         <div style={{ display:'flex', gap:6 }}>
@@ -8481,17 +8511,18 @@ export default function AdminClient() {
                     {couponsLoading ? <PanelLoading /> : (
                       <div className="adm-table-wrap">
                         <table className="adm-table">
-                          <thead><tr><th>쿠폰명</th><th>코드</th><th>할인 유형</th><th>할인값</th><th>만료일</th><th>활성</th><th>관리</th></tr></thead>
+                          {/* 코드 칸은 뺐음 — 수정(상세)에서 확인. 대신 발급/사용 현황 추가 */}
+                          <thead><tr><th>쿠폰명</th><th>할인 유형</th><th>할인값</th><th>만료일</th><th>발급 / 사용 (사용률)</th><th>활성</th><th>관리</th></tr></thead>
                           <tbody>
                             {generalCoupons.length === 0 ? (
                               <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>쿠폰 없음</td></tr>
                             ) : pagedCoupons.map(c => (
                               <tr key={c.id}>
                                 <td>{c.name}</td>
-                                <td className="adm-mono">{c.code || '-'}</td>
                                 <td>{c.discount_type === 'percent' ? '정률' : '정액'}</td>
                                 <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
                                 <td className="adm-muted">{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
+                                <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
                                 <td><Toggle defaultOn={c.is_active} onChange={v => toggleCouponActive(c.id, v)} /></td>
                                 <td>
                                   <div style={{ display:'flex', gap:6 }}>
@@ -8697,7 +8728,7 @@ export default function AdminClient() {
                         ) : (
                           <div className="adm-table-wrap">
                             <table className="adm-table">
-                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>상태</th><th>관리</th></tr></thead>
+                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>발급 / 사용 (사용률)</th><th>상태</th><th>관리</th></tr></thead>
                               <tbody>
                                 {pack.map(c => {
                                   const relative = c.valid_days != null;
@@ -8710,6 +8741,7 @@ export default function AdminClient() {
                                         {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
+                                      <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
                                       <td>{c.is_active ? <span className="adm-badge badge-on">활성</span> : <span className="adm-badge badge-off">비활성</span>}</td>
                                       <td>
                                         <div style={{ display:'flex', gap:6 }}>
