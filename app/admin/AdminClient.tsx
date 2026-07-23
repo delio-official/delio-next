@@ -8401,16 +8401,21 @@ export default function AdminClient() {
               {couponTab === 'tab-coupon' ? (
                 <>
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
-                    {[
+                    {([
                       ['전체 쿠폰', `${coupons.length}개`],
                       ['활성', `${coupons.filter(c => c.is_active).length}개`],
                       ['비활성', `${coupons.filter(c => !c.is_active).length}개`],
                       ['총 발급', `${couponStats.issued.toLocaleString()}건`],
-                      ['총 사용', `${couponStats.used.toLocaleString()}건`],
-                    ].map(([l, v]) => (
+                      /* 총 사용 옆에 사용률(발급 대비 %) — 초록. 발급 0이면 표기 안 함 */
+                      ['총 사용', `${couponStats.used.toLocaleString()}건`,
+                        couponStats.issued > 0 ? `${(couponStats.used / couponStats.issued * 100).toFixed(1)}%` : ''],
+                    ] as [string, string, string?][]).map(([l, v, rate]) => (
                       <div key={l} className="adm-kpi-card">
                         <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt">
+                          {v}
+                          {rate && <span style={{ fontSize:13, fontWeight:700, color:'#16A34A', marginLeft:6 }}>({rate})</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
