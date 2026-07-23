@@ -758,8 +758,8 @@ function CouponUsageCell({ issued, used }: { issued: number; used: number }) {
   if (!issued) return <span className="adm-muted">-</span>;
   const rate = used / issued * 100;
   return (
-    <div style={{ textAlign:'left', minWidth:140 }}>
-      <div style={{ fontSize:12.5, whiteSpace:'nowrap' }}>
+    <div style={{ minWidth:140, margin:'0 auto', display:'inline-block' }}>
+      <div style={{ fontSize:12.5, whiteSpace:'nowrap', textAlign:'center' }}>
         {issued.toLocaleString()}건 <span style={{ color:'#CBD5E1' }}>/</span> {used.toLocaleString()}건
         <span style={{ color:'#2563EB', fontWeight:700, marginLeft:5 }}>{rate.toFixed(1)}%</span>
       </div>
