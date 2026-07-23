@@ -9594,8 +9594,8 @@ export default function AdminClient() {
           {panel === 'homesections' && (
             <div className="adm-content">
               <div className="adm-card adm-card-settings" style={{ marginBottom: 16 }}>
-                <div className="adm-card-head"><span className="adm-card-title">메인 섹션 노출</span></div>
-                <div style={{ padding:'4px 0 8px', fontSize:12, color:'#94A3B8' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
+                <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">메인 섹션 노출</span></div>
+                <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'0 18px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:'8px 12px' }}>
                   {([
                     ['sec_topbanner','상단 배너'],
