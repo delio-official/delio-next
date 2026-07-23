@@ -187,6 +187,26 @@ function notifyOrderPhones(phones: (string | null | undefined)[], payload: Recor
   });
 }
 
+/* 주문자·수령인 양쪽에 보내되, 각자 '본인 이름'으로 발송.
+   선물 주문(주문자≠수령인)일 때 주문자에게 남(수령인) 이름이 찍히던 문제 해결.
+   같은 번호면 수령인 이름 우선(1건만 발송). name 은 알림톡 #{고객명} 으로 쓰임. */
+function notifyOrderRoles(
+  o: { phone?: string | null; orderer_phone?: string | null; recipient?: string | null; orderer_name?: string | null },
+  payload: Record<string, unknown>,
+) {
+  const norm = (p?: string | null) => (p || '').replace(/[^0-9]/g, '');
+  const rcpPh = norm(o.phone);
+  const ordPh = norm(o.orderer_phone);
+  const send = (ph: string, name: string) => {
+    if (!ph) return;
+    fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, phone: ph, name, recipient: name }) }).catch(() => {});
+  };
+  // 수령인 먼저 — 주문자와 번호가 같으면 아래에서 걸러져 이름은 수령인 것으로 감
+  send(rcpPh, o.recipient || '고객');
+  if (ordPh && ordPh !== rcpPh) send(ordPh, o.orderer_name || o.recipient || '고객');
+}
+
 /** 주문 대표 상품명 — 알림톡 변수용 (첫 상품 + 외 N건) */
 function orderProductName(o: Order): string {
   const items = o.order_items || [];
@@ -3605,7 +3625,7 @@ export default function AdminClient() {
       if (ord) {
         /* 취소·환불 = 결제 관련 → 주문자(계정)에게만 발송 */
         notifyOrderPhones([ord.orderer_phone || ord.phone], {
-          type: 'order_cancelled', recipient: ord.recipient,
+          type: 'order_cancelled', name: ord.orderer_name || ord.recipient, recipient: ord.orderer_name || ord.recipient,
           orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
           refundAmount: `${(ord.final_amount || 0).toLocaleString()}원`,
         });
@@ -4513,7 +4533,7 @@ export default function AdminClient() {
         const vo = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
         if (vo) {
           notifyOrderPhones([vo.orderer_phone || vo.phone], {
-            type: 'order_cancelled', recipient: vo.recipient, orderNo: vo.order_no,
+            type: 'order_cancelled', name: vo.orderer_name || vo.recipient, recipient: vo.orderer_name || vo.recipient, orderNo: vo.order_no,
             cancelledAt: new Date().toLocaleString('ko-KR'),
             refundAmount: `${(vo.final_amount || 0).toLocaleString()}원`,
           });
@@ -4526,7 +4546,7 @@ export default function AdminClient() {
         const deliveredOrder = orders.find(o => o.id === orderId);
         if (deliveredOrder) {
           /* 배송 관련 → 수령인 + 주문자 양쪽(같은 번호면 1회) */
-          notifyOrderPhones([deliveredOrder.phone, deliveredOrder.orderer_phone], {
+          notifyOrderRoles(deliveredOrder, {
             type: 'delivery_complete',
             recipient: deliveredOrder.recipient,
             orderNo: deliveredOrder.order_no,
@@ -4587,7 +4607,7 @@ export default function AdminClient() {
       const names = its.map(i => i.product_name).filter(Boolean) as string[];
       const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
       // 배송시작 알림톡 (해당 농가 상품명) — 수령인 + 주문자 양쪽
-      notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], {
+      notifyOrderRoles(selectedOrder, {
         type: 'shipping_started',
         recipient: selectedOrder.recipient,
         orderNo: selectedOrder.order_no,
@@ -4649,7 +4669,7 @@ export default function AdminClient() {
         const tno = trackingInput.tracking_number;
 
         // 배송 시작 알림 — 수령인 + 주문자 양쪽
-        notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], {
+        notifyOrderRoles(selectedOrder, {
           type: 'shipping_started',
           recipient: selectedOrder.recipient,
           orderNo: selectedOrder.order_no,
@@ -7196,7 +7216,7 @@ export default function AdminClient() {
                     const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
                     if (!eta || !eta.trim()) return;
                     /* 배송 관련 → 수령인 + 주문자 양쪽 */
-                    notifyOrderPhones([selectedOrder.phone, selectedOrder.orderer_phone], { type:'delivery_delayed', recipient: selectedOrder.recipient,
+                    notifyOrderRoles(selectedOrder, { type:'delivery_delayed', recipient: selectedOrder.recipient,
                       orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
                     const iso = new Date().toISOString();
                     await createClient().from('orders').update({ delay_notified_at: iso }).eq('id', selectedOrder.id);
