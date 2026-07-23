@@ -5339,12 +5339,13 @@ export default function AdminClient() {
     );
   }
 
-  function TabBtns({ tabs, active, setActive }: { tabs: {id:string; label: React.ReactNode}[]; active: string; setActive: (id:string)=>void }) {
+  function TabBtns({ tabs, active, setActive, right }: { tabs: {id:string; label: React.ReactNode}[]; active: string; setActive: (id:string)=>void; right?: React.ReactNode }) {
     return (
-      <div className="adm-tabs">
+      <div className="adm-tabs" style={right ? { display:'flex', alignItems:'center' } : undefined}>
         {tabs.map(t => (
           <button key={t.id} className={`adm-tab${active===t.id?' active':''}`} onClick={() => setActive(t.id)}>{t.label}</button>
         ))}
+        {right && <div style={{ marginLeft:'auto' }}>{right}</div>}
       </div>
     );
   }
@@ -8426,7 +8427,10 @@ export default function AdminClient() {
           {panel === 'coupon' && (
             <div className="adm-content">
               <TabBtns active={couponTab} setActive={setCouponTab}
-                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'},{id:'tab-couponlog',label:'지급 내역'}]} />
+                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'},{id:'tab-couponlog',label:'지급 내역'}]}
+                right={couponTab === 'tab-coupon'
+                  ? <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={loadCoupons}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  : null} />
               {couponTab === 'tab-coupon' ? (
                 <>
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
@@ -8503,7 +8507,6 @@ export default function AdminClient() {
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-outline" onClick={loadCoupons}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                       <button className="adm-btn adm-btn-primary" onClick={() => openCouponModal()}>+ 쿠폰 생성</button>
                     </div>
                   </div>
