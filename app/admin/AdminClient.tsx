@@ -4666,8 +4666,11 @@ export default function AdminClient() {
     }
 
     // 하나라도 송장 등록되면 주문 상태 배송중 전환 (부분 배송 포함)
-    const anyShipped = newItems.some(i => !!i.tracking_number);
-    if (anyShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
+    /* 주문 전체를 '배송중'으로 넘기는 건 모든 상품에 송장이 들어갔을 때만.
+       여러 브랜드 주문에서 한 브랜드만 발송했는데 주문 전체가 배송중으로 넘어가던 문제 수정.
+       (덜 발송된 브랜드는 order_items.ship_status 로 각각 '준비중' 유지) */
+    const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
+    if (allShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
       await supabase.from('orders').update({ status: 'shipped' }).eq('id', selectedOrder.id);
       setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'shipped' } : o));
       setSelectedOrder(s => s ? { ...s, status: 'shipped' } : s);
@@ -4748,20 +4751,26 @@ export default function AdminClient() {
   async function saveInlineTracking(o: Order, tno: string, courierSel?: string) {
     const trk = (tno || '').trim();
     if (!trk) { alert('송장번호를 입력하세요.'); return; }
+
+    /* 한 주문에 브랜드가 여러 개면 목록 인라인(주문 단위 송장 하나)으로는
+       어느 상품 송장인지 구분할 수 없다. 남의 브랜드 상품까지 같은 번호로
+       채워지는 사고를 막기 위해, 다중 브랜드 주문은 목록 저장을 막고 상세로 유도. */
+    const farmSet = new Set((o.order_items || []).map(i => i.farm_id || '__none'));
+    if (farmSet.size > 1) {
+      alert('여러 브랜드가 함께 담긴 주문입니다.\n상세 화면의 "브랜드별 송장"에서 각각 입력해주세요.');
+      setSelectedOrder(o);
+      return;
+    }
+
     setTrackSaving(o.id);
     const supabase = createClient();
     const cid = courierSel || o.courier || 'kr.cjlogistics';
     const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
     if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
 
-    /* 목록 입력은 주문 단위, 상세의 '브랜드별 송장'은 order_items 단위로 저장 위치가 다르다.
-       목록에서만 넣으면 상세가 비어 보이므로 같은 값으로 order_items 도 채운다.
-       단, 상세에서 브랜드별로 따로 넣은 송장은 덮어쓰지 않는다
-       (비어 있거나, 직전에 이 목록 입력으로 채워졌던 항목만 갱신). */
-    const prevTrk = (o.tracking_number || '').trim();
-    const targetIds = (o.order_items || [])
-      .filter(i => i.id && (!i.tracking_number || i.tracking_number === prevTrk))
-      .map(i => i.id as string);
+    /* 단일 브랜드 주문만 여기 도달 — 주문의 모든 상품이 같은 브랜드이므로
+       한 송장으로 전부 채워도 안전하다. */
+    const targetIds = (o.order_items || []).filter(i => i.id).map(i => i.id as string);
     if (targetIds.length > 0) {
       await supabase.from('order_items')
         .update({ courier: cid, tracking_number: trk, ship_status: 'shipped', shipped_at: new Date().toISOString() })
