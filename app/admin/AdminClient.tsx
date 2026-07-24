@@ -434,7 +434,7 @@ interface AdminCoupon {
   id: string; code: string | null; name: string;
   discount_type: 'percent' | 'fixed'; discount_value: number;
   min_order_amount: number; max_discount_amount: number | null;
-  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; is_membership?: boolean; description?: string | null; valid_days?: number | null; created_at: string;
+  starts_at: string; expires_at: string | null; is_active: boolean; is_public: boolean; signup_grant?: boolean; is_membership?: boolean; allow_point?: boolean; description?: string | null; valid_days?: number | null; created_at: string;
 }
 
 interface CsInquiryAdmin {
@@ -2109,7 +2109,7 @@ export default function AdminClient() {
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -5105,11 +5105,11 @@ export default function AdminClient() {
   function openCouponModal(c?: AdminCoupon) {
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true });
     } else {
       setEditingCoupon(null);
       /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true });
     }
     setCouponModal(true);
   }
@@ -5117,14 +5117,14 @@ export default function AdminClient() {
   /* 신규회원 쿠폰 추가 — signup_grant·정액·유효기간 30일 프리셋 */
   function openSignupCouponModal() {
     setEditingCoupon(null);
-    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false });
+    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false, allow_point: true });
     setCouponModal(true);
   }
 
   /* 멤버십 월발급 쿠폰 추가 — is_membership·유효기간 30일 프리셋 (등급별 월 발급 대상) */
   function openMembershipCouponModal() {
     setEditingCoupon(null);
-    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true });
+    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true, allow_point: true });
     setCouponModal(true);
   }
 
@@ -5163,6 +5163,7 @@ export default function AdminClient() {
       is_public: couponForm.is_public,
       signup_grant: couponForm.signup_grant,
       is_membership: couponForm.is_membership,
+      allow_point: couponForm.allow_point,
     };
     // is_membership 컬럼이 아직 없으면(SQL 미실행) 그 필드 빼고 재시도
     const stripMembership = (p: typeof payload) => { const { is_membership, ...rest } = p; void is_membership; return rest; };
@@ -12360,6 +12361,7 @@ export default function AdminClient() {
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {[
                   { l:'활성 여부', on:couponForm.is_active,     set:(v:boolean)=>setCouponForm(p=>({...p,is_active:v})),     d:'비활성 시 발급 및 사용 불가' },
+                  { l:'포인트 중복 사용', on:couponForm.allow_point, set:(v:boolean)=>setCouponForm(p=>({...p,allow_point:v})), d:'끄면 이 쿠폰 사용 시 포인트를 함께 쓸 수 없음(쿠폰만)' },
                   { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)' },
                   { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음' },
                   { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정' },

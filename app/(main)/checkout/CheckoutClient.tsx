@@ -101,7 +101,7 @@ export default function CheckoutClient() {
   const [addrSortOpen, setAddrSortOpen] = useState(false);
 
   /* 쿠폰 / 적립금 */
-  interface UserCoupon { ucId: string; couponId: string; name: string; discount_type: 'percent'|'fixed'; discount_value: number; min_order_amount: number; max_discount_amount: number | null; starts_at: string | null; expires_at: string | null; }
+  interface UserCoupon { ucId: string; couponId: string; name: string; discount_type: 'percent'|'fixed'; discount_value: number; min_order_amount: number; max_discount_amount: number | null; starts_at: string | null; expires_at: string | null; allowPoint: boolean; }
   const [coupons, setCoupons]       = useState<UserCoupon[]>([]);
   const [selCoupon, setSelCoupon]   = useState('');
   const [couponModal, setCouponModal] = useState(false);
@@ -196,7 +196,7 @@ export default function CheckoutClient() {
   async function loadHeldCoupons(autoSelect: boolean) {
     if (!user) return;
     const { data } = await createClient().from('user_coupons')
-      .select('id, coupon_id, expires_at, coupons(name, discount_type, discount_value, min_order_amount, max_discount_amount, is_active, starts_at, expires_at)')
+      .select('id, coupon_id, expires_at, coupons(name, discount_type, discount_value, min_order_amount, max_discount_amount, allow_point, is_active, starts_at, expires_at)')
       .eq('user_id', user.id).eq('is_used', false);
     // 만료 판정은 '날짜' 기준 — 만료일 당일 밤 12시까지 유효(타임존 조기소멸 방지)
     const nowD = new Date();
@@ -215,7 +215,8 @@ export default function CheckoutClient() {
           discount_value: c.discount_value as number, min_order_amount: c.min_order_amount as number,
           max_discount_amount: (c.max_discount_amount as number) ?? null,
           starts_at: (c.starts_at as string) ?? null,
-          expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null };
+          expires_at: (r.expires_at as string) ?? (c.expires_at as string) ?? null,
+          allowPoint: (c.allow_point as boolean) ?? true };
       });
     setCoupons(list);
     // 이전에 체크아웃에서 고른 쿠폰(prefs)이 보유 목록에 있으면 복원, 없으면 최대할인 자동선택
@@ -264,6 +265,15 @@ export default function CheckoutClient() {
     setOrderPrefs({ couponUcId: selCoupon, pointUsed });
   }, [selCoupon, pointUsed, prefsLoaded]);
 
+  /* 포인트 중복 불가 쿠폰을 골랐는데 포인트가 입력돼 있으면 자동으로 0 + 안내 */
+  const selCouponObj = coupons.find(c => c.ucId === selCoupon);
+  useEffect(() => {
+    if (selCouponObj && selCouponObj.allowPoint === false && pointUsed > 0) {
+      setPointUsed(0);
+      alert('이 쿠폰은 포인트와 함께 사용할 수 없어요.\n입력하신 포인트가 해제되었습니다.');
+    }
+  }, [selCoupon]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* 쿠폰 다운받기 */
   async function handleClaimCoupons() {
     if (!user || claiming) return;
@@ -287,7 +297,9 @@ export default function CheckoutClient() {
     if (coupon.max_discount_amount) couponDisc = Math.min(couponDisc, coupon.max_discount_amount);
   }
   const afterCoupon = Math.max(0, subtotal - couponDisc);
-  const maxPoint = Math.min(pointBalance, afterCoupon);
+  /* 이 쿠폰이 포인트 중복 사용 불가면 포인트 최대치 0 */
+  const pointBlocked = !!coupon && coupon.allowPoint === false;
+  const maxPoint = pointBlocked ? 0 : Math.min(pointBalance, afterCoupon);
   const appliedPoint = Math.min(pointUsed, maxPoint);
   const total = Math.max(0, afterCoupon - appliedPoint);
 
@@ -661,13 +673,15 @@ export default function CheckoutClient() {
           {/* ⑥ 포인트 */}
           <Section title="포인트" sk="point" open={isOpen('point')} onToggle={toggleSec}>
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <input type="text" inputMode="numeric" value={pointUsed || ''}
+              <input type="text" inputMode="numeric" value={pointBlocked ? '' : (pointUsed || '')} disabled={pointBlocked}
                 onChange={e => setPointUsed(Math.min(Number(e.target.value.replace(/[^0-9]/g, '')) || 0, maxPoint))} placeholder="0"
-                style={{ ...inS, flex:1, textAlign:'right' }} />
-              <button onClick={() => setPointUsed(maxPoint)}
-                style={{ padding:'8px 14px', border:'none', background:'#1A1A1A', borderRadius:6, fontSize:14, fontWeight:700, color:'#fff', cursor:'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0 }}>전액사용</button>
+                style={{ ...inS, flex:1, textAlign:'right', ...(pointBlocked ? { background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' } : {}) }} />
+              <button onClick={() => setPointUsed(maxPoint)} disabled={pointBlocked}
+                style={{ padding:'8px 14px', border:'none', background: pointBlocked ? '#CBD5E1' : '#1A1A1A', borderRadius:6, fontSize:14, fontWeight:700, color:'#fff', cursor: pointBlocked ? 'not-allowed' : 'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0 }}>전액사용</button>
             </div>
-            <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>
+            {pointBlocked
+              ? <p style={{ fontSize:12, color:'#DC2626', margin:'8px 0 0', textAlign:'right' }}>이 쿠폰은 포인트와 함께 사용할 수 없어요</p>
+              : <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>}
           </Section>
 
           {/* ② 주문하시는 분 */}
