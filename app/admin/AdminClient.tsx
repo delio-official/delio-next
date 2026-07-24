@@ -7848,7 +7848,8 @@ export default function AdminClient() {
                             if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
 
                             return (
-                            <tr key={editKey} style={gi > 0 ? { borderTop:'1px dashed #E8E8E4' } : undefined}>
+                            /* 주문 첫 줄엔 굵은 구분선(주문 경계), 같은 주문의 브랜드 이어지는 줄엔 연한 점선 */
+                            <tr key={editKey} style={gi === 0 ? { borderTop:'2px solid #CBD5E1' } : { borderTop:'1px dashed #E8E8E4' }}>
                               {gi === 0 && (
                                 <td rowSpan={n} onClick={e => e.stopPropagation()}>
                                   <input type="checkbox" checked={selOrders.has(o.id)}
