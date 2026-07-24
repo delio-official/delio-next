@@ -7860,9 +7860,9 @@ export default function AdminClient() {
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
                               {gi === 0 && <td rowSpan={n}>{o.recipient}</td>}
 
-                              {/* 상품 — 브랜드별. 브랜드명 · 소계 함께 */}
+                              {/* 상품 — 글자는 좌측정렬, 덩어리는 칸 가운데(inline-block) */}
                               <td>
-                                <div style={{ lineHeight:1.35, textAlign:'left' }}>
+                                <div style={{ lineHeight:1.35, textAlign:'left', display:'inline-block' }}>
                                   <div style={{ fontWeight:600 }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
                                   <div className="adm-muted" style={{ fontSize:11 }}>
                                     {g.farmName}{opt ? ` · ${opt}` : ''} · {fmtPrice(g.sub)}원
