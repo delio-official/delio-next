@@ -11928,13 +11928,13 @@ export default function AdminClient() {
             || (!!digits && (m.phone || '').replace(/[^0-9]/g, '').includes(digits));
         });
         return (
-          <div className="adm-float-overlay" onClick={() => setGiveCouponModal(false)}>
-            <div className="adm-float-modal" style={{ maxWidth:460 }} onClick={e => e.stopPropagation()}>
-              <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid #F0F0F0' }}>
-                <span style={{ fontSize:15, fontWeight:700 }}>쿠폰 지급</span>
+          <div className="adm-modal-bg open" onClick={() => setGiveCouponModal(false)}>
+            <div className="adm-modal" style={{ maxWidth:460, width:'94vw' }} onClick={e => e.stopPropagation()}>
+              <div className="adm-modal-head">
+                <span className="adm-modal-title">쿠폰 지급</span>
               </div>
-              <div style={{ padding:'18px 22px' }}>
-                <div style={{ background:'#F8FAFC', borderRadius:8, padding:'12px 14px', marginBottom:16 }}>
+              <div className="adm-modal-body">
+                <div style={{ background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
                   <div style={{ fontSize:14, fontWeight:700 }}>{giveCouponTarget.name}</div>
                   <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>
                     {giveCouponTarget.discount_type === 'percent' ? `${giveCouponTarget.discount_value}% 할인` : `${fmtPrice(giveCouponTarget.discount_value)}원 할인`}
@@ -12004,11 +12004,11 @@ export default function AdminClient() {
                   )}
                 </div>
 
-                {/* 취소/지급 — 크기 통일, 우측 하단 정렬 */}
-                <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
-                  <button className="adm-btn adm-btn-outline" style={{ minWidth:96 }} onClick={() => setGiveCouponModal(false)}>취소</button>
-                  <button className="adm-btn adm-btn-primary" style={{ minWidth:96 }} onClick={giveCoupon} disabled={giveCouponSaving}>
-                    {giveCouponSaving ? '지급 중...' : '쿠폰 지급'}
+                {/* 취소/지급하기 — 다른 모달과 동일 규격 */}
+                <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => setGiveCouponModal(false)}>취소</button>
+                  <button className="adm-btn adm-btn-primary" onClick={giveCoupon} disabled={giveCouponSaving}>
+                    {giveCouponSaving ? '지급 중...' : '지급하기'}
                   </button>
                 </div>
               </div>
