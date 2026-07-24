@@ -12275,7 +12275,7 @@ export default function AdminClient() {
                     <input type="text" className="adm-input-text" style={{ flex:1 }} placeholder="예: WELCOME10"
                       value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} />
                     <button type="button" onClick={() => setCouponForm(p => ({ ...p, code: genCouponCode() }))}
-                      style={{ padding:'0 14px', height:34, border:'1.5px solid #1A1A1A', background:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                      style={{ padding:'0 14px', height:34, border:'1.5px solid #1A1A1A', background:'#1A1A1A', color:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
                       자동생성
                     </button>
                   </div>
