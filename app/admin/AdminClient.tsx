@@ -2230,7 +2230,7 @@ export default function AdminClient() {
   const [refCouponsLoading, setRefCouponsLoading] = useState(false);
 
   /* 쿠폰 지급 내역 (회원별) */
-  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
+  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; expires_at: string | null; used_at: string | null; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
   const [couponLogs, setCouponLogs] = useState<CouponLog[]>([]);
   const [couponLogsLoading, setCouponLogsLoading] = useState(false);
   const [clSearch, setClSearch] = useState('');
@@ -3551,7 +3551,7 @@ export default function AdminClient() {
     setCouponLogsLoading(true);
     const supabase = createClient();
     const { data: ucs } = await supabase.from('user_coupons')
-      .select('id, user_id, coupon_id, is_used, issued_at, expires_at, grant_period')
+      .select('id, user_id, coupon_id, is_used, used_at, issued_at, expires_at, grant_period')
       .order('issued_at', { ascending: false }).limit(2000);
     const userIds = [...new Set((ucs || []).map((u: { user_id: string }) => u.user_id))];
     const couponIds = [...new Set((ucs || []).map((u: { coupon_id: string }) => u.coupon_id))];
@@ -3575,7 +3575,7 @@ export default function AdminClient() {
       if (c?.is_membership || (gp && (/^\d{4}-\d{2}$/.test(gp) || gp.startsWith('bday')))) return 'membership';
       return 'general';
     };
-    const rows: CouponLog[] = (ucs || []).map((u: { id: string; user_id: string; coupon_id: string; is_used: boolean; issued_at: string; expires_at: string | null; grant_period: string | null }) => {
+    const rows: CouponLog[] = (ucs || []).map((u: { id: string; user_id: string; coupon_id: string; is_used: boolean; used_at: string | null; issued_at: string; expires_at: string | null; grant_period: string | null }) => {
       const p = profMap.get(u.user_id) as { name: string | null; email: string } | undefined;
       const c = cpMap.get(u.coupon_id) as { name: string; discount_type: 'percent'|'fixed'; discount_value: number; signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined;
       const expired = !u.is_used && !!u.expires_at && new Date(u.expires_at).getTime() < now;
@@ -3586,6 +3586,8 @@ export default function AdminClient() {
         couponName: c?.name || '(삭제된 쿠폰)',
         discountLabel: c ? (c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`) : '-',
         issued_at: u.issued_at,
+        expires_at: u.expires_at,
+        used_at: u.used_at,
         status: u.is_used ? '사용완료' : expired ? '만료' : '미사용',
         source: sourceOf(u.grant_period, c),
         category: categoryOf(u.grant_period, c),
@@ -8686,10 +8688,10 @@ export default function AdminClient() {
                     {couponLogsLoading ? <PanelLoading /> : (
                       <div className="adm-table-wrap">
                         <table className="adm-table">
-                          <thead><tr><th>회원</th><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>상태</th></tr></thead>
+                          <thead><tr><th>회원</th><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>만료일</th><th>사용일</th><th>상태</th></tr></thead>
                           <tbody>
                             {pagedCouponLogs.length === 0 ? (
-                              <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 지급 내역이 없습니다.</td></tr>
+                              <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 지급 내역이 없습니다.</td></tr>
                             ) : pagedCouponLogs.map(l => (
                               <tr key={l.id}>
                                 <td>{l.name} <span className="adm-muted" style={{ fontSize:12 }}>{l.email}</span></td>
@@ -8697,8 +8699,13 @@ export default function AdminClient() {
                                 <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                                 <td className="adm-muted">{l.source}</td>
                                 <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
+                                <td className="adm-muted">{l.expires_at ? l.expires_at.slice(0,10) : '-'}</td>
+                                <td className="adm-muted">{l.used_at ? l.used_at.slice(0,10) : '-'}</td>
                                 <td>
-                                  <span className={`adm-badge ${l.status === '사용완료' ? 'badge-off' : l.status === '만료' ? 'badge-off' : 'badge-on'}`}>{l.status}</span>
+                                  <span className="adm-badge" style={{
+                                    background: l.status === '사용완료' ? '#DCFCE7' : l.status === '만료' ? '#FEE2E2' : '#F1F5F9',
+                                    color:      l.status === '사용완료' ? '#16A34A' : l.status === '만료' ? '#DC2626' : '#64748B',
+                                  }}>{l.status}</span>
                                 </td>
                               </tr>
                             ))}
