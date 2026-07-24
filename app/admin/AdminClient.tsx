@@ -2095,6 +2095,8 @@ export default function AdminClient() {
   const [mSaving, setMSaving] = useState(false);
   const [recalcRunning, setRecalcRunning] = useState(false);
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
+  const [pointSubtab, setPointSubtab] = useState<'members' | 'history'>('members'); // 회원별 포인트 / 전체 내역
+  const [earnSaving, setEarnSaving] = useState(false);
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
   const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null } | null }[]>([]);
   const [pointLogFrom, setPointLogFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
@@ -4139,6 +4141,20 @@ export default function AdminClient() {
       data.forEach(row => { map[row.key] = row.value; });
       setSiteSettings(prev => ({ ...prev, ...map }));
     }
+  }
+
+  /* 포인트 적립 설정 저장 — 구매 기본 적립률·리뷰 적립 P (site_settings) */
+  async function saveEarnSettings() {
+    setEarnSaving(true);
+    const rows = [
+      { key: 'point_rate',         value: String(siteSettings.point_rate ?? '1') },
+      { key: 'review_point_text',  value: String(siteSettings.review_point_text ?? '50') },
+      { key: 'review_point_photo', value: String(siteSettings.review_point_photo ?? '150') },
+    ];
+    const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
+    setEarnSaving(false);
+    if (error) alert('저장 실패: ' + error.message);
+    else alert('적립 설정이 저장되었습니다.');
   }
 
   async function saveSettings() {
@@ -8654,25 +8670,51 @@ export default function AdminClient() {
                   )}
 
                   {couponTab === 'tab-point' && (<>
+                  {/* 포인트 시스템 (활성 토글) */}
+                  <div className="adm-card" style={{ marginBottom:16, padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14 }}>포인트 시스템</div>
+                      <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>끄면 적립·사용 기능이 모두 중지됩니다.</div>
+                    </div>
+                    <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
+                  </div>
+
                   {/* 포인트 적립 설정 */}
                   <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
-                    <div className="adm-card-head" style={{ paddingBottom:16, marginBottom:18, borderBottom:'1px solid #EEF2F6' }}>
-                      <div>
-                        <div className="adm-card-title">포인트 적립 설정</div>
-                        <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>구매액에 대한 포인트 적립률과 적용일을 설정할 수 있습니다.</div>
+                    <div className="adm-card-head" style={{ paddingBottom:14, marginBottom:16, borderBottom:'1px solid #EEF2F6' }}>
+                      <span className="adm-card-title">포인트 적립 설정</span>
+                    </div>
+                    <div className="adm-detail-grid adm-form-compact">
+                      <div className="adm-form-row">
+                        <label className="adm-label">구매 적립 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 기본(비기너) 기준, 등급별은 멤버십 탭</span></label>
+                        <div className="adm-flex-center-gap">
+                          <input type="number" className="adm-input-text adm-input-w100" min={0} step={0.5}
+                            value={siteSettings.point_rate ?? '1'} onChange={e => setSiteSettings(prev => ({ ...prev, point_rate: e.target.value }))} />
+                          <span className="adm-muted">%</span>
+                        </div>
+                      </div>
+                      <div className="adm-form-row"><div /></div>
+                      <div className="adm-form-row">
+                        <label className="adm-label">일반 리뷰 적립</label>
+                        <div className="adm-flex-center-gap">
+                          <input type="number" className="adm-input-text adm-input-w100" min={0}
+                            value={siteSettings.review_point_text ?? '50'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_text: e.target.value }))} />
+                          <span className="adm-muted">P</span>
+                        </div>
+                      </div>
+                      <div className="adm-form-row">
+                        <label className="adm-label">포토 리뷰 적립 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 사진·영상 첨부 시</span></label>
+                        <div className="adm-flex-center-gap">
+                          <input type="number" className="adm-input-text adm-input-w100" min={0}
+                            value={siteSettings.review_point_photo ?? '150'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_photo: e.target.value }))} />
+                          <span className="adm-muted">P</span>
+                        </div>
                       </div>
                     </div>
-                    {/* 시스템 활성화 토글 */}
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, padding:'14px 16px', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, margin:'0 0 18px' }}>
-                      <div>
-                        <div style={{ fontWeight:700, fontSize:13 }}>포인트 시스템 활성화</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>포인트 적립 및 사용 기능을 활성화합니다.</div>
-                      </div>
-                      <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
-                    </div>
-                    {/* 적립률은 등급별 설정으로 이전 */}
-                    <div style={{ padding:'12px 14px', background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:8, fontSize:12.5, color:'#92400E', lineHeight:1.6 }}>
-                      포인트 <b>적립률은 회원 등급별</b>로 적용됩니다. <b>멤버십 관리</b> 탭에서 등급마다 적립률·적용일을 관리하세요.
+                    <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
+                      <button className="adm-btn adm-btn-primary" onClick={saveEarnSettings} disabled={earnSaving}>
+                        {earnSaving ? '저장 중...' : '저장'}
+                      </button>
                     </div>
                   </div>
                   </>)}
@@ -8835,20 +8877,25 @@ export default function AdminClient() {
                   </>)}
 
                   {couponTab === 'tab-point' && (<>
-                  {/* KPI */}
+                  {/* KPI — 지급 초록 / 사용 빨강 */}
                   <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
-                    {[
-                      ['전체 보유 포인트', `${fmtPrice(pointStats.total)}P`],
-                      ['이번달 지급',      `+${fmtPrice(pointStats.monthGiven)}P`],
-                      ['이번달 사용',      `-${fmtPrice(pointStats.monthUsed)}P`],
-                    ].map(([l,v]) => (
+                    {([
+                      ['전체 보유 포인트', `${fmtPrice(pointStats.total)}P`, undefined],
+                      ['이번달 지급',      `+${fmtPrice(pointStats.monthGiven)}P`, '#16A34A'],
+                      ['이번달 사용',      `-${fmtPrice(pointStats.monthUsed)}P`, '#DC2626'],
+                    ] as [string, string, string?][]).map(([l,v,c]) => (
                       <div key={l} className="adm-kpi-card">
                         <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={c ? { color:c } : undefined}>{v}</div>
                       </div>
                     ))}
                   </div>
 
+                  {/* 서브탭 — 회원별 포인트 / 전체 내역 */}
+                  <TabBtns active={pointSubtab} setActive={id => setPointSubtab(id as 'members'|'history')}
+                    tabs={[{ id:'members', label:'회원별 포인트' }, { id:'history', label:'전체 내역' }]} />
+
+                  {pointSubtab === 'members' && (<>
                   {/* 툴바 */}
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left">
@@ -8888,9 +8935,9 @@ export default function AdminClient() {
                                   {fmtPrice(m.point_balance||0)}P
                                 </td>
                                 <td>
-                                  <button className="adm-btn adm-btn-primary" style={{ fontSize:12, padding:'4px 12px' }}
+                                  <button className="adm-row-btn"
                                     onClick={() => { setGivePointTarget(m); setGivePointForm({ amount:'', desc:'' }); setGivePointModal(true); }}>
-                                    포인트 지급
+                                    지급
                                   </button>
                                 </td>
                               </tr>
@@ -8901,9 +8948,11 @@ export default function AdminClient() {
                     )}
                   </div>
                   <Pager page={pmCur} pageSize={pmSize} total={filteredPointMembers.length} onPage={setPmPage} onPageSize={setPmSize} />
+                  </>)}
 
+                  {pointSubtab === 'history' && (<>
                   {/* 포인트 지급/사용 내역 (기간별) */}
-                  <div className="adm-toolbar" style={{ marginTop:20, flexWrap:'wrap', gap:8 }}>
+                  <div className="adm-toolbar" style={{ marginTop:0, flexWrap:'wrap', gap:8 }}>
                     <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
                       <span className="adm-card-title">포인트 내역</span>
                     </div>
@@ -8941,6 +8990,7 @@ export default function AdminClient() {
                     </div>
                   </div>
                   <Pager page={plCur} pageSize={plSize} total={pointLogs.length} onPage={setPlPage} onPageSize={setPlSize} />
+                  </>)}
                   </>)}
                 </>
               )}
@@ -11416,20 +11466,7 @@ export default function AdminClient() {
                     <label className="adm-label">상단 배송안내 탭 노출</label>
                     <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                   </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">리뷰 작성 적립 포인트</label>
-                    <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_text ?? '50'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_text: e.target.value }))} />
-                      <span className="adm-muted">P (일반 리뷰)</span>
-                    </div>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">사진·영상 리뷰 적립 포인트</label>
-                    <div className="adm-flex-center-gap">
-                      <input type="number" className="adm-input-text adm-input-w100" min={0} value={siteSettings.review_point_photo ?? '150'} onChange={e => setSiteSettings(prev => ({ ...prev, review_point_photo: e.target.value }))} />
-                      <span className="adm-muted">P (사진·영상 첨부 시)</span>
-                    </div>
-                  </div>
+                  {/* 리뷰 적립 포인트는 쿠폰/포인트 > 포인트 관리 탭으로 이전 */}
                 </div>
               </div>
 
