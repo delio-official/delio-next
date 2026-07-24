@@ -2236,6 +2236,8 @@ export default function AdminClient() {
   const [clSearch, setClSearch] = useState('');
   const [clStatus, setClStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
   const [clCategory, setClCategory] = useState<'all'|'signup'|'membership'|'general'>('all');
+  const [clFrom, setClFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
+  const [clTo, setClTo] = useState<string>(() => ymd(new Date()));
   const [clPage, setClPage] = useState(1); const [clSize, setClSize] = useState(20);
   const [refcPage, setRefcPage] = useState(1); const [refcSize, setRefcSize] = useState(10);
 
@@ -5672,6 +5674,11 @@ export default function AdminClient() {
     if (clStatus === 'used' && l.status !== '사용완료') return false;
     if (clStatus === 'expired' && l.status !== '만료') return false;
     if (clCategory !== 'all' && l.category !== clCategory) return false;
+    if (l.issued_at) {
+      const d = l.issued_at.slice(0,10);
+      if (clFrom && d < clFrom) return false;
+      if (clTo && d > clTo) return false;
+    }
     const q = clSearch.trim().toLowerCase();
     if (q && !(`${l.name} ${l.email} ${l.couponName}`.toLowerCase().includes(q))) return false;
     return true;
@@ -8656,35 +8663,38 @@ export default function AdminClient() {
                   <Pager page={cpCur} pageSize={cpSize} total={generalCoupons.length} onPage={setCpPage} onPageSize={setCpSize} />
                   </>)}
 
-                  {couponSubtab === 'log' && (
+                  {couponSubtab === 'log' && (<>
+                  {/* 쿠폰 지급 내역 — 포인트 전체 내역과 동일 레이아웃 */}
+                  <div className="adm-toolbar" style={{ marginTop:0, flexWrap:'wrap', gap:8 }}>
+                    <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <AdmSelect value={clStatus} onChange={v => { setClStatus(v as 'all'|'unused'|'used'|'expired'); setClPage(1); }}
+                        options={[{ value:'all', label:'전체 상태' }, { value:'unused', label:'미사용' }, { value:'used', label:'사용완료' }, { value:'expired', label:'만료' }]} />
+                      <AdmSelect value={clCategory} onChange={v => { setClCategory(v as 'all'|'signup'|'membership'|'general'); setClPage(1); }}
+                        options={[{ value:'all', label:'전체 종류' }, { value:'signup', label:'신규회원' }, { value:'general', label:'일반쿠폰' }, { value:'membership', label:'멤버십쿠폰' }]} />
+                      <input type="text" className="adm-input-text" placeholder="회원 이름 · 이메일 · 쿠폰명 검색"
+                        value={clSearch} onChange={e => { setClSearch(e.target.value); setClPage(1); }} />
+                    </div>
+                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                      <input type="date" className="adm-select" value={clFrom} onChange={e => { setClFrom(e.target.value); setClPage(1); }} />
+                      <span style={{ color:'#94A3B8' }}>~</span>
+                      <input type="date" className="adm-select" value={clTo} onChange={e => { setClTo(e.target.value); setClPage(1); }} />
+                      <button className="adm-btn adm-btn-dark" onClick={() => loadCouponLogs()}>조회</button>
+                      <button className="adm-btn adm-btn-outline" onClick={() => loadCouponLogs()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                    </div>
+                  </div>
                   <div className="adm-card">
-                    <div className="adm-card-head" style={{ alignItems:'center' }}>
-                      <span className="adm-card-title">쿠폰 지급 내역</span>
-                      <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {clFiltered.length.toLocaleString()}건</span>
-                      <button className="adm-btn adm-btn-outline" style={{ marginLeft:'auto' }} onClick={loadCouponLogs}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                    </div>
-                    <div className="adm-toolbar" style={{ marginTop:4 }}>
-                      <div className="adm-toolbar-left">
-                        <AdmSelect value={clStatus} onChange={v => { setClStatus(v as 'all'|'unused'|'used'|'expired'); setClPage(1); }}
-                          options={[{ value:'all', label:'전체 상태' }, { value:'unused', label:'미사용' }, { value:'used', label:'사용완료' }, { value:'expired', label:'만료' }]} />
-                        <AdmSelect value={clCategory} onChange={v => { setClCategory(v as 'all'|'signup'|'membership'|'general'); setClPage(1); }}
-                          options={[{ value:'all', label:'전체 종류' }, { value:'signup', label:'신규회원' }, { value:'general', label:'일반쿠폰' }, { value:'membership', label:'멤버십쿠폰' }]} />
-                        <input type="text" className="adm-input-text" placeholder="회원 이름·이메일·쿠폰명 검색"
-                          value={clSearch} onChange={e => { setClSearch(e.target.value); setClPage(1); }} />
-                      </div>
-                    </div>
                     {couponLogsLoading ? <PanelLoading /> : (
                       <div className="adm-table-wrap">
                         <table className="adm-table">
                           <thead><tr><th>회원</th><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>상태</th></tr></thead>
                           <tbody>
                             {pagedCouponLogs.length === 0 ? (
-                              <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>지급 내역이 없습니다</td></tr>
+                              <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 지급 내역이 없습니다.</td></tr>
                             ) : pagedCouponLogs.map(l => (
                               <tr key={l.id}>
-                                <td>{l.name} <span className="adm-muted" style={{ fontSize:11 }}>{l.email}</span></td>
-                                <td style={{ fontWeight:600 }}>{l.couponName}</td>
-                                <td><strong>{l.discountLabel}</strong></td>
+                                <td>{l.name} <span className="adm-muted" style={{ fontSize:12 }}>{l.email}</span></td>
+                                <td style={{ fontWeight:700 }}>{l.couponName}</td>
+                                <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                                 <td className="adm-muted">{l.source}</td>
                                 <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
                                 <td>
@@ -8696,9 +8706,9 @@ export default function AdminClient() {
                         </table>
                       </div>
                     )}
-                    <Pager page={clCur} pageSize={clSize} total={clFiltered.length} onPage={setClPage} onPageSize={setClSize} />
                   </div>
-                  )}
+                  <Pager page={clCur} pageSize={clSize} total={clFiltered.length} onPage={setClPage} onPageSize={setClSize} />
+                  </>)}
                 </>
               ) : (
                 <>
