@@ -8761,8 +8761,8 @@ export default function AdminClient() {
                       </span>
                     </div>
 
-                    {/* 등급별 카드 */}
-                    <div className="adm-kpi-grid adm-kpi-4" style={{ marginBottom:0, gridTemplateColumns:'repeat(4, minmax(0, 1fr))' }}>
+                    {/* 등급별 카드 (모바일은 가로 스크롤) */}
+                    <div className="adm-kpi-grid adm-kpi-4 mm-tier-grid" style={{ marginBottom:0, gridTemplateColumns:'repeat(4, minmax(0, 1fr))' }}>
                       {mTiers.map(t => {
                         const color = GRADE_TIER_COLOR[t.grade] || '#94A3B8';
                         return (

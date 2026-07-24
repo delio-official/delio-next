@@ -456,6 +456,22 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   .adm-kpi-4,
   .adm-kpi-5 { grid-template-columns: repeat(2, 1fr); }
 
+  /* 멤버십 등급 카드: 모바일은 가로 스크롤(이전처럼 옆으로 넘김) */
+  .mm-tier-grid {
+    display: flex !important;
+    grid-template-columns: none !important;
+    overflow-x: auto;
+    gap: 12px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 6px;
+  }
+  .mm-tier-grid > div {
+    flex: 0 0 76%;
+    min-width: 240px;
+    scroll-snap-align: start;
+  }
+
   /* 툴바 */
   .adm-toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
   .adm-toolbar-left { flex-wrap: wrap; }
