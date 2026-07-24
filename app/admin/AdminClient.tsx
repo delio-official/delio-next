@@ -876,19 +876,21 @@ const Icon = {
 };
 
 /* ===== 토글 컴포넌트 ===== */
-function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange?: (v: boolean) => void }) {
+function Toggle({ defaultOn = false, onChange, disabled = false }: { defaultOn?: boolean; onChange?: (v: boolean) => void; disabled?: boolean }) {
   const [on, setOn] = useState(defaultOn);
   useEffect(() => { setOn(defaultOn); }, [defaultOn]);
   function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (disabled) return;
     const next = !on;
     setOn(next);
     onChange?.(next);
   }
   return (
     <div onClick={handleClick} style={{
-      width: 38, height: 22, borderRadius: 999, cursor: 'pointer', flexShrink: 0,
+      width: 38, height: 22, borderRadius: 999, cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0,
+      opacity: disabled ? 0.55 : 1,
       background: on ? 'var(--accent, #2563EB)' : '#CBD5E1',
       transition: 'background .28s cubic-bezier(.4,0,.2,1)',
       position: 'relative',
@@ -2118,6 +2120,7 @@ export default function AdminClient() {
   const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
   const [couponsLoading, setCouponsLoading] = useState(false);
   const [couponModal, setCouponModal] = useState(false);
+  const [membershipLocked, setMembershipLocked] = useState(false); // 멤버십 추가창: '멤버십 월 발급' 고정
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
   const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true });
   const [couponSaving, setCouponSaving] = useState(false);
@@ -5128,6 +5131,7 @@ export default function AdminClient() {
   }
 
   function openCouponModal(c?: AdminCoupon) {
+    setMembershipLocked(false);
     if (c) {
       setEditingCoupon(c);
       setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true });
@@ -5142,6 +5146,7 @@ export default function AdminClient() {
   /* 신규회원 쿠폰 추가 — signup_grant·정액·유효기간 30일 프리셋 */
   function openSignupCouponModal() {
     setEditingCoupon(null);
+    setMembershipLocked(false);
     setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false, allow_point: true });
     setCouponModal(true);
   }
@@ -5149,6 +5154,7 @@ export default function AdminClient() {
   /* 멤버십 월발급 쿠폰 추가 — is_membership·유효기간 30일 프리셋 (등급별 월 발급 대상) */
   function openMembershipCouponModal() {
     setEditingCoupon(null);
+    setMembershipLocked(true);
     setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true, allow_point: true });
     setCouponModal(true);
   }
@@ -12450,21 +12456,21 @@ export default function AdminClient() {
               <div className="adm-formsec-title" style={{ marginTop:22 }}>발급 설정</div>
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {[
-                  { l:'활성 여부', on:couponForm.is_active,     set:(v:boolean)=>setCouponForm(p=>({...p,is_active:v})),     d:'비활성 시 발급 및 사용 불가' },
-                  { l:'포인트 중복 사용', on:couponForm.allow_point, set:(v:boolean)=>setCouponForm(p=>({...p,allow_point:v})), d:'끄면 이 쿠폰 사용 시 포인트를 함께 쓸 수 없음(쿠폰만)' },
-                  { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)' },
-                  { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음' },
-                  { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정' },
+                  { l:'활성 여부', on:couponForm.is_active,     set:(v:boolean)=>setCouponForm(p=>({...p,is_active:v})),     d:'비활성 시 발급 및 사용 불가', lock:false },
+                  { l:'포인트 중복 사용', on:couponForm.allow_point, set:(v:boolean)=>setCouponForm(p=>({...p,allow_point:v})), d:'끄면 이 쿠폰 사용 시 포인트를 함께 쓸 수 없음(쿠폰만)', lock:false },
+                  { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)', lock:false },
+                  { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음', lock:false },
+                  { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정', lock:membershipLocked },
                 ]
                   /* 신규회원 자동지급 쿠폰은 가입 시 자동 발급 전용 — 직접 다운로드·멤버십 월발급과 무관하므로 숨김 */
                   .filter(t => !(couponForm.signup_grant && (t.l === '회원 직접 다운로드' || t.l === '멤버십 월 발급')))
                   .map(t => (
                   <div key={t.l} style={{ border:'1px solid #F0F0EE', borderRadius:8, padding:'11px 14px', background:'#FAFAF8', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                     <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{t.l}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{t.l}{t.lock && <span style={{ fontSize:11, fontWeight:600, color:'#94A3B8', marginLeft:6 }}>(고정)</span>}</div>
                       <div style={{ fontSize:11.5, color:'#94A3B8', marginTop:3, lineHeight:1.4 }}>{t.d}</div>
                     </div>
-                    <Toggle defaultOn={t.on} onChange={t.set} />
+                    <Toggle defaultOn={t.on} onChange={t.set} disabled={t.lock} />
                   </div>
                 ))}
               </div>
