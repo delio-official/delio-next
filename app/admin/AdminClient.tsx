@@ -789,6 +789,11 @@ const GRADE_BADGE_CLS: Record<string, string> = {
   beginner:'badge-normal', taster:'badge-silver', buyer:'badge-gold', master:'badge-gold',
 };
 
+/* 등급별 대표 색상 (멤버십 카드 헤더·점) */
+const GRADE_TIER_COLOR: Record<string, string> = {
+  beginner:'#94A3B8', taster:'#16A34A', buyer:'#F59E0B', master:'#8B5CF6',
+};
+
 /* 등급 산정 기준(분기 누적) — 회원 등급변경 안내용 */
 const GRADE_CRITERIA: Record<string, string> = {
   beginner:'10만원 미만', taster:'10만원 이상', buyer:'30만원·3회 이상', master:'150만원·5회 이상',
@@ -8756,64 +8761,74 @@ export default function AdminClient() {
                       </span>
                     </div>
 
-                    {/* 등급별 표 */}
-                    <div className="adm-table-wrap" style={{ overflowX:'auto' }}>
-                      <table className="adm-table" style={{ minWidth:760 }}>
-                        <thead>
-                          <tr>
-                            <th style={{ minWidth:84 }}>등급</th>
-                            <th style={{ minWidth:96 }}>적립률(%)</th>
-                            <th style={{ minWidth:170 }}>예약 적립률 / 적용일</th>
-                            <th style={{ minWidth:120 }}>분기 누적금액(원)</th>
-                            <th style={{ minWidth:84 }}>구매횟수</th>
-                            <th style={{ minWidth:210 }}>월 발급 쿠폰</th>
-                            <th style={{ minWidth:70 }}>월 발급</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {mTiers.map(t => (
-                            <tr key={t.grade}>
-                              <td><span className={`adm-badge ${GRADE_BADGE_CLS[t.grade] || 'badge-normal'}`}>{t.label}</span></td>
-                              <td>
-                                <input type="number" className="adm-input-text" style={{ width:70 }} min={0} max={10} step={0.5}
-                                  value={String(t.point_rate)} onChange={e => updateTier(t.grade, { point_rate: Number(e.target.value) })} />
-                              </td>
-                              <td>
-                                <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-                                  <input type="number" className="adm-input-text" style={{ width:58 }} min={0} max={10} step={0.5} placeholder="-"
-                                    value={t.point_rate_next == null ? '' : String(t.point_rate_next)}
-                                    onChange={e => updateTier(t.grade, { point_rate_next: e.target.value === '' ? null : Number(e.target.value) })} />
-                                  <input type="date" className="adm-input-text" style={{ width:138 }} min={new Date().toISOString().slice(0,10)}
-                                    value={t.apply_date || ''} onChange={e => updateTier(t.grade, { apply_date: e.target.value || null })} />
-                                </div>
-                              </td>
-                              <td>
-                                <input type="number" className="adm-input-text" style={{ width:110 }} min={0} step={10000}
-                                  value={String(t.min_amount)} onChange={e => updateTier(t.grade, { min_amount: Number(e.target.value) })} />
-                              </td>
-                              <td>
-                                <input type="number" className="adm-input-text" style={{ width:64 }} min={0} step={1}
-                                  value={String(t.min_count)} onChange={e => updateTier(t.grade, { min_count: Number(e.target.value) })} />
-                              </td>
-                              <td>
-                                <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                                  {membershipCoupons.length === 0 ? (
-                                    <span className="adm-muted" style={{ fontSize:11 }}>쿠폰 관리 탭에서 멤버십 쿠폰을 먼저 등록하세요.</span>
-                                  ) : membershipCoupons.map(c => (
-                                    <label key={c.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11.5, cursor:'pointer' }}>
-                                      <input type="checkbox" checked={!!c.code && t.coupon_codes.includes(c.code)} disabled={!c.code} onChange={() => c.code && toggleTierCoupon(t.grade, c.code)} />
-                                      {c.name} <span className="adm-muted">({c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`})</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </td>
-                              <td>
-                                <Toggle defaultOn={t.monthly_active} onChange={v => updateTier(t.grade, { monthly_active: v })} />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    {/* 등급별 카드 */}
+                    <div className="adm-kpi-grid adm-kpi-4" style={{ marginBottom:0 }}>
+                      {mTiers.map(t => {
+                        const color = GRADE_TIER_COLOR[t.grade] || '#94A3B8';
+                        return (
+                        <div key={t.grade} style={{ border:'1px solid #EEF2F6', borderRadius:12, padding:'16px 16px 14px', background:'#fff', display:'flex', flexDirection:'column', gap:12 }}>
+                          {/* 헤더 */}
+                          <div style={{ display:'flex', alignItems:'center', gap:8, paddingBottom:12, borderBottom:`1px solid ${color}22` }}>
+                            <span style={{ width:9, height:9, borderRadius:'50%', background:color, flexShrink:0 }} />
+                            <span style={{ fontSize:15, fontWeight:800, color }}>{t.label}</span>
+                          </div>
+                          {/* 포인트 적립률 */}
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>포인트 적립률</div>
+                            <div className="adm-flex-center-gap">
+                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} max={10} step={0.5}
+                                value={String(t.point_rate)} onChange={e => updateTier(t.grade, { point_rate: Number(e.target.value) })} />
+                              <span className="adm-muted" style={{ width:12 }}>%</span>
+                            </div>
+                            {/* 예약 적립률 / 적용일 */}
+                            <div style={{ display:'flex', gap:5, alignItems:'center', marginTop:6 }}>
+                              <input type="number" className="adm-input-text" style={{ width:56, textAlign:'right' }} min={0} max={10} step={0.5} placeholder="예약%"
+                                value={t.point_rate_next == null ? '' : String(t.point_rate_next)}
+                                onChange={e => updateTier(t.grade, { point_rate_next: e.target.value === '' ? null : Number(e.target.value) })} />
+                              <input type="date" className="adm-input-text" style={{ flex:1, minWidth:0 }} min={new Date().toISOString().slice(0,10)}
+                                value={t.apply_date || ''} onChange={e => updateTier(t.grade, { apply_date: e.target.value || null })} />
+                            </div>
+                          </div>
+                          {/* 분기 누적금액 기준 */}
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>분기 누적금액 기준</div>
+                            <div className="adm-flex-center-gap">
+                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={10000}
+                                value={String(t.min_amount)} onChange={e => updateTier(t.grade, { min_amount: Number(e.target.value) })} />
+                              <span className="adm-muted" style={{ width:14 }}>원</span>
+                            </div>
+                          </div>
+                          {/* 구매횟수 기준 */}
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>구매횟수 기준</div>
+                            <div className="adm-flex-center-gap">
+                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={1}
+                                value={String(t.min_count)} onChange={e => updateTier(t.grade, { min_count: Number(e.target.value) })} />
+                              <span className="adm-muted" style={{ width:14 }}>회</span>
+                            </div>
+                          </div>
+                          {/* 월 발급 쿠폰 */}
+                          <div>
+                            <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>월 발급 쿠폰</div>
+                            <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                              {membershipCoupons.length === 0 ? (
+                                <span className="adm-muted" style={{ fontSize:11.5 }}>쿠폰 관리 탭에서 멤버십 쿠폰을 먼저 등록하세요.</span>
+                              ) : membershipCoupons.map(c => (
+                                <label key={c.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, cursor:'pointer' }}>
+                                  <input type="checkbox" checked={!!c.code && t.coupon_codes.includes(c.code)} disabled={!c.code} onChange={() => c.code && toggleTierCoupon(t.grade, c.code)} />
+                                  {c.name}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                          {/* 월 쿠폰 발급 토글 */}
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginTop:'auto', paddingTop:12, borderTop:'1px solid #F4F4F2' }}>
+                            <span style={{ fontSize:12.5, fontWeight:600, color:'#334155' }}>월 쿠폰 발급</span>
+                            <Toggle defaultOn={t.monthly_active} onChange={v => updateTier(t.grade, { monthly_active: v })} />
+                          </div>
+                        </div>
+                        );
+                      })}
                     </div>
                     <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.6 }}>
                       예약 적립률은 적용일이 지나면 자동 반영됩니다(소급 X). 분기 누적금액·구매횟수는 둘 다 충족해야 해당 등급으로 승급됩니다.
