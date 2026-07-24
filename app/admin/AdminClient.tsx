@@ -2103,7 +2103,7 @@ export default function AdminClient() {
   const [pointLogTo, setPointLogTo] = useState<string>(() => ymd(new Date()));
   const [givePointModal, setGivePointModal] = useState(false);
   const [givePointTarget, setGivePointTarget] = useState<AdminProfile | null>(null);
-  const [givePointForm, setGivePointForm] = useState({ amount: '', desc: '' });
+  const [givePointForm, setGivePointForm] = useState<{ amount: string; desc: string; type: 'give' | 'deduct' }>({ amount: '', desc: '', type: 'give' });
   const [givePointSaving, setGivePointSaving] = useState(false);
 
   /* ── 쿠폰 ── */
@@ -5069,8 +5069,9 @@ export default function AdminClient() {
 
   async function givePoints() {
     if (!givePointTarget) return;
-    const amount = Number(givePointForm.amount);
-    if (!amount || isNaN(amount)) { alert('포인트를 입력해주세요.'); return; }
+    const raw = Math.abs(Number(givePointForm.amount));
+    if (!raw || isNaN(raw)) { alert('포인트를 입력해주세요.'); return; }
+    const amount = givePointForm.type === 'deduct' ? -raw : raw;
     setGivePointSaving(true);
     const supabase = createClient();
     const { error } = await supabase.rpc('add_points', {
@@ -5088,7 +5089,7 @@ export default function AdminClient() {
         monthUsed:  amount < 0 ? prev.monthUsed + Math.abs(amount) : prev.monthUsed,
       }));
       setGivePointModal(false);
-      setGivePointForm({ amount: '', desc: '' });
+      setGivePointForm({ amount: '', desc: '', type: 'give' });
     } else {
       alert('포인트 지급 실패: ' + error.message);
     }
@@ -8926,7 +8927,7 @@ export default function AdminClient() {
                                 </td>
                                 <td>
                                   <button className="adm-row-btn"
-                                    onClick={() => { setGivePointTarget(m); setGivePointForm({ amount:'', desc:'' }); setGivePointModal(true); }}>
+                                    onClick={() => { setGivePointTarget(m); setGivePointForm({ amount:'', desc:'', type:'give' }); setGivePointModal(true); }}>
                                     지급
                                   </button>
                                 </td>
@@ -11980,40 +11981,64 @@ export default function AdminClient() {
       })()}
 
       {/* ===== 포인트 지급 모달 ===== */}
-      {givePointModal && givePointTarget && (
-        <div className="adm-float-overlay" onClick={() => setGivePointModal(false)}>
-          <div className="adm-float-modal" style={{ maxWidth:420, padding:28 }}
-            onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>포인트 지급</h3>
-              <button onClick={() => setGivePointModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+      {givePointModal && givePointTarget && (() => {
+        const raw = Math.abs(Number(givePointForm.amount)) || 0;
+        const signed = givePointForm.type === 'deduct' ? -raw : raw;
+        const after = Math.max(0, (givePointTarget.point_balance || 0) + signed);
+        return (
+        <div className="adm-modal-bg open" onClick={() => setGivePointModal(false)}>
+          <div className="adm-modal" style={{ maxWidth:440, width:'94vw' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">포인트 지급</span>
             </div>
-            <div style={{ background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginBottom:20 }}>
-              <div style={{ fontSize:14, fontWeight:700 }}>{givePointTarget.name}</div>
-              <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>{givePointTarget.email}</div>
-              <div style={{ fontSize:13, color:'#2D7A4D', fontWeight:600, marginTop:6 }}>
-                현재 보유 포인트: {fmtPrice(givePointTarget.point_balance||0)}P
-              </div>
-            </div>
-            <div className="adm-form">
-              <div className="adm-form-row">
-                <label className="adm-label">지급 포인트</label>
-                <div className="adm-flex-center-gap">
-                  <input type="number" className="adm-input-text adm-input-w100"
-                    placeholder="예: 1000"
-                    value={givePointForm.amount}
-                    onChange={e => setGivePointForm(p => ({ ...p, amount: e.target.value }))} />
-                  <span className="adm-muted">P (음수 입력 시 차감)</span>
+            <div className="adm-modal-body">
+              <div style={{ background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginBottom:20 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{givePointTarget.name}</div>
+                <div style={{ fontSize:12, color:'#64748B', marginTop:2 }}>{givePointTarget.email}</div>
+                <div style={{ fontSize:13, fontWeight:600, marginTop:6 }}>
+                  <span style={{ color:'#1A1A1A' }}>현재 보유 포인트: </span>
+                  <span style={{ color:'#16A34A' }}>{fmtPrice(givePointTarget.point_balance||0)}P</span>
                 </div>
               </div>
-              <div className="adm-form-row">
-                <label className="adm-label">사유</label>
-                <input type="text" className="adm-input-text"
-                  placeholder="예: 이벤트 당첨, 불편 보상 등"
-                  value={givePointForm.desc}
-                  onChange={e => setGivePointForm(p => ({ ...p, desc: e.target.value }))} />
+              <div className="adm-form">
+                <div className="adm-form-row">
+                  <label className="adm-label">지급 유형</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {([['give','+ 지급'],['deduct','- 차감']] as const).map(([v,l]) => (
+                      <button key={v} type="button"
+                        onClick={() => setGivePointForm(p => ({ ...p, type: v }))}
+                        style={{ flex:1, height:38, borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer',
+                          border: givePointForm.type===v ? '1.5px solid #1A1A1A' : '1.5px solid #E5E7EB',
+                          background: givePointForm.type===v ? '#1A1A1A' : '#fff',
+                          color: givePointForm.type===v ? '#fff' : '#64748B' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">포인트</label>
+                  <div className="adm-flex-center-gap">
+                    <input type="number" className="adm-input-text" style={{ flex:1 }} min={0}
+                      placeholder="예: 1000"
+                      value={givePointForm.amount}
+                      onChange={e => setGivePointForm(p => ({ ...p, amount: e.target.value }))} />
+                    <span className="adm-muted">P</span>
+                  </div>
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">사유</label>
+                  <input type="text" className="adm-input-text"
+                    placeholder="예: 이벤트 당첨, 불편 보상 등"
+                    value={givePointForm.desc}
+                    onChange={e => setGivePointForm(p => ({ ...p, desc: e.target.value }))} />
+                </div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginTop:4 }}>
+                  <span style={{ fontSize:13, color:'#64748B' }}>지급 후 보유 포인트</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:'#2563EB' }}>{fmtPrice(after)}P</span>
+                </div>
               </div>
-              <div className="adm-form-actions">
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setGivePointModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={givePoints} disabled={givePointSaving}>
                   {givePointSaving ? '처리 중...' : '지급하기'}
@@ -12022,7 +12047,8 @@ export default function AdminClient() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ===== 상품 문의 상세 + 답변 모달 ===== */}
       {selectedProductInquiry && (
