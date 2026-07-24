@@ -312,6 +312,8 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 }
 .adm-btn-primary { background: var(--accent); color: #fff; }
 .adm-btn-primary:hover { background: #2563EB; }
+.adm-btn-dark { background: #1A1A1A; color: #fff; border-color: #1A1A1A; }
+.adm-btn-dark:hover { background: #000; }
 .adm-btn-outline { background: var(--surface); color: var(--text); border-color: var(--border); }
 .adm-btn-outline:hover { background: var(--bg); border-color: #CBD5E1; }
 .adm-row-btn {

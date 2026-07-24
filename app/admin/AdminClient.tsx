@@ -2098,9 +2098,12 @@ export default function AdminClient() {
   const [pointSubtab, setPointSubtab] = useState<'members' | 'history'>('members'); // 회원별 포인트 / 전체 내역
   const [earnSaving, setEarnSaving] = useState(false);
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
-  const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null } | null }[]>([]);
+  const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null; grade?: string|null } | null }[]>([]);
   const [pointLogFrom, setPointLogFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
   const [pointLogTo, setPointLogTo] = useState<string>(() => ymd(new Date()));
+  const [plType, setPlType] = useState<'all'|'earn'|'use'>('all');
+  const [plGrade, setPlGrade] = useState<string>('');
+  const [plSearch, setPlSearch] = useState<string>('');
   const [givePointModal, setGivePointModal] = useState(false);
   const [givePointTarget, setGivePointTarget] = useState<AdminProfile | null>(null);
   const [givePointForm, setGivePointForm] = useState<{ amount: string; desc: string; type: 'give' | 'deduct' }>({ amount: '', desc: '', type: 'give' });
@@ -5059,7 +5062,7 @@ export default function AdminClient() {
     const t = to ?? pointLogTo;
     const supabase = createClient();
     let q = supabase.from('point_logs')
-      .select('id, amount, created_at, description, profiles:user_id(name, email)')
+      .select('id, amount, created_at, description, profiles:user_id(name, email, grade)')
       .order('created_at', { ascending: false }).limit(500);
     if (f) q = q.gte('created_at', new Date(`${f}T00:00:00`).toISOString());
     if (t) q = q.lte('created_at', new Date(`${t}T23:59:59`).toISOString());
@@ -5629,8 +5632,19 @@ export default function AdminClient() {
   /* 페이지 슬라이스 (포인트회원 / 포인트내역 / 회원관리) */
   const pmCur = Math.min(Math.max(1, pmPage), Math.max(1, Math.ceil(filteredPointMembers.length / pmSize)));
   const pagedPointMembers = filteredPointMembers.slice((pmCur - 1) * pmSize, pmCur * pmSize);
-  const plCur = Math.min(Math.max(1, plPage), Math.max(1, Math.ceil(pointLogs.length / plSize)));
-  const pagedPointLogs = pointLogs.slice((plCur - 1) * plSize, plCur * plSize);
+  const filteredPointLogs = pointLogs.filter(l => {
+    if (plType === 'earn' && l.amount < 0) return false;
+    if (plType === 'use' && l.amount >= 0) return false;
+    if (plGrade && (l.profiles?.grade || 'beginner') !== plGrade) return false;
+    if (plSearch.trim()) {
+      const kw = plSearch.trim().toLowerCase();
+      const hit = (l.profiles?.name || '').toLowerCase().includes(kw) || (l.profiles?.email || '').toLowerCase().includes(kw);
+      if (!hit) return false;
+    }
+    return true;
+  });
+  const plCur = Math.min(Math.max(1, plPage), Math.max(1, Math.ceil(filteredPointLogs.length / plSize)));
+  const pagedPointLogs = filteredPointLogs.slice((plCur - 1) * plSize, plCur * plSize);
   const memCur = Math.min(Math.max(1, memPage), Math.max(1, Math.ceil(filteredMembers.length / memSize)));
   const pagedMembers = filteredMembers.slice((memCur - 1) * memSize, memCur * memSize);
   const cpCur = Math.min(Math.max(1, cpPage), Math.max(1, Math.ceil(coupons.length / cpSize)));
@@ -8944,33 +8958,39 @@ export default function AdminClient() {
                   {pointSubtab === 'history' && (<>
                   {/* 포인트 지급/사용 내역 (기간별) */}
                   <div className="adm-toolbar" style={{ marginTop:0, flexWrap:'wrap', gap:8 }}>
-                    <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
-                      <span className="adm-card-title">포인트 내역</span>
+                    <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <AdmSelect value={plType} onChange={v => { setPlType(v as 'all'|'earn'|'use'); setPlPage(1); }}
+                        options={[{ value:'all', label:'전체 구분' }, { value:'earn', label:'적립' }, { value:'use', label:'사용' }]} />
+                      <AdmSelect value={plGrade} onChange={v => { setPlGrade(v); setPlPage(1); }}
+                        options={[{ value:'', label:'전체 등급' }, ...Object.entries(GRADE_LABEL).map(([v,l]) => ({ value:v, label:l as string }))]} />
+                      <input type="text" className="adm-input-text" placeholder="회원 이름 · 이메일 검색"
+                        value={plSearch} onChange={e => { setPlSearch(e.target.value); setPlPage(1); }} />
                     </div>
-                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
+                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                       <input type="date" className="adm-select" value={pointLogFrom} onChange={e => setPointLogFrom(e.target.value)} />
                       <span style={{ color:'#94A3B8' }}>~</span>
                       <input type="date" className="adm-select" value={pointLogTo} onChange={e => setPointLogTo(e.target.value)} />
-                      <button className="adm-btn adm-btn-primary" onClick={() => loadPointLogs()}>조회</button>
+                      <button className="adm-btn adm-btn-dark" onClick={() => loadPointLogs()}>조회</button>
+                      <button className="adm-btn adm-btn-outline" onClick={() => loadPointLogs()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
                   </div>
                   <div className="adm-card">
                     <div className="adm-table-wrap">
                       <table className="adm-table">
-                        <thead><tr><th>일시</th><th>회원</th><th>구분</th><th className="adm-num">포인트</th><th>사유</th></tr></thead>
+                        <thead><tr><th>일시</th><th>회원</th><th>구분</th><th>포인트</th><th>사유</th></tr></thead>
                         <tbody>
-                          {pointLogs.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 기간 포인트 내역이 없습니다.</td></tr>
+                          {filteredPointLogs.length === 0 ? (
+                            <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 포인트 내역이 없습니다.</td></tr>
                           ) : pagedPointLogs.map(l => (
                             <tr key={l.id}>
                               <td className="adm-muted">{fmtDate(l.created_at)}</td>
-                              <td>{l.profiles?.name || '-'} <span className="adm-muted" style={{ fontSize:11 }}>{l.profiles?.email || ''}</span></td>
+                              <td>{l.profiles?.name || '-'} <span className="adm-muted" style={{ fontSize:12 }}>{l.profiles?.email || ''}</span></td>
                               <td>
                                 <span className={`adm-badge ${l.amount >= 0 ? 'badge-paid' : 'badge-off'}`}>
                                   {l.amount >= 0 ? '적립' : '사용'}
                                 </span>
                               </td>
-                              <td className="adm-mono adm-num" style={{ fontWeight:600, color: l.amount >= 0 ? '#2D7A4D' : '#DC2626' }}>
+                              <td style={{ fontWeight:700, color: l.amount >= 0 ? '#16A34A' : '#DC2626' }}>
                                 {l.amount >= 0 ? '+' : ''}{fmtPrice(l.amount)}P
                               </td>
                               <td className="adm-muted">{l.description || '-'}</td>
@@ -8980,7 +9000,7 @@ export default function AdminClient() {
                       </table>
                     </div>
                   </div>
-                  <Pager page={plCur} pageSize={plSize} total={pointLogs.length} onPage={setPlPage} onPageSize={setPlSize} />
+                  <Pager page={plCur} pageSize={plSize} total={filteredPointLogs.length} onPage={setPlPage} onPageSize={setPlSize} />
                   </>)}
                   </>)}
                 </>
