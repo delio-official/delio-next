@@ -8762,11 +8762,11 @@ export default function AdminClient() {
                     </div>
 
                     {/* 등급별 카드 */}
-                    <div className="adm-kpi-grid adm-kpi-4" style={{ marginBottom:0 }}>
+                    <div className="adm-kpi-grid adm-kpi-4" style={{ marginBottom:0, gridTemplateColumns:'repeat(4, minmax(0, 1fr))' }}>
                       {mTiers.map(t => {
                         const color = GRADE_TIER_COLOR[t.grade] || '#94A3B8';
                         return (
-                        <div key={t.grade} style={{ border:'1px solid #EEF2F6', borderRadius:12, padding:'16px 16px 14px', background:'#fff', display:'flex', flexDirection:'column', gap:12 }}>
+                        <div key={t.grade} style={{ minWidth:0, border:'1px solid #EEF2F6', borderRadius:12, padding:'16px 16px 14px', background:'#fff', display:'flex', flexDirection:'column', gap:12 }}>
                           {/* 헤더 */}
                           <div style={{ display:'flex', alignItems:'center', gap:8, paddingBottom:12, borderBottom:`1px solid ${color}22` }}>
                             <span style={{ width:9, height:9, borderRadius:'50%', background:color, flexShrink:0 }} />
@@ -8776,16 +8776,16 @@ export default function AdminClient() {
                           <div>
                             <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>포인트 적립률</div>
                             <div className="adm-flex-center-gap">
-                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} max={10} step={0.5}
+                              <input type="number" className="adm-input-text" style={{ flex:1, minWidth:0, textAlign:'right' }} min={0} max={10} step={0.5}
                                 value={String(t.point_rate)} onChange={e => updateTier(t.grade, { point_rate: Number(e.target.value) })} />
                               <span className="adm-muted" style={{ width:12 }}>%</span>
                             </div>
                             {/* 예약 적립률 / 적용일 */}
                             <div style={{ display:'flex', gap:5, alignItems:'center', marginTop:6 }}>
-                              <input type="number" className="adm-input-text" style={{ width:56, textAlign:'right' }} min={0} max={10} step={0.5} placeholder="예약%"
+                              <input type="number" className="adm-input-text" style={{ width:56, minWidth:0, flexShrink:0, textAlign:'right' }} min={0} max={10} step={0.5} placeholder="예약%"
                                 value={t.point_rate_next == null ? '' : String(t.point_rate_next)}
                                 onChange={e => updateTier(t.grade, { point_rate_next: e.target.value === '' ? null : Number(e.target.value) })} />
-                              <input type="date" className="adm-input-text" style={{ flex:1, minWidth:0 }} min={new Date().toISOString().slice(0,10)}
+                              <input type="date" className="adm-input-text" style={{ flex:1, minWidth:0, width:0 }} min={new Date().toISOString().slice(0,10)}
                                 value={t.apply_date || ''} onChange={e => updateTier(t.grade, { apply_date: e.target.value || null })} />
                             </div>
                           </div>
@@ -8793,7 +8793,7 @@ export default function AdminClient() {
                           <div>
                             <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>분기 누적금액 기준</div>
                             <div className="adm-flex-center-gap">
-                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={10000}
+                              <input type="number" className="adm-input-text" style={{ flex:1, minWidth:0, textAlign:'right' }} min={0} step={10000}
                                 value={String(t.min_amount)} onChange={e => updateTier(t.grade, { min_amount: Number(e.target.value) })} />
                               <span className="adm-muted" style={{ width:14 }}>원</span>
                             </div>
@@ -8802,7 +8802,7 @@ export default function AdminClient() {
                           <div>
                             <div style={{ fontSize:12, fontWeight:600, color:'#64748B', marginBottom:6 }}>구매횟수 기준</div>
                             <div className="adm-flex-center-gap">
-                              <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={1}
+                              <input type="number" className="adm-input-text" style={{ flex:1, minWidth:0, textAlign:'right' }} min={0} step={1}
                                 value={String(t.min_count)} onChange={e => updateTier(t.grade, { min_count: Number(e.target.value) })} />
                               <span className="adm-muted" style={{ width:14 }}>회</span>
                             </div>
