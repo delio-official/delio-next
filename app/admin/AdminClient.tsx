@@ -7807,7 +7807,7 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th>주문번호</th><th>주문일시</th><th>수령인</th><th>상품</th>
+                          <th>주문번호</th><th>주문일시</th><th>수령인</th><th style={{ textAlign:'left' }}>상품</th>
                           <th>금액</th><th>상태</th><th>송장번호</th><th>관리</th>
                         </tr>
                       </thead>
@@ -7860,9 +7860,9 @@ export default function AdminClient() {
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
                               {gi === 0 && <td rowSpan={n}>{o.recipient}</td>}
 
-                              {/* 상품 — 글자는 좌측정렬, 고정폭 블록을 칸 가운데(margin auto)로 두어 줄마다 시작 위치 통일 */}
-                              <td>
-                                <div style={{ lineHeight:1.35, textAlign:'left', width:'100%', maxWidth:340, margin:'0 auto' }}>
+                              {/* 상품 — 좌측정렬. 헤더 '상품'도 좌측정렬이라 위아래로 맞음 */}
+                              <td style={{ textAlign:'left' }}>
+                                <div style={{ lineHeight:1.35 }}>
                                   <div style={{ fontWeight:600 }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
                                   <div className="adm-muted" style={{ fontSize:11 }}>
                                     {g.farmName}{opt ? ` · ${opt}` : ''} · {fmtPrice(g.sub)}원
