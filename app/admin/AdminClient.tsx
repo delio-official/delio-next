@@ -2251,6 +2251,7 @@ export default function AdminClient() {
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
+  const [couponSubtab, setCouponSubtab] = useState<'list' | 'log'>('list'); // 쿠폰 관리 내부: 쿠폰 목록 / 지급 내역
   const [couponStats, setCouponStats] = useState({ issued: 0, used: 0 });
   /* 쿠폰별 발급/사용 집계 — 목록의 '발급/사용(사용률)' 칸용 */
   const [couponUsage, setCouponUsage] = useState<Record<string, { issued: number; used: number }>>({});
@@ -8523,12 +8524,17 @@ export default function AdminClient() {
           {panel === 'coupon' && (
             <div className="adm-content">
               <TabBtns active={couponTab} setActive={setCouponTab}
-                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'},{id:'tab-couponlog',label:'지급 내역'}]}
-                right={couponTab === 'tab-coupon'
+                tabs={[{id:'tab-coupon',label:'쿠폰 관리'},{id:'tab-point',label:'포인트 관리'},{id:'tab-membership',label:'멤버십 관리'}]}
+                right={couponTab === 'tab-coupon' && couponSubtab === 'list'
                   ? <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={loadCoupons}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   : null} />
               {couponTab === 'tab-coupon' ? (
                 <>
+                  {/* 쿠폰 관리 내부 서브탭 — 쿠폰 목록 / 지급 내역 */}
+                  <TabBtns active={couponSubtab} setActive={id => setCouponSubtab(id as 'list'|'log')}
+                    tabs={[{ id:'list', label:'쿠폰 목록' }, { id:'log', label:'지급 내역' }]} />
+
+                  {couponSubtab === 'list' && (<>
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                     {([
                       ['전체 쿠폰', `${coupons.length}개`],
@@ -8648,10 +8654,9 @@ export default function AdminClient() {
                     )}
                   </div>
                   <Pager page={cpCur} pageSize={cpSize} total={generalCoupons.length} onPage={setCpPage} onPageSize={setCpSize} />
-                </>
-              ) : (
-                <>
-                  {couponTab === 'tab-couponlog' && (
+                  </>)}
+
+                  {couponSubtab === 'log' && (
                   <div className="adm-card">
                     <div className="adm-card-head" style={{ alignItems:'center' }}>
                       <span className="adm-card-title">쿠폰 지급 내역</span>
@@ -8694,7 +8699,9 @@ export default function AdminClient() {
                     <Pager page={clCur} pageSize={clSize} total={clFiltered.length} onPage={setClPage} onPageSize={setClSize} />
                   </div>
                   )}
-
+                </>
+              ) : (
+                <>
                   {couponTab === 'tab-point' && (<>
                   {/* 포인트 시스템 (활성 토글) */}
                   <div className="adm-card" style={{ marginBottom:16, padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
