@@ -47,7 +47,7 @@ BEGIN
     JOIN orders o ON o.id = oi.order_id
     WHERE oi.product_id = p_product_id
       AND o.user_id IS NOT NULL
-      AND o.status IN ('paid', 'delivered', 'confirmed')
+      AND o.status IN ('paid', 'preparing', 'shipped', 'delivered', 'confirmed')  -- 결제~배송중까지 포함(취소·환불만 제외)
   ),
   ranked AS (
     SELECT user_id, created_at,
