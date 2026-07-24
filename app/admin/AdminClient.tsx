@@ -8681,11 +8681,8 @@ export default function AdminClient() {
 
                   {/* 포인트 적립 설정 */}
                   <div className="adm-card" style={{ marginBottom:24, padding:'18px 20px' }}>
-                    <div className="adm-card-head" style={{ paddingBottom:12, marginBottom:6, borderBottom:'1px solid #EEF2F6' }}>
-                      <span className="adm-card-title">포인트 적립 설정</span>
-                    </div>
                     {/* PC 3칸 가로 · 모바일 세로(adm-kpi-3 반응형) */}
-                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:16, marginBottom:0 }}>
+                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:0, marginBottom:0 }}>
                       {([
                         { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
                         { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
