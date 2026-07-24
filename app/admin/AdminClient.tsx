@@ -8684,24 +8684,24 @@ export default function AdminClient() {
                     <div className="adm-card-head" style={{ paddingBottom:12, marginBottom:6, borderBottom:'1px solid #EEF2F6' }}>
                       <span className="adm-card-title">포인트 적립 설정</span>
                     </div>
-                    {/* 한 항목 = 한 줄(라벨 좌 · 입력 우). 세 줄이 나란히 정렬 */}
-                    {([
-                      { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
-                      { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
-                      { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
-                    ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
-                      <div key={f.key} style={{ display:'flex', alignItems:'center', gap:16, padding:'12px 0', borderBottom:'1px solid #F4F4F2' }}>
-                        <div style={{ flex:1, minWidth:0 }}>
+                    {/* PC 3칸 가로 · 모바일 세로(adm-kpi-3 반응형) */}
+                    <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:16, marginBottom:0 }}>
+                      {([
+                        { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
+                        { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
+                        { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
+                      ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
+                        <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8' }}>
                           <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{f.label}</div>
-                          <div className="adm-muted" style={{ fontSize:11.5, marginTop:2 }}>{f.sub}</div>
+                          <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4 }}>{f.sub}</div>
+                          <div className="adm-flex-center-gap" style={{ marginTop:10 }}>
+                            <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={f.step}
+                              value={siteSettings[f.key] ?? f.def} onChange={e => setSiteSettings(prev => ({ ...prev, [f.key]: e.target.value }))} />
+                            <span className="adm-muted" style={{ width:16 }}>{f.unit}</span>
+                          </div>
                         </div>
-                        <div className="adm-flex-center-gap" style={{ flexShrink:0 }}>
-                          <input type="number" className="adm-input-text" style={{ width:110, textAlign:'right' }} min={0} step={f.step}
-                            value={siteSettings[f.key] ?? f.def} onChange={e => setSiteSettings(prev => ({ ...prev, [f.key]: e.target.value }))} />
-                          <span className="adm-muted" style={{ width:16 }}>{f.unit}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                     <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
                       <button className="adm-btn adm-btn-primary" onClick={saveEarnSettings} disabled={earnSaving}>
                         {earnSaving ? '저장 중...' : '저장'}
