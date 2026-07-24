@@ -4623,8 +4623,10 @@ export default function AdminClient() {
 
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
      + 해당 농가 배송시작 알림톡 발송 + 추적 웹훅 구독 등록(송장별 각각) */
-  async function saveItemTracking(itemIds: string[], courier: string, tracking: string) {
-    if (!selectedOrder || itemIds.length === 0) return;
+  /* 브랜드(상품) 단위 송장 저장 — 목록·상세 공용.
+     order 를 인자로 받아 selectedOrder 없이도 동작한다(목록에서 브랜드별 줄이 직접 호출). */
+  async function saveItemTracking(order: Order, itemIds: string[], courier: string, tracking: string) {
+    if (!order || itemIds.length === 0) return;
     setSavingTracking(true);
     const supabase = createClient();
     const patch = {
@@ -4635,58 +4637,48 @@ export default function AdminClient() {
     };
     const { error } = await supabase.from('order_items').update(patch).in('id', itemIds);
     if (error) { setSavingTracking(false); alert('저장 실패: ' + error.message); return; }
-    // 로컬 반영 (해당 상품 줄들)
     const idSet = new Set(itemIds);
-    const newItems = (selectedOrder.order_items || []).map(i =>
+    const newItems = (order.order_items || []).map(i =>
       (i.id && idSet.has(i.id)) ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
     );
-    setSelectedOrder(s => s ? { ...s, order_items: newItems } : s);
 
-    // 송장이 새로 입력된 경우: 그 농가 배송시작 알림톡 + 추적 웹훅 구독 등록
+    // 송장이 새로 입력된 경우: 그 브랜드 배송시작 알림톡 + 추적 웹훅 구독 등록
     if (tracking) {
       const cid = courier || 'kr.cjlogistics';
-      const its = newItems.filter(i => i.id && idSet.has(i.id));
-      const names = its.map(i => i.product_name).filter(Boolean) as string[];
+      const names = newItems.filter(i => i.id && idSet.has(i.id)).map(i => i.product_name).filter(Boolean) as string[];
       const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
-      // 배송시작 알림톡 (해당 농가 상품명) — 수령인 + 주문자 양쪽
-      notifyOrderRoles(selectedOrder, {
-        type: 'shipping_started',
-        recipient: selectedOrder.recipient,
-        orderNo: selectedOrder.order_no,
-        productName,
-        courierName: COURIER_NAMES[courier] || courier || '택배사',
-        trackingNumber: tracking,
+      notifyOrderRoles(order, {
+        type: 'shipping_started', recipient: order.recipient, orderNo: order.order_no,
+        productName, courierName: COURIER_NAMES[courier] || courier || '택배사', trackingNumber: tracking,
       });
-      // tracker.delivery 웹훅 구독 등록 → 이후 상태 변경 자동 동기화(배포 환경)
       fetch('/api/tracking/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ carrierId: cid, trackingNumber: tracking }),
       }).catch(() => {});
     }
 
-    // 하나라도 송장 등록되면 주문 상태 배송중 전환 (부분 배송 포함)
-    /* 주문 전체를 '배송중'으로 넘기는 건 모든 상품에 송장이 들어갔을 때만.
-       여러 브랜드 주문에서 한 브랜드만 발송했는데 주문 전체가 배송중으로 넘어가던 문제 수정.
-       (덜 발송된 브랜드는 order_items.ship_status 로 각각 '준비중' 유지) */
+    /* 주문 전체 '배송중' 전환은 모든 상품에 송장이 들어갔을 때만. 부분 발송은 주문 상태 유지. */
     const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
-    if (allShipped && (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing')) {
-      await supabase.from('orders').update({ status: 'shipped' }).eq('id', selectedOrder.id);
-      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'shipped' } : o));
-      setSelectedOrder(s => s ? { ...s, status: 'shipped' } : s);
+    const newStatus = (allShipped && (order.status === 'paid' || order.status === 'preparing')) ? 'shipped' : order.status;
+    if (newStatus !== order.status) {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
+    }
+    /* 모든 상품이 같은 송장 하나면 주문 단위에도 반영(목록 대표 송장). 갈리면 건드리지 않음. */
+    const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
+    const oneTrk = trks.length === 1 ? trks[0] as string : null;
+    const oneCourier = oneTrk ? (newItems.find(i => i.tracking_number === oneTrk)?.courier || null) : null;
+    if (oneTrk) {
+      await supabase.from('orders').update({ courier: oneCourier, tracking_number: oneTrk }).eq('id', order.id);
     }
 
-    /* 반대 방향도 맞춘다 — 상세에서만 넣으면 목록의 송장 칸이 비어 보인다.
-       모든 상품이 같은 송장 하나로 발송된 경우에만 주문 단위에 반영한다.
-       브랜드별로 송장이 갈린 주문은 주문 단위 하나로 대표할 수 없으므로 건드리지 않는다. */
-    const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
-    if (trks.length === 1) {
-      const only = trks[0] as string;
-      const oc = newItems.find(i => i.tracking_number === only)?.courier || null;
-      await supabase.from('orders').update({ courier: oc, tracking_number: only }).eq('id', selectedOrder.id);
-      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, courier: oc, tracking_number: only } : o));
-      setSelectedOrder(s => s ? { ...s, courier: oc, tracking_number: only } : s);
-    }
+    /* 로컬 상태 반영 — orders 목록과 selectedOrder(열려 있으면) 양쪽 */
+    const apply = (o: Order): Order => o.id !== order.id ? o : {
+      ...o, order_items: newItems, status: newStatus,
+      ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : {}),
+    };
+    setOrders(prev => prev.map(apply));
+    setSelectedOrder(s => (s && s.id === order.id ? apply(s) : s));
+    refreshStageCounts();
     setSavingTracking(false);
   }
 
@@ -7254,7 +7246,7 @@ export default function AdminClient() {
                           <input placeholder="운송장번호" value={cur.tracking_number}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
                             style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:13, fontFamily:'inherit', outline:'none' }} />
-                          <button onClick={() => saveItemTracking(fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
+                          <button onClick={() => saveItemTracking(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
                             className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
                             {savingTracking ? '저장 중...' : '저장'}
                           </button>
@@ -7824,91 +7816,118 @@ export default function AdminClient() {
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
-                        ) : pagedOrders.map(o => (
-                          <tr key={o.id}>
-                            <td onClick={e => e.stopPropagation()}>
-                              <input type="checkbox" checked={selOrders.has(o.id)}
-                                onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) next.add(o.id); else next.delete(o.id); return next; })} />
-                            </td>
-                            <td title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>
-                            <td className="adm-muted">{fmtDate(o.created_at)}</td>
-                            <td>{o.recipient}</td>
-                            <td>
-                              {(() => {
-                                const items = o.order_items || [];
-                                if (items.length === 0) return <span className="adm-muted">-</span>;
-                                const first = items[0];
-                                const opt = first.option_label || '';
-                                let name = first.product_name || '상품';
-                                if (opt && name.endsWith(`(${opt})`)) name = name.slice(0, -(`(${opt})`.length)).trim();
-                                return (
-                                  <div style={{ lineHeight:1.35 }}>
-                                    <div style={{ fontWeight:600 }}>{name}{items.length > 1 ? ` 외 ${items.length - 1}건` : ''}</div>
-                                    {opt && <div className="adm-muted" style={{ fontSize:12 }}>{opt}</div>}
+                        ) : pagedOrders.flatMap(o => {
+                          const items = o.order_items || [];
+                          /* 브랜드(농가)별로 묶기 — 한 주문에 여러 브랜드면 줄을 나눠 각각 송장·상태·알림톡 분리 */
+                          const gmap = new Map<string, { farmName: string; items: typeof items }>();
+                          items.forEach(i => {
+                            const k = i.farm_id || '__none';
+                            if (!gmap.has(k)) gmap.set(k, { farmName: i.farm_name || '브랜드 미지정', items: [] });
+                            gmap.get(k)!.items.push(i);
+                          });
+                          const groups = [...gmap.entries()].map(([key, g]) => {
+                            const sub = g.items.reduce((s, x) => s + (x.subtotal || 0), 0);
+                            const shipped = g.items.length > 0 && g.items.every(x => !!x.tracking_number);
+                            const first = g.items[0];
+                            return { key, farmName: g.farmName, items: g.items, sub, shipped,
+                              tracking: first?.tracking_number || '', courier: first?.courier || '' };
+                          });
+                          if (groups.length === 0) groups.push({ key:'__none', farmName:'-', items:[], sub:o.final_amount||0, shipped:false, tracking:'', courier:'' });
+                          const n = groups.length;
+                          const cancelledLike = ['cancelled','refunded','refunding','exchanging','exchanged'].includes(o.status);
+
+                          return groups.map((g, gi) => {
+                            const editKey = `${o.id}::${g.key}`;
+                            const editing = trackEditRow === editKey;
+                            const saving = savingTracking;
+                            const itemIds = g.items.map(i => i.id).filter((id): id is string => !!id);
+                            /* 브랜드 대표 상품명 */
+                            const gf = g.items[0];
+                            const opt = gf?.option_label || '';
+                            let pname = gf?.product_name || '상품';
+                            if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
+
+                            return (
+                            <tr key={editKey} style={gi > 0 ? { borderTop:'1px dashed #E8E8E4' } : undefined}>
+                              {gi === 0 && (
+                                <td rowSpan={n} onClick={e => e.stopPropagation()}>
+                                  <input type="checkbox" checked={selOrders.has(o.id)}
+                                    onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) next.add(o.id); else next.delete(o.id); return next; })} />
+                                </td>
+                              )}
+                              {gi === 0 && <td rowSpan={n} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>}
+                              {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
+                              {gi === 0 && <td rowSpan={n}>{o.recipient}</td>}
+
+                              {/* 상품 — 브랜드별. 브랜드명 · 소계 함께 */}
+                              <td>
+                                <div style={{ lineHeight:1.35, textAlign:'left' }}>
+                                  <div style={{ fontWeight:600 }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
+                                  <div className="adm-muted" style={{ fontSize:11 }}>
+                                    {g.farmName}{opt ? ` · ${opt}` : ''} · {fmtPrice(g.sub)}원
                                   </div>
-                                );
-                              })()}
-                            </td>
-                            <td>{fmtPrice(o.final_amount)}원</td>
-                            <td>
-                              <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
-                                {STATUS_LABEL[o.status] || o.status}
-                              </span>
-                              {(() => {
-                                const rq = pendingReqByOrder.get(o.id);
-                                if (!rq) return null;
-                                return (
-                                  <span style={{ marginLeft:6, fontSize:10, fontWeight:800, color:'#fff', background:'#DC2626', borderRadius:5, padding:'2px 6px', whiteSpace:'nowrap' }}>
-                                    {rq.type === 'cancel' ? '취소요청' : '환불요청'}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                            <td onClick={e => e.stopPropagation()}>
-                              {(() => {
-                                const st = o.status;
-                                if (['cancelled','refunded','refunding','exchanging','exchanged'].includes(st)) return <span className="adm-muted">—</span>;
-                                const editable = st === 'paid' || st === 'preparing' || st === 'shipped';
-                                const editing = trackEditRow === o.id;
-                                const saving = trackSaving === o.id;
-                                if (editing || (editable && !o.tracking_number)) {
-                                  const startEdit = () => { if (trackEditRow !== o.id) { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); setTrackEditCourier(o.courier || ''); } };
-                                  const curCourier = editing ? trackEditCourier : (o.courier || '');
-                                  return (
-                                    <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-                                      <select value={curCourier} disabled={saving}
-                                        onChange={e => { startEdit(); setTrackEditCourier(e.target.value); }}
-                                        style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
-                                        {COURIER_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                                      </select>
-                                      <input value={editing ? trackEditVal : ''} disabled={saving}
-                                        onChange={e => { startEdit(); setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
-                                        placeholder="송장번호" inputMode="numeric"
-                                        style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
-                                      <button className="adm-row-btn" disabled={saving} onClick={() => saveInlineTracking(o, editing ? trackEditVal : '', editing ? trackEditCourier : (o.courier || ''))}>{saving ? '저장 중' : '저장'}</button>
-                                    </div>
-                                  );
-                                }
-                                if (o.tracking_number) {
-                                  return (
-                                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                                      {o.courier && <span className="adm-muted" style={{ fontSize:11, flexShrink:0 }}>{COURIER_NAMES[o.courier] || o.courier}</span>}
-                                      <span>{o.tracking_number}</span>
-                                      {editable && <button className="adm-row-btn" onClick={() => { setTrackEditRow(o.id); setTrackEditVal(o.tracking_number || ''); setTrackEditCourier(o.courier || ''); }}>수정</button>}
-                                    </div>
-                                  );
-                                }
-                                return <span className="adm-muted">—</span>;
-                              })()}
-                            </td>
-                            <td>
-                              <button className="adm-row-btn" onClick={() => {
-                                setSelectedOrder(o);
-                                setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({});
-                              }}>상세</button>
-                            </td>
-                          </tr>
-                        ))}
+                                </div>
+                              </td>
+
+                              {/* 금액 — 총 결제액(주문 1회) */}
+                              {gi === 0 && (
+                                <td rowSpan={n} style={{ fontWeight:700 }}>{fmtPrice(o.final_amount)}원</td>
+                              )}
+
+                              {/* 상태 — 브랜드별. 취소·환불은 주문 상태 그대로 */}
+                              <td>
+                                {cancelledLike ? (
+                                  <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>{STATUS_LABEL[o.status] || o.status}</span>
+                                ) : (
+                                  <span className={`adm-badge ${g.shipped ? 'badge-shipping' : 'badge-ready'}`}>{g.shipped ? '배송중' : '배송준비중'}</span>
+                                )}
+                                {gi === 0 && (() => {
+                                  const rq = pendingReqByOrder.get(o.id);
+                                  if (!rq) return null;
+                                  return <span style={{ marginLeft:6, fontSize:10, fontWeight:800, color:'#fff', background:'#DC2626', borderRadius:5, padding:'2px 6px', whiteSpace:'nowrap' }}>{rq.type === 'cancel' ? '취소요청' : '환불요청'}</span>;
+                                })()}
+                              </td>
+
+                              {/* 송장 — 브랜드별 입력 */}
+                              <td onClick={e => e.stopPropagation()}>
+                                {cancelledLike ? <span className="adm-muted">—</span> : (editing || !g.tracking) ? (
+                                  <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                                    <select value={editing ? trackEditCourier : g.courier} disabled={saving}
+                                      onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditVal(g.tracking); } setTrackEditCourier(e.target.value); }}
+                                      style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
+                                      {COURIER_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                                    </select>
+                                    <input value={editing ? trackEditVal : ''} disabled={saving}
+                                      onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditCourier(g.courier); } setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
+                                      placeholder="송장번호" inputMode="numeric"
+                                      style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
+                                    <button className="adm-row-btn" disabled={saving || itemIds.length === 0}
+                                      onClick={() => { if (!(editing ? trackEditVal : '').trim()) { alert('송장번호를 입력하세요.'); return; } saveItemTracking(o, itemIds, editing ? trackEditCourier : g.courier, editing ? trackEditVal : ''); setTrackEditRow(null); }}>
+                                      {saving ? '저장 중' : '저장'}
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                                    {g.courier && <span className="adm-muted" style={{ fontSize:11, flexShrink:0 }}>{COURIER_NAMES[g.courier] || g.courier}</span>}
+                                    <span>{g.tracking}</span>
+                                    <button className="adm-row-btn" onClick={() => { setTrackEditRow(editKey); setTrackEditVal(g.tracking); setTrackEditCourier(g.courier); }}>수정</button>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* 관리 — 상세(주문 1회) */}
+                              {gi === 0 && (
+                                <td rowSpan={n}>
+                                  <button className="adm-row-btn" onClick={() => {
+                                    setSelectedOrder(o);
+                                    setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({});
+                                  }}>상세</button>
+                                </td>
+                              )}
+                            </tr>
+                            );
+                          });
+                        })}
                       </tbody>
                     </table>
                   </div>
