@@ -10,6 +10,19 @@ export async function POST(req: NextRequest) {
   }
   try {
     const supabase = createAdminSupabaseClient();
+
+    /* [보안] 포인트 중복 사용 불가 쿠폰인데 포인트를 함께 썼으면 결제 진행 자체를 막는다.
+       결제 후(finalize)에 막으면 돈은 빠지고 주문은 없는 상태가 되므로 결제 전 여기서 차단. */
+    const od = body.orderData as { userCouponId?: string | null; pointUsed?: number };
+    if (od?.userCouponId && (od.pointUsed || 0) > 0) {
+      const { data: uc } = await supabase
+        .from('user_coupons').select('coupons(allow_point)').eq('id', od.userCouponId).maybeSingle();
+      const allowPoint = (uc?.coupons as { allow_point?: boolean } | null)?.allow_point;
+      if (allowPoint === false) {
+        return NextResponse.json({ error: '이 쿠폰은 포인트와 함께 사용할 수 없습니다.' }, { status: 400 });
+      }
+    }
+
     const { error } = await supabase
       .from('pending_payments')
       .upsert({ payment_id: body.paymentId, data: body.orderData });

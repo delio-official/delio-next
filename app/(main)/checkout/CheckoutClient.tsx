@@ -528,12 +528,19 @@ export default function CheckoutClient() {
         const selectedMethod = PAYMENT_METHODS.find(m => m.value === payMethod)!;
         const pid = `delio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
-        /* 결제창 호출 전, 주문 데이터를 서버에 임시 저장 (웹훅이 브라우저 없이도 주문 확정 가능) */
-        await fetch('/api/payment/prepare', {
+        /* 결제창 호출 전, 주문 데이터를 서버에 임시 저장 (웹훅이 브라우저 없이도 주문 확정 가능)
+           + 서버 검증(포인트 불가 쿠폰+포인트 등). 실패하면 결제 진행 중단. */
+        const prep = await fetch('/api/payment/prepare', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentId: pid, orderData }),
-        }).catch(() => {});
+        }).catch(() => null);
+        if (prep && !prep.ok) {
+          const j = await prep.json().catch(() => null);
+          alert(j?.error || '주문 정보를 확인할 수 없습니다. 다시 시도해주세요.');
+          setLoading(false); submittingRef.current = false;
+          return;
+        }
 
         const response = await PortOne.requestPayment({
           storeId,

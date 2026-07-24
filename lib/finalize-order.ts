@@ -67,6 +67,18 @@ export async function finalizeOrder(
   /* 주문 저장 */
   const couponDiscount = orderData.couponDiscount || 0;
   const pointUsed      = orderData.pointUsed || 0;
+
+  /* [보안] 포인트 중복 사용 불가 쿠폰인데 포인트를 함께 썼으면 거부.
+     화면에서 막지만 클라이언트 조작으로 우회할 수 있어 서버에서도 확인한다.
+     userCouponId(user_coupons.id) → coupon_id → coupons.allow_point */
+  if (orderData.userCouponId && pointUsed > 0) {
+    const { data: uc } = await supabase
+      .from('user_coupons').select('coupons(allow_point)').eq('id', orderData.userCouponId).maybeSingle();
+    const allowPoint = (uc?.coupons as { allow_point?: boolean } | null)?.allow_point;
+    if (allowPoint === false) {
+      return { success: false, error: '이 쿠폰은 포인트와 함께 사용할 수 없습니다.', status: 400 };
+    }
+  }
   const insertRow: Record<string, unknown> = {
     user_id:         orderData.userId,
     status:          'paid',
