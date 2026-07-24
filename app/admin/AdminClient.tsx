@@ -7860,9 +7860,9 @@ export default function AdminClient() {
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
                               {gi === 0 && <td rowSpan={n}>{o.recipient}</td>}
 
-                              {/* 상품 — 글자는 좌측정렬, 덩어리는 칸 가운데(inline-block) */}
+                              {/* 상품 — 글자는 좌측정렬, 고정폭 블록을 칸 가운데(margin auto)로 두어 줄마다 시작 위치 통일 */}
                               <td>
-                                <div style={{ lineHeight:1.35, textAlign:'left', display:'inline-block' }}>
+                                <div style={{ lineHeight:1.35, textAlign:'left', width:'100%', maxWidth:340, margin:'0 auto' }}>
                                   <div style={{ fontWeight:600 }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
                                   <div className="adm-muted" style={{ fontSize:11 }}>
                                     {g.farmName}{opt ? ` · ${opt}` : ''} · {fmtPrice(g.sub)}원
