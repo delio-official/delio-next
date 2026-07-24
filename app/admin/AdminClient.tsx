@@ -12363,7 +12363,10 @@ export default function AdminClient() {
                   { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)' },
                   { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음' },
                   { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정' },
-                ].map(t => (
+                ]
+                  /* 신규회원 자동지급 쿠폰은 가입 시 자동 발급 전용 — 직접 다운로드·멤버십 월발급과 무관하므로 숨김 */
+                  .filter(t => !(couponForm.signup_grant && (t.l === '회원 직접 다운로드' || t.l === '멤버십 월 발급')))
+                  .map(t => (
                   <div key={t.l} style={{ border:'1px solid #F0F0EE', borderRadius:8, padding:'11px 14px', background:'#FAFAF8', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                     <div style={{ minWidth:0 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{t.l}</div>
