@@ -5109,7 +5109,7 @@ export default function AdminClient() {
     } else {
       setEditingCoupon(null);
       /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'percent', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true });
     }
     setCouponModal(true);
   }
@@ -12329,7 +12329,7 @@ export default function AdminClient() {
                   <div className="adm-form-row">
                     <label className="adm-label">만료일 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 비우면 무제한</span></label>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
-                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:12.5, cursor:'pointer', whiteSpace:'nowrap' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>
                         <input type="checkbox" checked={!couponForm.expires_at}
                           onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.checked ? '' : new Date(Date.now() + 30*24*60*60*1000).toISOString().slice(0,10) }))} />
                         무제한
