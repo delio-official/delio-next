@@ -2202,7 +2202,8 @@ export default function AdminClient() {
   const [mediaHistory, setMediaHistory] = useState<MediaHistory[]>([]);
   const [mediaHistoryOpen, setMediaHistoryOpen] = useState(false);
   const [mhLoading, setMhLoading] = useState(false);
-  const [mhFilter, setMhFilter] = useState<'all' | 'banner' | 'popup'>('all');
+  const [mhFilter, setMhFilter] = useState<'all' | 'main' | 'mid' | 'cat_promo' | 'popup'>('all'); // 위치
+  const [mhAction, setMhAction] = useState<'all' | 'create' | 'update' | 'delete'>('all');        // 액션
   const [mhPage, setMhPage] = useState(1); const [mhSize, setMhSize] = useState(10);
   const [popupModal, setPopupModal] = useState(false);
   const [editingPopup, setEditingPopup] = useState<AdminPopup | null>(null);
@@ -9111,9 +9112,9 @@ export default function AdminClient() {
                   </div>
 
                   {bannersLoading
-                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                    ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
                     : list.length === 0
-                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>등록된 배너가 없습니다</div>
+                    ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>등록된 배너가 없습니다</div>
                     : (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:16 }}>
                         {list.map(b => {
@@ -9182,9 +9183,9 @@ export default function AdminClient() {
                     </div>
                   </div>
                   {popupsLoading
-                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                    ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
                     : popups.length === 0
-                    ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>등록된 팝업이 없습니다 (popups 테이블 생성 필요)</div>
+                    ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>등록된 팝업이 없습니다</div>
                     : (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:16 }}>
                         {popups.map(p => {
@@ -9449,61 +9450,71 @@ export default function AdminClient() {
               })()}
 
               {/* 변경 이력 모달 */}
-              {mediaHistoryOpen && (
+              {mediaHistoryOpen && (() => {
+                const POS_LABEL: Record<string, string> = { main:'메인배너', mid:'중간배너', cat_promo:'카테고리배너', popup:'팝업' };
+                const posOf = (h: MediaHistory) => h.entity_type === 'popup' ? 'popup' : String((h.snapshot as Record<string, unknown>)?.type || 'main');
+                const rows = mediaHistory.filter(h =>
+                  (mhFilter === 'all' || posOf(h) === mhFilter) &&
+                  (mhAction === 'all' || h.action === mhAction)
+                );
+                const ACT: Record<string, { t:string; c:string }> = { create:{ t:'등록', c:'badge-on' }, update:{ t:'수정', c:'badge-paid' }, delete:{ t:'삭제', c:'badge-off' } };
+                const mhCur = Math.min(Math.max(1, mhPage), Math.max(1, Math.ceil(rows.length / mhSize)));
+                const pagedRows = rows.slice((mhCur - 1) * mhSize, mhCur * mhSize);
+                return (
                 <div className="adm-modal-bg open" onClick={() => setMediaHistoryOpen(false)}>
                   <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:780, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
                     <div className="adm-modal-head">
                       <span className="adm-modal-title">📜 배너 / 팝업 변경 이력</span>
-                      <button className="adm-modal-close" onClick={() => setMediaHistoryOpen(false)}>✕</button>
+                      {!mhLoading && rows.length > 0 && <span className="adm-muted" style={{ fontSize:12, marginLeft:'auto' }}>총 {rows.length.toLocaleString()}건</span>}
                     </div>
                     <div className="adm-modal-body">
                     <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:16 }}>
-                      <AdmSelect value={mhFilter} onChange={v => { setMhFilter(v as 'all'|'banner'|'popup'); setMhPage(1); }}
-                        options={[{ value:'all', label:'전체' }, { value:'banner', label:'배너' }, { value:'popup', label:'팝업' }]} />
-                      <button className="adm-btn adm-btn-outline" onClick={loadMediaHistory}>새로고침</button>
-                      <span className="adm-muted" style={{ fontSize:12, marginLeft:'auto' }}>최근 200건</span>
+                      <AdmSelect value={mhFilter} onChange={v => { setMhFilter(v as 'all'|'main'|'mid'|'cat_promo'|'popup'); setMhPage(1); }}
+                        options={[{ value:'all', label:'전체 위치' }, { value:'main', label:'메인배너' }, { value:'mid', label:'중간배너' }, { value:'cat_promo', label:'카테고리배너' }, { value:'popup', label:'팝업' }]} />
+                      <AdmSelect value={mhAction} onChange={v => { setMhAction(v as 'all'|'create'|'update'|'delete'); setMhPage(1); }}
+                        options={[{ value:'all', label:'전체 액션' }, { value:'create', label:'등록' }, { value:'update', label:'수정' }, { value:'delete', label:'삭제' }]} />
+                      <button className="adm-btn adm-btn-outline" style={{ marginLeft:'auto' }} onClick={loadMediaHistory}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
-                    {mhLoading ? <PanelLoading /> : (() => {
-                      const rows = mediaHistory.filter(h => mhFilter === 'all' || h.entity_type === mhFilter);
-                      if (rows.length === 0) return <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0' }}>변경 이력이 없습니다. (이 기능 적용 후 등록/수정/삭제부터 기록됩니다)</div>;
-                      const ACT: Record<string, { t:string; c:string }> = { create:{ t:'등록', c:'badge-on' }, update:{ t:'수정', c:'badge-paid' }, delete:{ t:'삭제', c:'badge-off' } };
-                      const mhCur = Math.min(Math.max(1, mhPage), Math.max(1, Math.ceil(rows.length / mhSize)));
-                      const pagedRows = rows.slice((mhCur - 1) * mhSize, mhCur * mhSize);
-                      return (
-                        <>
+                    {mhLoading ? <PanelLoading /> : rows.length === 0 ? (
+                      <div className="adm-muted" style={{ textAlign:'center', padding:'40px 0' }}>변경 이력이 없습니다.</div>
+                    ) : (
+                      <>
                         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                           {pagedRows.map(h => {
                             const snap = h.snapshot as Record<string, unknown>;
                             const img = (snap.image_url as string) || (snap.thumbnail_url as string) || '';
                             const act = ACT[h.action] || { t:h.action, c:'badge-off' };
+                            const pos = posOf(h);
+                            const name = (snap.name as string) || (snap.title as string) || '이름 없음';
                             return (
                               <div key={h.id} style={{ display:'flex', gap:12, alignItems:'center', border:'1px solid #E2E8F0', borderRadius:8, padding:10 }}>
                                 <div style={{ width:88, height:55, borderRadius:6, background:'#F1F5F9', flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                                   {img ? <img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} /> : <span style={{ fontSize:11, color:'#94A3B8' }}>이미지 없음</span>}
                                 </div>
-                                <div style={{ flex:1, minWidth:0 }}>
-                                  <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:3, flexWrap:'wrap' }}>
-                                    <span className="adm-badge badge-normal">{h.entity_type === 'banner' ? '배너' : '팝업'}</span>
+                                <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:5, justifyContent:'center' }}>
+                                  <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                                    <span className="adm-badge badge-normal">{POS_LABEL[pos] || pos}</span>
                                     <span className={`adm-badge ${act.c}`}>{act.t}</span>
-                                    <span className="adm-muted" style={{ fontSize:11 }}>{fmtDate(h.changed_at)}</span>
                                   </div>
-                                  <div style={{ fontSize:12, color:'#475569', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                                    🔗 {(snap.link_url as string) || '-'}{snap.type ? ` · ${String(snap.type)}` : ''}
-                                  </div>
+                                  <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{name}</div>
                                 </div>
-                                <button className="adm-row-btn" onClick={() => restoreMedia(h)}>복원</button>
+                                <span className="adm-muted" style={{ fontSize:11, flexShrink:0, whiteSpace:'nowrap' }}>{fmtDate(h.changed_at)}</span>
+                                <button className="adm-row-btn" style={{ flexShrink:0 }} onClick={() => restoreMedia(h)}>복원</button>
                               </div>
                             );
                           })}
                         </div>
                         <Pager page={mhCur} pageSize={mhSize} total={rows.length} onPage={setMhPage} onPageSize={setMhSize} />
-                        </>
-                      );
-                    })()}
+                      </>
+                    )}
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'flex-end', padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+                      <button className="adm-btn adm-btn-dark" onClick={() => setMediaHistoryOpen(false)}>닫기</button>
                     </div>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* 배너 등록/수정 모달 */}
               {bannerModal && (() => {
