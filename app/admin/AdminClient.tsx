@@ -9156,8 +9156,8 @@ export default function AdminClient() {
                                 ))}
                               </div>
                               <div style={{ display:'flex', gap:6 }}>
-                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12 }} onClick={() => openBannerModal(b)}>수정</button>
-                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA' }} onClick={() => deleteBanner(b.id)}>삭제</button>
+                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, justifyContent:'center' }} onClick={() => openBannerModal(b)}>수정</button>
+                                <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA', justifyContent:'center' }} onClick={() => deleteBanner(b.id)}>삭제</button>
                               </div>
                             </div>
                           </div>
