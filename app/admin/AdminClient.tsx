@@ -355,11 +355,14 @@ interface FarmInquiry {
 interface AdminBanner {
   id: string;
   type: string;
+  name?: string | null;
   sort_order: number;
   image_url: string | null;
   image_url_mobile: string | null;
   link_url: string;
   is_active: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
   view_count?: number;
   click_count?: number;
   created_at: string;
@@ -2181,8 +2184,8 @@ export default function AdminClient() {
   const [bannerReordering, setBannerReordering] = useState(false);   // 배너 순서 저장 중 연타 방지
   const [bannerModal, setBannerModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
-  const BANNER_EMPTY = { type: 'main', link_url: '/', is_active: true };
-  const [bnForm, setBnForm] = useState<{ type: string; link_url: string; is_active: boolean }>({ ...BANNER_EMPTY });
+  const BANNER_EMPTY = { type: 'main', name: '', link_url: '/', is_active: true, starts_at: '', ends_at: '' };
+  const [bnForm, setBnForm] = useState<{ type: string; name: string; link_url: string; is_active: boolean; starts_at: string; ends_at: string }>({ ...BANNER_EMPTY });
   const [bnImgUrl, setBnImgUrl] = useState<string>('');
   const [bnImgUrlMobile, setBnImgUrlMobile] = useState<string>('');
   const [bnSaving, setBnSaving] = useState(false);
@@ -4074,7 +4077,8 @@ export default function AdminClient() {
   function openBannerModal(b?: AdminBanner) {
     if (b) {
       setEditingBanner(b);
-      setBnForm({ type: b.type, link_url: b.link_url, is_active: b.is_active });
+      setBnForm({ type: b.type, name: b.name || '', link_url: b.link_url, is_active: b.is_active,
+        starts_at: b.starts_at ? b.starts_at.slice(0,10) : '', ends_at: b.ends_at ? b.ends_at.slice(0,10) : '' });
       setBnImgUrl(b.image_url || '');
       setBnImgUrlMobile(b.image_url_mobile || '');
     } else {
@@ -4087,15 +4091,19 @@ export default function AdminClient() {
   }
 
   async function saveBanner() {
+    if (!bnForm.name.trim()) { alert('배너명을 입력해주세요. (내부 관리용)'); return; }
     if (!bnImgUrl && !editingBanner?.image_url) { alert('이미지를 업로드해주세요.'); return; }
     setBnSaving(true);
     const supabase = createClient();
     const payload = {
       type: bnForm.type,
+      name: bnForm.name.trim() || null,
       link_url: bnForm.link_url.trim() || '/',
       image_url: bnImgUrl || editingBanner?.image_url || null,
       image_url_mobile: bnImgUrlMobile || null,
       is_active: bnForm.is_active,
+      starts_at: bnForm.starts_at ? new Date(`${bnForm.starts_at}T00:00:00`).toISOString() : null,
+      ends_at:   bnForm.ends_at   ? new Date(`${bnForm.ends_at}T23:59:59`).toISOString()   : null,
       sort_order: editingBanner?.sort_order ?? banners.filter(b => b.type === bnForm.type).length,
     };
     if (editingBanner) {
@@ -9066,7 +9074,10 @@ export default function AdminClient() {
                     { id:'tab-catpromo', label:'카테고리 배너' },
                     { id:'tab-popup',    label:'팝업' },
                   ]} />
-                <button className="adm-btn adm-btn-outline" onClick={openMediaHistory}>📜 변경 이력</button>
+                <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => bannerTab === 'tab-popup' ? loadPopups() : loadBanners()}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-outline" onClick={openMediaHistory}>📜 변경 이력</button>
+                </div>
               </div>
 
               {/* ── 배너 탭 (메인 / 중간 / 카테고리) ── */}
@@ -9088,43 +9099,16 @@ export default function AdminClient() {
                     ))}
                   </div>
                   <div className="adm-toolbar">
-                    <div className="adm-toolbar-left" />
+                    <div className="adm-toolbar-left">
+                      {list.length > 1 && <span className="adm-muted" style={{ fontSize:12 }}>💡 카드를 드래그해서 노출 순서를 바꿀 수 있습니다.</span>}
+                    </div>
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-outline" onClick={loadBanners}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                      <button className="adm-btn adm-btn-primary" onClick={() => {
-                        setBnForm({ type: bannerType, link_url: '/', is_active: true });
+                      <button className="adm-btn adm-btn-dark" onClick={() => {
+                        setBnForm({ ...BANNER_EMPTY, type: bannerType });
                         openBannerModal();
                       }}>+ 배너 등록</button>
                     </div>
                   </div>
-
-                  {/* 노출 순서 — 썸네일을 드래그해서 순서 변경 */}
-                  {list.length > 1 && (
-                    <div className="adm-card" style={{ padding:'12px 14px', marginBottom:16 }}>
-                      <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>
-                        노출 순서 <span style={{ fontWeight:400, color:'#94A3B8' }}>— 아래 썸네일을 드래그해서 순서를 바꾸세요 (고객 화면에 이 순서로 표시)</span>
-                      </div>
-                      <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4, opacity: bannerReordering ? 0.5 : 1 }}>
-                        {list.map((b, idx) => (
-                          <div key={b.id} draggable
-                            onDragStart={() => { dragRow.current = b.id; }}
-                            onDragEnd={() => { dragRow.current = null; }}
-                            onDragOver={e => e.preventDefault()}
-                            onDrop={() => { if (dragRow.current) reorderBanners(dragRow.current, b.id); }}
-                            title="드래그해서 순서 변경"
-                            style={{ flexShrink:0, width:168, cursor:'grab', border:'1px solid #E2E8F0', borderRadius:8, overflow:'hidden', background:'#fff' }}>
-                            <div style={{ position:'relative' }}>
-                              {b.image_url
-                                ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'2.2/1', objectFit:'cover', display:'block', background:'#F0F0EE', pointerEvents:'none' }} />
-                                : <div style={{ width:'100%', aspectRatio:'2.2/1', background:'#F0F0EE' }} />}
-                              <span style={{ position:'absolute', top:3, left:3, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:10, fontWeight:700, borderRadius:4, padding:'1px 5px' }}>{idx + 1}</span>
-                              {!b.is_active && <span style={{ position:'absolute', top:3, right:3, background:'#64748B', color:'#fff', fontSize:9, borderRadius:4, padding:'1px 4px' }}>숨김</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {bannersLoading
                     ? <div className="adm-card" style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
@@ -9134,19 +9118,34 @@ export default function AdminClient() {
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:16 }}>
                         {list.map(b => {
                           const ctr = (b.view_count || 0) > 0 ? ((b.click_count || 0) / (b.view_count || 1) * 100) : 0;
+                          const period = (!b.starts_at && !b.ends_at)
+                            ? '상시 노출'
+                            : `${b.starts_at ? b.starts_at.slice(0,10) : '즉시'} ~ ${b.ends_at ? b.ends_at.slice(0,10) : '상시'}`;
                           return (
-                          <div key={b.id} className="adm-card" style={{ padding:0, overflow:'hidden' }}>
-                            {b.image_url
-                              ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'2.2/1', objectFit:'cover', display:'block', background:'#F0F0EE' }} />
-                              : <div style={{ width:'100%', aspectRatio:'2.2/1', background:'#F0F0EE' }} />}
+                          <div key={b.id} className="adm-card" draggable
+                            onDragStart={() => { dragRow.current = b.id; }}
+                            onDragEnd={() => { dragRow.current = null; }}
+                            onDragOver={e => e.preventDefault()}
+                            onDrop={() => { if (dragRow.current && dragRow.current !== b.id) reorderBanners(dragRow.current, b.id); }}
+                            title="드래그해서 노출 순서 변경"
+                            style={{ padding:0, overflow:'hidden', cursor: bannerReordering ? 'wait' : 'grab', opacity: bannerReordering ? 0.6 : 1 }}>
+                            <div style={{ position:'relative', background:'#F0F0EE' }}>
+                              {b.image_url
+                                ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'4/3', objectFit:'contain', display:'block', background:'#F0F0EE', pointerEvents:'none' }} />
+                                : <div style={{ width:'100%', aspectRatio:'4/3', background:'#F0F0EE' }} />}
+                              <span style={{ position:'absolute', top:6, left:6, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, fontWeight:700, borderRadius:5, padding:'1px 7px' }}>{list.findIndex(x => x.id === b.id) + 1}</span>
+                            </div>
                             <div style={{ padding:'12px 14px' }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                                 <button onClick={() => toggleBannerActive(b)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: b.is_active?'#DCFCE7':'#F1F5F9', color: b.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
                                   {b.is_active ? '노출중' : '숨김'}
                                 </button>
-                                <span style={{ fontSize:11, color:'#94A3B8' }}>{list.findIndex(x => x.id === b.id) + 1}번째</span>
+                                <span className="adm-muted" style={{ fontSize:11, display:'inline-flex', alignItems:'center', gap:3 }}><DragHandle />순서변경</span>
                               </div>
-                              <div className="adm-muted" style={{ fontSize:12, marginBottom:10, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>🔗 {b.link_url || '/'}</div>
+                              <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                {b.name || <span style={{ color:'#94A3B8', fontWeight:400 }}>이름 없음</span>}
+                              </div>
+                              <div className="adm-muted" style={{ fontSize:12, marginBottom:10 }}>🗓 {period}</div>
                               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:10 }}>
                                 {[['조회', (b.view_count||0).toLocaleString()], ['클릭', (b.click_count||0).toLocaleString()], ['CTR', `${ctr.toFixed(1)}%`]].map(([l,v]) => (
                                   <div key={l} style={{ background:'#F8FAFC', borderRadius:6, padding:'6px 4px', textAlign:'center' }}>
@@ -9179,8 +9178,7 @@ export default function AdminClient() {
                       </div>
                     </div>
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-outline" onClick={loadPopups}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                      <button className="adm-btn adm-btn-primary" onClick={() => openPopupModal()}>+ 팝업 등록</button>
+                      <button className="adm-btn adm-btn-dark" onClick={() => openPopupModal()}>+ 팝업 등록</button>
                     </div>
                   </div>
                   {popupsLoading
@@ -9531,48 +9529,42 @@ export default function AdminClient() {
                 const isCustomUrl = !QUICK_LINKS.slice(0, -1).some(l => l.url === bnForm.link_url);
                 const dropVal = isCustomUrl ? '__custom__' : bnForm.link_url;
 
+                const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
+                  main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
+                  mid:  { pc: '1060×350px (@2x)', mobile: '1200×480px · 5:2' },
+                  cat_promo: { pc: '모바일 전용', mobile: '1000×280px 내외 · 가로 카드형' },
+                };
+                const hint = SIZE_HINT[bnForm.type];
+                const pcChip  = hint && bnForm.type !== 'cat_promo' ? <span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'2px 7px' }}>{hint.pc}</span> : null;
+                const mobChip = hint ? <span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#F0FDF4', color:'#15803D', borderRadius:5, padding:'2px 7px' }}>{hint.mobile}</span> : null;
+
                 return (
                   <div className="adm-modal-bg open" onClick={() => setBannerModal(false)}>
                     <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:500, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
                       <div className="adm-modal-head">
                         <span className="adm-modal-title">{editingBanner ? '배너 수정' : '배너 등록'}</span>
-                        <button className="adm-modal-close" onClick={() => setBannerModal(false)}>✕</button>
                       </div>
                       <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
 
+                        {/* 배너명 (내부 관리용) */}
+                        <div>
+                          <label className="adm-label">배너명 <span style={{ color:'#DC2626' }}>*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>내부 관리용</span></label>
+                          <input className="adm-input-text" style={{ width:'100%' }}
+                            placeholder="예: 여름 블루베리 이벤트 배너"
+                            value={bnForm.name} onChange={e => setBnForm(f => ({ ...f, name: e.target.value }))} />
+                        </div>
+
                         {/* 종류 */}
-                        {(() => {
-                          const SIZE_HINT: Record<string, { pc: string; mobile: string }> = {
-                            main: { pc: '1090×780px (@2x)', mobile: '1080×740px (@2x)' },
-                            mid:  { pc: '1060×350px (@2x)', mobile: '1200×480px · 5:2 비율 · 가로 전체(풀폭) 권장' },
-                            cat_promo: { pc: '모바일 전용', mobile: '1000×280px 내외 · 가로 긴 카드형 · 모바일 카테고리 상단' },
-                          };
-                          const hint = SIZE_HINT[bnForm.type];
-                          return (
-                            <div>
-                              <label className="adm-label">배너 종류</label>
-                              <AdmSelect className="adm-cs-full" value={bnForm.type}
-                                onChange={v => setBnForm(f => ({ ...f, type: v }))}
-                                options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }, { value:'cat_promo', label:'카테고리 배너 (모바일 카테고리 상단)' }]} />
-                              {hint && (
-                                <div style={{ marginTop:6, display:'flex', gap:12, fontSize:12 }}>
-                                  {bnForm.type !== 'cat_promo' && (
-                                    <span style={{ background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
-                                      💻 PC {hint.pc}
-                                    </span>
-                                  )}
-                                  <span style={{ background:'#F0FDF4', color:'#15803D', borderRadius:5, padding:'3px 8px', fontWeight:600 }}>
-                                    {bnForm.type === 'cat_promo' ? `🖼️ ${hint.mobile}` : `📱 모바일 ${hint.mobile}`}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        <div>
+                          <label className="adm-label">배너 종류</label>
+                          <AdmSelect className="adm-cs-full" value={bnForm.type}
+                            onChange={v => setBnForm(f => ({ ...f, type: v }))}
+                            options={[{ value:'main', label:'메인 배너 (상단 슬라이더)' }, { value:'mid', label:'중간 배너 (중단 슬라이더)' }, { value:'cat_promo', label:'카테고리 배너 (모바일 카테고리 상단)' }]} />
+                        </div>
 
                         {/* 이미지 드래그앤드롭 업로드 (cat_promo는 단일 '이미지', 그 외 'PC 이미지') */}
                         <div>
-                          <label className="adm-label">{bnForm.type === 'cat_promo' ? '🖼️ 이미지 *' : '💻 PC 이미지 *'}</label>
+                          <label className="adm-label">{bnForm.type === 'cat_promo' ? '🖼️ 이미지 *' : '💻 PC 이미지 *'}{pcChip}</label>
                           <input ref={bnImgRef} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -9625,7 +9617,7 @@ export default function AdminClient() {
                         {/* 모바일 이미지 드래그앤드롭 업로드 (선택) — 카테고리 배너는 모바일 전용이라 단일 이미지만 사용, 이 칸 숨김 */}
                         {bnForm.type !== 'cat_promo' && (
                         <div>
-                          <label className="adm-label">📱 모바일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 없으면 PC 이미지 공용)</span></label>
+                          <label className="adm-label">📱 모바일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 없으면 PC 이미지 공용)</span>{mobChip}</label>
                           <input ref={bnImgRefMobile} type="file" accept="image/*" style={{ display:'none' }}
                             onChange={async e => {
                               const file = e.target.files?.[0];
@@ -9694,21 +9686,31 @@ export default function AdminClient() {
                           </div>
                         </div>
 
-                        {/* 활성 */}
-                        <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px' }}>
-                          <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', userSelect:'none' }}>
-                            <input type="checkbox" checked={bnForm.is_active}
-                              onChange={e => setBnForm(f => ({ ...f, is_active: e.target.checked }))}
-                              style={{ width:16, height:16, cursor:'pointer', flexShrink:0 }} />
-                            <div>
-                              <div style={{ fontSize:13, fontWeight:600 }}>즉시 노출</div>
-                              <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>체크 해제 시 저장만 되고 사이트에 표시되지 않습니다</div>
-                            </div>
-                          </label>
+                        {/* 노출 기간 */}
+                        <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
+                          <div style={{ flex:'1 1 160px', minWidth:0 }}>
+                            <label className="adm-label">노출 시작일 <span style={{ fontWeight:400, color:'#94A3B8' }}>비우면 즉시</span></label>
+                            <input type="date" className="adm-input-text" style={{ width:'100%', minWidth:0 }}
+                              value={bnForm.starts_at} onChange={e => setBnForm(f => ({ ...f, starts_at: e.target.value }))} />
+                          </div>
+                          <div style={{ flex:'1 1 160px', minWidth:0 }}>
+                            <label className="adm-label">노출 종료일 <span style={{ fontWeight:400, color:'#94A3B8' }}>비우면 상시</span></label>
+                            <input type="date" className="adm-input-text" style={{ width:'100%', minWidth:0 }}
+                              value={bnForm.ends_at} onChange={e => setBnForm(f => ({ ...f, ends_at: e.target.value }))} />
+                          </div>
+                        </div>
+
+                        {/* 즉시 노출 토글 */}
+                        <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:600 }}>즉시 노출</div>
+                            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>끄면 저장만 되고 사이트에 표시되지 않습니다</div>
+                          </div>
+                          <Toggle defaultOn={bnForm.is_active} onChange={v => setBnForm(f => ({ ...f, is_active: v }))} />
                         </div>
 
                       </div>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'0 20px 20px' }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:4, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
                         <button className="adm-btn adm-btn-outline" onClick={() => setBannerModal(false)}>취소</button>
                         <button className="adm-btn adm-btn-primary" onClick={saveBanner} disabled={bnSaving || bnUploading}>
                           {bnSaving ? '저장 중...' : '저장'}
