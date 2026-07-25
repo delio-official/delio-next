@@ -1479,7 +1479,7 @@ export default function ProductClient() {
                     <div className="hide-scrollbar" style={{ minWidth: 0, ...(isMobile ? {} : { flex: 1, overflowY: 'auto' }) }}>
                       {selItem.review ? (
                         <>
-                          {/* ① 상단 배지 행: BEST | 이름 | 평점텍스트 */}
+                          {/* ① 상단 뱃지 행: BEST | 이름 | 평점텍스트 */}
                           <div style={{
                             flexShrink: 0, padding: '14px 16px 10px',
                             display: 'flex', alignItems: 'center', gap: 8,

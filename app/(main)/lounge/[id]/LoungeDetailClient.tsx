@@ -72,7 +72,7 @@ export default function LoungeDetailClient() {
           <span style={{ color: '#555' }}>{post.title}</span>
         </div>
 
-        {/* 배지 */}
+        {/* 뱃지 */}
         <span style={{
           display: 'inline-block', marginBottom: 12,
           background: 'var(--color-accent-bg)', color: 'var(--color-accent)',

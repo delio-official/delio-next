@@ -2900,7 +2900,7 @@ export default function MypageClient() {
                           return (
                           <div key={p.id} className="mp-wish-item mp-recent-card" style={{ position:'relative', display:'flex', flexDirection:'column', border:'none', overflow:'visible' }}>
                             <div className="mp-wish-img" onClick={() => router.push(`/product/${p.id}`)} style={{ cursor:'pointer' }}>
-                              {/* 배송 배지 */}
+                              {/* 배송 뱃지 */}
                               <span className={`product-card-delivery ${p.is_dawn ? 'tag-dawn' : 'tag-regular'}`}
                                 style={{ position:'absolute', top:8, left:8, zIndex:2 }}>
                                 {p.is_dawn ? '산지직송' : '자사배송'}

@@ -71,7 +71,7 @@ export default function EventDetailClient() {
           <span style={{ color: '#555' }}>{event.title}</span>
         </div>
 
-        {/* 배지 + 제목 */}
+        {/* 뱃지 + 제목 */}
         <div style={{ marginBottom: 8 }}>
           <span style={{
             display: 'inline-block',

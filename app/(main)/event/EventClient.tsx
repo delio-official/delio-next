@@ -162,7 +162,7 @@ export default function EventClient() {
                           </div>
                         )
                       }
-                      {/* 커스텀 배지 (관리자 지정 텍스트+색상) */}
+                      {/* 커스텀 뱃지 (관리자 지정 텍스트+색상) */}
                       {ev.badge && ev.badge !== 'EVENT' && (
                         <span style={{ position:'absolute', top:10, left:10, background: ev.badge_color || '#1A8A4C', color:'#fff', fontSize:11, fontWeight:700, borderRadius:4, padding:'3px 8px', zIndex:2 }}>{ev.badge}</span>
                       )}

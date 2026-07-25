@@ -968,7 +968,7 @@ export default function SurveyClient() {
             {/* 구분선 */}
             <div style={{ width:40, height:2, background:res.color, margin:'0 auto 24px', opacity:0.4, borderRadius:2 }} />
 
-            {/* 축 배지 */}
+            {/* 축 뱃지 */}
             <div style={{ marginBottom:24, padding:'0 20px', lineHeight:'2' }}>
               {[
                 result!.axis1 === 'routine' ? '루틴형' : '자유형',

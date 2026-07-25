@@ -5424,7 +5424,7 @@ export default function AdminClient() {
   }
 
   /* 필터된 주문 목록 */
-  /* 주문별 진행 중(접수/처리중) 취소·환불 요청 — 주문관리에서 배지·처리 노출용 */
+  /* 주문별 진행 중(접수/처리중) 취소·환불 요청 — 주문관리에서 뱃지·처리 노출용 */
   const pendingReqByOrder = new Map<string, AdminRefundReq>();
   refundReqs.forEach(r => {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) pendingReqByOrder.set(r.order_id, r);
@@ -6330,7 +6330,7 @@ export default function AdminClient() {
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>URL: /event/<strong>{evForm.slug || '자동생성'}</strong></div>
               </div>
 
-              {/* 부제목 / 배지 */}
+              {/* 부제목 / 뱃지 */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
                   <label className="adm-label">부제목</label>
@@ -6338,7 +6338,7 @@ export default function AdminClient() {
                     onChange={e => setEvForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="선택 입력" />
                 </div>
                 <div>
-                  <label className="adm-label">배지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={evForm.badge}
                     onChange={e => setEvForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: HOT, NEW, 한정" />
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
@@ -9766,7 +9766,7 @@ export default function AdminClient() {
                 {eventsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>이벤트명</th><th>배지</th><th>시작일</th><th>종료일</th><th>상태</th><th>활성</th><th>관리</th></tr></thead>
+                      <thead><tr><th>이벤트명</th><th>뱃지</th><th>시작일</th><th>종료일</th><th>상태</th><th>활성</th><th>관리</th></tr></thead>
                       <tbody>
                         {events.length === 0 ? (
                           <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>이벤트 없음</td></tr>
@@ -9829,7 +9829,7 @@ export default function AdminClient() {
                 {loungeLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>ID</th><th>제목</th><th>카테고리</th><th>배지</th><th>작성일</th><th>노출</th><th>관리</th></tr></thead>
+                      <thead><tr><th>ID</th><th>제목</th><th>카테고리</th><th>뱃지</th><th>작성일</th><th>노출</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredLounge.length === 0 ? (
                           <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>게시물 없음</td></tr>
@@ -12307,10 +12307,10 @@ export default function AdminClient() {
                   value={loungeForm.title} onChange={e => setLoungeForm(p => ({ ...p, title: e.target.value }))} />
               </div>
 
-              {/* 배지 / 작성일 */}
+              {/* 뱃지 / 작성일 */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:4 }}>
-                  <label className="adm-label">배지</label>
+                  <label className="adm-label">뱃지</label>
                   <input type="text" className="adm-input-text" placeholder="예: NEW, HOT"
                     value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
                 </div>

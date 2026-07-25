@@ -283,7 +283,7 @@ export default function FarmClient() {
         );
       })()}
 
-      {/* ── 위치 배지 · 하트 / 농가명 / 소개 ── */}
+      {/* ── 위치 뱃지 · 하트 / 농가명 / 소개 ── */}
       <div className="container" style={{ paddingTop:24, paddingBottom:28 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:18 }}>
           {farm.region ? (
