@@ -14,6 +14,7 @@ interface Popup {
   width: number;
   position: string;
   is_active: boolean;
+  show_today_close?: boolean;
   starts_at: string | null;
   ends_at: string | null;
 }
@@ -38,7 +39,7 @@ export default function PopupOverlay() {
       const now = new Date().toISOString();
       const { data } = await supabase
         .from('popups')
-        .select('id,title,image_url,image_url_mobile,link_url,width,position,is_active,starts_at,ends_at')
+        .select('id,title,image_url,image_url_mobile,link_url,width,position,is_active,show_today_close,starts_at,ends_at')
         .eq('is_active', true)
         .or(`starts_at.is.null,starts_at.lte.${now}`)
         .or(`ends_at.is.null,ends_at.gte.${now}`)
@@ -103,8 +104,9 @@ export default function PopupOverlay() {
       )}
 
 
-      {/* 푸터 버튼 2개 */}
+      {/* 푸터 버튼 (오늘 하루 보지 않기는 관리자 설정에 따라 표시) */}
       <div style={{ display: 'flex', borderTop: '1px solid #E2E8F0' }}>
+        {current.show_today_close !== false && (
         <button
           onClick={handleHideToday}
           style={{
@@ -117,6 +119,7 @@ export default function PopupOverlay() {
         >
           오늘 하루 보지 않기
         </button>
+        )}
         <button
           onClick={close}
           style={{

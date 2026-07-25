@@ -2194,7 +2194,7 @@ export default function AdminClient() {
   const bnImgRefMobile = useRef<HTMLInputElement>(null);
 
   /* ── 팝업 ── */
-  interface AdminPopup { id: string; title: string | null; image_url: string | null; image_url_mobile: string | null; link_url: string; width: number; position: string; is_active: boolean; starts_at: string | null; ends_at: string | null; created_at: string; }
+  interface AdminPopup { id: string; name?: string | null; title: string | null; image_url: string | null; image_url_mobile: string | null; link_url: string; width: number; position: string; is_active: boolean; show_today_close?: boolean; starts_at: string | null; ends_at: string | null; created_at: string; }
   const [popups, setPopups] = useState<AdminPopup[]>([]);
   const [popupsLoading, setPopupsLoading] = useState(false);
   /* 배너/팝업 변경 이력 */
@@ -2207,7 +2207,7 @@ export default function AdminClient() {
   const [mhPage, setMhPage] = useState(1); const [mhSize, setMhSize] = useState(10);
   const [popupModal, setPopupModal] = useState(false);
   const [editingPopup, setEditingPopup] = useState<AdminPopup | null>(null);
-  const POPUP_EMPTY = { title: '', link_url: '/', width: 400, position: 'center', is_active: true, starts_at: '', ends_at: '' };
+  const POPUP_EMPTY = { name: '', title: '', link_url: '/', width: 400, position: 'center', is_active: true, show_today_close: true, starts_at: '', ends_at: '' };
   const [ppForm, setPpForm] = useState<typeof POPUP_EMPTY>({ ...POPUP_EMPTY });
   const [ppImgUrl, setPpImgUrl] = useState('');
   const [ppImgUrlMobile, setPpImgUrlMobile] = useState('');
@@ -3963,9 +3963,9 @@ export default function AdminClient() {
     if (p) {
       setEditingPopup(p);
       setPpForm({
-        title: p.title || '', link_url: p.link_url || '/',
+        name: p.name || '', title: p.title || '', link_url: p.link_url || '/',
         width: p.width || 400, position: p.position || 'center',
-        is_active: p.is_active,
+        is_active: p.is_active, show_today_close: p.show_today_close !== false,
         starts_at: p.starts_at ? p.starts_at.slice(0, 16) : '',
         ends_at:   p.ends_at   ? p.ends_at.slice(0, 16)   : '',
       });
@@ -3981,10 +3981,12 @@ export default function AdminClient() {
   }
 
   async function savePopup() {
+    if (!ppForm.name.trim()) { alert('팝업명을 입력해주세요. (내부 관리용)'); return; }
     if (!ppImgUrl && !editingPopup?.image_url) { alert('이미지를 업로드해주세요.'); return; }
     setPpSaving(true);
     const supabase = createClient();
     const payload = {
+      name:      ppForm.name.trim() || null,
       title:     ppForm.title.trim() || '',
       image_url: ppImgUrl || editingPopup?.image_url || null,
       image_url_mobile: ppImgUrlMobile || null,
@@ -3992,6 +3994,7 @@ export default function AdminClient() {
       width:     Number(ppForm.width) || 400,
       position:  ppForm.position,
       is_active: ppForm.is_active,
+      show_today_close: ppForm.show_today_close,
       starts_at: ppForm.starts_at ? new Date(ppForm.starts_at).toISOString() : null,
       ends_at:   ppForm.ends_at   ? new Date(ppForm.ends_at).toISOString()   : null,
     };
@@ -9173,11 +9176,7 @@ export default function AdminClient() {
               {bannerTab === 'tab-popup' && (
                 <>
                   <div className="adm-toolbar">
-                    <div className="adm-toolbar-left">
-                      <div style={{ fontSize:12, color:'#64748B' }}>
-                        사이트 접속 시 뜨는 팝업을 관리합니다. 기간이 설정된 팝업은 기간 내에만 표시됩니다.
-                      </div>
-                    </div>
+                    <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
                       <button className="adm-btn adm-btn-dark" onClick={() => openPopupModal()}>+ 팝업 등록</button>
                     </div>
@@ -9203,10 +9202,11 @@ export default function AdminClient() {
                                   <button onClick={() => togglePopupActive(p)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: p.is_active?'#DCFCE7':'#F1F5F9', color: p.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
                                     {p.is_active ? '노출중' : '숨김'}
                                   </button>
-                                  <span style={{ fontSize:11, background:'#F1F5F9', borderRadius:99, padding:'2px 8px' }}>{posLabel[p.position] || p.position} · {p.width}px</span>
+                                  {/* 표시 위치 — 어디에 뜨는지 강조 */}
+                                  <span style={{ fontSize:11, fontWeight:700, background:'#EFF6FF', color:'#2563EB', borderRadius:99, padding:'3px 10px' }}>📍 {posLabel[p.position] || p.position} · {p.width}px</span>
                                 </div>
-                                <div style={{ fontWeight:600, fontSize:14, marginBottom:6, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                  {p.title || <span style={{ color:'#94A3B8' }}>제목 없음</span>}
+                                <div style={{ fontWeight:700, fontSize:14, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                  {p.name || <span style={{ color:'#94A3B8', fontWeight:400 }}>이름 없음</span>}
                                 </div>
                                 <div style={{ fontSize:11, color:'#64748B', marginBottom:10 }}>
                                   {p.starts_at || p.ends_at ? (
@@ -9219,8 +9219,8 @@ export default function AdminClient() {
                                   ) : <span style={{ color:'#94A3B8' }}>상시 노출</span>}
                                 </div>
                                 <div style={{ display:'flex', gap:6 }}>
-                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12 }} onClick={() => openPopupModal(p)}>수정</button>
-                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA' }} onClick={() => deletePopup(p.id)}>삭제</button>
+                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, justifyContent:'center' }} onClick={() => openPopupModal(p)}>수정</button>
+                                  <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA', justifyContent:'center' }} onClick={() => deletePopup(p.id)}>삭제</button>
                                 </div>
                               </div>
                             </div>
@@ -9252,9 +9252,16 @@ export default function AdminClient() {
                     <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:500, width:'95vw', maxHeight:'90vh', overflowY:'auto' }}>
                       <div className="adm-modal-head">
                         <span className="adm-modal-title">{editingPopup ? '팝업 수정' : '팝업 등록'}</span>
-                        <button className="adm-modal-close" onClick={() => setPopupModal(false)}>✕</button>
                       </div>
                       <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
+
+                        {/* 팝업명 (내부 관리용) */}
+                        <div>
+                          <label className="adm-label">팝업명 <span style={{ color:'#DC2626' }}>*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>내부 관리용</span></label>
+                          <input className="adm-input-text" style={{ width:'100%' }}
+                            placeholder="예: 여름 이벤트 팝업"
+                            value={ppForm.name} onChange={e => setPpForm(f => ({ ...f, name: e.target.value }))} />
+                        </div>
 
                         {/* 이미지 업로드 */}
                         <div>
@@ -9424,21 +9431,26 @@ export default function AdminClient() {
                           </div>
                         </div>
 
-                        {/* 활성 */}
-                        <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px' }}>
-                          <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer', userSelect:'none' }}>
-                            <input type="checkbox" checked={ppForm.is_active}
-                              onChange={e => setPpForm(f => ({ ...f, is_active: e.target.checked }))}
-                              style={{ width:16, height:16, cursor:'pointer', flexShrink:0 }} />
-                            <div>
-                              <div style={{ fontSize:13, fontWeight:600 }}>즉시 노출</div>
-                              <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>체크 해제 시 저장만 되고 사이트에 표시되지 않습니다</div>
-                            </div>
-                          </label>
+                        {/* 즉시 노출 토글 */}
+                        <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:600 }}>즉시 노출</div>
+                            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>끄면 저장만 되고 사이트에 표시되지 않습니다</div>
+                          </div>
+                          <Toggle defaultOn={ppForm.is_active} onChange={v => setPpForm(f => ({ ...f, is_active: v }))} />
+                        </div>
+
+                        {/* 오늘 하루 보지 않기 버튼 토글 */}
+                        <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:600 }}>‘오늘 하루 보지 않기’ 버튼 표시</div>
+                            <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>끄면 ‘닫기’ 버튼만 표시됩니다</div>
+                          </div>
+                          <Toggle defaultOn={ppForm.show_today_close} onChange={v => setPpForm(f => ({ ...f, show_today_close: v }))} />
                         </div>
 
                       </div>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'0 20px 20px' }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:4, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
                         <button className="adm-btn adm-btn-outline" onClick={() => setPopupModal(false)}>취소</button>
                         <button className="adm-btn adm-btn-primary" onClick={savePopup} disabled={ppSaving || ppUploading}>
                           {ppSaving ? '저장 중...' : '저장'}
