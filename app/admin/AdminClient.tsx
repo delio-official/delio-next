@@ -9829,13 +9829,16 @@ export default function AdminClient() {
                               <td className="adm-muted">{fmtDateShort(ev.ends_at)}</td>
                               <td><span className={`adm-badge ${s.cls}`}>{s.label}</span></td>
                               <td>
-                                <Toggle defaultOn={ev.is_active}
-                                  onChange={(v) => toggleEventActive(ev.id, v)} />
+                                <div style={{ display:'flex', justifyContent:'center' }}>
+                                  <Toggle defaultOn={ev.is_active} onChange={(v) => toggleEventActive(ev.id, v)} />
+                                </div>
                               </td>
-                              <td style={{ display:'flex', gap:6 }}>
-                                <button className="adm-row-btn" onClick={() => openEventModal(ev)}>수정</button>
-                                <Link href={`/event/${ev.slug}`} className="adm-row-btn" target="_blank">보기</Link>
-                                <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteEvent(ev.id)}>삭제</button>
+                              <td>
+                                <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
+                                  <button className="adm-row-btn" onClick={() => openEventModal(ev)}>수정</button>
+                                  <Link href={`/event/${ev.slug}`} className="adm-row-btn" target="_blank">보기</Link>
+                                  <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteEvent(ev.id)}>삭제</button>
+                                </div>
                               </td>
                             </tr>
                           );
