@@ -910,6 +910,45 @@ function Toggle({ defaultOn = false, onChange, disabled = false }: { defaultOn?:
   );
 }
 
+/* 공용 이미지 드롭존 — 클릭 업로드 + 드래그앤드롭 (배너와 동일 UX). 관리자 전 페이지 통일용 */
+function ImageDrop({ url, onFile, onClear, uploading = false, height = 120, placeholder = '클릭 또는 이미지 드래그' }: {
+  url?: string; onFile: (file: File) => void | Promise<void>; onClear?: () => void;
+  uploading?: boolean; height?: number; placeholder?: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const rest = (el: HTMLDivElement) => { el.style.borderColor = '#CBD5E1'; el.style.background = url ? '#000' : '#F8FAFC'; };
+  return (
+    <>
+      <input ref={ref} type="file" accept="image/*" style={{ display:'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
+      <div
+        onClick={() => !uploading && ref.current?.click()}
+        onDragOver={e => { e.preventDefault(); const el = e.currentTarget as HTMLDivElement; el.style.borderColor = '#3B82F6'; el.style.background = url ? '#000' : '#EFF6FF'; }}
+        onDragLeave={e => rest(e.currentTarget as HTMLDivElement)}
+        onDrop={e => { e.preventDefault(); rest(e.currentTarget as HTMLDivElement); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith('image/')) onFile(f); }}
+        style={{ position:'relative', border:'2px dashed #CBD5E1', borderRadius:10, background: url ? '#000' : '#F8FAFC',
+          minHeight:height, display:'flex', alignItems:'center', justifyContent:'center', cursor: uploading ? 'wait' : 'pointer', overflow:'hidden', transition:'border-color .15s, background .15s' }}>
+        {url ? (
+          <>
+            <img src={url} alt="" style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'contain', opacity:0.9 }} />
+            {onClear && <button type="button" onClick={e => { e.stopPropagation(); onClear(); }}
+              style={{ position:'absolute', top:8, right:8, zIndex:2, width:24, height:24, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.6)', color:'#fff', cursor:'pointer', fontSize:13 }}>✕</button>}
+            <div style={{ position:'relative', zIndex:1, background:'rgba(0,0,0,0.55)', borderRadius:8, padding:'6px 14px', color:'#fff', fontSize:13, fontWeight:600 }}>
+              {uploading ? '업로드 중...' : '클릭 또는 드래그로 교체'}
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign:'center', color:'#94A3B8', pointerEvents:'none', padding:'14px 0' }}>
+            {uploading
+              ? <div style={{ fontSize:13 }}>업로드 중...</div>
+              : <><div style={{ fontSize:28, marginBottom:6 }}>🖼</div><div style={{ fontSize:13, fontWeight:600 }}>{placeholder}</div><div style={{ fontSize:11, marginTop:3 }}>클릭 또는 파일을 끌어다 놓기</div></>}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /* 문자열 날짜 → datetime-local 입력값(YYYY-MM-DDTHH:mm). 레거시 "2026.05.30"도 변환 */
 function toDateTimeLocal(s: string): string {
   if (!s) return '';
@@ -6059,7 +6098,16 @@ export default function AdminClient() {
                   {(() => {
                     const imgs = pImgList();
                     return (
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}
+                        onDragOver={e => { if (e.dataTransfer.types?.includes('Files')) e.preventDefault(); }}
+                        onDrop={async e => {
+                          const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+                          if (!files.length) return; // 이미지 순서변경 드래그(파일 없음)는 무시
+                          e.preventDefault();
+                          const urls: string[] = [];
+                          for (const file of files) { const u = await uploadProductImage(file); if (u) urls.push(u); }
+                          if (urls.length) setPImgList([...pImgList(), ...urls].slice(0, 6));
+                        }}>
                         {/* 카메라 버튼 (당근식 · 등록수/최대) */}
                         {imgs.length < 6 && (
                           <button type="button" onClick={() => pImgRef.current?.click()} disabled={pImgUploading}
@@ -6317,7 +6365,6 @@ export default function AdminClient() {
           <div className="adm-modal" style={{ maxWidth:600, width:'95vw', maxHeight:'92vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">{editingEvent ? '이벤트 수정' : '이벤트 등록'}</span>
-              <button className="adm-modal-close" onClick={() => setEventModal(false)}>✕</button>
             </div>
             <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
@@ -6358,52 +6405,22 @@ export default function AdminClient() {
 
               {/* 썸네일 이미지 */}
               <div>
-                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 카드에 표시)</span></label>
-                <div style={{ fontSize:11, color:'#64748B', margin:'-2px 0 6px' }}>권장 <strong>1200 × 750px</strong> (가로:세로 = 1.6:1) · 최소 800×500 · 카드+상세 상단 공용, 상세에선 상하가 약간 잘리니 핵심은 중앙 · JPG/PNG</div>
-                <input ref={evThumbRef} type="file" accept="image/*" style={{ display:'none' }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const url = await uploadEventImage(file, 'thumb');
-                    if (url) setEvForm(f => ({ ...f, thumbnail_url: url }));
-                    e.target.value = '';
-                  }} />
-                {evForm.thumbnail_url ? (
-                  <div style={{ position:'relative', display:'inline-block' }}>
-                    <img src={evForm.thumbnail_url} alt="" style={{ width:'100%', maxHeight:180, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
-                    <button onClick={() => setEvForm(f => ({ ...f, thumbnail_url: '' }))}
-                      style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,0.5)', border:'none', borderRadius:'50%', color:'#fff', width:24, height:24, cursor:'pointer', fontSize:12 }}>✕</button>
-                  </div>
-                ) : (
-                  <button className="adm-btn adm-btn-outline" style={{ width:'100%', height:80, fontSize:13 }}
-                    onClick={() => evThumbRef.current?.click()} disabled={evThumbUploading}>
-                    {evThumbUploading ? '업로드 중...' : '🖼 썸네일 이미지 업로드'}
-                  </button>
-                )}
+                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 카드)</span></label>
+                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 1200 × 750px</div>
+                <ImageDrop url={evForm.thumbnail_url} uploading={evThumbUploading} height={120}
+                  placeholder="썸네일 클릭 또는 드래그"
+                  onFile={async file => { const url = await uploadEventImage(file, 'thumb'); if (url) setEvForm(f => ({ ...f, thumbnail_url: url })); }}
+                  onClear={() => setEvForm(f => ({ ...f, thumbnail_url: '' }))} />
               </div>
 
               {/* 본문 이미지 */}
               <div>
-                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 상세 페이지 상단)</span></label>
-                <div style={{ fontSize:11, color:'#64748B', margin:'-2px 0 6px' }}>가로 <strong>1200px</strong> 권장 (상세 본문 폭 최대 780px) · 세로 자유(긴 이미지 가능) · JPG/PNG</div>
-                <input ref={evImgRef} type="file" accept="image/*" style={{ display:'none' }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const url = await uploadEventImage(file, 'img');
-                    if (url) setEvForm(f => ({ ...f, image_url: url }));
-                    e.target.value = '';
-                  }} />
-                {evForm.image_url ? (
-                  <div style={{ position:'relative' }}>
-                    <img src={evForm.image_url} alt="" style={{ width:'100%', objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
-                    <button onClick={() => setEvForm(f => ({ ...f, image_url: '' }))}
-                      style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,0.5)', border:'none', borderRadius:'50%', color:'#fff', width:24, height:24, cursor:'pointer', fontSize:12 }}>✕</button>
-                  </div>
-                ) : (
-                  <button className="adm-btn adm-btn-outline" style={{ width:'100%', height:80, fontSize:13 }}
-                    onClick={() => evImgRef.current?.click()} disabled={evImgUploading}>
-                    {evImgUploading ? '업로드 중...' : '🖼 본문 이미지 업로드'}
-                  </button>
-                )}
+                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 페이지 상단)</span></label>
+                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 가로 1200px · 세로 자유</div>
+                <ImageDrop url={evForm.image_url} uploading={evImgUploading} height={120}
+                  placeholder="본문 이미지 클릭 또는 드래그"
+                  onFile={async file => { const url = await uploadEventImage(file, 'img'); if (url) setEvForm(f => ({ ...f, image_url: url })); }}
+                  onClear={() => setEvForm(f => ({ ...f, image_url: '' }))} />
               </div>
 
               {/* 이벤트 내용 */}
@@ -6428,23 +6445,25 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
-                <input type="checkbox" checked={evForm.is_active}
-                  onChange={e => setEvForm(f => ({ ...f, is_active: e.target.checked }))} />
-                즉시 활성화
-              </label>
-              {evForm.is_active && (!evForm.starts_at || !evForm.ends_at) && (
-                <div style={{ fontSize:11, color:'#16A34A', marginTop:-6 }}>
-                  ✓ 날짜를 비워두면 <strong>지금부터{!evForm.ends_at ? ' 무기한' : ''}</strong> 즉시 노출됩니다. (원하면 위에서 기간 지정 가능)
+              {/* 즉시 활성화 토글 */}
+              <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600 }}>즉시 활성화</div>
+                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>
+                    {evForm.is_active && (!evForm.starts_at || !evForm.ends_at)
+                      ? `날짜를 비우면 지금부터${!evForm.ends_at ? ' 무기한' : ''} 노출됩니다`
+                      : '끄면 저장만 되고 사이트에 표시되지 않습니다'}
+                  </div>
                 </div>
-              )}
-
-              <div className="adm-flex-gap adm-flex-end">
-                <button className="adm-btn adm-btn-outline" onClick={() => setEventModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={saveEvent} disabled={evSaving}>
-                  {evSaving ? '저장 중...' : editingEvent ? '수정 완료' : '이벤트 등록'}
-                </button>
+                <Toggle defaultOn={evForm.is_active} onChange={v => setEvForm(f => ({ ...f, is_active: v }))} />
               </div>
+
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+              <button className="adm-btn adm-btn-outline" onClick={() => setEventModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveEvent} disabled={evSaving}>
+                {evSaving ? '저장 중...' : editingEvent ? '수정 완료' : '등록'}
+              </button>
             </div>
           </div>
         </div>
@@ -7050,8 +7069,10 @@ export default function AdminClient() {
 
                 {/* 브랜드 썸네일 */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진)</span></label>
-                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <label className="adm-label">브랜드 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진 · 드래그 가능)</span></label>
+                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); }}>
                     {farmForm.thumbnail_url ? (
                       <div style={{ position:'relative', width:130, height:96 }}>
                         <img src={farmForm.thumbnail_url} alt="" style={{ width:130, height:96, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
@@ -7068,8 +7089,10 @@ export default function AdminClient() {
 
                 {/* 브랜드 로고 (원형 — 메인 브랜드 직송관 카드 농가명 좌측 동그라미) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(메인 브랜드 직송관 카드 · 동그라미 · 정사각 권장 400×400)</span></label>
-                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                  <label className="adm-label">브랜드 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(동그라미 · 정사각 400×400 · 드래그 가능)</span></label>
+                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); }}>
                     {farmForm.logo_url ? (
                       <div style={{ position:'relative', width:80, height:80 }}>
                         <img src={farmForm.logo_url} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:'50%', border:'1px solid #E2E8F0' }} />
@@ -7086,8 +7109,10 @@ export default function AdminClient() {
 
                 {/* 브랜드 소개 이미지 (여러 장) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 소개 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서로 표시)</span></label>
-                  <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1 }}>
+                  <label className="adm-label">브랜드 소개 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서 · 드래그 가능)</span></label>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1 }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={async e => { e.preventDefault(); const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/')); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); }}>
                     {farmForm.landing_images.map((url, i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <span style={{ fontSize:11, color:'#94A3B8', width:18, textAlign:'right' }}>{i+1}</span>
@@ -9759,18 +9784,18 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={loadEvents}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-primary" onClick={() => openEventModal()}>+ 이벤트 등록</button>
+                  <button className="adm-btn adm-btn-dark" onClick={() => openEventModal()}>+ 이벤트 등록</button>
                 </div>
               </div>
-              <div className="adm-card">
-                {eventsLoading ? <PanelLoading /> : (
+              {eventsLoading ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                : events.length === 0 ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>등록된 이벤트가 없습니다</div>
+                : (
+                <div className="adm-card">
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead><tr><th>이벤트명</th><th>뱃지</th><th>시작일</th><th>종료일</th><th>상태</th><th>활성</th><th>관리</th></tr></thead>
                       <tbody>
-                        {events.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>이벤트 없음</td></tr>
-                        ) : events.map(ev => {
+                        {events.map(ev => {
                           const status = getEventStatus(ev);
                           const statusMap: Record<string, { label: string; cls: string }> = {
                             ongoing:  { label:'진행중', cls:'badge-on' },
@@ -9801,8 +9826,8 @@ export default function AdminClient() {
                       </tbody>
                     </table>
                   </div>
+                </div>
                 )}
-              </div>
             </div>
           )}
 
@@ -12324,49 +12349,23 @@ export default function AdminClient() {
               {/* 썸네일 이미지 */}
               <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                 <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(목록 카드에 표시)</span></label>
-                <input ref={loungeThumbRef} type="file" accept="image/*" style={{ display:'none' }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const url = await uploadLoungeImage(file, 'thumb');
-                    if (url) setLoungeForm(p => ({ ...p, thumbnail_url: url }));
-                    e.target.value = '';
-                  }} />
-                {loungeForm.thumbnail_url ? (
-                  <div style={{ position:'relative', width:'100%' }}>
-                    <img src={loungeForm.thumbnail_url} alt="" style={{ width:'100%', maxHeight:160, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
-                    <button onClick={() => setLoungeForm(p => ({ ...p, thumbnail_url: '' }))}
-                      style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,0.5)', border:'none', borderRadius:'50%', color:'#fff', width:24, height:24, cursor:'pointer', fontSize:12 }}>✕</button>
-                  </div>
-                ) : (
-                  <button className="adm-btn adm-btn-outline" style={{ width:'100%', height:72, fontSize:13 }}
-                    onClick={() => loungeThumbRef.current?.click()} disabled={loungeThumbUploading}>
-                    {loungeThumbUploading ? '업로드 중...' : '🖼 썸네일 업로드'}
-                  </button>
-                )}
+                <div style={{ width:'100%' }}>
+                  <ImageDrop url={loungeForm.thumbnail_url} uploading={loungeThumbUploading} height={110}
+                    placeholder="썸네일 클릭 또는 드래그"
+                    onFile={async file => { const url = await uploadLoungeImage(file, 'thumb'); if (url) setLoungeForm(p => ({ ...p, thumbnail_url: url })); }}
+                    onClear={() => setLoungeForm(p => ({ ...p, thumbnail_url: '' }))} />
+                </div>
               </div>
 
               {/* 본문 이미지 */}
               <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                 <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 페이지 상단)</span></label>
-                <input ref={loungeImgRef} type="file" accept="image/*" style={{ display:'none' }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const url = await uploadLoungeImage(file, 'img');
-                    if (url) setLoungeForm(p => ({ ...p, image_url: url }));
-                    e.target.value = '';
-                  }} />
-                {loungeForm.image_url ? (
-                  <div style={{ position:'relative', width:'100%' }}>
-                    <img src={loungeForm.image_url} alt="" style={{ width:'100%', objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
-                    <button onClick={() => setLoungeForm(p => ({ ...p, image_url: '' }))}
-                      style={{ position:'absolute', top:6, right:6, background:'rgba(0,0,0,0.5)', border:'none', borderRadius:'50%', color:'#fff', width:24, height:24, cursor:'pointer', fontSize:12 }}>✕</button>
-                  </div>
-                ) : (
-                  <button className="adm-btn adm-btn-outline" style={{ width:'100%', height:72, fontSize:13 }}
-                    onClick={() => loungeImgRef.current?.click()} disabled={loungeImgUploading}>
-                    {loungeImgUploading ? '업로드 중...' : '🖼 본문 이미지 업로드'}
-                  </button>
-                )}
+                <div style={{ width:'100%' }}>
+                  <ImageDrop url={loungeForm.image_url} uploading={loungeImgUploading} height={110}
+                    placeholder="본문 이미지 클릭 또는 드래그"
+                    onFile={async file => { const url = await uploadLoungeImage(file, 'img'); if (url) setLoungeForm(p => ({ ...p, image_url: url })); }}
+                    onClear={() => setLoungeForm(p => ({ ...p, image_url: '' }))} />
+                </div>
               </div>
 
               {/* 본문 내용 */}
