@@ -2097,6 +2097,10 @@ export default function AdminClient() {
   /* ── 이벤트 ── */
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [evStatusFilter, setEvStatusFilter] = useState<'all'|'ongoing'|'upcoming'|'ended'|'inactive'>('all');
+  const [evSearch, setEvSearch] = useState('');
+  const [evFrom, setEvFrom] = useState('');
+  const [evTo, setEvTo] = useState('');
   const [eventModal, setEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<AdminEvent | null>(null);
   const EVENT_EMPTY = {
@@ -5795,6 +5799,14 @@ export default function AdminClient() {
     if (new Date(ev.ends_at) < now) return 'ended';
     return 'ongoing';
   }
+  const filteredEvents = events.filter(ev => {
+    if (evStatusFilter !== 'all' && getEventStatus(ev) !== evStatusFilter) return false;
+    if (evSearch.trim() && !(ev.title || '').toLowerCase().includes(evSearch.trim().toLowerCase())) return false;
+    /* 기간 겹침: 이벤트 기간이 선택한 날짜 범위와 겹치면 표시 */
+    if (evFrom && ev.ends_at && ev.ends_at.slice(0,10) < evFrom) return false;
+    if (evTo && ev.starts_at && ev.starts_at.slice(0,10) > evTo) return false;
+    return true;
+  });
 
   return (
     <div style={{ background:'#F1F5F9', minHeight:'100vh', fontFamily:"'Pretendard', -apple-system, sans-serif" }}>
@@ -9777,25 +9789,30 @@ export default function AdminClient() {
           {/* ===== 이벤트 ===== */}
           {panel === 'events' && (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <AdmSelect value="" onChange={() => {}}
-                    options={[{ value:'', label:'전체 상태' }, { value:'ongoing', label:'진행중' }, { value:'scheduled', label:'예정' }, { value:'ended', label:'종료' }]} />
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <AdmSelect value={evStatusFilter} onChange={v => setEvStatusFilter(v as 'all'|'ongoing'|'upcoming'|'ended'|'inactive')}
+                    options={[{ value:'all', label:'전체 상태' }, { value:'ongoing', label:'진행중' }, { value:'upcoming', label:'예정' }, { value:'ended', label:'종료' }, { value:'inactive', label:'비활성' }]} />
+                  <input type="text" className="adm-input-text" placeholder="이벤트명 검색"
+                    value={evSearch} onChange={e => setEvSearch(e.target.value)} />
+                  <input type="date" className="adm-select" value={evFrom} onChange={e => setEvFrom(e.target.value)} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={evTo} onChange={e => setEvTo(e.target.value)} />
                 </div>
-                <div className="adm-toolbar-right">
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
                   <button className="adm-btn adm-btn-outline" onClick={loadEvents}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-dark" onClick={() => openEventModal()}>+ 이벤트 등록</button>
                 </div>
               </div>
               {eventsLoading ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
-                : events.length === 0 ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>등록된 이벤트가 없습니다</div>
+                : filteredEvents.length === 0 ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>{events.length === 0 ? '등록된 이벤트가 없습니다' : '조건에 맞는 이벤트가 없습니다'}</div>
                 : (
                 <div className="adm-card">
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead><tr><th>이벤트명</th><th>뱃지</th><th>시작일</th><th>종료일</th><th>상태</th><th>활성</th><th>관리</th></tr></thead>
                       <tbody>
-                        {events.map(ev => {
+                        {filteredEvents.map(ev => {
                           const status = getEventStatus(ev);
                           const statusMap: Record<string, { label: string; cls: string }> = {
                             ongoing:  { label:'진행중', cls:'badge-on' },
