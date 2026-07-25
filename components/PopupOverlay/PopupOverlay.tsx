@@ -79,6 +79,12 @@ export default function PopupOverlay() {
     </div>
   ) : null;
 
+  /* PC 표시 위치 — 좌측/중앙/우측 상단 (모바일은 CSS로 정중앙 고정) */
+  const horiz: React.CSSProperties =
+    current.position === 'right'  ? { right: 60, left: 'auto' } :
+    current.position === 'center' ? { left: '50%', transform: 'translateX(-50%)' } :
+                                    { left: 60 };
+
   return (
     <div
       className="popup-card"
@@ -86,9 +92,9 @@ export default function PopupOverlay() {
         position: 'fixed',
         /* 헤더(유틸리티+메인+네비) 높이 아래서 시작 */
         top: 162,
-        left: 60,
+        ...horiz,
         zIndex: 9000,
-        width: 400,
+        width: current.width || 400,
         maxWidth: 'calc(100vw - 40px)',
         background: '#fff',
         borderRadius: 8,   /* 상단은 viewport에 붙어있으므로 하단만 radius */

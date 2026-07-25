@@ -9202,11 +9202,14 @@ export default function AdminClient() {
                                   <button onClick={() => togglePopupActive(p)} style={{ fontSize:11, padding:'3px 10px', borderRadius:99, border:'none', cursor:'pointer', background: p.is_active?'#DCFCE7':'#F1F5F9', color: p.is_active?'#16A34A':'#64748B', fontWeight:700 }}>
                                     {p.is_active ? '노출중' : '숨김'}
                                   </button>
-                                  {/* 표시 위치 — 어디에 뜨는지 강조 */}
-                                  <span style={{ fontSize:11, fontWeight:700, background:'#EFF6FF', color:'#2563EB', borderRadius:99, padding:'3px 10px' }}>📍 {posLabel[p.position] || p.position} · {p.width}px</span>
+                                  <span className="adm-muted" style={{ fontSize:11 }}>너비 {p.width}px</span>
                                 </div>
                                 <div style={{ fontWeight:700, fontSize:14, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                   {p.name || <span style={{ color:'#94A3B8', fontWeight:400 }}>이름 없음</span>}
+                                </div>
+                                {/* 표시 위치 — 개발용어 대신 PC/모바일로 설명 */}
+                                <div style={{ fontSize:11.5, color:'#2563EB', fontWeight:600, background:'#EFF6FF', borderRadius:6, padding:'5px 8px', marginBottom:8, lineHeight:1.5 }}>
+                                  📍 PC : {posLabel[p.position] || p.position} 상단<br/>&nbsp;&nbsp;&nbsp;모바일 : 화면 중앙
                                 </div>
                                 <div style={{ fontSize:11, color:'#64748B', marginBottom:10 }}>
                                   {p.starts_at || p.ends_at ? (
