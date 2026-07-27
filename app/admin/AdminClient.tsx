@@ -8358,10 +8358,8 @@ export default function AdminClient() {
                 );
               })()) : menuTab === 'productlist' ? (ftLoading ? <PanelLoading /> : (() => {
                 const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent).sort((a,b)=>a.sort_order-b.sort_order);
-                const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
                 const subsOf = (mv: string) => filterTabs.filter(s => s.parent===mv).sort((a,b)=>a.sort_order-b.sort_order);
                 const shownMajors = majors.filter(m => m.show_in_category && m.is_active);
-                const shownTags = filtags.filter(t => t.show_in_category && t.is_active);
                 const catLabel = (t: FilterTab) => (
                   <input className="adm-input-text" style={{ flex:'1 1 140px', minWidth:0, fontWeight:600 }} value={t.label} placeholder="이름"
                     onChange={e => setFilterTabs(prev => prev.map(x => x.id===t.id ? { ...x, label:e.target.value } : x))}
@@ -8391,34 +8389,17 @@ export default function AdminClient() {
                             </div>
                           );
                         })}
-                        {shownTags.length>0 && (
-                          <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginTop:14, paddingTop:12, borderTop:'1px dashed #EEE' }}>
-                            <span style={{ fontSize:12, color:'#94A3B8', minWidth:72 }}>정렬·태그</span>
-                            {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
-                          </div>
-                        )}
                       </div>
                     </div>
                     {/* 대분류·소분류는 메가메뉴 탭에서 일원 관리 (여기선 미리보기만) */}
                     <div className="adm-muted" style={{ fontSize:12.5, padding:'10px 2px 4px' }}>
                       대분류·소분류(카테고리)는 <strong style={{ color:'#475569' }}>메뉴 관리 &gt; 메가메뉴</strong> 탭에서 추가·수정·순서 변경하세요. (여기선 미리보기만 표시됩니다)
                     </div>
-                    {/* 정렬·태그 필탭 */}
-                    <div className="adm-toolbar" style={{ marginTop:18 }}>
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>정렬 · 태그 필탭 <span style={{ color:'#CBD5E1' }}>(보기 방식 — 신상품·당도순 등)</span></span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
+                    {/* 정렬·태그·바로가기 필탭은 상품목록 페이지에 노출되지 않음 → 퀵가이드 탭에서 관리 */}
+                    <div className="adm-muted" style={{ fontSize:12.5, padding:'14px 2px 4px', lineHeight:1.7 }}>
+                      상품목록 페이지 상단엔 <strong style={{ color:'#475569' }}>카테고리 필터 + 정렬 드롭다운</strong>만 표시됩니다.<br/>
+                      신상품·베스트 같은 <strong style={{ color:'#475569' }}>태그 필탭</strong>과 <strong style={{ color:'#475569' }}>바로가기(링크)</strong>는 <strong style={{ color:'#475569' }}>퀵가이드</strong> 탭에서 관리하세요. (여기선 상품목록에 안 뜹니다)
                     </div>
-                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
-                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
-                        onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
-                        <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
-                        <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
-                        <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
-                        <AdmToggle on={t.show_in_category} onChange={v => updateFt(t.id, { show_in_category: v })} title="노출" />
-                        <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
-                      </div>
-                    ))}
                   </>
                 );
               })()) : (ftLoading ? <PanelLoading /> : (() => {
