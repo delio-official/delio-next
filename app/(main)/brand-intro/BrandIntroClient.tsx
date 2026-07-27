@@ -23,10 +23,11 @@ const BUTTONS_MOB = [
 export default function BrandIntroClient() {
   return (
     <main style={{ background: '#fff' }}>
-      {/* PC (>768px) — 데스크톱 이미지 */}
+      {/* PC (>768px) — 데스크톱 이미지. 메인과 동일한 컨테이너(좌우 여백) 안에 배치 */}
+      <div className="container brand-intro-pc">
       <div
-        className="brand-intro-wrap brand-intro-pc"
-        style={{ position: 'relative', maxWidth: 1440, margin: '0 auto', lineHeight: 0, containerType: 'inline-size' }}
+        className="brand-intro-wrap"
+        style={{ position: 'relative', margin: '0 auto', lineHeight: 0, containerType: 'inline-size' }}
       >
         <Image
           src="/delio_brand.png"
@@ -44,10 +45,12 @@ export default function BrandIntroClient() {
           </Link>
         ))}
       </div>
+      </div>
 
       {/* 모바일 (≤768px) — 글자가 큰 전용 이미지 */}
+      <div className="container brand-intro-mob">
       <div
-        className="brand-intro-wrap brand-intro-mob"
+        className="brand-intro-wrap"
         style={{ position: 'relative', maxWidth: 768, margin: '0 auto', lineHeight: 0, containerType: 'inline-size' }}
       >
         <Image
@@ -64,6 +67,7 @@ export default function BrandIntroClient() {
             <span style={{ fontWeight: 400 }}>›</span>
           </Link>
         ))}
+      </div>
       </div>
     </main>
   );
