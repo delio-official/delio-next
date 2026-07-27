@@ -10053,19 +10053,19 @@ export default function AdminClient() {
               <div className="adm-card adm-card-settings" style={{ marginBottom: 16 }}>
                 <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">메인 섹션 노출</span></div>
                 <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'0 18px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0,1fr))', gap:'8px 12px' }}>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'14px 32px', padding:'2px 2px 4px' }}>
                   {([
                     ['sec_topbanner','상단 배너'],
-                    ['sec_quickguide','퀵가이드'],
                     ['sec_pick','델리오 픽'],
+                    ['sec_quickguide','퀵 가이드'],
                     ['sec_brand','브랜드 직송관'],
                     ['sec_midbanner','중간 배너'],
                     ['sec_review','리뷰 하이라이트'],
                     ['sec_lounge','델리오 라운지'],
                     ['sec_survey','취향찾기 CTA'],
                   ] as const).map(([key, label]) => (
-                    <div key={key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'9px 12px', border:'1px solid #EEF2F6', borderRadius:8, background:'#FAFBFC' }}>
-                      <span style={{ fontSize:13, fontWeight:600, color:'#334155' }}>{label}</span>
+                    <div key={key} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{ fontSize:13, fontWeight:600, color:'#334155', whiteSpace:'nowrap' }}>{label}</span>
                       <Toggle defaultOn={siteSettings[key] !== 'false'}
                         onChange={v => { setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' })); createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' }); }} />
                     </div>
