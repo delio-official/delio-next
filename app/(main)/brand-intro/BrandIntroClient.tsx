@@ -35,6 +35,7 @@ export default function BrandIntroClient() {
           width={1440}
           height={7479}
           priority
+          unoptimized
           sizes="(max-width: 1440px) 100vw, 1440px"
           style={{ width: '100%', height: 'auto', display: 'block' }}
         />
@@ -58,6 +59,7 @@ export default function BrandIntroClient() {
           alt="델리오 브랜드 소개 — 맛에는 기준이 있어야 합니다"
           width={768}
           height={4923}
+          unoptimized
           sizes="100vw"
           style={{ width: '100%', height: 'auto', display: 'block' }}
         />
