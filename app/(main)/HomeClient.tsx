@@ -314,7 +314,8 @@ function ShortcutStrip() {
   return (
     <section className="shortcut-strip">
       <div className="container">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '16px 0 4px' }}>
+        {/* 고정 폭(760) 안에서 가운데 정렬 + 넘치면 다음 줄로 */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 760, margin: '0 auto', padding: '16px 0 4px' }}>
           {links.map(l => (
             <a key={l.id} href={l.href} onClick={e => { e.preventDefault(); router.push(l.href); }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '9px 16px', borderRadius: 999,
