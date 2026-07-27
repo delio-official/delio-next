@@ -10052,8 +10052,8 @@ export default function AdminClient() {
           {/* ===== 메인페이지 섹션관리 ===== */}
           {panel === 'homesections' && (
             <div className="adm-content">
-              <div className="adm-card adm-card-settings" style={{ marginBottom: 16 }}>
-                <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none', padding:'2px 0' }}>
+              <div className="adm-card" style={{ marginBottom: 16, padding:'16px 18px' }}>
+                <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
                   <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: secOpen.toggles ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                   <span className="adm-card-title">메인 섹션 노출</span>
                 </div>
@@ -10081,16 +10081,18 @@ export default function AdminClient() {
               </div>
 
               {/* ── 바로가기 필탭 (메인배너 바로 아래 링크 줄) ── */}
-              <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
-                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom: secOpen.links ? 12 : 0, alignItems:'flex-start' }}>
+              <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, marginBottom: secOpen.links ? 12 : 0 }}>
                   <div onClick={() => setSecOpen(s => ({ ...s, links: !s.links }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none' }}>
                     <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.links ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                     <div>
                       <span className="adm-card-title">바로가기 필탭</span>
-                      <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
+                      {secOpen.links
+                        ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
+                        : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 링크 {filterTabs.filter(t => t.tab_type==='link').length}개</span>}
                     </div>
                   </div>
-                  {secOpen.links && <button className="adm-btn adm-btn-dark" style={{ marginLeft:'auto', flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
+                  {secOpen.links && <button className="adm-btn adm-btn-dark" style={{ flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
                 </div>
                 {secOpen.links && (() => {
                   const links = filterTabs.filter(t => t.tab_type==='link').sort((a,b)=>a.sort_order-b.sort_order);
@@ -10118,7 +10120,7 @@ export default function AdminClient() {
               </div>
 
               {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
-              <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
+              <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
                 <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', marginBottom: secOpen.qg ? 12 : 0 }}>
                   <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.qg ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                   <div>
