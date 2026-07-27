@@ -2056,6 +2056,7 @@ export default function AdminClient() {
   const [qgNewTitle, setQgNewTitle] = useState('');
   const [qgPickerId, setQgPickerId] = useState<number | null>(null); // 상품 담기 편집 중인 그룹
   const [qgProdSearch, setQgProdSearch] = useState('');
+  const qgProdDragIdx = useRef<number | null>(null); // 담긴 상품 드래그 순서변경
   /* 섹션관리 상단 카드 접기/펼치기 */
   const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: true });
   /* ── 상단 메뉴 (menu_items) ── */
@@ -10143,7 +10144,7 @@ export default function AdminClient() {
                       const editing = qgPickerId === g.id;
                       const selected = g.product_ids.map(id => products.find(p => p.id === id)).filter((v): v is typeof products[number] => !!v);
                       const q = qgProdSearch.trim().toLowerCase();
-                      const cand = products.filter(p => !g.product_ids.includes(p.id) && (!q || p.name.toLowerCase().includes(q))).slice(0, 30);
+                      const cand = products.filter(p => (!q || p.name.toLowerCase().includes(q))).slice(0, 30);
                       const setPids = (pids: string[]) => updateQgGroup(g.id, { product_ids: pids });
                       return (
                         <div key={g.id} style={{ border:'1px solid #E2E8F0', borderRadius:10, background:'#fff', overflow:'hidden' }}>
@@ -10164,15 +10165,19 @@ export default function AdminClient() {
                             <div style={{ borderTop:'1px solid #F0F0F0', padding:'12px 13px', background:'#FAFBFC', display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-start' }}>
                               {/* 담긴 상품 (순서) */}
                               <div style={{ flex:'1 1 300px', minWidth:0 }}>
-                                <div style={{ height:36, display:'flex', alignItems:'center', fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>담긴 상품 ({selected.length})</div>
+                                <div style={{ height:36, display:'flex', alignItems:'center', fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>담긴 상품 ({selected.length}) <span style={{ fontWeight:400, color:'#94A3B8', marginLeft:6 }}>· 드래그로 순서변경</span></div>
                                 <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, height:260, overflowY:'auto' }}>
                                   {selected.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>오른쪽에서 상품을 추가하세요</div>
                                     : selected.map((p, idx) => (
-                                      <div key={p.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderBottom: idx<selected.length-1?'1px solid #F1F5F9':'none' }}>
+                                      <div key={p.id} draggable
+                                        onDragStart={() => { qgProdDragIdx.current = idx; }}
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={() => { const from = qgProdDragIdx.current; qgProdDragIdx.current = null; if (from == null || from === idx) return; const a=[...g.product_ids]; const [m]=a.splice(from,1); a.splice(idx,0,m); setPids(a); }}
+                                        onDragEnd={() => { qgProdDragIdx.current = null; }}
+                                        style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderBottom: idx<selected.length-1?'1px solid #F1F5F9':'none', cursor:'grab' }}>
+                                        <span style={{ color:'#B8B8B8', fontSize:14, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }}>⠿⠿</span>
                                         <span style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', width:18 }}>{idx+1}</span>
                                         <div style={{ flex:1, minWidth:0, fontSize:13, fontWeight:600, color:'#1E293B', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
-                                        <button className="adm-row-btn" disabled={idx===0} onClick={() => { const a=[...g.product_ids]; [a[idx-1],a[idx]]=[a[idx],a[idx-1]]; setPids(a); }}>▲</button>
-                                        <button className="adm-row-btn" disabled={idx===selected.length-1} onClick={() => { const a=[...g.product_ids]; [a[idx+1],a[idx]]=[a[idx],a[idx+1]]; setPids(a); }}>▼</button>
                                         <button className="adm-row-btn adm-row-btn-danger" onClick={() => setPids(g.product_ids.filter(x => x!==p.id))}>×</button>
                                       </div>
                                     ))}
@@ -10184,14 +10189,17 @@ export default function AdminClient() {
                                   value={qgProdSearch} onChange={e => setQgProdSearch(e.target.value)} />
                                 <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, height:260, overflowY:'auto' }}>
                                   {cand.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>{products.length===0?'상품 불러오는 중…':'검색 결과 없음'}</div>
-                                    : cand.map(p => (
-                                      <div key={p.id} onClick={() => setPids([...g.product_ids, p.id])}
-                                        style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer' }}
-                                        onMouseEnter={e => (e.currentTarget.style.background='#F1F5F9')} onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
-                                        <span style={{ fontSize:14, color:'#1A1A1A', fontWeight:700 }}>＋</span>
+                                    : cand.map(p => {
+                                      const added = g.product_ids.includes(p.id);
+                                      return (
+                                      <div key={p.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, opacity: added?0.45:1 }}>
                                         <div style={{ flex:1, minWidth:0, fontSize:13, fontWeight:600, color:'#1E293B', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                                        {added
+                                          ? <span style={{ fontSize:11, fontWeight:700, color:'#94A3B8', flexShrink:0 }}>추가됨</span>
+                                          : <button onClick={() => setPids([...g.product_ids, p.id])} style={{ flexShrink:0, fontSize:12, fontWeight:700, color:'#fff', background:'#1A1A1A', border:'none', borderRadius:6, padding:'5px 12px', cursor:'pointer' }}>추가</button>}
                                       </div>
-                                    ))}
+                                      );
+                                    })}
                                 </div>
                               </div>
                             </div>

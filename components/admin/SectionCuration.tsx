@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import { HOME_SECTIONS, MODE_LABEL, parseSectionConfig, parseBucketMap, type SectionMode } from '@/lib/homeSections';
 
@@ -26,6 +26,7 @@ export default function SectionCuration({ sec, items, buckets }: {
   const [msg, setMsg] = useState('');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false); // 접기/펼치기 (기본 접힘)
+  const dragIdx = useRef<number | null>(null); // 선택된 항목 드래그 순서변경
 
   useEffect(() => {
     (async () => {
@@ -67,7 +68,8 @@ export default function SectionCuration({ sec, items, buckets }: {
   /* 버킷이면 후보를 현재 카테고리 상품으로 제한 */
   const candItems = hasBuckets ? items.filter(i => i.bucket === bucket) : items;
   const selected = curIds.map(id => candItems.find(i => i.id === id) || items.find(i => i.id === id)).filter((v): v is CurationItem => !!v);
-  const filtered = candItems.filter(i => !curIds.includes(i.id) &&
+  /* 이미 추가된 항목도 목록에 남겨 '추가됨' 흐릿 표시 (숨기지 않음) */
+  const filtered = candItems.filter(i =>
     (q === '' || i.label.toLowerCase().includes(q.toLowerCase()) || (i.sub || '').toLowerCase().includes(q.toLowerCase())))
     .slice(0, 30);
 
@@ -129,48 +131,53 @@ export default function SectionCuration({ sec, items, buckets }: {
       )}
 
       {mode === 'manual' && (
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {/* 선택됨 (순서) */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          {/* 선택됨 (드래그로 순서변경 · 삭제만) */}
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>선택된 항목 ({selected.length})</div>
-            <div style={{ ...box, padding: 8, minHeight: 80, maxHeight: 260, overflowY: 'auto' }}>
+            <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>선택된 항목 ({selected.length}) <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 6 }}>· 드래그로 순서변경</span></div>
+            <div style={{ ...box, padding: 8, height: 260, overflowY: 'auto' }}>
               {selected.length === 0
                 ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>오른쪽에서 항목을 추가하세요</div>
                 : selected.map((it, idx) => (
-                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderBottom: idx < selected.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
+                  <div key={it.id} draggable
+                    onDragStart={() => { dragIdx.current = idx; }}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={() => { const from = dragIdx.current; dragIdx.current = null; if (from == null || from === idx) return; setCurIds(p => { const a = [...p]; const [m] = a.splice(from, 1); a.splice(idx, 0, m); return a; }); }}
+                    onDragEnd={() => { dragIdx.current = null; }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderBottom: idx < selected.length - 1 ? '1px solid #F1F5F9' : 'none', cursor: 'grab' }}>
+                    <span style={{ color: '#B8B8B8', fontSize: 14, letterSpacing: '-2px', flexShrink: 0, userSelect: 'none' }}>⠿⠿</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#1A1A1A', width: 18 }}>{idx + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
                       {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
                     </div>
-                    <button onClick={() => setCurIds(p => { const a = [...p]; if (idx > 0) { [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; } return a; })}
-                      disabled={idx === 0} style={btnMini}>▲</button>
-                    <button onClick={() => setCurIds(p => { const a = [...p]; if (idx < a.length - 1) { [a[idx + 1], a[idx]] = [a[idx], a[idx + 1]]; } return a; })}
-                      disabled={idx === selected.length - 1} style={btnMini}>▼</button>
                     <button onClick={() => setCurIds(p => p.filter(x => x !== it.id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA' }}>×</button>
                   </div>
                 ))}
             </div>
           </div>
-          {/* 후보 검색/추가 */}
+          {/* 후보 검색/추가 (버튼) */}
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <input value={q} onChange={e => setQ(e.target.value)} placeholder="검색해서 추가…"
-              style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, marginBottom: 6, background: '#fff' }} />
-            <div style={{ ...box, padding: 8, minHeight: 80, maxHeight: 260, overflowY: 'auto' }}>
+              style={{ width: '100%', height: 36, padding: '0 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, marginBottom: 8, background: '#fff' }} />
+            <div style={{ ...box, padding: 8, height: 260, overflowY: 'auto' }}>
               {filtered.length === 0
                 ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>{items.length === 0 ? '항목을 불러오는 중…' : '검색 결과 없음'}</div>
-                : filtered.map(it => (
-                  <div key={it.id} onClick={() => setCurIds(p => [...p, it.id])}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#F1F5F9')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <span style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 700 }}>＋</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
-                      {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
+                : filtered.map(it => {
+                  const added = curIds.includes(it.id);
+                  return (
+                    <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, opacity: added ? 0.45 : 1 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
+                        {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
+                      </div>
+                      {added
+                        ? <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', flexShrink: 0 }}>추가됨</span>
+                        : <button onClick={() => setCurIds(p => [...p, it.id])}
+                            style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff', background: '#1A1A1A', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>추가</button>}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           </div>
         </div>
