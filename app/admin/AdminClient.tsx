@@ -10145,11 +10145,11 @@ export default function AdminClient() {
                             </div>
                           </div>
                           {editing && (
-                            <div style={{ borderTop:'1px solid #F0F0F0', padding:'12px 13px', background:'#FAFBFC', display:'flex', gap:12, flexWrap:'wrap' }}>
+                            <div style={{ borderTop:'1px solid #F0F0F0', padding:'12px 13px', background:'#FAFBFC', display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-start' }}>
                               {/* 담긴 상품 (순서) */}
                               <div style={{ flex:'1 1 300px', minWidth:0 }}>
-                                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>담긴 상품 ({selected.length})</div>
-                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, minHeight:80, maxHeight:260, overflowY:'auto' }}>
+                                <div style={{ height:36, display:'flex', alignItems:'center', fontSize:12, fontWeight:700, color:'#475569', marginBottom:8 }}>담긴 상품 ({selected.length})</div>
+                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, height:260, overflowY:'auto' }}>
                                   {selected.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>오른쪽에서 상품을 추가하세요</div>
                                     : selected.map((p, idx) => (
                                       <div key={p.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderBottom: idx<selected.length-1?'1px solid #F1F5F9':'none' }}>
@@ -10164,9 +10164,9 @@ export default function AdminClient() {
                               </div>
                               {/* 검색 추가 */}
                               <div style={{ flex:'1 1 300px', minWidth:0 }}>
-                                <input type="text" className="adm-input-text" style={{ width:'100%', marginBottom:6 }} placeholder="상품 검색해서 추가…"
+                                <input type="text" className="adm-input-text" style={{ width:'100%', height:36, marginBottom:8 }} placeholder="상품 검색해서 추가…"
                                   value={qgProdSearch} onChange={e => setQgProdSearch(e.target.value)} />
-                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, minHeight:80, maxHeight:260, overflowY:'auto' }}>
+                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, height:260, overflowY:'auto' }}>
                                   {cand.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>{products.length===0?'상품 불러오는 중…':'검색 결과 없음'}</div>
                                     : cand.map(p => (
                                       <div key={p.id} onClick={() => setPids([...g.product_ids, p.id])}
