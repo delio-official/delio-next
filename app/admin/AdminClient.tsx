@@ -2835,7 +2835,7 @@ export default function AdminClient() {
     setFilterTabs(await loadAllTabs());
     setFtLoading(false);
   }
-  function openFtModal(t?: FilterTab) {
+  function openFtModal(t?: FilterTab, preset?: Partial<typeof FT_EMPTY>) {
     if (t) {
       setEditingFt(t);
       setFtForm({ tab_type: t.tab_type, tab_value: t.tab_value, label: t.label, emoji: t.emoji || '',
@@ -2843,7 +2843,7 @@ export default function AdminClient() {
         show_in_home: t.show_in_home, show_in_category: t.show_in_category, show_in_shortcut: t.show_in_shortcut, parent: t.parent || '' });
     } else {
       setEditingFt(null);
-      setFtForm(FT_EMPTY);
+      setFtForm({ ...FT_EMPTY, ...(preset || {}) });
     }
     setFtModal(true);
   }
@@ -8422,48 +8422,84 @@ export default function AdminClient() {
                   </>
                 );
               })()) : (ftLoading ? <PanelLoading /> : (() => {
-                const flagKey: 'show_in_shortcut'|'show_in_home' = menuTab==='shortcut' ? 'show_in_shortcut' : 'show_in_home';
-                const surfaceName = menuTab==='shortcut' ? '모바일 서랍 바로가기' : '홈 퀵가이드';
+                const isShortcut = menuTab === 'shortcut';
+                const flagKey: 'show_in_shortcut'|'show_in_home' = isShortcut ? 'show_in_shortcut' : 'show_in_home';
                 const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
-                const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
-                /* 홈 퀵가이드 미리보기 — 실제 홈과 동일 로직: 카테고리/태그 칩(없으면 qg 직접선택 카테고리 폴백) + 링크 바로가기 칩 */
+                /* 홈 = 두 그룹 분리: 퀵가이드 필터(비링크) / 바로가기(링크). 모바일서랍 = 단일 목록 */
                 const catLabelOf = (slug: string) => filterTabs.find(t => t.tab_type==='category' && t.tab_value===slug)?.label || catOptions[slug] || CAT_LABEL[slug] || slug;
-                let homeCatChips = filterTabs.filter(t => (t.tab_type==='category'||t.tab_type==='flag') && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
-                if (homeCatChips.length === 0) {
+
+                const RowCard = (t: FilterTab) => (
+                  <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
+                    onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
+                    <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
+                    <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
+                    <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':t.tab_type==='link'?'링크':'카테고리'}</span>
+                    <AdmToggle on={!!t[flagKey]} onChange={v => updateFt(t.id, { [flagKey]: v } as Partial<FilterTab>)} title="노출" />
+                    <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
+                    <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
+                  </div>
+                );
+
+                if (isShortcut) {
+                  const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
+                  return (
+                    <>
+                      <div style={{ marginBottom:16 }}>
+                        <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>모바일 서랍 바로가기 미리보기</div>
+                        <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
+                          {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
+                          {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                        </div>
+                      </div>
+                      <div className="adm-toolbar">
+                        <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭 노출 관리</span></div>
+                        <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
+                      </div>
+                      {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(RowCard)}
+                    </>
+                  );
+                }
+
+                /* ===== 홈: 퀵가이드 필터 / 바로가기 링크 두 그룹 ===== */
+                const qgTags  = filtags.filter(t => t.tab_type !== 'link');   // 퀵가이드(상품 필터)
+                const linkTags = filtags.filter(t => t.tab_type === 'link');  // 바로가기(URL 이동)
+
+                /* 퀵가이드 미리보기 — 켜진 카테고리/태그, 없으면 직접선택 카테고리 폴백 */
+                let qgChips = filterTabs.filter(t => (t.tab_type==='category'||t.tab_type==='flag') && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
+                if (qgChips.length === 0) {
                   let bmap: Record<string, string[]> = {};
                   try { bmap = JSON.parse(siteSettings['qg_ids'] || '{}'); } catch { bmap = {}; }
-                  homeCatChips = Object.keys(bmap).filter(k => Array.isArray(bmap[k]) && bmap[k].length > 0).map(catLabelOf);
+                  qgChips = Object.keys(bmap).filter(k => Array.isArray(bmap[k]) && bmap[k].length > 0).map(catLabelOf);
                 }
-                const homeLinkChips = filterTabs.filter(t => t.tab_type==='link' && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
-                const previewChips: { label: string; link: boolean }[] = menuTab === 'shortcut'
-                  ? shownTags.map(t => ({ label: t.label, link: t.tab_type==='link' }))
-                  : [...homeCatChips.map(l => ({ label: l, link: false })), ...homeLinkChips.map(l => ({ label: l, link: true }))];
+                const linkChips = linkTags.filter(t => t.show_in_home && t.is_active).map(t => t.label);
+                const previewBox = (title: string, note: string, chips: string[], link: boolean) => (
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{title} <span style={{ color:'#CBD5E1' }}>· {note}</span></div>
+                    <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {chips.map((c, i) => <span key={i} style={{ fontSize:13, color: link?'#2563EB':'#555', background: link?'#EFF6FF':'#F4F4F2', border:`1px solid ${link?'#DBEAFE':'#E5E5E1'}`, borderRadius:999, padding:'6px 14px' }}>{link?'🔗 ':''}{c}</span>)}
+                      {chips.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                    </div>
+                  </div>
+                );
                 return (
                   <>
-                    <div style={{ marginBottom:16 }}>
-                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{surfaceName} 미리보기 <span style={{ color:'#CBD5E1' }}>· 실제 화면과 동일</span></div>
-                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {previewChips.map((c, i) => (
-                          <span key={i} style={{ fontSize:13, color: c.link ? '#2563EB' : '#555', background: c.link ? '#EFF6FF' : '#F4F4F2', border:`1px solid ${c.link ? '#DBEAFE' : '#E5E5E1'}`, borderRadius:999, padding:'6px 14px' }}>{c.link ? '🔗 ' : ''}{c.label}</span>
-                        ))}
-                        {previewChips.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
-                      </div>
-                    </div>
+                    {/* ── 퀵 가이드 (상품 필터) ── */}
+                    {previewBox('퀵 가이드 미리보기', '메인배너 아래 상품 필터 칩', qgChips, false)}
                     <div className="adm-toolbar">
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭(정렬/태그) 노출 관리</span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>퀵 가이드 필탭 <span style={{ color:'#CBD5E1' }}>(신상품·당도순 등 — 상품을 걸러 보여줌)</span></span></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal(undefined, { tab_type:'flag', show_in_home:true })}>+ 추가</button></div>
                     </div>
-                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(t => (
-                      <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
-                        onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
-                        <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
-                        <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
-                        <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':'링크'}</span>
-                        <AdmToggle on={!!t[flagKey]} onChange={v => updateFt(t.id, { [flagKey]: v } as Partial<FilterTab>)} title="노출" />
-                        <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                        <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
+                    {qgTags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : qgTags.map(RowCard)}
+
+                    {/* ── 바로가기 (링크 이동) ── */}
+                    <div style={{ marginTop:26, paddingTop:20, borderTop:'2px solid #EEF2F6' }}>
+                      {previewBox('바로가기 미리보기', '메인배너 바로 아래 링크 버튼 줄', linkChips, true)}
+                      <div className="adm-toolbar">
+                        <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>바로가기 필탭 <span style={{ color:'#CBD5E1' }}>(이벤트·브랜드소개관 등 — 누르면 해당 페이지로 이동)</span></span></div>
+                        <div className="adm-toolbar-right"><button className="adm-btn adm-btn-dark" onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button></div>
                       </div>
-                    ))}
+                      {linkTags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>바로가기 없음 — 우측 “+ 바로가기 추가”로 만드세요.</div> : linkTags.map(RowCard)}
+                    </div>
                   </>
                 );
               })())}
