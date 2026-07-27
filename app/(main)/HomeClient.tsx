@@ -307,7 +307,7 @@ function QuickGuide() {
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
   const requireLogin = useLoginGuard();
-  const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
+  const [tags, setTags] = useState<{ cat: string; icon: string; label: string; href?: string }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -391,8 +391,10 @@ function QuickGuide() {
     (async () => {
       const rows = await loadTabsFor('home');
       let mapped = rows
-        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
+        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag' || t.tab_type === 'link')
         .map(t => {
+          /* 링크형: 클릭 시 해당 URL로 이동 (필터 아님) */
+          if (t.tab_type === 'link') return { cat: `__link_${t.id}`, icon: t.emoji, label: t.label, href: t.tab_value || '/' };
           const cat = t.tab_type === 'category' ? t.tab_value
             : t.tab_value === 'is_best' ? 'best'
             : t.tab_value === 'is_dawn' ? 'dawn'
@@ -414,7 +416,9 @@ function QuickGuide() {
         }
       }
       setTags(mapped);
-      if (mapped.length) setActiveCat(prev => prev || mapped[0].cat);
+      /* 상품 필터 기본값은 링크형이 아닌 첫 탭으로 */
+      const firstCat = mapped.find(t => !t.href)?.cat;
+      if (firstCat) setActiveCat(prev => prev || firstCat);
     })();
   }, []);
 
@@ -490,11 +494,18 @@ function QuickGuide() {
         </div>
         <div className="qg-tags">
           {tags.map(t => (
-            <a key={t.cat} href={`/category?cat=${t.cat}`}
-              className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
-              onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
-              <span className="qg-label">{t.label}</span>
-            </a>
+            t.href ? (
+              /* 링크형 필탭: 해당 URL로 이동 */
+              <a key={t.cat} href={t.href} className="qg-tag" onClick={e => { e.preventDefault(); router.push(t.href!); }}>
+                <span className="qg-label">{t.label}</span>
+              </a>
+            ) : (
+              <a key={t.cat} href={`/category?cat=${t.cat}`}
+                className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
+                onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
+                <span className="qg-label">{t.label}</span>
+              </a>
+            )
           ))}
         </div>
         <div className="qg-scroll-wrap" style={{ position:'relative' }}>
