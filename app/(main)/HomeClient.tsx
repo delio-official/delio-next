@@ -390,34 +390,39 @@ function QuickGuide() {
   useEffect(() => {
     (async () => {
       const rows = await loadTabsFor('home');
-      let mapped = rows
-        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag' || t.tab_type === 'link')
+      /* 링크형 필탭 — 카테고리 칩과 별개로 항상 덧붙는 '바로가기'. 클릭 시 URL 이동 */
+      const linkTabs = rows
+        .filter(t => t.tab_type === 'link')
+        .map(t => ({ cat: `__link_${t.id}`, icon: t.emoji, label: t.label, href: t.tab_value || '/' }));
+      /* 카테고리/태그형 필터 칩 */
+      let cats = rows
+        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
         .map(t => {
-          /* 링크형: 클릭 시 해당 URL로 이동 (필터 아님) */
-          if (t.tab_type === 'link') return { cat: `__link_${t.id}`, icon: t.emoji, label: t.label, href: t.tab_value || '/' };
           const cat = t.tab_type === 'category' ? t.tab_value
             : t.tab_value === 'is_best' ? 'best'
             : t.tab_value === 'is_dawn' ? 'dawn'
             : 'new';
           return { cat, icon: t.emoji, label: t.label };
         });
-      /* 홈 탭이 없고 직접선택(manual)이면 → 지정한 카테고리들로 칩 자동 생성 */
-      if (mapped.length === 0) {
+      /* 켜진 카테고리/태그 필탭이 없으면 → 직접선택(manual)에 담긴 카테고리로 자동 생성(폴백) */
+      if (cats.length === 0) {
         const supabase = createClient();
         const cfg = await fetchSectionConfig(supabase, 'qg');
         if (cfg.mode === 'manual') {
           const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
           const bmap = parseBucketMap(row?.value || '');
           const catTabs = await loadCategoryTabs();
-          mapped = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
+          cats = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
             const t = catTabs.find(c => c.tab_value === cat);
             return { cat, icon: t?.emoji || CAT_ICONS[cat] || '🛒', label: t?.label || cat };
           });
         }
       }
+      /* 카테고리 칩 먼저, 그 뒤에 링크 바로가기 칩 (공존) */
+      const mapped: { cat: string; icon: string; label: string; href?: string }[] = [...cats, ...linkTabs];
       setTags(mapped);
       /* 상품 필터 기본값은 링크형이 아닌 첫 탭으로 */
-      const firstCat = mapped.find(t => !t.href)?.cat;
+      const firstCat = cats[0]?.cat;
       if (firstCat) setActiveCat(prev => prev || firstCat);
     })();
   }, []);
