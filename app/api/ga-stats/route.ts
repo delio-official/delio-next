@@ -21,10 +21,6 @@ export async function GET(req: Request) {
   try {
     const { BetaAnalyticsDataClient } = await import('@google-analytics/data');
     const credentials = JSON.parse(credsJson);
-    /* [임시] GA4에 뷰어로 추가할 서비스계정 이메일 확인용. 확인 후 제거. */
-    if (searchParams.get('whoami') === '1') {
-      return NextResponse.json({ client_email: credentials.client_email, property_id: propertyId });
-    }
     const client = new BetaAnalyticsDataClient({ credentials });
     const [resp] = await client.runReport({
       property: `properties/${propertyId}`,
