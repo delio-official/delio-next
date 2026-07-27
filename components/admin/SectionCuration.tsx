@@ -25,6 +25,7 @@ export default function SectionCuration({ sec, items, buckets }: {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false); // 접기/펼치기 (기본 접힘)
 
   useEffect(() => {
     (async () => {
@@ -76,17 +77,23 @@ export default function SectionCuration({ sec, items, buckets }: {
 
   return (
     <div className="adm-card" style={{ padding: '16px 18px', marginBottom: 16, border: '1px solid #EEF2F6', background: '#fff' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: '#1A1A1A' }}>{meta?.label} <span style={{ fontWeight: 400, fontSize: 12, color: '#94A3B8' }}>· 메인 노출 설정</span></div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: open ? 12 : 0, cursor: 'pointer', userSelect: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 12, color: '#94A3B8', display: 'inline-block', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}>▶</span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: '#1A1A1A' }}>{meta?.label} <span style={{ fontWeight: 400, fontSize: 12, color: '#94A3B8' }}>· 메인 노출 설정</span></span>
+          {!open && <span style={{ fontSize: 12, color: '#94A3B8' }}>· {MODE_LABEL[mode]} {count}개</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
           {msg && <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 700 }}>{msg}</span>}
-          <button onClick={save} disabled={saving}
+          {open && <button onClick={save} disabled={saving}
             style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#1A1A1A', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? '저장 중…' : '저장'}
-          </button>
+          </button>}
         </div>
       </div>
 
+      {open && (<>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: mode === 'manual' ? 14 : 0 }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#475569', fontWeight: 600 }}>
           노출 방식
@@ -168,6 +175,7 @@ export default function SectionCuration({ sec, items, buckets }: {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }
