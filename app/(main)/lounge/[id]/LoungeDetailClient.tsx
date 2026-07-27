@@ -45,7 +45,8 @@ export default function LoungeDetailClient() {
         return;
       }
       setPost(data as LoungePost);
-      try { supabase.rpc('bump_lounge_view', { p_id: Number(id) }); } catch { /* noop */ }
+      /* supabase 쿼리빌더는 .then()이 호출돼야 실제 요청이 나감(지연 실행) */
+      try { supabase.rpc('bump_lounge_view', { p_id: Number(id) }).then(() => {}, () => {}); } catch { /* noop */ }
       setLoading(false);
     }
     load();

@@ -338,6 +338,7 @@ interface AdminLoungePost {
   content: string | null;
   is_active: boolean;
   sort_order: number;
+  view_count?: number;
   created_at: string;
 }
 
@@ -2119,9 +2120,16 @@ export default function AdminClient() {
   const [loungePosts, setLoungePosts] = useState<AdminLoungePost[]>([]);
   const [loungeLoading, setLoungeLoading] = useState(false);
   const [loungeFilter, setLoungeFilter] = useState('');
+  const [loungeStatusFilter, setLoungeStatusFilter] = useState<'all'|'active'|'hidden'>('all');
+  const [loungeSearch, setLoungeSearch] = useState('');
+  const [loungeTab, setLoungeTab] = useState<'posts'|'cats'>('posts');
   const [loungeModal, setLoungeModal] = useState(false);
   const [editingLounge, setEditingLounge] = useState<AdminLoungePost | null>(null);
   const [loungeForm, setLoungeForm] = useState({ filter: 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
+  /* 라운지 카테고리 (동적) */
+  interface LoungeCat { id: number; slug: string; label: string; sort_order: number }
+  const [loungeCats, setLoungeCats] = useState<LoungeCat[]>([]);
+  const [loungeCatForm, setLoungeCatForm] = useState<{ id: number | null; slug: string; label: string }>({ id: null, slug: '', label: '' });
   const [loungeSaving, setLoungeSaving] = useState(false);
   const [loungeThumbUploading, setLoungeThumbUploading] = useState(false);
   const [loungeImgUploading, setLoungeImgUploading] = useState(false);
@@ -3844,11 +3852,53 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('lounge_posts')
-      .select('id, filter, title, badge, date, is_active, sort_order, created_at')
+      .select('id, filter, title, badge, date, is_active, sort_order, view_count, created_at')
       .order('sort_order')
       .order('created_at', { ascending: false });
     setLoungePosts((data as AdminLoungePost[]) || []);
     setLoungeLoading(false);
+    loadLoungeCategories();
+  }
+
+  async function loadLoungeCategories() {
+    const { data } = await createClient()
+      .from('lounge_categories').select('id, slug, label, sort_order').order('sort_order');
+    setLoungeCats((data as LoungeCat[]) || []);
+  }
+  async function saveLoungeCat() {
+    const label = loungeCatForm.label.trim();
+    let slug = loungeCatForm.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!label) { alert('카테고리명을 입력해주세요.'); return; }
+    if (!slug) { alert('슬러그(영문 식별자)를 입력해주세요. 예: recipe'); return; }
+    const supabase = createClient();
+    if (loungeCatForm.id) {
+      const { error } = await supabase.from('lounge_categories').update({ slug, label }).eq('id', loungeCatForm.id);
+      if (error) { alert('저장 실패: ' + error.message); return; }
+    } else {
+      const nextOrder = loungeCats.length ? Math.max(...loungeCats.map(c => c.sort_order)) + 1 : 0;
+      const { error } = await supabase.from('lounge_categories').insert({ slug, label, sort_order: nextOrder });
+      if (error) { alert('저장 실패: ' + (/duplicate|unique/i.test(error.message) ? '이미 있는 슬러그입니다.' : error.message)); return; }
+    }
+    setLoungeCatForm({ id: null, slug: '', label: '' });
+    loadLoungeCategories();
+  }
+  async function deleteLoungeCat(c: LoungeCat) {
+    const used = loungePosts.filter(p => p.filter === c.slug).length;
+    if (!confirm(`'${c.label}' 카테고리를 삭제할까요?${used > 0 ? `\n\n이 카테고리의 글 ${used}건은 남지만 분류가 사라집니다.` : ''}`)) return;
+    const { error } = await createClient().from('lounge_categories').delete().eq('id', c.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    loadLoungeCategories();
+  }
+  async function reorderLoungeCats(draggedId: number, targetId: number) {
+    if (draggedId === targetId) return;
+    const arr = [...loungeCats];
+    const from = arr.findIndex(c => c.id === draggedId), to = arr.findIndex(c => c.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = arr.splice(from, 1); arr.splice(to, 0, moved);
+    setLoungeCats(arr.map((c, i) => ({ ...c, sort_order: i })));  // 낙관적 반영
+    const supabase = createClient();
+    await Promise.all(arr.map((c, i) => supabase.from('lounge_categories').update({ sort_order: i }).eq('id', c.id)));
+    loadLoungeCategories();
   }
 
   async function loadInquiries() {
@@ -5049,7 +5099,7 @@ export default function AdminClient() {
       setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', date: toDateTimeLocal(post.date || ''), thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
     } else {
       setEditingLounge(null);
-      setLoungeForm({ filter: 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
+      setLoungeForm({ filter: loungeCats[0]?.slug || 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
     }
     setLoungeModal(true);
   }
@@ -5072,11 +5122,15 @@ export default function AdminClient() {
     setLoungeSaving(true);
     const supabase = createClient();
     if (editingLounge) {
-      const { error } = await supabase.from('lounge_posts').update(loungeForm).eq('id', editingLounge.id);
-      if (!error) setLoungePosts(prev => prev.map(p => p.id === editingLounge.id ? { ...p, ...loungeForm } : p));
+      /* 작성일(date)은 등록 시점 고정 — 수정 시 건드리지 않음 */
+      const { date: _d, ...rest } = loungeForm; void _d;
+      const { error } = await supabase.from('lounge_posts').update(rest).eq('id', editingLounge.id);
+      if (!error) setLoungePosts(prev => prev.map(p => p.id === editingLounge.id ? { ...p, ...rest } : p));
       else alert('수정 실패: ' + error.message);
     } else {
-      const { data, error } = await supabase.from('lounge_posts').insert(loungeForm).select().single();
+      /* 등록 시점을 작성일로 자동 설정 */
+      const payload = { ...loungeForm, date: new Date().toISOString() };
+      const { data, error } = await supabase.from('lounge_posts').insert(payload).select().single();
       if (!error && data) setLoungePosts(prev => [data, ...prev]);
       else alert('등록 실패: ' + (error?.message || ''));
     }
@@ -5749,10 +5803,15 @@ export default function AdminClient() {
   const clCur = Math.min(Math.max(1, clPage), Math.max(1, Math.ceil(clFiltered.length / clSize)));
   const pagedCouponLogs = clFiltered.slice((clCur - 1) * clSize, clCur * clSize);
 
-  /* 필터된 라운지 */
-  const filteredLounge = loungeFilter
-    ? loungePosts.filter(p => p.filter === loungeFilter)
-    : loungePosts;
+  /* 필터된 라운지 (카테고리 + 상태 + 제목검색) */
+  const filteredLounge = loungePosts.filter(p => {
+    if (loungeFilter && p.filter !== loungeFilter) return false;
+    if (loungeStatusFilter === 'active' && !p.is_active) return false;
+    if (loungeStatusFilter === 'hidden' && p.is_active) return false;
+    if (loungeSearch.trim() && !(p.title || '').toLowerCase().includes(loungeSearch.trim().toLowerCase())) return false;
+    return true;
+  });
+  const loungeCatLabel = (slug: string) => loungeCats.find(c => c.slug === slug)?.label || slug;
 
   /* 문의 탭별 필터 */
   const pendingInquiries = inquiries.filter(i => i.status === 'pending' || i.status === 'new' || !i.status);
@@ -9860,53 +9919,109 @@ export default function AdminClient() {
           {/* ===== 라운지 ===== */}
           {panel === 'lounge' && (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
+              <TabBtns active={loungeTab} setActive={id => setLoungeTab(id as 'posts'|'cats')}
+                tabs={[{ id:'posts', label:'게시물 관리' }, { id:'cats', label:'카테고리 관리' }]} />
+
+              {loungeTab === 'posts' && (<>
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
                   <AdmSelect value={loungeFilter} onChange={setLoungeFilter}
-                    options={[
-                      { value:'', label:'전체 카테고리' },
-                      { value:'recipe', label:'레시피' },
-                      { value:'story', label:'과일이야기' },
-                      { value:'farm', label:'산지소식' },
-                      { value:'health', label:'건강팁' },
-                    ]} />
+                    options={[{ value:'', label:'전체 카테고리' }, ...loungeCats.map(c => ({ value:c.slug, label:c.label }))]} />
+                  <AdmSelect value={loungeStatusFilter} onChange={v => setLoungeStatusFilter(v as 'all'|'active'|'hidden')}
+                    options={[{ value:'all', label:'전체 상태' }, { value:'active', label:'노출중' }, { value:'hidden', label:'숨김' }]} />
+                  <input type="text" className="adm-input-text" placeholder="제목 검색"
+                    value={loungeSearch} onChange={e => setLoungeSearch(e.target.value)} />
                 </div>
-                <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={() => { setLoungeFilter(''); loadLounge(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-primary" onClick={() => openLoungeModal()}>+ 글 등록</button>
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  <button className="adm-btn adm-btn-outline" onClick={() => { setLoungeFilter(''); setLoungeStatusFilter('all'); setLoungeSearch(''); loadLounge(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-dark" onClick={() => openLoungeModal()}>+ 글 등록</button>
                 </div>
               </div>
-              <div className="adm-card">
-                {loungeLoading ? <PanelLoading /> : (
+              {loungeLoading ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
+                : filteredLounge.length === 0 ? <div style={{ textAlign:'center', padding:'48px 0', color:'#94A3B8', fontSize:14 }}>{loungePosts.length === 0 ? '등록된 글이 없습니다' : '조건에 맞는 글이 없습니다'}</div>
+                : (
+                <div className="adm-card">
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>ID</th><th>제목</th><th>카테고리</th><th>뱃지</th><th>작성일</th><th>노출</th><th>관리</th></tr></thead>
+                      <thead><tr><th>제목</th><th>카테고리</th><th>뱃지</th><th>조회수</th><th>작성일</th><th>노출</th><th>관리</th></tr></thead>
                       <tbody>
-                        {filteredLounge.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>게시물 없음</td></tr>
-                        ) : filteredLounge.map(p => (
+                        {filteredLounge.map(p => (
                           <tr key={p.id}>
-                            <td className="adm-mono">{p.id}</td>
                             <td>{p.title}</td>
-                            <td>{p.filter}</td>
+                            <td>{loungeCatLabel(p.filter)}</td>
                             <td>{p.badge ? <span className="adm-badge badge-paid">{p.badge}</span> : '-'}</td>
-                            <td className="adm-muted">{p.date || fmtDateShort(p.created_at)}</td>
+                            <td style={{ fontWeight:700 }}>{(p.view_count || 0).toLocaleString()}</td>
+                            <td className="adm-muted">{fmtDateShort(p.date || p.created_at)}</td>
                             <td>
-                              <Toggle defaultOn={p.is_active}
-                                onChange={(v) => toggleLoungeActive(p.id, v)} />
+                              <div style={{ display:'flex', justifyContent:'center' }}>
+                                <Toggle defaultOn={p.is_active} onChange={(v) => toggleLoungeActive(p.id, v)} />
+                              </div>
                             </td>
-                            <td style={{ display:'flex', gap:6 }}>
-                              <button className="adm-row-btn" onClick={() => openLoungeModal(p)}>수정</button>
-                              <Link href={`/lounge/${p.id}`} className="adm-row-btn" target="_blank">보기</Link>
-                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteLounge(p.id)}>삭제</button>
+                            <td>
+                              <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
+                                <button className="adm-row-btn" onClick={() => openLoungeModal(p)}>수정</button>
+                                <Link href={`/lounge/${p.id}`} className="adm-row-btn" target="_blank">보기</Link>
+                                <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteLounge(p.id)}>삭제</button>
+                              </div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              </>)}
+
+              {loungeTab === 'cats' && (
+                <div className="adm-card" style={{ padding:'18px 20px', maxWidth:620 }}>
+                  <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:14 }}>
+                    <div>
+                      <span className="adm-card-title">카테고리 관리</span>
+                      <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>라운지 글 분류. 카드를 드래그해 순서를 바꿀 수 있습니다.</div>
+                    </div>
+                  </div>
+                  {/* 추가/수정 폼 */}
+                  <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap', marginBottom:16, paddingBottom:16, borderBottom:'1px solid #F0F0F0' }}>
+                    <div>
+                      <label className="adm-label">카테고리명</label>
+                      <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: 레시피"
+                        value={loungeCatForm.label} onChange={e => setLoungeCatForm(f => ({ ...f, label: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="adm-label">슬러그 <span style={{ fontWeight:400, color:'#94A3B8' }}>(영문)</span></label>
+                      <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: recipe" disabled={!!loungeCatForm.id}
+                        value={loungeCatForm.slug} onChange={e => setLoungeCatForm(f => ({ ...f, slug: e.target.value }))} />
+                    </div>
+                    <button className="adm-btn adm-btn-dark" onClick={saveLoungeCat}>{loungeCatForm.id ? '수정' : '추가'}</button>
+                    {loungeCatForm.id && <button className="adm-btn adm-btn-outline" onClick={() => setLoungeCatForm({ id: null, slug: '', label: '' })}>취소</button>}
+                  </div>
+                  {/* 목록 (드래그 정렬) */}
+                  {loungeCats.length === 0 ? (
+                    <div style={{ textAlign:'center', padding:'24px 0', color:'#94A3B8', fontSize:13 }}>등록된 카테고리가 없습니다</div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {loungeCats.map(c => (
+                        <div key={c.id} draggable
+                          onDragStart={() => { dragRow.current = String(c.id); }}
+                          onDragEnd={() => { dragRow.current = null; }}
+                          onDragOver={e => e.preventDefault()}
+                          onDrop={() => { if (dragRow.current) reorderLoungeCats(Number(dragRow.current), c.id); }}
+                          style={{ display:'flex', alignItems:'center', gap:10, border:'1px solid #E2E8F0', borderRadius:8, padding:'10px 12px', background:'#fff', cursor:'grab' }}>
+                          <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
+                          <span style={{ fontSize:13, fontWeight:700 }}>{c.label}</span>
+                          <span className="adm-muted" style={{ fontSize:12 }}>· {c.slug}</span>
+                          <span className="adm-muted" style={{ fontSize:12 }}>· 글 {loungePosts.filter(p => p.filter === c.slug).length}건</span>
+                          <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+                            <button className="adm-row-btn" onClick={() => setLoungeCatForm({ id: c.id, slug: c.slug, label: c.label })}>수정</button>
+                            <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteLoungeCat(c)}>삭제</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -12333,73 +12448,59 @@ export default function AdminClient() {
 
       {/* ===== 라운지 등록/수정 모달 ===== */}
       {loungeModal && (
-        <div className="adm-float-overlay" onClick={() => setLoungeModal(false)}>
-          <div className="adm-float-modal" style={{ maxWidth:560, padding:28 }}
+        <div className="adm-modal-bg open" onClick={() => setLoungeModal(false)}>
+          <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'92vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>{editingLounge ? '라운지 수정' : '라운지 등록'}</h3>
-              <button onClick={() => setLoungeModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">{editingLounge ? '라운지 수정' : '라운지 등록'}</span>
             </div>
-            <div className="adm-form">
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
               {/* 카테고리 */}
-              <div className="adm-form-row">
+              <div>
                 <label className="adm-label">카테고리</label>
                 <AdmSelect className="adm-cs-full" value={loungeForm.filter}
                   onChange={v => setLoungeForm(p => ({ ...p, filter: v }))}
-                  options={[
-                    { value:'recipe', label:'레시피' },
-                    { value:'story', label:'과일이야기' },
-                    { value:'farm', label:'산지소식' },
-                    { value:'health', label:'건강팁' },
-                  ]} />
+                  options={loungeCats.length ? loungeCats.map(c => ({ value:c.slug, label:c.label })) : [{ value:loungeForm.filter, label:loungeForm.filter }]} />
               </div>
 
               {/* 제목 */}
-              <div className="adm-form-row">
+              <div>
                 <label className="adm-label">제목 *</label>
-                <input type="text" className="adm-input-text" placeholder="제목을 입력해주세요"
+                <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="제목을 입력해주세요"
                   value={loungeForm.title} onChange={e => setLoungeForm(p => ({ ...p, title: e.target.value }))} />
               </div>
 
-              {/* 뱃지 / 작성일 */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:4 }}>
-                  <label className="adm-label">뱃지</label>
-                  <input type="text" className="adm-input-text" placeholder="예: NEW, HOT"
-                    value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
-                </div>
-                <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:4 }}>
-                  <label className="adm-label">작성일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(달력+시간)</span></label>
-                  <input type="datetime-local" className="adm-input-text" style={{ width:'100%' }}
-                    value={loungeForm.date} onChange={e => setLoungeForm(p => ({ ...p, date: e.target.value }))} />
-                </div>
+              {/* 뱃지 */}
+              <div>
+                <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택)</span></label>
+                <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="예: NEW, HOT"
+                  value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>작성일은 등록 시점으로 자동 기록됩니다.</div>
               </div>
 
               {/* 썸네일 이미지 */}
-              <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
-                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(목록 카드에 표시)</span></label>
-                <div style={{ width:'100%' }}>
-                  <ImageDrop url={loungeForm.thumbnail_url} uploading={loungeThumbUploading} height={110}
-                    placeholder="썸네일 클릭 또는 드래그"
-                    onFile={async file => { const url = await uploadLoungeImage(file, 'thumb'); if (url) setLoungeForm(p => ({ ...p, thumbnail_url: url })); }}
-                    onClear={() => setLoungeForm(p => ({ ...p, thumbnail_url: '' }))} />
-                </div>
+              <div>
+                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(목록 카드)</span></label>
+                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 1200 × 750px</div>
+                <ImageDrop url={loungeForm.thumbnail_url} uploading={loungeThumbUploading} height={110}
+                  placeholder="썸네일 클릭 또는 드래그"
+                  onFile={async file => { const url = await uploadLoungeImage(file, 'thumb'); if (url) setLoungeForm(p => ({ ...p, thumbnail_url: url })); }}
+                  onClear={() => setLoungeForm(p => ({ ...p, thumbnail_url: '' }))} />
               </div>
 
               {/* 본문 이미지 */}
-              <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
-                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 페이지 상단)</span></label>
-                <div style={{ width:'100%' }}>
-                  <ImageDrop url={loungeForm.image_url} uploading={loungeImgUploading} height={110}
-                    placeholder="본문 이미지 클릭 또는 드래그"
-                    onFile={async file => { const url = await uploadLoungeImage(file, 'img'); if (url) setLoungeForm(p => ({ ...p, image_url: url })); }}
-                    onClear={() => setLoungeForm(p => ({ ...p, image_url: '' }))} />
-                </div>
+              <div>
+                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단)</span></label>
+                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 가로 1200px · 세로 자유</div>
+                <ImageDrop url={loungeForm.image_url} uploading={loungeImgUploading} height={110}
+                  placeholder="본문 이미지 클릭 또는 드래그"
+                  onFile={async file => { const url = await uploadLoungeImage(file, 'img'); if (url) setLoungeForm(p => ({ ...p, image_url: url })); }}
+                  onClear={() => setLoungeForm(p => ({ ...p, image_url: '' }))} />
               </div>
 
               {/* 본문 내용 */}
-              <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
+              <div>
                 <label className="adm-label">본문 내용 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택, HTML 가능)</span></label>
                 <textarea className="adm-textarea" rows={6} style={{ width:'100%' }}
                   placeholder="본문 내용을 입력하세요."
@@ -12407,18 +12508,21 @@ export default function AdminClient() {
                   onChange={e => setLoungeForm(p => ({ ...p, content: e.target.value }))} />
               </div>
 
-              {/* 노출 여부 */}
-              <div className="adm-form-row">
-                <label className="adm-label">노출 여부</label>
+              {/* 즉시 노출 토글 */}
+              <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600 }}>즉시 노출</div>
+                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>끄면 저장만 되고 사이트에 표시되지 않습니다</div>
+                </div>
                 <Toggle defaultOn={loungeForm.is_active} onChange={v => setLoungeForm(p => ({ ...p, is_active: v }))} />
               </div>
 
-              <div className="adm-form-actions">
-                <button className="adm-btn adm-btn-outline" onClick={() => setLoungeModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={saveLounge} disabled={loungeSaving}>
-                  {loungeSaving ? '저장 중...' : '저장'}
-                </button>
-              </div>
+            </div>
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+              <button className="adm-btn adm-btn-outline" onClick={() => setLoungeModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveLounge} disabled={loungeSaving}>
+                {loungeSaving ? '저장 중...' : editingLounge ? '수정 완료' : '등록'}
+              </button>
             </div>
           </div>
         </div>

@@ -25,16 +25,6 @@ interface LoungePost {
   content: string | null;
 }
 
-type FilterType = 'all' | 'recipe' | 'story' | 'farm' | 'health';
-
-const FILTERS: { value: FilterType; label: string }[] = [
-  { value: 'all',    label: '전체' },
-  { value: 'recipe', label: '레시피' },
-  { value: 'story',  label: '과일이야기' },
-  { value: 'farm',   label: '산지소식' },
-  { value: 'health', label: '건강팁' },
-];
-
 const ITEMS_PER_PAGE = 9;
 
 function Pagination({ total, perPage, page, onChange }: {
@@ -64,23 +54,27 @@ function Pagination({ total, perPage, page, onChange }: {
 export default function LoungeClient() {
   const [posts,   setPosts]   = useState<LoungePost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState<FilterType>('all');
+  const [filter,  setFilter]  = useState<string>('all');
+  const [cats,    setCats]    = useState<{ value: string; label: string }[]>([{ value: 'all', label: '전체' }]);
   const [page,    setPage]    = useState(0);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase
-        .from('lounge_posts')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order')
-        .order('created_at', { ascending: false });
+      const [{ data }, { data: cdata }] = await Promise.all([
+        supabase.from('lounge_posts').select('*').eq('is_active', true)
+          .order('sort_order').order('created_at', { ascending: false }),
+        supabase.from('lounge_categories').select('slug, label').order('sort_order'),
+      ]);
       setPosts((data as LoungePost[]) || []);
+      if (cdata && (cdata as { slug: string; label: string }[]).length) {
+        setCats([{ value: 'all', label: '전체' }, ...(cdata as { slug: string; label: string }[]).map(c => ({ value: c.slug, label: c.label }))]);
+      }
       setLoading(false);
     }
     load();
   }, []);
+  const FILTERS = cats;
 
   /* 필터 바뀌면 첫 페이지로 리셋 */
   useEffect(() => { setPage(0); }, [filter]);
