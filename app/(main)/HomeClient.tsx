@@ -332,12 +332,12 @@ function ShortcutStrip() {
 /* ===== 퀵 가이드 (Supabase 연결) ===== */
 function QuickGuide() {
   const router = useRouter();
-  const [activeCat, setActiveCat] = useState('');
+  const [activeGroup, setActiveGroup] = useState<number | null>(null);
   const [items, setItems] = useState<QGProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
   const requireLogin = useLoginGuard();
-  const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
+  const [groups, setGroups] = useState<{ id: number; title: string; product_ids: string[] }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -349,7 +349,7 @@ function QuickGuide() {
   const qgChunks: QGProduct[][] = [];
   for (let i = 0; i < items.length; i += 4) qgChunks.push(items.slice(i, i + 4));
   const renderCard = (p: QGProduct) => {
-    const catKey = (activeCat === 'best' || activeCat === 'dawn' || activeCat === 'new') ? p.category : activeCat;
+    const catKey = p.category;
     const icon = CAT_ICONS[catKey] || '🍑';
     const bg   = CAT_BG[catKey]   || '#F4EFE6';
     const displayPrice = p.discounted_price ?? p.price;
@@ -416,85 +416,42 @@ function QuickGuide() {
     );
   };
 
-  /* 퀵 가이드 필탭 로드 (filter_tabs.show_in_home) — 카테고리/태그형만 칩으로 */
+  /* 퀵가이드 가이드 로드 (quickguide_groups: 제목 + 지정 상품) */
   useEffect(() => {
     (async () => {
-      const rows = await loadTabsFor('home');
-      let mapped = rows
-        .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
-        .map(t => {
-          const cat = t.tab_type === 'category' ? t.tab_value
-            : t.tab_value === 'is_best' ? 'best'
-            : t.tab_value === 'is_dawn' ? 'dawn'
-            : 'new';
-          return { cat, icon: t.emoji, label: t.label };
-        });
-      /* 홈 탭이 없고 직접선택(manual)이면 → 지정한 카테고리들로 칩 자동 생성 */
-      if (mapped.length === 0) {
-        const supabase = createClient();
-        const cfg = await fetchSectionConfig(supabase, 'qg');
-        if (cfg.mode === 'manual') {
-          const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
-          const bmap = parseBucketMap(row?.value || '');
-          const catTabs = await loadCategoryTabs();
-          mapped = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
-            const t = catTabs.find(c => c.tab_value === cat);
-            return { cat, icon: t?.emoji || CAT_ICONS[cat] || '🛒', label: t?.label || cat };
-          });
-        }
-      }
-      setTags(mapped);
-      if (mapped.length) setActiveCat(prev => prev || mapped[0].cat);
+      const supabase = createClient();
+      const { data } = await supabase.from('quickguide_groups')
+        .select('id, title, product_ids').eq('is_active', true).order('sort_order');
+      const gs = (data as { id: number; title: string; product_ids: string[] }[] | null) || [];
+      setGroups(gs);
+      if (gs.length) setActiveGroup(prev => prev ?? gs[0].id);
     })();
   }, []);
 
+  /* 선택된 가이드의 지정 상품 로드 (담은 순서 유지) */
   useEffect(() => {
-    if (!activeCat) return;
+    if (activeGroup == null) return;
+    const g = groups.find(x => x.id === activeGroup);
+    const pids = g?.product_ids || [];
+    if (!pids.length) { setItems([]); return; }
     let cancelled = false;
-    async function fetchQG() {
+    (async () => {
       setLoading(true);
       const supabase = createClient();
-      const cfg = await fetchSectionConfig(supabase, 'qg');
       const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock)';
-
-      /* 직접 선택: 카테고리별 지정 상품 (플래그 탭/미지정 카테고리는 자동 정렬로 폴백) */
-      if (cfg.mode === 'manual') {
-        const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
-        const bmap = parseBucketMap(row?.value || '');
-        const picked = bmap[activeCat] || [];
-        if (picked.length > 0) {
-          const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', picked);
-          if (!cancelled) {
-            const mapped = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[];
-            setItems(orderByIds(mapped, picked).slice(0, cfg.count));
-            setLoading(false);
-          }
-          return;
-        }
-      }
-
-      const ord = orderColumn('qg', cfg.mode === 'manual' ? 'latest' : cfg.mode);
-      let q = supabase
-        .from('products')
-        .select(cols)
-        .eq('is_active', true);
-      if      (activeCat === 'best') q = (q as any).eq('is_best', true);
-      else if (activeCat === 'dawn') q = (q as any).eq('is_dawn', true);
-      else if (activeCat === 'new')  q = (q as any).eq('is_new', true);
-      else                           q = (q as any).eq('category', activeCat);
-      const { data } = await (q as any).order(ord.col, { ascending: ord.asc }).limit(cfg.count);
+      const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', pids);
       if (!cancelled) {
-        setItems(((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[]);
+        const mapped = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[];
+        setItems(orderByIds(mapped, pids));
         setLoading(false);
       }
-    }
-    fetchQG();
+    })();
     return () => { cancelled = true; };
-  }, [activeCat]);
+  }, [activeGroup, groups]);
 
   useEffect(() => {
     getWishlistIds().then(ids => setWishedIds(new Set(ids)));
-  }, [activeCat]);
+  }, [activeGroup]);
 
   async function handleQGWish(e: React.MouseEvent, productId: string) {
     e.stopPropagation();
@@ -507,23 +464,26 @@ function QuickGuide() {
     });
   }
 
+  /* 등록된 가이드가 없으면 섹션 자체를 숨김 */
+  if (groups.length === 0) return null;
+
   return (
     <section className="quick-guide-section" id="section-guide">
       <div className="container">
         <div className="g-section-head">
           <h2 className="g-section-title">
-            <small>원하는 과일을 태그로 빠르게 찾아보세요</small>
+            <small>델리오가 골라 담은 추천 모음</small>
             <div className="g-title-main">
               <span>퀵 가이드</span>
             </div>
           </h2>
         </div>
         <div className="qg-tags">
-          {tags.map(t => (
-            <a key={t.cat} href={`/category?cat=${t.cat}`}
-              className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
-              onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
-              <span className="qg-label">{t.label}</span>
+          {groups.map(g => (
+            <a key={g.id} href="#"
+              className={`qg-tag${activeGroup === g.id ? ' active' : ''}`}
+              onClick={e => { e.preventDefault(); setActiveGroup(g.id); }}>
+              <span className="qg-label">{g.title}</span>
             </a>
           ))}
         </div>

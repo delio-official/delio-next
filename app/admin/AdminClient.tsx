@@ -2050,11 +2050,17 @@ export default function AdminClient() {
   const [ftModal, setFtModal] = useState(false);
   const [editingFt, setEditingFt] = useState<FilterTab | null>(null);
   const [ftForm, setFtForm] = useState(FT_EMPTY);
+  /* ── 퀵가이드 그룹 (그리팅식: 제목 + 지정 상품) ── */
+  interface QGGroup { id: number; title: string; product_ids: string[]; sort_order: number; is_active: boolean }
+  const [qgGroups, setQgGroups] = useState<QGGroup[]>([]);
+  const [qgNewTitle, setQgNewTitle] = useState('');
+  const [qgPickerId, setQgPickerId] = useState<number | null>(null); // 상품 담기 편집 중인 그룹
+  const [qgProdSearch, setQgProdSearch] = useState('');
   /* ── 상단 메뉴 (menu_items) ── */
   type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
   const [menus, setMenus] = useState<MenuRow[]>([]);
   const [menusLoading, setMenusLoading] = useState(false);
-  const [menuTab, setMenuTab] = useState<'mega'|'header'|'productlist'|'shortcut'|'home'>('mega');
+  const [menuTab, setMenuTab] = useState<'mega'|'header'|'productlist'|'shortcut'>('mega');
 
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
@@ -2834,6 +2840,43 @@ export default function AdminClient() {
     setFtLoading(true);
     setFilterTabs(await loadAllTabs());
     setFtLoading(false);
+  }
+
+  /* ===== 퀵가이드 그룹 (제목 + 지정 상품) ===== */
+  async function loadQgGroups() {
+    const { data } = await createClient().from('quickguide_groups').select('id, title, product_ids, sort_order, is_active').order('sort_order');
+    setQgGroups((data as QGGroup[]) || []);
+  }
+  async function addQgGroup() {
+    const title = qgNewTitle.trim();
+    if (!title) { alert('가이드 제목을 입력하세요. (예: 부모님 선물 BEST)'); return; }
+    const nextOrder = qgGroups.length ? Math.max(...qgGroups.map(g => g.sort_order)) + 1 : 0;
+    const { error } = await createClient().from('quickguide_groups').insert({ title, sort_order: nextOrder });
+    if (error) { alert('추가 실패: ' + error.message); return; }
+    setQgNewTitle(''); loadQgGroups();
+  }
+  async function updateQgGroup(id: number, patch: Partial<QGGroup>) {
+    setQgGroups(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g));  // 낙관적
+    const { error } = await createClient().from('quickguide_groups').update(patch).eq('id', id);
+    if (error) { alert('저장 실패: ' + error.message); loadQgGroups(); }
+  }
+  async function deleteQgGroup(g: QGGroup) {
+    if (!confirm(`'${g.title}' 가이드를 삭제할까요?`)) return;
+    if (qgPickerId === g.id) setQgPickerId(null);
+    const { error } = await createClient().from('quickguide_groups').delete().eq('id', g.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    loadQgGroups();
+  }
+  async function reorderQgGroups(draggedId: number, targetId: number) {
+    if (draggedId === targetId) return;
+    const arr = [...qgGroups];
+    const from = arr.findIndex(g => g.id === draggedId), to = arr.findIndex(g => g.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [moved] = arr.splice(from, 1); arr.splice(to, 0, moved);
+    setQgGroups(arr.map((g, i) => ({ ...g, sort_order: i })));
+    const supabase = createClient();
+    await Promise.all(arr.map((g, i) => supabase.from('quickguide_groups').update({ sort_order: i }).eq('id', g.id)));
+    loadQgGroups();
   }
   function openFtModal(t?: FilterTab, preset?: Partial<typeof FT_EMPTY>) {
     if (t) {
@@ -5489,7 +5532,7 @@ export default function AdminClient() {
       case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); loadCouponLogs(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
-      case 'homesections': loadProducts(); loadFarms(); loadReviews(); loadLounge(); loadFilterTabs(); loadSettings(); break;
+      case 'homesections': loadProducts(); loadFarms(); loadReviews(); loadLounge(); loadFilterTabs(); loadSettings(); loadQgGroups(); break;
       case 'referral':     loadReferrals(); loadReferralCoupons(); break;
       case 'tasteprofile': loadSurveyResults(); loadSurveySettings(); break;
       case 'inquiry':   loadInquiries(); break;
@@ -8198,7 +8241,6 @@ export default function AdminClient() {
                   { id:'header',      label:'상단바' },
                   { id:'productlist', label:'상품목록' },
                   { id:'shortcut',    label:'모바일 서랍' },
-                  { id:'home',        label:'퀵가이드' },
                 ]} />
 
               {menuTab === 'mega' ? (menusLoading || ftLoading ? <PanelLoading /> : (() => {
@@ -8403,84 +8445,34 @@ export default function AdminClient() {
                   </>
                 );
               })()) : (ftLoading ? <PanelLoading /> : (() => {
-                const isShortcut = menuTab === 'shortcut';
-                const flagKey: 'show_in_shortcut'|'show_in_home' = isShortcut ? 'show_in_shortcut' : 'show_in_home';
+                /* 모바일 서랍 — 필탭 노출/순서 관리 */
                 const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
-                /* 홈 = 두 그룹 분리: 퀵가이드 필터(비링크) / 바로가기(링크). 모바일서랍 = 단일 목록 */
-                const catLabelOf = (slug: string) => filterTabs.find(t => t.tab_type==='category' && t.tab_value===slug)?.label || catOptions[slug] || CAT_LABEL[slug] || slug;
-
+                const shownTags = filtags.filter(t => t.show_in_shortcut && t.is_active);
                 const RowCard = (t: FilterTab) => (
                   <div key={t.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:10, alignItems:'center', flexWrap:'wrap', opacity:t.is_active?1:0.55 }}
                     onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}>
                     <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                     <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                     <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':t.tab_type==='link'?'링크':'카테고리'}</span>
-                    <AdmToggle on={!!t[flagKey]} onChange={v => updateFt(t.id, { [flagKey]: v } as Partial<FilterTab>)} title="노출" />
+                    <AdmToggle on={!!t.show_in_shortcut} onChange={v => updateFt(t.id, { show_in_shortcut: v })} title="노출" />
                     <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
                     <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                   </div>
                 );
-
-                if (isShortcut) {
-                  const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
-                  return (
-                    <>
-                      <div style={{ marginBottom:16 }}>
-                        <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>모바일 서랍 바로가기 미리보기</div>
-                        <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
-                          {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
-                          {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
-                        </div>
-                      </div>
-                      <div className="adm-toolbar">
-                        <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭 노출 관리</span></div>
-                        <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
-                      </div>
-                      {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(RowCard)}
-                    </>
-                  );
-                }
-
-                /* ===== 홈: 퀵가이드 필터 / 바로가기 링크 두 그룹 ===== */
-                const qgTags  = filtags.filter(t => t.tab_type !== 'link');   // 퀵가이드(상품 필터)
-                const linkTags = filtags.filter(t => t.tab_type === 'link');  // 바로가기(URL 이동)
-
-                /* 퀵가이드 미리보기 — 켜진 카테고리/태그, 없으면 직접선택 카테고리 폴백 */
-                let qgChips = filterTabs.filter(t => (t.tab_type==='category'||t.tab_type==='flag') && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
-                if (qgChips.length === 0) {
-                  let bmap: Record<string, string[]> = {};
-                  try { bmap = JSON.parse(siteSettings['qg_ids'] || '{}'); } catch { bmap = {}; }
-                  qgChips = Object.keys(bmap).filter(k => Array.isArray(bmap[k]) && bmap[k].length > 0).map(catLabelOf);
-                }
-                const linkChips = linkTags.filter(t => t.show_in_home && t.is_active).map(t => t.label);
-                const previewBox = (title: string, note: string, chips: string[], link: boolean) => (
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{title} <span style={{ color:'#CBD5E1' }}>· {note}</span></div>
-                    <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
-                      {chips.map((c, i) => <span key={i} style={{ fontSize:13, color: link?'#2563EB':'#555', background: link?'#EFF6FF':'#F4F4F2', border:`1px solid ${link?'#DBEAFE':'#E5E5E1'}`, borderRadius:999, padding:'6px 14px' }}>{link?'🔗 ':''}{c}</span>)}
-                      {chips.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
-                    </div>
-                  </div>
-                );
                 return (
                   <>
-                    {/* ── 퀵 가이드 (상품 필터) ── */}
-                    {previewBox('퀵 가이드 미리보기', '메인배너 아래 상품 필터 칩', qgChips, false)}
-                    <div className="adm-toolbar">
-                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>퀵 가이드 필탭 <span style={{ color:'#CBD5E1' }}>(신상품·당도순 등 — 상품을 걸러 보여줌)</span></span></div>
-                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal(undefined, { tab_type:'flag', show_in_home:true })}>+ 추가</button></div>
-                    </div>
-                    {qgTags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : qgTags.map(RowCard)}
-
-                    {/* ── 바로가기 (링크 이동) ── */}
-                    <div style={{ marginTop:26, paddingTop:20, borderTop:'2px solid #EEF2F6' }}>
-                      {previewBox('바로가기 미리보기', '메인배너 바로 아래 링크 버튼 줄', linkChips, true)}
-                      <div className="adm-toolbar">
-                        <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>바로가기 필탭 <span style={{ color:'#CBD5E1' }}>(이벤트·브랜드소개관 등 — 누르면 해당 페이지로 이동)</span></span></div>
-                        <div className="adm-toolbar-right"><button className="adm-btn adm-btn-dark" onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button></div>
+                    <div style={{ marginBottom:16 }}>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>모바일 서랍 바로가기 미리보기</div>
+                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
+                        {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
                       </div>
-                      {linkTags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>바로가기 없음 — 우측 “+ 바로가기 추가”로 만드세요.</div> : linkTags.map(RowCard)}
                     </div>
+                    <div className="adm-toolbar">
+                      <div className="adm-toolbar-left"><span className="adm-muted" style={{ fontSize:13 }}>필탭 노출 관리</span></div>
+                      <div className="adm-toolbar-right"><button className="adm-btn adm-btn-outline" onClick={() => openFtModal()}>+ 추가</button></div>
+                    </div>
+                    {filtags.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>필탭 없음</div> : filtags.map(RowCard)}
                   </>
                 );
               })())}
@@ -10081,10 +10073,120 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              <SectionCuration sec="pick" items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category }))} />
-              <SectionCuration sec="qg"
-                buckets={[...new Set(products.map(p => p.category))].map(c => ({ value: c, label: catOptions[c] || CAT_LABEL[c] || c }))}
-                items={products.map(p => ({ id: p.id, label: p.name, sub: catOptions[p.category] || CAT_LABEL[p.category] || p.category, bucket: p.category }))} />
+              {/* ── 바로가기 필탭 (메인배너 바로 아래 링크 줄) ── */}
+              <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
+                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:12, alignItems:'flex-start' }}>
+                  <div>
+                    <span className="adm-card-title">바로가기 필탭</span>
+                    <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
+                  </div>
+                  <button className="adm-btn adm-btn-dark" style={{ marginLeft:'auto', flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>
+                </div>
+                {(() => {
+                  const links = filterTabs.filter(t => t.tab_type==='link').sort((a,b)=>a.sort_order-b.sort_order);
+                  if (links.length===0) return <div className="adm-muted" style={{ fontSize:12, padding:'6px 0' }}>등록된 바로가기가 없습니다. 우측 “+ 바로가기 추가”로 만드세요.</div>;
+                  return (
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {links.map(t => (
+                        <div key={t.id} draggable
+                          onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }}
+                          onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}
+                          style={{ display:'flex', alignItems:'center', gap:10, border:'1px solid #E2E8F0', borderRadius:8, padding:'10px 12px', background:'#fff', cursor:'grab', opacity:t.is_active?1:0.55 }}>
+                          <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
+                          <span style={{ fontSize:13, fontWeight:700 }}>{t.emoji ? `${t.emoji} ` : ''}{t.label}</span>
+                          <span className="adm-muted" style={{ fontSize:12 }}>· {t.tab_value || '/'}</span>
+                          <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
+                            <AdmToggle on={!!t.show_in_home} onChange={v => updateFt(t.id, { show_in_home: v })} title="노출" />
+                            <button className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
+                            <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFilterTab(t)}>삭제</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
+              <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
+                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:12, alignItems:'flex-start' }}>
+                  <div>
+                    <span className="adm-card-title">퀵 가이드</span>
+                    <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다.</div>
+                  </div>
+                </div>
+                {/* 새 가이드 추가 */}
+                <div style={{ display:'flex', gap:8, marginBottom:14, paddingBottom:14, borderBottom:'1px solid #F0F0F0' }}>
+                  <input type="text" className="adm-input-text" style={{ flex:1, maxWidth:320 }} placeholder="가이드 제목 (예: 부모님 선물 BEST)"
+                    value={qgNewTitle} onChange={e => setQgNewTitle(e.target.value)} onKeyDown={e => { if (e.key==='Enter') addQgGroup(); }} />
+                  <button className="adm-btn adm-btn-dark" onClick={addQgGroup}>+ 가이드 추가</button>
+                </div>
+                {qgGroups.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'6px 0' }}>등록된 가이드가 없습니다. 위에서 제목을 입력해 추가하세요.</div> : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {qgGroups.map(g => {
+                      const editing = qgPickerId === g.id;
+                      const selected = g.product_ids.map(id => products.find(p => p.id === id)).filter((v): v is typeof products[number] => !!v);
+                      const q = qgProdSearch.trim().toLowerCase();
+                      const cand = products.filter(p => !g.product_ids.includes(p.id) && (!q || p.name.toLowerCase().includes(q))).slice(0, 30);
+                      const setPids = (pids: string[]) => updateQgGroup(g.id, { product_ids: pids });
+                      return (
+                        <div key={g.id} style={{ border:'1px solid #E2E8F0', borderRadius:10, background:'#fff', overflow:'hidden' }}>
+                          <div draggable
+                            onDragStart={() => { dragRow.current = String(g.id); }} onDragEnd={() => { dragRow.current = null; }}
+                            onDragOver={e => e.preventDefault()} onDrop={() => { if (dragRow.current) reorderQgGroups(Number(dragRow.current), g.id); }}
+                            style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 13px', cursor:'grab', opacity:g.is_active?1:0.55 }}>
+                            <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
+                            <span style={{ fontSize:14, fontWeight:700 }}>{g.title}</span>
+                            <span className="adm-muted" style={{ fontSize:12 }}>· 상품 {g.product_ids.length}개</span>
+                            <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
+                              <AdmToggle on={g.is_active} onChange={v => updateQgGroup(g.id, { is_active: v })} title="노출" />
+                              <button className="adm-row-btn" onClick={() => { setQgPickerId(editing ? null : g.id); setQgProdSearch(''); }}>{editing ? '닫기' : '상품 담기'}</button>
+                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteQgGroup(g)}>삭제</button>
+                            </div>
+                          </div>
+                          {editing && (
+                            <div style={{ borderTop:'1px solid #F0F0F0', padding:'12px 13px', background:'#FAFBFC', display:'flex', gap:12, flexWrap:'wrap' }}>
+                              {/* 담긴 상품 (순서) */}
+                              <div style={{ flex:'1 1 300px', minWidth:0 }}>
+                                <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>담긴 상품 ({selected.length})</div>
+                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, minHeight:80, maxHeight:260, overflowY:'auto' }}>
+                                  {selected.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>오른쪽에서 상품을 추가하세요</div>
+                                    : selected.map((p, idx) => (
+                                      <div key={p.id} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 8px', borderBottom: idx<selected.length-1?'1px solid #F1F5F9':'none' }}>
+                                        <span style={{ fontSize:11, fontWeight:700, color:'#1A1A1A', width:18 }}>{idx+1}</span>
+                                        <div style={{ flex:1, minWidth:0, fontSize:13, fontWeight:600, color:'#1E293B', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                                        <button className="adm-row-btn" disabled={idx===0} onClick={() => { const a=[...g.product_ids]; [a[idx-1],a[idx]]=[a[idx],a[idx-1]]; setPids(a); }}>▲</button>
+                                        <button className="adm-row-btn" disabled={idx===selected.length-1} onClick={() => { const a=[...g.product_ids]; [a[idx+1],a[idx]]=[a[idx],a[idx+1]]; setPids(a); }}>▼</button>
+                                        <button className="adm-row-btn adm-row-btn-danger" onClick={() => setPids(g.product_ids.filter(x => x!==p.id))}>×</button>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                              {/* 검색 추가 */}
+                              <div style={{ flex:'1 1 300px', minWidth:0 }}>
+                                <input type="text" className="adm-input-text" style={{ width:'100%', marginBottom:6 }} placeholder="상품 검색해서 추가…"
+                                  value={qgProdSearch} onChange={e => setQgProdSearch(e.target.value)} />
+                                <div style={{ border:'1px solid #E5E3DE', borderRadius:8, background:'#fff', padding:8, minHeight:80, maxHeight:260, overflowY:'auto' }}>
+                                  {cand.length===0 ? <div style={{ fontSize:12, color:'#94A3B8', padding:'16px 0', textAlign:'center' }}>{products.length===0?'상품 불러오는 중…':'검색 결과 없음'}</div>
+                                    : cand.map(p => (
+                                      <div key={p.id} onClick={() => setPids([...g.product_ids, p.id])}
+                                        style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background='#F1F5F9')} onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
+                                        <span style={{ fontSize:14, color:'#1A1A1A', fontWeight:700 }}>＋</span>
+                                        <div style={{ flex:1, minWidth:0, fontSize:13, fontWeight:600, color:'#1E293B', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
