@@ -2056,6 +2056,8 @@ export default function AdminClient() {
   const [qgNewTitle, setQgNewTitle] = useState('');
   const [qgPickerId, setQgPickerId] = useState<number | null>(null); // 상품 담기 편집 중인 그룹
   const [qgProdSearch, setQgProdSearch] = useState('');
+  /* 섹션관리 상단 카드 접기/펼치기 */
+  const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: true });
   /* ── 상단 메뉴 (menu_items) ── */
   type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
   const [menus, setMenus] = useState<MenuRow[]>([]);
@@ -10051,8 +10053,12 @@ export default function AdminClient() {
           {panel === 'homesections' && (
             <div className="adm-content">
               <div className="adm-card adm-card-settings" style={{ marginBottom: 16 }}>
-                <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">메인 섹션 노출</span></div>
-                <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'0 18px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
+                <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none', padding:'2px 0' }}>
+                  <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: secOpen.toggles ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
+                  <span className="adm-card-title">메인 섹션 노출</span>
+                </div>
+                {secOpen.toggles && (<>
+                <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'10px 2px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'14px 32px', padding:'2px 2px 4px' }}>
                   {([
                     ['sec_topbanner','상단 배너'],
@@ -10071,18 +10077,22 @@ export default function AdminClient() {
                     </div>
                   ))}
                 </div>
+                </>)}
               </div>
 
               {/* ── 바로가기 필탭 (메인배너 바로 아래 링크 줄) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
-                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:12, alignItems:'flex-start' }}>
-                  <div>
-                    <span className="adm-card-title">바로가기 필탭</span>
-                    <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
+                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom: secOpen.links ? 12 : 0, alignItems:'flex-start' }}>
+                  <div onClick={() => setSecOpen(s => ({ ...s, links: !s.links }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none' }}>
+                    <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.links ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
+                    <div>
+                      <span className="adm-card-title">바로가기 필탭</span>
+                      <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
+                    </div>
                   </div>
-                  <button className="adm-btn adm-btn-dark" style={{ marginLeft:'auto', flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>
+                  {secOpen.links && <button className="adm-btn adm-btn-dark" style={{ marginLeft:'auto', flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
                 </div>
-                {(() => {
+                {secOpen.links && (() => {
                   const links = filterTabs.filter(t => t.tab_type==='link').sort((a,b)=>a.sort_order-b.sort_order);
                   if (links.length===0) return <div className="adm-muted" style={{ fontSize:12, padding:'6px 0' }}>등록된 바로가기가 없습니다. 우측 “+ 바로가기 추가”로 만드세요.</div>;
                   return (
@@ -10109,12 +10119,16 @@ export default function AdminClient() {
 
               {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
-                <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:12, alignItems:'flex-start' }}>
+                <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', marginBottom: secOpen.qg ? 12 : 0 }}>
+                  <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.qg ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                   <div>
                     <span className="adm-card-title">퀵 가이드</span>
-                    <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다.</div>
+                    {secOpen.qg
+                      ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다.</div>
+                      : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 가이드 {qgGroups.length}개</span>}
                   </div>
                 </div>
+                {secOpen.qg && (<>
                 {/* 새 가이드 추가 */}
                 <div style={{ display:'flex', gap:8, marginBottom:14, paddingBottom:14, borderBottom:'1px solid #F0F0F0' }}>
                   <input type="text" className="adm-input-text" style={{ flex:1, maxWidth:320 }} placeholder="가이드 제목 (예: 부모님 선물 BEST)"
@@ -10185,6 +10199,7 @@ export default function AdminClient() {
                     })}
                   </div>
                 )}
+                </>)}
               </div>
 
               <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
