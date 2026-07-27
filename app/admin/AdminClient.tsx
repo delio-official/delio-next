@@ -5481,7 +5481,7 @@ export default function AdminClient() {
     switch (p) {
       case 'orders':    loadOrders(); loadFarms(); loadRefundRequests(); break;
       case 'products':  loadProducts(); loadFilterTabs(); loadFarms(); break;
-      case 'menu': loadMenus(); loadFilterTabs(); break;
+      case 'menu': loadMenus(); loadFilterTabs(); loadSettings(); break;
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
@@ -8426,14 +8426,27 @@ export default function AdminClient() {
                 const surfaceName = menuTab==='shortcut' ? '모바일 서랍 바로가기' : '홈 퀵가이드';
                 const filtags = filterTabs.filter(t => t.tab_type !== 'category').sort((a,b)=>a.sort_order-b.sort_order);
                 const shownTags = filtags.filter(t => t[flagKey] && t.is_active);
-                const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
+                /* 홈 퀵가이드 미리보기 — 실제 홈과 동일 로직: 카테고리/태그 칩(없으면 qg 직접선택 카테고리 폴백) + 링크 바로가기 칩 */
+                const catLabelOf = (slug: string) => filterTabs.find(t => t.tab_type==='category' && t.tab_value===slug)?.label || catOptions[slug] || CAT_LABEL[slug] || slug;
+                let homeCatChips = filterTabs.filter(t => (t.tab_type==='category'||t.tab_type==='flag') && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
+                if (homeCatChips.length === 0) {
+                  let bmap: Record<string, string[]> = {};
+                  try { bmap = JSON.parse(siteSettings['qg_ids'] || '{}'); } catch { bmap = {}; }
+                  homeCatChips = Object.keys(bmap).filter(k => Array.isArray(bmap[k]) && bmap[k].length > 0).map(catLabelOf);
+                }
+                const homeLinkChips = filterTabs.filter(t => t.tab_type==='link' && t.show_in_home && t.is_active).sort((a,b)=>a.sort_order-b.sort_order).map(t => t.label);
+                const previewChips: { label: string; link: boolean }[] = menuTab === 'shortcut'
+                  ? shownTags.map(t => ({ label: t.label, link: t.tab_type==='link' }))
+                  : [...homeCatChips.map(l => ({ label: l, link: false })), ...homeLinkChips.map(l => ({ label: l, link: true }))];
                 return (
                   <>
                     <div style={{ marginBottom:16 }}>
-                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{surfaceName} 미리보기</div>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>{surfaceName} 미리보기 <span style={{ color:'#CBD5E1' }}>· 실제 화면과 동일</span></div>
                       <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {shownTags.map(t => <span key={t.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{t.label}</span>)}
-                        {shownTags.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
+                        {previewChips.map((c, i) => (
+                          <span key={i} style={{ fontSize:13, color: c.link ? '#2563EB' : '#555', background: c.link ? '#EFF6FF' : '#F4F4F2', border:`1px solid ${c.link ? '#DBEAFE' : '#E5E5E1'}`, borderRadius:999, padding:'6px 14px' }}>{c.link ? '🔗 ' : ''}{c.label}</span>
+                        ))}
+                        {previewChips.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출 항목 없음</span>}
                       </div>
                     </div>
                     <div className="adm-toolbar">
