@@ -75,13 +75,13 @@ export default function SectionCuration({ sec, items, buckets }: {
   const box: React.CSSProperties = { border: '1px solid #E5E3DE', borderRadius: 8, background: '#fff' };
 
   return (
-    <div className="adm-card" style={{ padding: '16px 18px', marginBottom: 16, border: '1px solid #DDE3EA', background: '#F8FAFC' }}>
+    <div className="adm-card" style={{ padding: '16px 18px', marginBottom: 16, border: '1px solid #EEF2F6', background: '#fff' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: '#1E293B' }}>🏠 메인 노출 설정 · {meta?.label}</div>
+        <div style={{ fontWeight: 800, fontSize: 14, color: '#1A1A1A' }}>{meta?.label} <span style={{ fontWeight: 400, fontSize: 12, color: '#94A3B8' }}>· 메인 노출 설정</span></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {msg && <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 700 }}>{msg}</span>}
           <button onClick={save} disabled={saving}
-            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563EB', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#1A1A1A', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? '저장 중…' : '저장'}
           </button>
         </div>
@@ -131,7 +131,7 @@ export default function SectionCuration({ sec, items, buckets }: {
                 ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>오른쪽에서 항목을 추가하세요</div>
                 : selected.map((it, idx) => (
                   <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderBottom: idx < selected.length - 1 ? '1px solid #F1F5F9' : 'none' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', width: 18 }}>{idx + 1}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1A1A1A', width: 18 }}>{idx + 1}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
                       {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
@@ -157,7 +157,7 @@ export default function SectionCuration({ sec, items, buckets }: {
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#F1F5F9')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <span style={{ fontSize: 14, color: '#2563EB', fontWeight: 700 }}>＋</span>
+                    <span style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 700 }}>＋</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
                       {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
