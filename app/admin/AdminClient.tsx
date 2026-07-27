@@ -2335,6 +2335,7 @@ export default function AdminClient() {
     topCoupons: { name: string; used: number; issued: number; rate: number }[];
     smsCount: number; smsRecipients: number;
   } | null>(null);
+  const [mktGa, setMktGa] = useState<{ configured: boolean; sessions: number; users: number } | null>(null);
   const [statsTab, setStatsTab] = useState<'all'|'empty'>('all');
 
   /* ── 정산 관리 ── */
@@ -4421,6 +4422,11 @@ export default function AdminClient() {
 
     setMarketing({ todayOrders, monthOrders: monthOrdersArr.length, repeatCustomers, monthSales, prevSales, refundRate, refundCount, newMembers, aov, prevAov, adView, adClick, adCtr, channels, byHour, byAge: byAgeFinal, couponActive, couponTotal, couponIssued, couponUsed, topCoupons, smsCount, smsRecipients });
     setMarketingLoading(false);
+    /* GA 오늘 방문자 (실패해도 마케팅 지표엔 영향 없음) */
+    try {
+      const g = await fetch('/api/ga-stats?start=today&end=today').then(r => r.json());
+      setMktGa(g?.configured ? { configured: true, sessions: g.sessions || 0, users: g.users || 0 } : { configured: false, sessions: 0, users: 0 });
+    } catch { setMktGa({ configured: false, sessions: 0, users: 0 }); }
   }
 
   /* ========== 검색어 통계 ========== */
@@ -11321,8 +11327,12 @@ export default function AdminClient() {
                     <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                       {kpiCard('신규 회원', `${m.newMembers}명`, '이번달 가입')}
                       {kpiCard('평균 객단가', `${fmtPrice(m.aov)}원`, '전월 평균 대비', { trend: trendObj(aovPct) })}
-                      {kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
-                      {kpiCard('결제 전환율', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
+                      {mktGa?.configured
+                        ? kpiCard('오늘 방문자', `${mktGa.sessions.toLocaleString()}명`, `순 방문 ${mktGa.users.toLocaleString()}명 · GA 세션`, { valColor: '#2563EB' })
+                        : kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
+                      {mktGa?.configured
+                        ? kpiCard('결제 전환율', `${(mktGa.sessions > 0 ? (m.todayOrders / mktGa.sessions * 100) : 0).toFixed(2)}%`, `오늘 주문 ${m.todayOrders}건 ÷ 방문 ${mktGa.sessions.toLocaleString()}`, { valColor: '#16A34A' })
+                        : kpiCard('결제 전환율', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
                     </div>
 
                     {sectionH('광고(배너) 지표', '· 등록 배너 기준')}

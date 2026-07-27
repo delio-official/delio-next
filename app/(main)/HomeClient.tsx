@@ -122,7 +122,9 @@ function BannerArrow({ dir, visible, onClick }: { dir: 'prev' | 'next'; visible:
 /* ===== 메인 배너 ===== */
 /* 배너 노출/클릭 카운트 (조용히 실패 허용) */
 function bumpBanner(id: string, kind: 'view' | 'click') {
-  try { createClient().rpc('bump_banner_stat', { p_id: id, p_kind: kind }); } catch { /* noop */ }
+  /* supabase 쿼리빌더는 .then()이 호출돼야 실제 요청이 나감(지연 실행).
+     await 없이 fire-and-forget 하되 .then으로 반드시 디스패치 + 에러 무시. */
+  try { createClient().rpc('bump_banner_stat', { p_id: id, p_kind: kind }).then(() => {}, () => {}); } catch { /* noop */ }
 }
 
 function MainBanner() {
