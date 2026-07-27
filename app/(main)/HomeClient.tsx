@@ -299,6 +299,36 @@ function MainBanner() {
   );
 }
 
+/* ===== 바로가기 링크 필탭 (메인배너 바로 아래) =====
+   filter_tabs 의 link 타입 · show_in_home 켜진 것만. 클릭 시 지정 URL로 이동. */
+function ShortcutStrip() {
+  const router = useRouter();
+  const [links, setLinks] = useState<{ id: string; label: string; icon: string; href: string }[]>([]);
+  useEffect(() => {
+    (async () => {
+      const rows = await loadTabsFor('home');
+      setLinks(rows.filter(t => t.tab_type === 'link').map(t => ({ id: t.id, label: t.label, icon: t.emoji, href: t.tab_value || '/' })));
+    })();
+  }, []);
+  if (!links.length) return null;
+  return (
+    <section className="shortcut-strip">
+      <div className="container">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '16px 0 4px' }}>
+          {links.map(l => (
+            <a key={l.id} href={l.href} onClick={e => { e.preventDefault(); router.push(l.href); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '9px 16px', borderRadius: 999,
+                border: '1px solid #E5E5E1', background: '#fff', color: '#333', fontSize: 14, fontWeight: 600,
+                textDecoration: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {l.icon && <span>{l.icon}</span>}<span>{l.label}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ===== 퀵 가이드 (Supabase 연결) ===== */
 function QuickGuide() {
   const router = useRouter();
@@ -307,7 +337,7 @@ function QuickGuide() {
   const [loading, setLoading] = useState(false);
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
   const requireLogin = useLoginGuard();
-  const [tags, setTags] = useState<{ cat: string; icon: string; label: string; href?: string }[]>([]);
+  const [tags, setTags] = useState<{ cat: string; icon: string; label: string }[]>([]);
   const qgScrollRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -390,12 +420,7 @@ function QuickGuide() {
   useEffect(() => {
     (async () => {
       const rows = await loadTabsFor('home');
-      /* 링크형 필탭 — 카테고리 칩과 별개로 항상 덧붙는 '바로가기'. 클릭 시 URL 이동 */
-      const linkTabs = rows
-        .filter(t => t.tab_type === 'link')
-        .map(t => ({ cat: `__link_${t.id}`, icon: t.emoji, label: t.label, href: t.tab_value || '/' }));
-      /* 카테고리/태그형 필터 칩 */
-      let cats = rows
+      let mapped = rows
         .filter(t => t.tab_type === 'category' || t.tab_type === 'flag')
         .map(t => {
           const cat = t.tab_type === 'category' ? t.tab_value
@@ -404,26 +429,22 @@ function QuickGuide() {
             : 'new';
           return { cat, icon: t.emoji, label: t.label };
         });
-      /* 켜진 카테고리/태그 필탭이 없으면 → 직접선택(manual)에 담긴 카테고리로 자동 생성(폴백) */
-      if (cats.length === 0) {
+      /* 홈 탭이 없고 직접선택(manual)이면 → 지정한 카테고리들로 칩 자동 생성 */
+      if (mapped.length === 0) {
         const supabase = createClient();
         const cfg = await fetchSectionConfig(supabase, 'qg');
         if (cfg.mode === 'manual') {
           const { data: row } = await supabase.from('site_settings').select('value').eq('key', 'qg_ids').maybeSingle();
           const bmap = parseBucketMap(row?.value || '');
           const catTabs = await loadCategoryTabs();
-          cats = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
+          mapped = Object.keys(bmap).filter(k => bmap[k].length > 0).map(cat => {
             const t = catTabs.find(c => c.tab_value === cat);
             return { cat, icon: t?.emoji || CAT_ICONS[cat] || '🛒', label: t?.label || cat };
           });
         }
       }
-      /* 카테고리 칩 먼저, 그 뒤에 링크 바로가기 칩 (공존) */
-      const mapped: { cat: string; icon: string; label: string; href?: string }[] = [...cats, ...linkTabs];
       setTags(mapped);
-      /* 상품 필터 기본값은 링크형이 아닌 첫 탭으로 */
-      const firstCat = cats[0]?.cat;
-      if (firstCat) setActiveCat(prev => prev || firstCat);
+      if (mapped.length) setActiveCat(prev => prev || mapped[0].cat);
     })();
   }, []);
 
@@ -499,18 +520,11 @@ function QuickGuide() {
         </div>
         <div className="qg-tags">
           {tags.map(t => (
-            t.href ? (
-              /* 링크형 필탭: 해당 URL로 이동 */
-              <a key={t.cat} href={t.href} className="qg-tag" onClick={e => { e.preventDefault(); router.push(t.href!); }}>
-                <span className="qg-label">{t.label}</span>
-              </a>
-            ) : (
-              <a key={t.cat} href={`/category?cat=${t.cat}`}
-                className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
-                onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
-                <span className="qg-label">{t.label}</span>
-              </a>
-            )
+            <a key={t.cat} href={`/category?cat=${t.cat}`}
+              className={`qg-tag${activeCat === t.cat ? ' active' : ''}`}
+              onClick={e => { e.preventDefault(); setActiveCat(t.cat); }}>
+              <span className="qg-label">{t.label}</span>
+            </a>
           ))}
         </div>
         <div className="qg-scroll-wrap" style={{ position:'relative' }}>
@@ -952,6 +966,9 @@ export default function HomeClient() {
 
       {/* 메인 배너 */}
       {secOn('topbanner') && <MainBanner />}
+
+      {/* ── 바로가기 링크 필탭 (메인배너 바로 아래) ── */}
+      <ShortcutStrip />
 
       {/* ── 델리오 픽 ── */}
       {secOn('pick') && (
