@@ -2219,6 +2219,7 @@ export default function AdminClient() {
   const [memberGradeFilter, setMemberGradeFilter] = useState('');
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
   const [memberProviderFilter, setMemberProviderFilter] = useState('');
+  const [memberMktFilter, setMemberMktFilter] = useState<'all'|'agree'|'deny'>('all'); // 마케팅 SMS 수신동의 필터
   const [selectedMember, setSelectedMember] = useState<AdminProfile | null>(null);
   const [mDetailGrade, setMDetailGrade] = useState('');       // 상세 모달: 저장 눌러야 반영되는 등급
   const [mDetailSaving, setMDetailSaving] = useState(false);
@@ -5984,9 +5985,10 @@ export default function AdminClient() {
     const matchBlock   = memberBlockFilter === 'all' ? true : memberBlockFilter === 'blocked' ? m.is_blocked : !m.is_blocked;
     const matchProvider = !memberProviderFilter || providerKey(m.provider) === memberProviderFilter;
     const matchNew     = !memberNewOnly || new Date(m.created_at) >= memberMonthStart;
+    const matchMkt     = memberMktFilter === 'all' ? true : memberMktFilter === 'agree' ? m.marketing_sms === true : m.marketing_sms !== true;
     const q = memberSearch.toLowerCase();
     const matchSearch  = !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.phone || '').includes(q);
-    return matchGrade && matchBlock && matchProvider && matchNew && matchSearch;
+    return matchGrade && matchBlock && matchProvider && matchNew && matchMkt && matchSearch;
   });
 
   /* 페이지 슬라이스 (포인트회원 / 포인트내역 / 회원관리) */
@@ -10415,17 +10417,19 @@ export default function AdminClient() {
                 ))}
               </div>
               {memberTab === 'list' ? (<>
-              <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+              <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                 {(() => {
                   const now = new Date();
                   const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
                   const newThisMonth = members.filter(m => new Date(m.created_at) >= mStart).length;
-                  const noFilter = !memberNewOnly && memberBlockFilter === 'all';
+                  const mktAgree = members.filter(m => m.marketing_sms === true).length;
+                  const noFilter = !memberNewOnly && memberBlockFilter === 'all' && memberMktFilter === 'all';
                   return [
-                    { l:'전체 회원수',    v: stats ? `${stats.totalMembers.toLocaleString()}명` : '...', on: noFilter, click: () => { setMemberNewOnly(false); setMemberBlockFilter('all'); setMemPage(1); } },
-                    { l:'이번달 신규 가입', v: `${newThisMonth.toLocaleString()}명`, on: memberNewOnly, click: () => { setMemberNewOnly(o => !o); setMemberBlockFilter('all'); setMemPage(1); } },
+                    { l:'전체 회원수',    v: stats ? `${stats.totalMembers.toLocaleString()}명` : '...', on: noFilter, click: () => { setMemberNewOnly(false); setMemberBlockFilter('all'); setMemberMktFilter('all'); setMemPage(1); } },
+                    { l:'이번달 신규 가입', v: `${newThisMonth.toLocaleString()}명`, on: memberNewOnly, click: () => { setMemberNewOnly(o => !o); setMemberBlockFilter('all'); setMemberMktFilter('all'); setMemPage(1); } },
                     { l:'이번달 탈퇴',    v: `${withdrawnMonth.toLocaleString()}명`, on: false, click: () => { setMemberTab('withdrawn'); loadWithdrawn(); } },
-                    { l:'블랙리스트',     v: members.filter(m => m.is_blocked).length + '명', on: memberBlockFilter === 'blocked', click: () => { setMemberBlockFilter(memberBlockFilter === 'blocked' ? 'all' : 'blocked'); setMemberNewOnly(false); setMemPage(1); } },
+                    { l:'블랙리스트',     v: members.filter(m => m.is_blocked).length + '명', on: memberBlockFilter === 'blocked', click: () => { setMemberBlockFilter(memberBlockFilter === 'blocked' ? 'all' : 'blocked'); setMemberNewOnly(false); setMemberMktFilter('all'); setMemPage(1); } },
+                    { l:'마케팅 SMS 동의', v: `${mktAgree.toLocaleString()}명`, on: memberMktFilter === 'agree', click: () => { setMemberMktFilter(memberMktFilter === 'agree' ? 'all' : 'agree'); setMemberNewOnly(false); setMemberBlockFilter('all'); setMemPage(1); } },
                   ];
                 })().map(c => (
                   <div key={c.l} className="adm-kpi-card" onClick={c.click}
@@ -10443,12 +10447,14 @@ export default function AdminClient() {
                     options={[{ value:'all', label:'전체' }, { value:'active', label:'정상' }, { value:'blocked', label:'블랙리스트' }]} />
                   <AdmSelect value={memberProviderFilter} onChange={setMemberProviderFilter}
                     options={[{ value:'', label:'전체 가입경로' }, { value:'email', label:'일반' }, { value:'kakao', label:'카카오' }, { value:'naver', label:'네이버' }]} />
+                  <AdmSelect value={memberMktFilter} onChange={v => setMemberMktFilter(v as 'all'|'agree'|'deny')}
+                    options={[{ value:'all', label:'마케팅 전체' }, { value:'agree', label:'수신동의' }, { value:'deny', label:'미동의' }]} />
                   <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
                     value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => go('sms')}><span className="adm-btn-icon"><Icon.SMS2 /></span>SMS 발송</button>
-                  <button className="adm-btn adm-btn-outline" onClick={() => { setMemberSearch(''); setMemberGradeFilter(''); setMemberBlockFilter('all'); setMemberProviderFilter(''); loadMembers(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => { setMemberSearch(''); setMemberGradeFilter(''); setMemberBlockFilter('all'); setMemberProviderFilter(''); setMemberMktFilter('all'); setMemberNewOnly(false); loadMembers(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
               <div className="adm-card">
@@ -12340,6 +12346,7 @@ export default function AdminClient() {
                     ['연락처', m.phone || '-'],
                     ['가입경로', <span key="p" style={{ display:'inline-block', fontSize:11, fontWeight:700, borderRadius:5, padding:'2px 8px', background:pv.bg, color:pv.color }}>{pv.label}</span>],
                     ['가입일', fmtDate(m.created_at)],
+                    ['마케팅 SMS', <span key="mk" style={{ display:'inline-block', fontSize:11, fontWeight:700, borderRadius:5, padding:'2px 8px', background: m.marketing_sms ? '#DCFCE7' : '#F1F5F9', color: m.marketing_sms ? '#16A34A' : '#94A3B8' }}>{m.marketing_sms ? '동의' : '미동의'}</span>],
                   ] as [string, React.ReactNode][]).map(([l,v],i) => (
                     <div key={i}>
                       <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div>
