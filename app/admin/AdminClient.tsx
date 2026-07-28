@@ -469,15 +469,15 @@ const CS_CAT_LABEL: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending:'결제대기', paid:'결제완료', preparing:'배송준비중',
+  pending:'입금대기', paid:'결제완료', preparing:'배송준비중',
   shipped:'배송중', delivered:'배송완료', confirmed:'구매확정', cancelled:'취소',
-  refunding:'환불처리중', refunded:'환불완료',
+  refunding:'환불처리중', refunded:'환불완료', expired:'입금기한 만료',
 };
 
 const STATUS_BADGE_CLS: Record<string, string> = {
   pending:'badge-wait', paid:'badge-paid', preparing:'badge-ready',
   shipped:'badge-shipping', delivered:'badge-done', confirmed:'badge-done', cancelled:'badge-off',
-  refunding:'badge-refund', refunded:'badge-off',
+  refunding:'badge-refund', refunded:'badge-off', expired:'badge-off',
 };
 
 /* 주문 상태 변경 버튼 — 선택 시 주문관리 표 뱃지와 동일 색상 */
@@ -780,6 +780,12 @@ const ORDER_STAGES: { key: string; label: string }[] = [
 ];
 /* 매출·주문 집계 시 유효로 인정하는 주문 상태(취소·환불·무통장 미입금 제외) — 판매성과와 동일 기준 */
 const VALID_ORDER_STATUS = ORDER_STAGES.map(s => s.key);
+/* 주문관리 화면용 단계 탭 — 무통장 '입금대기'는 맨 앞, '입금기한 만료'는 맨 뒤 (매출집계엔 미포함) */
+const ORDER_TABS: { key: string; label: string }[] = [
+  { key:'pending', label:'입금대기' },
+  ...ORDER_STAGES,
+  { key:'expired', label:'입금기한 만료' },
+];
 
 const GRADE_LABEL: Record<string, string> = {
   beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터',
@@ -2974,7 +2980,20 @@ export default function AdminClient() {
     /* 조회 기준(주문일/결제일) + 기간 필터 */
     if (from) query = query.gte(basis, new Date(`${from}T00:00:00`).toISOString());
     if (to)   query = query.lte(basis, new Date(`${to}T23:59:59`).toISOString());
-    const { data } = await query;
+    /* 무통장 미입금(pending)·입금기한 만료(expired)는 paid_at이 없어 위 조회에서 빠짐 → created_at 기준으로 별도 합류 */
+    let unpaidQ = supabase
+      .from('orders')
+      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
+      .in('status', ['pending', 'expired'])
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (from) unpaidQ = unpaidQ.gte('created_at', new Date(`${from}T00:00:00`).toISOString());
+    if (to)   unpaidQ = unpaidQ.lte('created_at', new Date(`${to}T23:59:59`).toISOString());
+    const [{ data: mainData }, { data: unpaidData }] = await Promise.all([query, unpaidQ]);
+    const seen = new Set<string>();
+    const data = [...(mainData || []), ...(unpaidData || [])].filter((o: Record<string, unknown>) => {
+      const id = o.id as string; if (seen.has(id)) return false; seen.add(id); return true;
+    });
     // farm_id, farm_name 평탄화
     const orders = (data || []).map((o: Record<string, unknown>) => ({
       ...o,
@@ -2995,12 +3014,12 @@ export default function AdminClient() {
   async function refreshStageCounts() {
     const supabase = createClient();
     const res = await Promise.all(
-      ORDER_STAGES.map(st =>
+      ORDER_TABS.map(st =>
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', st.key)
       )
     );
     const counts: Record<string, number> = {};
-    ORDER_STAGES.forEach((st, i) => { counts[st.key] = res[i]?.count || 0; });
+    ORDER_TABS.forEach((st, i) => { counts[st.key] = res[i]?.count || 0; });
     setStageCounts(counts);
   }
 
@@ -8403,10 +8422,11 @@ export default function AdminClient() {
               {/* 주문 처리 단계 바 — 클릭 시 해당 상태로 필터 */}
               <div className="adm-card" style={{ marginBottom: 16 }}>
                 <div style={{ display:'flex', alignItems:'center', padding:'14px 8px 8px', flexWrap:'wrap' }}>
-                  {ORDER_STAGES.map((st, i) => {
+                  {ORDER_TABS.map((st, i) => {
                     const active = orderStatusFilter === st.key;
+                    const showArrow = i < ORDER_TABS.length - 1 && ORDER_TABS[i + 1].key !== 'expired';
                     return (
-                      <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:96 }}>
+                      <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:88 }}>
                         <div onClick={() => setOrderStatusFilter(active ? '' : st.key)}
                           style={{ flex:1, cursor:'pointer', textAlign:'center', padding:'10px 6px', borderRadius:12,
                             background: active ? '#1A1A1A' : '#F8FAFC', transition:'background .15s' }}>
@@ -8416,7 +8436,7 @@ export default function AdminClient() {
                             <span style={{ fontSize:12, fontWeight:600, color: active ? '#CBD5E1' : '#94A3B8', marginLeft:2 }}>건</span>
                           </div>
                         </div>
-                        {i < ORDER_STAGES.length - 1 && (
+                        {showArrow && (
                           <div style={{ display:'flex', alignItems:'center', color:'#CBD5E1', padding:'0 2px' }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
                           </div>
@@ -11580,6 +11600,8 @@ export default function AdminClient() {
                           const directCancels = (refundFilter === 'customer' || !adminStatusOk ? [] : orders).filter(o =>
                             ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
                             && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
+                            /* 무통장 미입금(결제 안 됨) 취소는 환불관리에서 제외 — 돌려줄 돈이 없음 */
+                            && !(o.status === 'cancelled' && !(o as { paid_at?: string | null }).paid_at)
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;

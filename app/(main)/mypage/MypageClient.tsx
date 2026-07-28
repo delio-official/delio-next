@@ -150,10 +150,10 @@ const DELIVERY_REQ_PRESETS = ['배송 전에 미리 연락주세요', '부재 �
 
 /* ─── Constants ─── */
 const STATUS_LABEL: Record<string, string> = {
-  pending:'결제대기', paid:'결제완료', preparing:'상품준비중',
+  pending:'입금대기', paid:'결제완료', preparing:'상품준비중',
   shipped:'배송중', delivered:'배송완료', confirmed:'구매확정', cancelled:'취소 완료',
   exchanging:'교환처리중', exchanged:'교환완료',
-  refunding:'환불처리중', refunded:'환불완료',
+  refunding:'환불처리중', refunded:'환불완료', expired:'입금기한 만료',
 };
 /* 주문처리현황 단계 라벨 (필터 칩 표시용) */
 const STATUS_GROUP_LABEL: Record<string, string> = {
@@ -428,7 +428,7 @@ export default function MypageClient() {
     return () => window.removeEventListener('resize', f);
   }, []);
   /* 취소/반품/교환 상태 집합 */
-  const CANCEL_STATUSES = ['cancelled', 'refunded', 'refunding', 'exchanging', 'exchanged'];
+  const CANCEL_STATUSES = ['cancelled', 'refunded', 'refunding', 'exchanging', 'exchanged', 'expired'];
   /* 기간 버튼 → 날짜범위 설정 + 즉시 적용 */
   function applyPeriod(months: number | 'today') {
     const to = new Date();

@@ -79,13 +79,16 @@ export async function POST(req: Request) {
   /* 재고 복원 (멱등: stock_restored 가드) */
   try { await admin.rpc('restore_order_stock', { p_order_id: orderId }); } catch { /* 복원 실패는 무시(관리자 확인) */ }
 
-  /* 기록용: 어드민 환불관리에 '취소완료(자동)'로 남김 — 고객이 고른 사유를 그대로 저장(클라 중복 insert 없음) */
-  try {
-    await admin.from('refund_requests').insert({
-      order_id: orderId, user_id: user.id,
-      reason: reason || '고객 즉시취소', detail, type: 'cancel', status: 'completed',
-    });
-  } catch { /* 기록 실패는 무시 */ }
+  /* 기록용: 어드민 환불관리에 '취소완료(자동)'로 남김 — 고객이 고른 사유를 그대로 저장(클라 중복 insert 없음).
+     단, 무통장 미입금(pending, 결제 안 됨) 취소는 돌려줄 돈이 없어 환불관리에 남기지 않음. */
+  if (order.status === 'paid') {
+    try {
+      await admin.from('refund_requests').insert({
+        order_id: orderId, user_id: user.id,
+        reason: reason || '고객 즉시취소', detail, type: 'cancel', status: 'completed',
+      });
+    } catch { /* 기록 실패는 무시 */ }
+  }
 
   /* 주문 취소 알림톡 — 부가 작업이므로 최대 3초만 대기(솔라피 지연이 취소 응답을 막지 않도록) */
   if (order.phone) {
