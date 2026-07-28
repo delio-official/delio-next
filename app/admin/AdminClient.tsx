@@ -2076,6 +2076,9 @@ export default function AdminClient() {
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
   const [memberProviderFilter, setMemberProviderFilter] = useState('');
   const [selectedMember, setSelectedMember] = useState<AdminProfile | null>(null);
+  const [mDetailGrade, setMDetailGrade] = useState('');       // 상세 모달: 저장 눌러야 반영되는 등급
+  const [mDetailSaving, setMDetailSaving] = useState(false);
+  const [withdrawnMonth, setWithdrawnMonth] = useState(0);    // 이번달 탈퇴 수
   const [memberMemo, setMemberMemo] = useState('');
   const [memberMemoSaving, setMemberMemoSaving] = useState(false);
   const [memberOrders, setMemberOrders] = useState<Order[]>([]);
@@ -3483,6 +3486,21 @@ export default function AdminClient() {
       .limit(300);
     setMembers((data as AdminProfile[]) || []);
     setMembersLoading(false);
+    /* 이번달 탈퇴 수 */
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const { count } = await supabase.from('withdrawn_users').select('id', { count: 'exact', head: true }).gte('withdrawn_at', monthStart);
+    setWithdrawnMonth(count || 0);
+  }
+  /* 상세 모달 저장 — 등급 변경만 저장 시 반영(블랙리스트·메모·포인트는 즉시 반영) */
+  async function saveMemberDetail() {
+    if (!selectedMember) return;
+    setMDetailSaving(true);
+    if (mDetailGrade && mDetailGrade !== selectedMember.grade) {
+      await changeMemberGrade(selectedMember.id, mDetailGrade);
+    }
+    setMDetailSaving(false);
+    setSelectedMember(null);
   }
   async function loadWithdrawn() {
     setWithdrawnLoading(true);
@@ -3498,13 +3516,14 @@ export default function AdminClient() {
 
   async function openMemberDetail(m: AdminProfile) {
     setSelectedMember(m);
+    setMDetailGrade(m.grade);
     setMemberMemo('');
     setMemberMemos([]);
     setMemberStats({ totalSpent: 0, orderCount: 0 });
     setMemberOrdersLoading(true);
     const supabase = createClient();
     const [{ data }, { data: memos }, { data: allOrders }] = await Promise.all([
-      supabase.from('orders').select('id, order_no, status, final_amount, created_at')
+      supabase.from('orders').select('id, order_no, status, final_amount, created_at, order_items(product_name)')
         .eq('user_id', m.id).order('created_at', { ascending: false }).limit(10),
       supabase.from('member_memos').select('id, content, admin_name, created_at')
         .eq('user_id', m.id).order('created_at', { ascending: false }),
@@ -10233,12 +10252,17 @@ export default function AdminClient() {
               </div>
               {memberTab === 'list' ? (<>
               <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                {[
-                  ['전체 회원수',  stats ? `${stats.totalMembers.toLocaleString()}명` : '...'],
-                  ['블랙리스트',   members.filter(m => m.is_blocked).length + '명'],
-                  ['바이어 이상',  members.filter(m => ['buyer','master'].includes(m.grade)).length + '명'],
-                  ['포인트 보유',  members.reduce((s,m) => s+(m.point_balance||0), 0).toLocaleString() + 'P'],
-                ].map(([l,v]) => (
+                {(() => {
+                  const now = new Date();
+                  const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                  const newThisMonth = members.filter(m => new Date(m.created_at) >= mStart).length;
+                  return [
+                    ['전체 회원수',    stats ? `${stats.totalMembers.toLocaleString()}명` : '...'],
+                    ['이번달 신규 가입', `${newThisMonth.toLocaleString()}명`],
+                    ['이번달 탈퇴',    `${withdrawnMonth.toLocaleString()}명`],
+                    ['블랙리스트',     members.filter(m => m.is_blocked).length + '명'],
+                  ];
+                })().map(([l,v]) => (
                   <div key={l} className="adm-kpi-card">
                     <div className="adm-kpi-label">{l}</div>
                     <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
@@ -11996,52 +12020,53 @@ export default function AdminClient() {
       </div>{/* /.adm-wrap */}
 
       {/* ===== 회원 상세 모달 ===== */}
-      {selectedMember && (
+      {selectedMember && (() => {
+        const m = selectedMember;
+        const pv = PROVIDER_META[providerKey(m.provider)];
+        const avg = memberStats.orderCount > 0 ? Math.round(memberStats.totalSpent / memberStats.orderCount) : 0;
+        const lastAt = memberOrders[0]?.created_at;
+        const secTitle: React.CSSProperties = { fontSize:13, fontWeight:700, marginBottom:8 };
+        return (
         <div className="adm-float-overlay" onClick={() => setSelectedMember(null)}>
-          <div className="adm-float-modal" style={{ maxWidth:560 }}
-            onClick={e => e.stopPropagation()}>
+          <div className="adm-float-modal no-scrollbar" style={{ maxWidth:600 }} onClick={e => e.stopPropagation()}>
 
-            {/* 헤더 */}
-            <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:15, fontWeight:700 }}>{selectedMember.name}</span>
-                <span className={`adm-badge ${GRADE_BADGE_CLS[selectedMember.grade]||'badge-normal'}`}>{GRADE_LABEL[selectedMember.grade]||selectedMember.grade}</span>
-                {selectedMember.is_blocked && <span className="adm-badge badge-off">블랙리스트</span>}
-              </div>
-              <button onClick={() => setSelectedMember(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+            {/* 헤더 (X 없음) */}
+            <div style={{ padding:'20px 22px 14px', borderBottom:'1px solid #F0F0F0', display:'flex', alignItems:'center', gap:10, position:'sticky', top:0, background:'#fff', zIndex:1 }}>
+              <span style={{ fontSize:16, fontWeight:800 }}>{m.name}</span>
+              <span className={`adm-badge ${GRADE_BADGE_CLS[m.grade]||'badge-normal'}`}>{GRADE_LABEL[m.grade]||m.grade}</span>
+              {m.is_blocked && <span className="adm-badge badge-off">블랙리스트</span>}
             </div>
 
-            <div style={{ padding:'16px 22px', display:'flex', flexDirection:'column', gap:16 }}>
+            <div style={{ padding:'16px 22px', display:'flex', flexDirection:'column', gap:18 }}>
 
-              {/* 기본 정보 */}
-              <div style={{ background:'#F8FAFC', borderRadius:10, padding:'14px 16px' }}>
-                {[
-                  ['이메일', selectedMember.email],
-                  ['연락처', selectedMember.phone || '-'],
-                  ['포인트', `${(selectedMember.point_balance||0).toLocaleString()}P`],
-                  ['가입일', fmtDate(selectedMember.created_at)],
-                ].map(([l,v]) => (
-                  <div key={l} style={{ display:'flex', gap:12, marginBottom:8, fontSize:13 }}>
-                    <span style={{ color:'#64748B', width:60, flexShrink:0 }}>{l}</span>
-                    <span style={{ fontWeight:500 }}>{v}</span>
-                  </div>
-                ))}
+              {/* 기본 정보 — 2열 4가지 */}
+              <div>
+                <div style={secTitle}>기본 정보</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px 16px' }}>
+                  {([
+                    ['이메일', <span key="e" style={{ wordBreak:'break-all' }}>{m.email}</span>],
+                    ['연락처', m.phone || '-'],
+                    ['가입경로', <span key="p" style={{ display:'inline-block', fontSize:11, fontWeight:700, borderRadius:5, padding:'2px 8px', background:pv.bg, color:pv.color }}>{pv.label}</span>],
+                    ['가입일', fmtDate(m.created_at)],
+                  ] as [string, React.ReactNode][]).map(([l,v],i) => (
+                    <div key={i}>
+                      <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A' }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* 구매 통계 */}
               <div>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>구매 통계 <span style={{ fontWeight:400, color:'#94A3B8' }}>(취소·환불 제외)</span></div>
+                <div style={secTitle}>구매 통계 <span style={{ fontWeight:400, color:'#94A3B8' }}>(취소·환불 제외)</span></div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
-                  {(() => {
-                    const avg = memberStats.orderCount > 0 ? Math.round(memberStats.totalSpent / memberStats.orderCount) : 0;
-                    const lastAt = memberOrders[0]?.created_at;
-                    return [
-                      ['누적 구매금액', `${memberStats.totalSpent.toLocaleString()}원`, '#2563EB'],
-                      ['주문 횟수', `${memberStats.orderCount}건`, '#1A1A1A'],
-                      ['평균 주문금액', `${avg.toLocaleString()}원`, '#1A1A1A'],
-                      ['최근 주문일', lastAt ? fmtDateShort(lastAt) : '-', '#1A1A1A'],
-                    ] as [string, string, string][];
-                  })().map(([l, v, c]) => (
+                  {([
+                    ['누적 구매금액', `${memberStats.totalSpent.toLocaleString()}원`, '#2563EB'],
+                    ['주문 횟수', `${memberStats.orderCount}건`, '#1A1A1A'],
+                    ['평균 주문금액', `${avg.toLocaleString()}원`, '#1A1A1A'],
+                    ['최근 주문일', lastAt ? fmtDateShort(lastAt) : '-', '#1A1A1A'],
+                  ] as [string, string, string][]).map(([l, v, c]) => (
                     <div key={l} style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'11px 13px' }}>
                       <div style={{ fontSize:11, color:'#64748B' }}>{l}</div>
                       <div style={{ fontSize:16, fontWeight:800, color:c, marginTop:3 }}>{v}</div>
@@ -12050,57 +12075,63 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 등급 변경 */}
+              {/* 등급 변경 (저장 눌러야 반영) */}
               <div>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>회원 등급 변경</div>
+                <div style={secTitle}>회원 등급 변경</div>
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {Object.entries(GRADE_LABEL).map(([grade, label]) => (
-                    <button key={grade} onClick={() => changeMemberGrade(selectedMember.id, grade)}
+                    <button key={grade} onClick={() => setMDetailGrade(grade)}
                       title={`기준: ${GRADE_CRITERIA[grade] || ''}`}
                       style={{ padding:'6px 14px', borderRadius:99, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer',
-                        borderColor: selectedMember.grade === grade ? '#1A1A1A' : '#E2E8F0',
-                        background: selectedMember.grade === grade ? '#1A1A1A' : '#fff',
-                        color: selectedMember.grade === grade ? '#fff' : '#64748B' }}>
+                        borderColor: mDetailGrade === grade ? '#1A1A1A' : '#E2E8F0',
+                        background: mDetailGrade === grade ? '#1A1A1A' : '#fff',
+                        color: mDetailGrade === grade ? '#fff' : '#64748B' }}>
                       {label}
                     </button>
                   ))}
                 </div>
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.5 }}>
-                  분기 누적 구매로 자동 산정됩니다. 수동 변경 시 <b>잠금</b> 처리되어 자동 재산정에서 제외됩니다.<br />
-                  비기너 {GRADE_CRITERIA.beginner} · 테이스터 {GRADE_CRITERIA.taster} · 바이어 {GRADE_CRITERIA.buyer} · 마스터 {GRADE_CRITERIA.master}
+                  분기 누적 구매로 자동 산정됩니다. 수동 변경 후 <b>저장</b> 시 잠금 처리되어 자동 재산정에서 제외됩니다.
                 </div>
               </div>
 
-              {/* 회원 상태 / 블랙리스트 */}
-              <div style={{ padding:'14px 16px', borderRadius:12, background: selectedMember.is_blocked ? '#FEF2F2' : '#F8FAFC', border:`1px solid ${selectedMember.is_blocked ? '#FECACA' : '#E2E8F0'}` }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                  <span style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>회원 상태</span>
-                  <span className={`adm-badge ${selectedMember.is_blocked ? 'badge-off' : 'badge-on'}`}>
-                    {selectedMember.is_blocked ? '블랙리스트' : '정상'}
-                  </span>
-                </div>
-                <div style={{ fontSize:12, color:'#64748B', marginBottom:12, lineHeight:1.5 }}>
-                  {selectedMember.is_blocked
-                    ? '현재 이 회원은 로그인·주문 등 서비스 이용이 제한된 상태입니다.'
-                    : '블랙리스트로 등록하면 이 회원의 로그인·주문 등 서비스 이용이 제한됩니다.'}
-                </div>
-                <button onClick={() => toggleMemberBlock(selectedMember.id, selectedMember.is_blocked)}
-                  style={{ width:'100%', padding:'11px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:700,
-                    background: selectedMember.is_blocked ? '#16A34A' : '#DC2626', color:'#fff' }}>
-                  {selectedMember.is_blocked ? '✓ 블랙리스트 해제' : '🚫 블랙리스트 등록'}
-                </button>
-              </div>
-
-              {/* 관리자 메모 (누적) */}
+              {/* 포인트 */}
               <div>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>관리자 메모 <span style={{ fontWeight:400, color:'#94A3B8' }}>(내부용 · 누적 기록)</span></div>
-                <textarea rows={2} style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:'1.5px solid #E2E8F0', fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
-                  placeholder="새 메모 입력 후 추가 (회원에게 보이지 않음)"
-                  value={memberMemo} onChange={e => setMemberMemo(e.target.value)} />
-                <button onClick={() => addMemberMemo(selectedMember.id)} disabled={memberMemoSaving || !memberMemo.trim()}
-                  style={{ marginTop:6, padding:'6px 16px', borderRadius:6, border:'none', background:'#1A1A1A', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                  {memberMemoSaving ? '저장 중...' : '+ 메모 추가'}
-                </button>
+                <div style={secTitle}>포인트</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+                  <div style={{ fontSize:13 }}>보유 포인트 <span style={{ fontSize:16, fontWeight:800, color:'#16A34A', marginLeft:6 }}>{(m.point_balance||0).toLocaleString()}P</span></div>
+                  <button className="adm-row-btn" onClick={() => { setGivePointTarget(m); setGivePointForm({ amount:'', desc:'', type:'give' }); setGivePointModal(true); }}>포인트 지급</button>
+                </div>
+              </div>
+
+              {/* 회원 상태 / 블랙리스트 — 상태 좌 · 버튼 우 */}
+              <div>
+                <div style={secTitle}>회원 상태</div>
+                <div style={{ padding:'12px 16px', borderRadius:10, background: m.is_blocked ? '#FEF2F2' : '#F8FAFC', border:`1px solid ${m.is_blocked ? '#FECACA' : '#EEF2F6'}`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:700 }}>현재 상태: <span style={{ color: m.is_blocked ? '#DC2626' : '#16A34A' }}>{m.is_blocked ? '블랙리스트' : '정상'}</span></div>
+                    <div style={{ fontSize:11.5, color:'#64748B', marginTop:2 }}>블랙리스트 등록 시 로그인·주문 등 서비스 이용이 제한됩니다.</div>
+                  </div>
+                  <button onClick={() => toggleMemberBlock(m.id, m.is_blocked)}
+                    style={{ flexShrink:0, padding:'9px 16px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:700, whiteSpace:'nowrap',
+                      background: m.is_blocked ? '#16A34A' : '#DC2626', color:'#fff' }}>
+                    {m.is_blocked ? '블랙리스트 해제' : '블랙리스트 등록'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 관리자 메모 — 입력 + 우측 추가 버튼 */}
+              <div>
+                <div style={secTitle}>관리자 메모 <span style={{ fontWeight:400, color:'#94A3B8' }}>(내부용 · 누적 기록)</span></div>
+                <div style={{ display:'flex', gap:8, alignItems:'stretch' }}>
+                  <textarea rows={2} style={{ flex:1, padding:'10px 12px', borderRadius:8, border:'1.5px solid #E2E8F0', fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
+                    placeholder="새 메모 입력 후 추가 (회원에게 보이지 않음)"
+                    value={memberMemo} onChange={e => setMemberMemo(e.target.value)} />
+                  <button onClick={() => addMemberMemo(m.id)} disabled={memberMemoSaving || !memberMemo.trim()}
+                    style={{ flexShrink:0, padding:'0 16px', borderRadius:8, border:'none', background: memberMemo.trim() ? '#1A1A1A' : '#CBD5E1', color:'#fff', fontSize:13, fontWeight:700, cursor: memberMemo.trim() ? 'pointer' : 'default' }}>
+                    {memberMemoSaving ? '저장 중' : '추가'}
+                  </button>
+                </div>
                 {memberMemos.length > 0 && (
                   <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
                     {memberMemos.map(mm => (
@@ -12116,32 +12147,43 @@ export default function AdminClient() {
                 )}
               </div>
 
-              {/* 최근 주문 */}
+              {/* 최근 주문 — 상품명 표시 */}
               <div>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>최근 주문</div>
+                <div style={secTitle}>최근 주문</div>
                 {memberOrdersLoading ? (
                   <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>불러오는 중...</div>
                 ) : memberOrders.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>주문 내역 없음</div>
                 ) : (
                   <div style={{ border:'1px solid #F0F0F0', borderRadius:8, overflow:'hidden' }}>
-                    {memberOrders.map((o, i) => (
-                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
-                        <div>
-                          <span className="adm-mono" style={{ fontSize:11, color:'#94A3B8' }}>{o.order_no}</span>
-                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status]||'badge-wait'}`} style={{ marginLeft:6 }}>{STATUS_LABEL[o.status]||o.status}</span>
+                    {memberOrders.map((o, i) => {
+                      const its = o.order_items || [];
+                      const prodLabel = its.length ? `${its[0].product_name}${its.length > 1 ? ` 외 ${its.length - 1}건` : ''}` : '(상품 정보 없음)';
+                      return (
+                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
+                          <span style={{ fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodLabel}</span>
+                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status]||'badge-wait'}`} style={{ flexShrink:0 }}>{STATUS_LABEL[o.status]||o.status}</span>
                         </div>
-                        <div style={{ fontWeight:600 }}>{fmtPrice(o.final_amount)}원</div>
+                        <div style={{ fontWeight:600, flexShrink:0 }}>{fmtPrice(o.final_amount)}원</div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
             </div>
+
+            {/* 푸터 — 취소 / 저장 */}
+            <div style={{ position:'sticky', bottom:0, background:'#fff', borderTop:'1px solid #F0F0F0', padding:'14px 22px', display:'flex', justifyContent:'flex-end', gap:8 }}>
+              <button className="adm-btn adm-btn-outline" onClick={() => setSelectedMember(null)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveMemberDetail} disabled={mDetailSaving}>{mDetailSaving ? '저장 중...' : '저장'}</button>
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ===== 리뷰 상세 모달 ===== */}
       {selectedReview && (
