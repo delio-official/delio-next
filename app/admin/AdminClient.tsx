@@ -12450,7 +12450,7 @@ export default function AdminClient() {
         const signed = givePointForm.type === 'deduct' ? -raw : raw;
         const after = Math.max(0, (givePointTarget.point_balance || 0) + signed);
         return (
-        <div className="adm-modal-bg open" onClick={() => setGivePointModal(false)}>
+        <div className="adm-modal-bg open" style={{ zIndex: 10001 }} onClick={() => setGivePointModal(false)}>
           <div className="adm-modal" style={{ maxWidth:440, width:'94vw' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">포인트 지급</span>
