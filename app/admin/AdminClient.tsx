@@ -2075,6 +2075,7 @@ export default function AdminClient() {
   const [wdFrom, setWdFrom] = useState('');
   const [wdTo, setWdTo] = useState('');
   const [wdReason, setWdReason] = useState(''); // 사유 카드 클릭 필터
+  const [memberNewOnly, setMemberNewOnly] = useState(false); // 이번달 신규 가입 카드 필터
   const [memberSearch, setMemberSearch] = useState('');
   const [memberGradeFilter, setMemberGradeFilter] = useState('');
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
@@ -5820,13 +5821,15 @@ export default function AdminClient() {
     });
 
   /* 필터된 회원 목록 */
+  const memberMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const filteredMembers = members.filter(m => {
     const matchGrade   = !memberGradeFilter || m.grade === memberGradeFilter;
     const matchBlock   = memberBlockFilter === 'all' ? true : memberBlockFilter === 'blocked' ? m.is_blocked : !m.is_blocked;
     const matchProvider = !memberProviderFilter || providerKey(m.provider) === memberProviderFilter;
+    const matchNew     = !memberNewOnly || new Date(m.created_at) >= memberMonthStart;
     const q = memberSearch.toLowerCase();
     const matchSearch  = !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || (m.phone || '').includes(q);
-    return matchGrade && matchBlock && matchProvider && matchSearch;
+    return matchGrade && matchBlock && matchProvider && matchNew && matchSearch;
   });
 
   /* 페이지 슬라이스 (포인트회원 / 포인트내역 / 회원관리) */
@@ -10260,16 +10263,18 @@ export default function AdminClient() {
                   const now = new Date();
                   const mStart = new Date(now.getFullYear(), now.getMonth(), 1);
                   const newThisMonth = members.filter(m => new Date(m.created_at) >= mStart).length;
+                  const noFilter = !memberNewOnly && memberBlockFilter === 'all';
                   return [
-                    ['전체 회원수',    stats ? `${stats.totalMembers.toLocaleString()}명` : '...'],
-                    ['이번달 신규 가입', `${newThisMonth.toLocaleString()}명`],
-                    ['이번달 탈퇴',    `${withdrawnMonth.toLocaleString()}명`],
-                    ['블랙리스트',     members.filter(m => m.is_blocked).length + '명'],
+                    { l:'전체 회원수',    v: stats ? `${stats.totalMembers.toLocaleString()}명` : '...', on: noFilter, click: () => { setMemberNewOnly(false); setMemberBlockFilter('all'); setMemPage(1); } },
+                    { l:'이번달 신규 가입', v: `${newThisMonth.toLocaleString()}명`, on: memberNewOnly, click: () => { setMemberNewOnly(o => !o); setMemberBlockFilter('all'); setMemPage(1); } },
+                    { l:'이번달 탈퇴',    v: `${withdrawnMonth.toLocaleString()}명`, on: false, click: () => { setMemberTab('withdrawn'); loadWithdrawn(); } },
+                    { l:'블랙리스트',     v: members.filter(m => m.is_blocked).length + '명', on: memberBlockFilter === 'blocked', click: () => { setMemberBlockFilter(memberBlockFilter === 'blocked' ? 'all' : 'blocked'); setMemberNewOnly(false); setMemPage(1); } },
                   ];
-                })().map(([l,v]) => (
-                  <div key={l} className="adm-kpi-card">
-                    <div className="adm-kpi-label">{l}</div>
-                    <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
+                })().map(c => (
+                  <div key={c.l} className="adm-kpi-card" onClick={c.click}
+                    style={{ cursor:'pointer', outline: c.on ? '2px solid #1A1A1A' : 'none', outlineOffset:-1 }}>
+                    <div className="adm-kpi-label">{c.l}{c.on && ' ✓'}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{c.v}</div>
                   </div>
                 ))}
               </div>
