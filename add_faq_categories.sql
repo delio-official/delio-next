@@ -24,6 +24,9 @@ insert into public.faq_categories (name, sort_order) values
   ('상품', 3), ('회원관련', 4), ('기타', 5)
 on conflict (name) do nothing;
 
+-- 2-1) 기존 category CHECK 제약 제거 (옛 키값만 허용하던 제약 → 자유 이름 허용)
+alter table public.faq_items drop constraint if exists faq_items_category_check;
+
 -- 3) 기존 faq_items.category 키 → 이름으로 이관
 update public.faq_items set category = '배송'          where category = 'delivery';
 update public.faq_items set category = '취소/교환/반품' where category = 'return';
