@@ -5414,15 +5414,26 @@ export default function AdminClient() {
     setSelectedInquiry(inq);
   }
 
-  /* 상세 저장 — 처리상태 + 회신문구를 함께 저장(언제든 변경 가능) */
+  /* 상세 저장 — 처리상태 저장(언제든 변경 가능) */
   async function saveInquiryDetail() {
     if (!selectedInquiry) return;
     const status = inquiryStatusSel;
     const supabase = createClient();
-    const { error } = await supabase.from('farm_inquiries').update({ status, reply: inquiryReply }).eq('id', selectedInquiry.id);
+    const { error } = await supabase.from('farm_inquiries').update({ status }).eq('id', selectedInquiry.id);
     if (error) { alert('저장 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
-    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status, reply: inquiryReply } : i));
+    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status } : i));
     setSelectedInquiry(null);
+  }
+
+  /* 회신 문구만 저장 (모달 유지) */
+  async function saveInquiryReply() {
+    if (!selectedInquiry) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('farm_inquiries').update({ reply: inquiryReply }).eq('id', selectedInquiry.id);
+    if (error) { alert('문구 저장 실패: ' + error.message); return; }
+    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, reply: inquiryReply } : i));
+    setSelectedInquiry(prev => prev ? { ...prev, reply: inquiryReply } : prev);
+    alert('회신 문구를 저장했습니다.');
   }
 
   /* 입점문의 연락 템플릿 (수동 발송용) */
@@ -12978,8 +12989,10 @@ export default function AdminClient() {
               </div>
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
-                placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요. (저장됩니다)" />
-              <div className="adm-muted" style={{ fontSize:11, marginTop:4 }}>톤 버튼을 누르면 기본 문구로 다시 채워집니다. 수정한 내용은 저장 시 그대로 보관됩니다.</div>
+                placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요." />
+              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:6 }}>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={saveInquiryReply}>문구 저장</button>
+              </div>
             </div>
 
             {/* 처리 상태 */}
