@@ -351,6 +351,7 @@ interface FarmInquiry {
   message: string;
   status: string;
   created_at: string;
+  reply?: string | null;
 }
 
 interface AdminBanner {
@@ -2373,6 +2374,9 @@ export default function AdminClient() {
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<FarmInquiry | null>(null);
   const [inquiryTpl, setInquiryTpl] = useState<'general'|'accept'|'reject'>('general');
+  const [inquiryReply, setInquiryReply] = useState('');
+  const [inquiryStatusSel, setInquiryStatusSel] = useState<'pending'|'done'|'rejected'>('pending');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   /* ── FAQ ── */
   const [faqItems, setFaqItems] = useState<FaqItem[]>([]);
@@ -5399,12 +5403,26 @@ export default function AdminClient() {
   }
 
   /* ========== 입점문의 상세 + 수락/거절 ========== */
-  async function updateInquiryStatus(id: string, status: 'done' | 'rejected') {
+  /* 상세 모달 열기 — 처리상태·회신문구 초기화 */
+  function openInquiry(inq: FarmInquiry) {
+    const st: 'pending'|'done'|'rejected' = ['answered','done'].includes(inq.status) ? 'done'
+      : inq.status === 'rejected' ? 'rejected' : 'pending';
+    setInquiryStatusSel(st);
+    setInquiryReply(inq.reply || inquiryTemplate('general', inq.company));
+    setInquiryTpl('general');
+    setCopiedField(null);
+    setSelectedInquiry(inq);
+  }
+
+  /* 상세 저장 — 처리상태 + 회신문구를 함께 저장(언제든 변경 가능) */
+  async function saveInquiryDetail() {
+    if (!selectedInquiry) return;
+    const status = inquiryStatusSel;
     const supabase = createClient();
-    const { error } = await supabase.from('farm_inquiries').update({ status }).eq('id', id);
-    if (error) { alert('처리 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
-    setInquiries(prev => prev.map(i => i.id === id ? { ...i, status } : i));
-    setSelectedInquiry(prev => prev?.id === id ? { ...prev, status } : prev);
+    const { error } = await supabase.from('farm_inquiries').update({ status, reply: inquiryReply }).eq('id', selectedInquiry.id);
+    if (error) { alert('저장 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
+    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status, reply: inquiryReply } : i));
+    setSelectedInquiry(null);
   }
 
   /* 입점문의 연락 템플릿 (수동 발송용) */
@@ -10930,7 +10948,7 @@ export default function AdminClient() {
                               {inquiries.length === 0 ? '문의 없음 (create_admin_policies.sql 실행 필요)' : '해당 항목 없음'}
                             </td></tr>
                           ) : list.map(inq => (
-                            <tr key={inq.id} style={{ cursor:'pointer' }} onClick={() => setSelectedInquiry(inq)}>
+                            <tr key={inq.id} style={{ cursor:'pointer' }} onClick={() => openInquiry(inq)}>
                               <td><span className="adm-badge badge-paid">{inqTypeLabel(inq.inquiry_type)}</span></td>
                               <td>{inq.company}</td>
                               <td className="adm-mono">{inq.contact}</td>
@@ -12907,85 +12925,90 @@ export default function AdminClient() {
       )}
 
       {/* ===== 입점문의 상세 모달 ===== */}
-      {selectedInquiry && (
+      {selectedInquiry && (() => {
+        const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
+        const copyBtn = (key: string, val: string) => (
+          <button type="button" onClick={() => { navigator.clipboard?.writeText(val || ''); setCopiedField(key); setTimeout(() => setCopiedField(c => c === key ? null : c), 1500); }}
+            style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:7, cursor:'pointer',
+              border:'1px solid', borderColor: copiedField===key ? '#BBF7D0' : '#E2E8F0', background: copiedField===key ? '#DCFCE7' : '#fff', color: copiedField===key ? '#16A34A' : '#64748B' }}>
+            {copiedField===key ? '✓ 복사됨' : '복사'}
+          </button>
+        );
+        const rows: [string, string, boolean][] = [
+          ['유형', inqTypeLabel(selectedInquiry.inquiry_type), false],
+          ['업체/이름', selectedInquiry.company, true],
+          ['연락처', selectedInquiry.contact, true],
+          ['이메일', selectedInquiry.email, true],
+          ['접수일', fmtDate(selectedInquiry.created_at), false],
+        ];
+        return (
         <div className="adm-float-overlay" onClick={() => setSelectedInquiry(null)}>
-          <div className="adm-float-modal" style={{ maxWidth:520, padding:28 }}
+          <div className="adm-float-modal no-scrollbar" style={{ maxWidth:520, padding:28, maxHeight:'90vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>입점문의 상세</h3>
-              <button onClick={() => setSelectedInquiry(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
-            </div>
-            {[
-              ['유형', inqTypeLabel(selectedInquiry.inquiry_type)],
-              ['업체/이름', selectedInquiry.company],
-              ['연락처', selectedInquiry.contact],
-              ['이메일', selectedInquiry.email],
-              ['접수일', fmtDate(selectedInquiry.created_at)],
-            ].map(([l, v]) => (
-              <div key={l} style={{ display:'flex', gap:12, marginBottom:12 }}>
-                <span style={{ fontSize:13, color:'#64748B', width:72, flexShrink:0 }}>{l}</span>
-                <span style={{ fontSize:13, fontWeight:500 }}>{v}</span>
-              </div>
-            ))}
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:13, color:'#64748B', marginBottom:6 }}>문의 내용</div>
-              <div style={{ fontSize:13, background:'#F8FAFC', borderRadius:8, padding:'12px 14px', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{selectedInquiry.message}</div>
-            </div>
+            <h3 style={{ fontSize:16, fontWeight:700, margin:'0 0 20px' }}>입점 문의 상세</h3>
 
-            {/* ① 회신 보내기 */}
-            <div style={{ border:'1px solid #E2E8F0', borderRadius:12, padding:'14px 16px', marginBottom:12 }}>
-              <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>① 회신 보내기</div>
-              <div style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 12px' }}>메시지 <strong>톤</strong>을 고르면 메일·문자 내용이 자동으로 채워집니다. (실제 발송은 메일/문자 앱에서)</div>
-
-              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>1. 메시지 톤 선택</div>
-              <div className="adm-btn-group" style={{ marginBottom:12 }}>
-                {([['general','일반 안내'],['accept','수락 안내'],['reject','거절 안내']] as const).map(([k, l]) => (
-                  <button key={k} type="button" className={`adm-seg-btn${inquiryTpl===k?' active':''}`} onClick={() => setInquiryTpl(k)}>{l}</button>
+            {/* 문의 정보 */}
+            <div style={{ marginBottom:20 }}>
+              <div style={secTitle}>문의 정보</div>
+              <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'6px 16px' }}>
+                {rows.map(([l, v, copyable], i) => (
+                  <div key={l} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderTop: i ? '1px solid #EEF2F6' : 'none' }}>
+                    <span style={{ fontSize:12, color:'#94A3B8', width:64, flexShrink:0 }}>{l}</span>
+                    <span style={{ fontSize:13, fontWeight:600, flex:1, wordBreak:'break-all' }}>{v || '-'}</span>
+                    {copyable && v && copyBtn(l, v)}
+                  </div>
                 ))}
               </div>
+            </div>
 
-              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>2. 내용 미리보기</div>
-              <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'10px 12px', fontSize:12.5, color:'#475569', lineHeight:1.65, whiteSpace:'pre-wrap', marginBottom:12, maxHeight:96, overflowY:'auto' }}>
-                {inquiryTemplate(inquiryTpl, selectedInquiry.company)}
+            {/* 문의 내용 */}
+            <div style={{ marginBottom:20 }}>
+              <div style={secTitle}>문의 내용</div>
+              <div style={{ fontSize:13, background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 14px', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{selectedInquiry.message}</div>
+            </div>
+
+            {/* 회신 문구 */}
+            <div style={{ marginBottom:20 }}>
+              <div style={secTitle}>회신 문구</div>
+              <div className="adm-btn-group" style={{ marginBottom:10 }}>
+                {([['general','일반 안내'],['accept','수락 안내'],['reject','거절 안내']] as const).map(([k, l]) => (
+                  <button key={k} type="button" className={`adm-seg-btn${inquiryTpl===k?' active':''}`}
+                    onClick={() => { setInquiryTpl(k); setInquiryReply(inquiryTemplate(k, selectedInquiry.company)); }}>{l}</button>
+                ))}
               </div>
+              <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
+                value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
+                placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요. (저장됩니다)" />
+              <div className="adm-muted" style={{ fontSize:11, marginTop:4 }}>톤 버튼을 누르면 기본 문구로 다시 채워집니다. 수정한 내용은 저장 시 그대로 보관됩니다.</div>
+            </div>
 
-              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>3. 보낼 방법 선택</div>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
-                  href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent('[델리오] 입점문의 회신')}&body=${encodeURIComponent(inquiryTemplate(inquiryTpl, selectedInquiry.company))}`}>📧 메일로 보내기</a>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }}
-                  onClick={() => { navigator.clipboard?.writeText(inquiryTemplate(inquiryTpl, selectedInquiry.company)); alert('위 내용이 복사되었습니다. 문자 앱에 붙여넣어 전송하세요.\n수신번호: ' + selectedInquiry.contact); }}>💬 문자 내용 복사</button>
-                <a className="adm-btn adm-btn-outline" style={{ fontSize:12, textDecoration:'none' }}
-                  href={`tel:${(selectedInquiry.contact || '').replace(/[^0-9+]/g, '')}`}>📞 전화 {selectedInquiry.contact}</a>
+            {/* 처리 상태 */}
+            <div style={{ marginBottom:8 }}>
+              <div style={secTitle}>처리 상태</div>
+              <div style={{ display:'flex', gap:8 }}>
+                {([['pending','대기'],['done','수락'],['rejected','거절']] as const).map(([k, l]) => {
+                  const on = inquiryStatusSel === k;
+                  const color = k === 'done' ? '#16A34A' : k === 'rejected' ? '#DC2626' : '#64748B';
+                  return (
+                    <button key={k} type="button" onClick={() => setInquiryStatusSel(k)}
+                      style={{ flex:1, padding:'9px 0', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer',
+                        border:'1.5px solid', borderColor: on ? color : '#E2E8F0', background: on ? color : '#fff', color: on ? '#fff' : '#94A3B8' }}>
+                      {l}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* ② 처리 결과 */}
-            <div style={{ border:'1px solid #E2E8F0', borderRadius:12, padding:'14px 16px' }}>
-              <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A' }}>② 처리 결과 기록</div>
-              <div style={{ fontSize:11, color:'#94A3B8', margin:'2px 0 12px' }}>이 입점 문의의 <strong>최종 결정</strong>을 기록합니다. (①의 회신 발송과는 별개)</div>
-              {['answered','done'].includes(selectedInquiry.status) ? (
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span className="adm-badge badge-done" style={{ fontSize:13, padding:'6px 14px' }}>✅ 수락 (처리완료)</span>
-                  <span style={{ fontSize:12, color:'#94A3B8' }}>이미 처리된 문의입니다.</span>
-                </div>
-              ) : selectedInquiry.status === 'rejected' ? (
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span className="adm-badge badge-off" style={{ fontSize:13, padding:'6px 14px' }}>거절됨</span>
-                  <span style={{ fontSize:12, color:'#94A3B8' }}>이미 처리된 문의입니다.</span>
-                </div>
-              ) : (
-                <div style={{ display:'flex', gap:8 }}>
-                  <button className="adm-btn adm-btn-primary" style={{ flex:1 }}
-                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'done')}>✅ 수락으로 처리</button>
-                  <button className="adm-btn adm-btn-outline" style={{ flex:1, color:'#EF4444', borderColor:'#FECACA' }}
-                    onClick={() => updateInquiryStatus(selectedInquiry.id, 'rejected')}>거절로 처리</button>
-                </div>
-              )}
+            {/* 푸터 */}
+            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:24 }}>
+              <button className="adm-btn adm-btn-outline" onClick={() => setSelectedInquiry(null)}>닫기</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveInquiryDetail}>저장</button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ===== 라운지 등록/수정 모달 ===== */}
       {loungeModal && (
