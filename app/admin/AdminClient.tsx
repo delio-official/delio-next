@@ -1079,6 +1079,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   /* 회원 목록 필터 (선택 모드) */
   const filteredForSelect = members.filter(m => {
     if (!m.phone) return false;
+    // 광고성은 마케팅 동의 회원만 발송 가능 → 목록에도 동의자만 노출(인원수 일치)
+    if (smsKind === 'ad' && m.marketing_sms !== true) return false;
     const q = memberSearch.toLowerCase();
     return !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || m.phone.includes(q);
   });
@@ -1145,9 +1147,11 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const targetCount  = buildTargets().length;
   const estCost      = unitCost * targetCount;
   const GRADE_LABEL_MAP: Record<string,string> = { beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터' };
+  // 발송 가능 인원(번호 보유 + 광고성이면 마케팅 동의) 기준으로 등급별 카운트 → 광고성/안내성에 따라 달라짐
+  const eligible = (m: AdminProfile) => !!m.phone && (smsKind !== 'ad' || m.marketing_sms === true);
   const gradeCount = (g: string) => g === 'high'
-    ? members.filter(m => ['buyer','master'].includes(m.grade)).length
-    : members.filter(m => m.grade === g).length;
+    ? members.filter(m => eligible(m) && ['buyer','master'].includes(m.grade)).length
+    : members.filter(m => eligible(m) && m.grade === g).length;
   const GRADE_OPTS: [string, string][] = [
     ['beginner','비기너만'], ['taster','테이스터만'], ['buyer','바이어만'], ['master','마스터만'], ['high','바이어·마스터 이상'],
   ];
@@ -1269,7 +1273,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   {membersLoading ? (
                     <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>로딩 중...</div>
                   ) : filteredForSelect.length === 0 ? (
-                    <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>전화번호 있는 회원 없음</div>
+                    <div style={{ textAlign:'center', padding:'20px 0', color:'#94A3B8', fontSize:13 }}>{smsKind === 'ad' ? '마케팅 수신동의한 회원 없음' : '전화번호 있는 회원 없음'}</div>
                   ) : filteredForSelect.map(m => (
                     <label key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 14px', borderBottom:'1px solid #F4F4F4', cursor:'pointer', background: selectedIds.has(m.id) ? '#EFF6FF' : '#fff' }}>
                       <input type="checkbox" checked={selectedIds.has(m.id)} onChange={() => toggleSelect(m.id)} />
