@@ -2410,6 +2410,7 @@ export default function AdminClient() {
   const [selectedCs, setSelectedCs] = useState<CsInquiryAdmin | null>(null);
   const [csAnswer, setCsAnswer] = useState('');
   const [csAnswering, setCsAnswering] = useState(false);
+  const [csUserMap, setCsUserMap] = useState<Record<string, { name: string; email: string }>>({});
   const [csAdminTab, setCsAdminTab] = useState('tab-all');
   const [csCatFilter, setCsCatFilter] = useState('');
   const [csFrom, setCsFrom] = useState('');
@@ -4337,8 +4338,17 @@ export default function AdminClient() {
     setCsAdminLoading(true);
     const supabase = createClient();
     const { data } = await supabase.from('cs_inquiries').select('*').order('created_at', { ascending: false }).limit(200);
-    setCsItems((data as CsInquiryAdmin[]) || []);
+    const list = (data as CsInquiryAdmin[]) || [];
+    setCsItems(list);
     setCsAdminLoading(false);
+    // 작성자(이름·이메일) 매핑
+    const ids = [...new Set(list.map(c => c.user_id).filter(Boolean))];
+    if (ids.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, name, email').in('id', ids);
+      const m: Record<string, { name: string; email: string }> = {};
+      (profs as { id: string; name: string; email: string }[] | null)?.forEach(p => { m[p.id] = { name: p.name, email: p.email }; });
+      setCsUserMap(m);
+    }
   }
 
   async function answerCs() {
@@ -7126,6 +7136,13 @@ export default function AdminClient() {
                   <div className="adm-detail-val">{fmtDate(selectedCs.created_at)}</div>
                 </div>
                 <div className="adm-detail-group" style={{ gridColumn:'1 / -1' }}>
+                  <div className="adm-detail-label">작성자</div>
+                  <div className="adm-detail-val">
+                    {csUserMap[selectedCs.user_id]?.name || '-'}
+                    {csUserMap[selectedCs.user_id]?.email && <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>{csUserMap[selectedCs.user_id]?.email}</span>}
+                  </div>
+                </div>
+                <div className="adm-detail-group" style={{ gridColumn:'1 / -1' }}>
                   <div className="adm-detail-label">제목</div>
                   <div className="adm-detail-val">{selectedCs.title}</div>
                 </div>
@@ -7150,18 +7167,10 @@ export default function AdminClient() {
                   </div>
                 </div>
               )}
-              {selectedCs.answer && (
-                <div>
-                  <div className="adm-detail-label" style={{ marginBottom:6 }}>기존 답변</div>
-                  <div style={{ background:'#F0FDF4', borderRadius:8, padding:'14px 16px', fontSize:13, lineHeight:1.8, color:'#166534', whiteSpace:'pre-line', border:'1px solid #BBF7D0' }}>
-                    {selectedCs.answer}
-                  </div>
-                </div>
-              )}
               <div>
-                <label className="adm-label">{selectedCs.answer ? '답변 수정' : '답변 작성'} *</label>
-                <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
-                  value={csAnswer || selectedCs.answer || ''}
+                <label className="adm-label">답변 {selectedCs.status === 'answered' && <span className="adm-muted" style={{ fontWeight:400 }}>(수정)</span>}</label>
+                <textarea className="adm-textarea" rows={6} style={{ width:'100%' }}
+                  value={csAnswer}
                   onChange={e => setCsAnswer(e.target.value)}
                   placeholder="고객에게 전달할 답변을 입력하세요." />
               </div>
@@ -11174,12 +11183,6 @@ export default function AdminClient() {
                   </div>
                 ))}
               </div>
-              <TabBtns active={csAdminTab} setActive={setCsAdminTab}
-                tabs={[
-                  { id:'tab-all',      label: '전체' },
-                  { id:'tab-answered', label: '답변 완료' },
-                  { id:'tab-pending',  label: <span>답변 대기 {csPending.length > 0 && <span className="adm-tab-count adm-tab-count-red">{csPending.length}</span>}</span> },
-                ]} />
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={csCatFilter} onChange={setCsCatFilter}
@@ -11208,17 +11211,23 @@ export default function AdminClient() {
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
-                        <tr><th>카테고리</th><th>제목</th><th>첨부</th><th>접수일시</th><th>상태</th><th>관리</th></tr>
+                        <tr><th>카테고리</th><th>작성자</th><th style={{ textAlign:'left' }}>제목</th><th>첨부</th><th>접수일시</th><th>상태</th><th>관리</th></tr>
                       </thead>
                       <tbody>
                         {csTabList.length === 0 ? (
-                          <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                             {csItems.length === 0 ? '1:1 문의 없음 (cs_inquiries 테이블 생성 필요)' : '해당 항목 없음'}
                           </td></tr>
-                        ) : csTabList.map(c => (
+                        ) : csTabList.map(c => {
+                          const u = csUserMap[c.user_id];
+                          return (
                           <tr key={c.id}>
                             <td><span className="adm-badge badge-paid">{CS_CAT_LABEL[c.category] || c.category}</span></td>
-                            <td style={{ maxWidth:280, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
+                            <td>
+                              <div style={{ fontWeight:500 }}>{u?.name || '-'}</div>
+                              {u?.email && <div className="adm-muted" style={{ fontSize:11 }}>{u.email}</div>}
+                            </td>
+                            <td style={{ textAlign:'left', maxWidth:280, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
                             <td>{c.attachments && c.attachments.length > 0 ? <span style={{ fontSize:13 }}>📎 {c.attachments.length}</span> : '-'}</td>
                             <td className="adm-muted">{fmtDate(c.created_at)}</td>
                             <td>
@@ -11232,7 +11241,8 @@ export default function AdminClient() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
