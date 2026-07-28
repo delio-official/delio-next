@@ -12981,11 +12981,19 @@ export default function AdminClient() {
             {/* 회신 문구 */}
             <div style={{ marginBottom:20 }}>
               <div style={secTitle}>회신 문구</div>
-              <div className="adm-btn-group" style={{ marginBottom:10 }}>
-                {([['general','일반 안내'],['accept','수락 안내'],['reject','거절 안내']] as const).map(([k, l]) => (
-                  <button key={k} type="button" className={`adm-seg-btn${inquiryTpl===k?' active':''}`}
-                    onClick={() => { setInquiryTpl(k); setInquiryReply(inquiryTemplate(k, selectedInquiry.company)); }}>{l}</button>
-                ))}
+              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>톤 선택</div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+                {([['general','일반 안내'],['accept','수락 안내'],['reject','거절 안내']] as const).map(([k, l]) => {
+                  const on = inquiryTpl === k;
+                  return (
+                    <button key={k} type="button"
+                      onClick={() => { setInquiryTpl(k); setInquiryReply(inquiryTemplate(k, selectedInquiry.company)); }}
+                      style={{ padding:'7px 16px', borderRadius:8, border:'1.5px solid', fontSize:12, fontWeight:600, cursor:'pointer',
+                        borderColor: on ? '#1A1A1A' : '#E2E8F0', background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#64748B' }}>
+                      {l}
+                    </button>
+                  );
+                })}
               </div>
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
