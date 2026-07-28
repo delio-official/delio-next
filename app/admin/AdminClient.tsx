@@ -2403,6 +2403,8 @@ export default function AdminClient() {
   const [piqSearch, setPiqSearch] = useState('');
   const [piqFrom, setPiqFrom] = useState('');
   const [piqTo, setPiqTo] = useState('');
+  const [piqUserMap, setPiqUserMap] = useState<Record<string, { name: string; email: string }>>({});
+  const [piqTplSel, setPiqTplSel] = useState('');
 
   /* ── 1:1 문의 ── */
   const [csItems, setCsItems] = useState<CsInquiryAdmin[]>([]);
@@ -4316,8 +4318,18 @@ export default function AdminClient() {
       .select('id, product_id, user_id, category, content, is_private, answer, answered_at, created_at, products(name)')
       .order('created_at', { ascending: false })
       .limit(200);
-    setProductInquiries((data as unknown as AdminProductInquiry[]) || []);
+    const list = (data as unknown as AdminProductInquiry[]) || [];
+    setProductInquiries(list);
     setProductInquiriesLoading(false);
+    loadCsTemplates();
+    // 작성자(이름·이메일) 매핑
+    const ids = [...new Set(list.map(q => q.user_id).filter(Boolean))] as string[];
+    if (ids.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, name, email').in('id', ids);
+      const m: Record<string, { name: string; email: string }> = {};
+      (profs as { id: string; name: string; email: string }[] | null)?.forEach(p => { m[p.id] = { name: p.name, email: p.email }; });
+      setPiqUserMap(m);
+    }
   }
 
   async function answerProductInquiry() {
@@ -4330,9 +4342,80 @@ export default function AdminClient() {
     if (!error) {
       setProductInquiries(prev => prev.map(q => q.id === selectedProductInquiry.id
         ? { ...q, answer: piqAnswer.trim(), answered_at: new Date().toISOString() } : q));
-      setSelectedProductInquiry(prev => prev ? { ...prev, answer: piqAnswer.trim(), answered_at: new Date().toISOString() } : null);
+      setSelectedProductInquiry(null);
     } else { alert('답변 저장 실패: ' + error.message); }
     setPiqAnswering(false);
+  }
+
+  /* 상품문의 비공개 토글 */
+  async function togglePiqPrivate() {
+    if (!selectedProductInquiry) return;
+    const next = !selectedProductInquiry.is_private;
+    const supabase = createClient();
+    const { error } = await supabase.from('product_inquiries').update({ is_private: next }).eq('id', selectedProductInquiry.id);
+    if (error) { alert('처리 실패: ' + error.message); return; }
+    setProductInquiries(prev => prev.map(q => q.id === selectedProductInquiry.id ? { ...q, is_private: next } : q));
+    setSelectedProductInquiry(prev => prev ? { ...prev, is_private: next } : null);
+  }
+  /* 상품문의 삭제 */
+  async function deletePiq() {
+    if (!selectedProductInquiry) return;
+    if (!confirm('이 상품 문의를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('product_inquiries').delete().eq('id', selectedProductInquiry.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setProductInquiries(prev => prev.filter(q => q.id !== selectedProductInquiry.id));
+    setSelectedProductInquiry(null);
+  }
+  /* 1:1 문의 삭제 */
+  async function deleteCs() {
+    if (!selectedCs) return;
+    if (!confirm('이 1:1 문의를 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('cs_inquiries').delete().eq('id', selectedCs.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setCsItems(prev => prev.filter(c => c.id !== selectedCs.id));
+    setSelectedCs(null); setCsAnswer('');
+  }
+
+  /* 상품문의 답변 템플릿 (cs_templates 공용 풀 재사용) */
+  function applyPiqTemplate() {
+    const t = csTemplates.find(x => x.id === piqTplSel);
+    if (!t) { alert('불러올 템플릿을 선택하세요.'); return; }
+    setPiqAnswer(t.content);
+  }
+  async function savePiqTemplate() {
+    if (!piqAnswer.trim()) { alert('저장할 내용이 없습니다.'); return; }
+    const title = prompt('템플릿 이름을 입력하세요.');
+    if (!title || !title.trim()) return;
+    const supabase = createClient();
+    const { data, error } = await supabase.from('cs_templates').insert({ title: title.trim(), content: piqAnswer }).select('id, title, content').single();
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setCsTemplates(prev => [data as { id: string; title: string; content: string }, ...prev]);
+    setPiqTplSel((data as { id: string }).id);
+    alert('템플릿을 저장했습니다.');
+  }
+  async function updatePiqTemplate() {
+    const t = csTemplates.find(x => x.id === piqTplSel);
+    if (!t) { alert('수정할 템플릿을 선택하세요.'); return; }
+    const title = prompt('템플릿 이름', t.title)?.trim();
+    if (!title) return;
+    if (!confirm(`'${title}' 템플릿을 현재 답변 내용으로 저장할까요?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('cs_templates').update({ title, content: piqAnswer }).eq('id', t.id);
+    if (error) { alert('수정 실패: ' + error.message); return; }
+    setCsTemplates(prev => prev.map(x => x.id === t.id ? { ...x, title, content: piqAnswer } : x));
+    alert('템플릿을 수정했습니다.');
+  }
+  async function deletePiqTemplate() {
+    const t = csTemplates.find(x => x.id === piqTplSel);
+    if (!t) { alert('삭제할 템플릿을 선택하세요.'); return; }
+    if (!confirm(`템플릿 "${t.title}"을(를) 삭제하시겠습니까?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('cs_templates').delete().eq('id', t.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setCsTemplates(prev => prev.filter(x => x.id !== t.id));
+    setPiqTplSel('');
   }
 
   /* ========== 1:1 문의 ========== */
@@ -7233,7 +7316,9 @@ export default function AdminClient() {
                   placeholder="고객에게 전달할 답변을 입력하세요." />
               </div>
 
-              <div className="adm-flex-gap adm-flex-end">
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button className="adm-btn adm-btn-outline" onClick={deleteCs} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
+                <div style={{ flex:1 }} />
                 <button className="adm-btn adm-btn-outline" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>닫기</button>
                 <button className="adm-btn adm-btn-primary" onClick={answerCs} disabled={csAnswering}>
                   {csAnswering ? '저장 중...' : '저장'}
@@ -11367,16 +11452,22 @@ export default function AdminClient() {
                     <div className="adm-table-wrap">
                       <table className="adm-table">
                         <thead>
-                          <tr><th>상품</th><th>카테고리</th><th>문의 내용</th><th>비밀</th><th>상태</th><th>접수일</th></tr>
+                          <tr><th>상품</th><th>작성자</th><th>카테고리</th><th style={{ textAlign:'left' }}>문의 내용</th><th>비밀</th><th>상태</th><th>접수일</th><th>관리</th></tr>
                         </thead>
                         <tbody>
                           {filtered.length === 0 ? (
-                            <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>문의 없음</td></tr>
-                          ) : filtered.map(q => (
-                            <tr key={q.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedProductInquiry(q); setPiqAnswer(q.answer || ''); }}>
+                            <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>문의 없음</td></tr>
+                          ) : filtered.map(q => {
+                            const u = q.user_id ? piqUserMap[q.user_id] : undefined;
+                            return (
+                            <tr key={q.id} style={{ cursor:'pointer' }} onClick={() => { setSelectedProductInquiry(q); setPiqAnswer(q.answer || ''); setPiqTplSel(''); }}>
                               <td style={{ fontWeight:500, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.products?.name || '-'}</td>
+                              <td>
+                                <div style={{ fontWeight:500 }}>{u?.name || '-'}</div>
+                                {u?.email && <div className="adm-muted" style={{ fontSize:11 }}>{u.email}</div>}
+                              </td>
                               <td><span className="adm-badge badge-paid">{q.category}</span></td>
-                              <td style={{ maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</td>
+                              <td style={{ textAlign:'left', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</td>
                               <td>{q.is_private ? '🔒' : '-'}</td>
                               <td>
                                 <span className={`adm-badge ${q.answer ? 'badge-done' : 'badge-off'}`}>
@@ -11384,8 +11475,14 @@ export default function AdminClient() {
                                 </span>
                               </td>
                               <td className="adm-muted">{fmtDate(q.created_at)}</td>
+                              <td>
+                                <button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); setSelectedProductInquiry(q); setPiqAnswer(q.answer || ''); setPiqTplSel(''); }}>
+                                  {q.answer ? '수정' : '답변'}
+                                </button>
+                              </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -13069,47 +13166,67 @@ export default function AdminClient() {
 
       {/* ===== 상품 문의 상세 + 답변 모달 ===== */}
       {selectedProductInquiry && (
-        <div className="adm-float-overlay" onClick={() => setSelectedProductInquiry(null)}>
-          <div className="adm-float-modal" style={{ maxWidth:540 }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding:'16px 20px', borderBottom:'1px solid #F0F0F0', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#fff', zIndex:1 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <span className="adm-badge badge-paid">{selectedProductInquiry.category}</span>
-                {selectedProductInquiry.is_private && <span style={{ fontSize:12 }}>🔒 비밀문의</span>}
-                <span className={`adm-badge ${selectedProductInquiry.answer ? 'badge-done' : 'badge-off'}`}>
-                  {selectedProductInquiry.answer ? '답변완료' : '대기중'}
-                </span>
-              </div>
-              <button onClick={() => setSelectedProductInquiry(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+        <div className="adm-modal-bg open" onClick={() => setSelectedProductInquiry(null)}>
+          <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">상품 문의 상세</span>
             </div>
-            <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:14 }}>
-              {/* 상품 + 접수일 */}
-              <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13 }}>
-                <div><span style={{ color:'#64748B' }}>상품</span> <strong>{selectedProductInquiry.products?.name || '-'}</strong></div>
-                <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>접수일</span> {fmtDate(selectedProductInquiry.created_at)}</div>
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
+              {/* 문의 정보 */}
+              <div>
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>문의 정보</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px 16px' }}>
+                  {([
+                    ['상품', selectedProductInquiry.products?.name || '-'],
+                    ['카테고리', selectedProductInquiry.category],
+                    ['작성자', selectedProductInquiry.user_id ? (piqUserMap[selectedProductInquiry.user_id]?.name || '-') : '비회원'],
+                    ['이메일', (selectedProductInquiry.user_id && piqUserMap[selectedProductInquiry.user_id]?.email) || '-'],
+                    ['접수일', fmtDate(selectedProductInquiry.created_at)],
+                    ['공개', selectedProductInquiry.is_private ? '🔒 비공개' : '공개'],
+                  ] as [string, string][]).map(([l, v]) => (
+                    <div key={l}>
+                      <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', wordBreak:'break-all' }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
+
               {/* 문의 내용 */}
               <div>
-                <div style={{ fontSize:12, fontWeight:700, color:'#64748B', marginBottom:6 }}>문의 내용</div>
-                <div style={{ fontSize:14, lineHeight:1.8, color:'#1A1A1A', background:'#F8FAFC', borderRadius:8, padding:'12px 14px', whiteSpace:'pre-wrap' }}>
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>문의 내용</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', fontSize:13, lineHeight:1.8, color:'#334155', whiteSpace:'pre-line' }}>
                   {selectedProductInquiry.content}
                 </div>
               </div>
-              {/* 답변 입력 */}
+
+              {/* 답변 작성 */}
               <div>
-                <div style={{ fontSize:12, fontWeight:700, color:'#64748B', marginBottom:6 }}>
-                  {selectedProductInquiry.answer ? '답변 수정' : '답변 작성'}
-                  {selectedProductInquiry.answered_at && (
-                    <span style={{ fontWeight:400, marginLeft:8, color:'#94A3B8' }}>{fmtDate(selectedProductInquiry.answered_at)} 답변됨</span>
-                  )}
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>답변 작성 {selectedProductInquiry.answer && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(수정{selectedProductInquiry.answered_at ? ` · ${fmtDate(selectedProductInquiry.answered_at)} 답변됨` : ''})</span>}</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+                  <AdmSelect value={piqTplSel} onChange={setPiqTplSel} placeholder="템플릿 선택..." style={{ minWidth:180, flex:1 }}
+                    options={[{ value:'', label:'선택 안함' }, ...csTemplates.map(t => ({ value:t.id, label:t.title }))]} />
+                  <button className="adm-btn adm-btn-outline" onClick={applyPiqTemplate}>불러오기</button>
+                  <button className="adm-btn adm-btn-outline" onClick={savePiqTemplate}>현재 내용 저장</button>
+                  <button className="adm-btn adm-btn-outline" onClick={updatePiqTemplate} disabled={!piqTplSel}>수정</button>
+                  <button className="adm-btn adm-btn-outline" onClick={deletePiqTemplate} disabled={!piqTplSel}
+                    style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
                 </div>
-                <textarea rows={5} value={piqAnswer} onChange={e => setPiqAnswer(e.target.value)}
-                  placeholder="고객에게 보여질 답변을 입력해주세요."
-                  style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', resize:'vertical', outline:'none', boxSizing:'border-box' }} />
+                <textarea className="adm-textarea" rows={6} style={{ width:'100%' }}
+                  value={piqAnswer} onChange={e => setPiqAnswer(e.target.value)}
+                  placeholder="고객에게 보여질 답변을 입력해주세요." />
               </div>
-              <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+
+              {/* 푸터: 좌측 비공개/삭제, 우측 닫기/저장 */}
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button className="adm-btn adm-btn-outline" onClick={togglePiqPrivate}>
+                  {selectedProductInquiry.is_private ? '공개로 전환' : '비공개로 전환'}
+                </button>
+                <button className="adm-btn adm-btn-outline" onClick={deletePiq} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
+                <div style={{ flex:1 }} />
                 <button className="adm-btn adm-btn-outline" onClick={() => setSelectedProductInquiry(null)}>닫기</button>
                 <button className="adm-btn adm-btn-primary" onClick={answerProductInquiry} disabled={piqAnswering || !piqAnswer.trim()}>
-                  {piqAnswering ? '저장 중...' : selectedProductInquiry.answer ? '답변 수정' : '답변 등록'}
+                  {piqAnswering ? '저장 중...' : '저장'}
                 </button>
               </div>
             </div>
