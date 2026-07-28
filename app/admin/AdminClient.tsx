@@ -1289,7 +1289,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               <label className="adm-label">템플릿</label>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap', width:'100%' }}>
                 <AdmSelect value={tplSel} onChange={setTplSel} placeholder="템플릿 선택..." style={{ minWidth:200, flex:1 }}
-                  options={templates.map(t => ({ value:t.id, label:t.title }))} />
+                  options={[{ value:'', label:'선택 안함' }, ...templates.map(t => ({ value:t.id, label:t.title }))]} />
                 <button className="adm-btn adm-btn-outline" onClick={applyTemplate}>불러오기</button>
                 <button className="adm-btn adm-btn-outline" onClick={saveTemplate}>현재 내용 저장</button>
                 <button className="adm-btn adm-btn-outline" onClick={deleteTemplate} disabled={!tplSel}
