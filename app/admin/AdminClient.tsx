@@ -1398,7 +1398,6 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-all', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', whiteSpace:'pre-wrap' }}>
                     {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
                     {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
-                    {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>무료수신거부 080-XXX-XXXX</span>}
                   </div>
                 </div>
               </div>
