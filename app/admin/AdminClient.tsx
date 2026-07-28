@@ -11130,7 +11130,9 @@ export default function AdminClient() {
                             <td>{f.category}</td>
                             <td style={{ textAlign:'left', maxWidth:420, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
                             <td>
-                              <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
+                              <div style={{ display:'flex', justifyContent:'center' }}>
+                                <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
+                              </div>
                             </td>
                             <td>
                               <div style={{ display:'inline-flex', gap:6 }}>
