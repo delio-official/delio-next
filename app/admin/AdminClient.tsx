@@ -2505,7 +2505,7 @@ export default function AdminClient() {
   /* 쿠폰별 발급/사용 집계 — 목록의 '발급/사용(사용률)' 칸용 */
   const [couponUsage, setCouponUsage] = useState<Record<string, { issued: number; used: number }>>({});
   const [bannerTab, setBannerTab] = useState('tab-banner');
-  const [inquiryTab, setInquiryTab] = useState('tab-general');
+  const [inquiryTab, setInquiryTab] = useState('tab-all');
   const [inquiryFrom, setInquiryFrom] = useState('');
   const [inquiryTo, setInquiryTo] = useState('');
   const [inquirySearch, setInquirySearch] = useState('');
