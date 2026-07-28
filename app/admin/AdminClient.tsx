@@ -2296,10 +2296,16 @@ export default function AdminClient() {
   const [referralsLoading, setReferralsLoading] = useState(false);
   const [referralSearch, setReferralSearch] = useState('');
   const [referralStatusFilter, setReferralStatusFilter] = useState<'all'|'pending'|'rewarded'>('all');
+  const [referralTab, setReferralTab] = useState<'history'|'coupons'>('history'); // 추천 이력 / 쿠폰 발급 내역
+  const [refFrom, setRefFrom] = useState(''); const [refTo, setRefTo] = useState('');           // 추천 이력 기간
+  const [firstOrderMap, setFirstOrderMap] = useState<Record<string, string>>({});                // user_id → 첫 주문일
   /* 친구추천 발급 쿠폰 내역 */
   interface RefCoupon { key: string; referral_id: string | null; reward_type: string; created_at: string; recipient_name: string; recipient_email: string; discount_value: number; is_used: boolean; used_at: string | null; expires_at: string | null; }
   const [refCoupons, setRefCoupons] = useState<RefCoupon[]>([]);
   const [refCouponsLoading, setRefCouponsLoading] = useState(false);
+  const [refCpSearch, setRefCpSearch] = useState('');
+  const [refCpStatus, setRefCpStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
+  const [refCpFrom, setRefCpFrom] = useState(''); const [refCpTo, setRefCpTo] = useState('');     // 쿠폰내역 기간
 
   /* 쿠폰 지급 내역 (회원별) */
   interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; expires_at: string | null; used_at: string | null; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
@@ -3628,8 +3634,20 @@ export default function AdminClient() {
       `)
       .order('created_at', { ascending: false })
       .limit(200);
-    setReferrals((data as unknown as AdminReferral[]) || []);
+    const list = (data as unknown as AdminReferral[]) || [];
+    setReferrals(list);
     setReferralsLoading(false);
+    /* 피추천인 첫 주문일 (결제완료 이상) */
+    const referredIds = [...new Set(list.map(r => r.referred_id).filter(Boolean))];
+    if (referredIds.length) {
+      const { data: ords } = await supabase.from('orders')
+        .select('user_id, created_at, status')
+        .in('user_id', referredIds).in('status', VALID_ORDER_STATUS)
+        .order('created_at', { ascending: true });
+      const fo: Record<string, string> = {};
+      (ords || []).forEach((o: { user_id: string; created_at: string }) => { if (o.user_id && !fo[o.user_id]) fo[o.user_id] = o.created_at; });
+      setFirstOrderMap(fo);
+    }
   }
 
   /* 친구추천으로 발급된 쿠폰 내역 (referral_rewards → user_coupons → profiles/coupons, JS 조인) */
@@ -10436,8 +10454,53 @@ export default function AdminClient() {
                 (r.referrer?.email || '').toLowerCase().includes(q) ||
                 (r.referred?.name || '').toLowerCase().includes(q) ||
                 (r.referred?.email || '').toLowerCase().includes(q);
-              return matchStatus && matchSearch;
+              const d = r.created_at.slice(0,10);
+              const matchDate = (!refFrom || d >= refFrom) && (!refTo || d <= refTo);
+              return matchStatus && matchSearch && matchDate;
             });
+            /* 쿠폰 상태 (사용완료 / 미사용 / 기간만료) */
+            const todayStr = new Date().toISOString().slice(0,10);
+            const cpStatus = (c?: RefCoupon) => {
+              if (!c) return null;
+              if (c.is_used) return { label:'사용완료', bg:'#DCFCE7', color:'#16A34A' };
+              if (c.expires_at && c.expires_at.slice(0,10) < todayStr) return { label:'기간만료', bg:'#FEE2E2', color:'#DC2626' };
+              return { label:'미사용', bg:'#F1F5F9', color:'#64748B' };
+            };
+            /* 쿠폰내역 — referral_id로 추천인/피추천인 묶기 */
+            const cpGroups = (() => {
+              const byRef = new Map<string, { referrer?: RefCoupon; referred?: RefCoupon }>();
+              refCoupons.forEach(c => {
+                const k = c.referral_id || c.key;
+                const g = byRef.get(k) || {};
+                if (c.reward_type === 'referrer') g.referrer = c; else g.referred = c;
+                byRef.set(k, g);
+              });
+              return [...byRef.entries()].map(([refId, g]) => ({ refId, ...g, rel: referrals.find(r => r.id === refId) }))
+                .sort((a, z) => (z.referred?.created_at || z.referrer?.created_at || '').localeCompare(a.referred?.created_at || a.referrer?.created_at || ''));
+            })();
+            const filteredCpGroups = cpGroups.filter(g => {
+              const q = refCpSearch.toLowerCase();
+              const matchSearch = !q ||
+                (g.referrer?.recipient_name || g.rel?.referrer?.name || '').toLowerCase().includes(q) ||
+                (g.referred?.recipient_name || g.rel?.referred?.name || '').toLowerCase().includes(q) ||
+                (g.referrer?.recipient_email || '').toLowerCase().includes(q) ||
+                (g.referred?.recipient_email || '').toLowerCase().includes(q);
+              const main = g.referred || g.referrer;
+              const st = cpStatus(main)?.label;
+              const matchStatus = refCpStatus === 'all'
+                || (refCpStatus === 'used' && st === '사용완료')
+                || (refCpStatus === 'unused' && st === '미사용')
+                || (refCpStatus === 'expired' && st === '기간만료');
+              const d = (main?.created_at || '').slice(0,10);
+              const matchDate = (!refCpFrom || d >= refCpFrom) && (!refCpTo || d <= refCpTo);
+              return matchSearch && matchStatus && matchDate;
+            });
+
+            const CpBadge = ({ c }: { c?: RefCoupon }) => {
+              const s = cpStatus(c);
+              if (!s) return <span className="adm-muted" style={{ fontSize:11 }}>—</span>;
+              return <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:10, fontSize:11, fontWeight:600, background:s.bg, color:s.color }}>{s.label}</span>;
+            };
 
             return (
               <div className="adm-content">
@@ -10454,110 +10517,164 @@ export default function AdminClient() {
                   ))}
                 </div>
 
-                <div className="adm-toolbar">
-                  <div className="adm-toolbar-left">
-                    <AdmSelect value={referralStatusFilter} onChange={v => setReferralStatusFilter(v as 'all'|'pending'|'rewarded')}
-                      options={[{ value:'all', label:'전체 상태' }, { value:'pending', label:'대기중' }, { value:'rewarded', label:'지급 완료' }]} />
-                    <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
-                      value={referralSearch} onChange={e => setReferralSearch(e.target.value)} />
-                  </div>
-                  <div className="adm-toolbar-right">
-                    <button className="adm-btn adm-btn-outline" onClick={loadReferrals}>
-                      <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
-                    </button>
-                  </div>
-                </div>
+                <TabBtns active={referralTab} setActive={id => setReferralTab(id as 'history'|'coupons')}
+                  tabs={[{ id:'history', label:'추천 이력' }, { id:'coupons', label:'쿠폰 발급 내역' }]} />
 
-                <div className="adm-card">
-                  {referralsLoading ? <PanelLoading /> : (
-                    <div className="adm-table-wrap">
-                      <table className="adm-table">
-                        <thead>
-                          <tr>
-                            <th>추천인</th>
-                            <th>피추천인</th>
-                            <th>가입일</th>
-                            <th>리워드 상태</th>
-                            <th>지급일</th>
-                            <th>관리</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredReferrals.length === 0 ? (
-                            <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
-                              {referrals.length === 0 ? '친구 추천 이력 없음' : '검색 결과 없음'}
-                            </td></tr>
-                          ) : filteredReferrals.map(r => (
-                            <tr key={r.id}>
-                              <td>
-                                <div style={{ fontWeight:500 }}>{r.referrer?.name || '(탈퇴)'}</div>
-                                <div className="adm-muted" style={{ fontSize:11 }}>{r.referrer?.email || ''}</div>
-                              </td>
-                              <td>
-                                <div style={{ fontWeight:500 }}>{r.referred?.name || '(탈퇴)'}</div>
-                                <div className="adm-muted" style={{ fontSize:11 }}>{r.referred?.email || ''}</div>
-                              </td>
-                              <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
-                              <td>
-                                <span className={`adm-badge ${r.rewarded ? 'badge-paid' : 'badge-wait'}`}>
-                                  {r.rewarded ? '지급 완료' : '대기중'}
-                                </span>
-                              </td>
-                              <td className="adm-muted">{r.rewarded_at ? fmtDateShort(r.rewarded_at) : '—'}</td>
-                              <td>
-                                {r.rewarded && (() => {
-                                  const used = usedReferrerSet.has(r.id);
-                                  return (
-                                    <button className="adm-row-btn adm-row-btn-danger" disabled={used}
-                                      title={used ? '추천인이 보상 쿠폰을 이미 사용하여 철회할 수 없습니다' : ''}
-                                      onClick={() => { if (!used) revokeReferralReward(r); }}
-                                      style={used ? { opacity:0.45, cursor:'not-allowed' } : undefined}>철회</button>
-                                  );
-                                })()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {/* ===== 추천 이력 ===== */}
+                {referralTab === 'history' && (<>
+                  <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                    <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                      <AdmSelect value={referralStatusFilter} onChange={v => setReferralStatusFilter(v as 'all'|'pending'|'rewarded')}
+                        options={[{ value:'all', label:'전체 상태' }, { value:'pending', label:'대기중' }, { value:'rewarded', label:'지급 완료' }]} />
+                      <input type="date" className="adm-select" value={refFrom} onChange={e => setRefFrom(e.target.value)} />
+                      <span className="adm-muted">~</span>
+                      <input type="date" className="adm-select" value={refTo} onChange={e => setRefTo(e.target.value)} />
+                      <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
+                        value={referralSearch} onChange={e => setReferralSearch(e.target.value)} />
                     </div>
-                  )}
-                </div>
-
-                {/* 친구추천으로 발급된 쿠폰 내역 */}
-                <div className="adm-card" style={{ marginTop:16 }}>
-                  <div className="adm-card-head">
-                    <span className="adm-card-title">친구추천으로 발급된 쿠폰 내역 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(피추천인 가입쿠폰 + 추천인 보상쿠폰)</span></span>
-                    <button className="adm-btn adm-btn-outline" style={{ marginLeft:'auto' }} onClick={loadReferralCoupons}>새로고침</button>
+                    <div className="adm-toolbar-right">
+                      <button className="adm-btn adm-btn-outline" onClick={loadReferrals}>
+                        <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                      </button>
+                    </div>
                   </div>
-                  {refCouponsLoading ? <PanelLoading /> : refCoupons.length === 0 ? (
-                    <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0', fontSize:13 }}>발급된 추천 쿠폰이 없습니다.</div>
-                  ) : (() => {
-                    const cur = Math.min(Math.max(1, refcPage), Math.max(1, Math.ceil(refCoupons.length / refcSize)));
-                    const paged = refCoupons.slice((cur - 1) * refcSize, cur * refcSize);
-                    return (
-                      <>
-                        <div className="adm-table-wrap">
-                          <table className="adm-table">
-                            <thead><tr><th>수령자</th><th>유형</th><th>금액</th><th>발급일</th><th>사용 여부</th><th>사용 / 만료</th></tr></thead>
-                            <tbody>
-                              {paged.map(rc => (
-                                <tr key={rc.key}>
-                                  <td><div style={{ fontWeight:500 }}>{rc.recipient_name}</div><div className="adm-muted" style={{ fontSize:11 }}>{rc.recipient_email}</div></td>
-                                  <td><span className={`adm-badge ${rc.reward_type==='referrer'?'badge-paid':'badge-normal'}`}>{rc.reward_type==='referrer'?'추천인 보상':'피추천인 가입'}</span></td>
-                                  <td style={{ fontWeight:700 }}>{rc.discount_value.toLocaleString()}원</td>
-                                  <td className="adm-muted">{fmtDateShort(rc.created_at)}</td>
-                                  <td>{rc.is_used ? <span className="adm-badge badge-off">사용됨</span> : <span className="adm-badge badge-on">미사용</span>}</td>
-                                  <td className="adm-muted">{rc.is_used ? (rc.used_at ? `사용 ${fmtDateShort(rc.used_at)}` : '사용됨') : (rc.expires_at ? `만료 ${fmtDateShort(rc.expires_at)}` : '무제한')}</td>
+
+                  <div className="adm-card">
+                    {referralsLoading ? <PanelLoading /> : (
+                      <div className="adm-table-wrap">
+                        <table className="adm-table">
+                          <thead>
+                            <tr>
+                              <th>추천인</th>
+                              <th>피추천인</th>
+                              <th>가입일</th>
+                              <th>첫 구매일</th>
+                              <th>리워드 상태</th>
+                              <th>지급일</th>
+                              <th>관리</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredReferrals.length === 0 ? (
+                              <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                                {referrals.length === 0 ? '친구 추천 이력 없음' : '검색 결과 없음'}
+                              </td></tr>
+                            ) : filteredReferrals.map(r => (
+                              <tr key={r.id}>
+                                <td>
+                                  <div style={{ fontWeight:500 }}>{r.referrer?.name || '(탈퇴)'}</div>
+                                  <div className="adm-muted" style={{ fontSize:11 }}>{r.referrer?.email || ''}</div>
+                                </td>
+                                <td>
+                                  <div style={{ fontWeight:500 }}>{r.referred?.name || '(탈퇴)'}</div>
+                                  <div className="adm-muted" style={{ fontSize:11 }}>{r.referred?.email || ''}</div>
+                                </td>
+                                <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                <td className="adm-muted">{r.referred_id && firstOrderMap[r.referred_id] ? fmtDateShort(firstOrderMap[r.referred_id]) : '—'}</td>
+                                <td>
+                                  <span className={`adm-badge ${r.rewarded ? 'badge-paid' : 'badge-wait'}`}>
+                                    {r.rewarded ? '지급 완료' : '대기중'}
+                                  </span>
+                                </td>
+                                <td className="adm-muted">{r.rewarded_at ? fmtDateShort(r.rewarded_at) : '—'}</td>
+                                <td>
+                                  {r.rewarded && (() => {
+                                    const used = usedReferrerSet.has(r.id);
+                                    return (
+                                      <button className="adm-row-btn adm-row-btn-danger" disabled={used}
+                                        title={used ? '추천인이 보상 쿠폰을 이미 사용하여 철회할 수 없습니다' : ''}
+                                        onClick={() => { if (!used) revokeReferralReward(r); }}
+                                        style={used ? { opacity:0.45, cursor:'not-allowed' } : undefined}>철회</button>
+                                    );
+                                  })()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>)}
+
+                {/* ===== 쿠폰 발급 내역 (추천인 · 피추천인 묶음) ===== */}
+                {referralTab === 'coupons' && (<>
+                  <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                    <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                      <AdmSelect value={refCpStatus} onChange={v => setRefCpStatus(v as 'all'|'unused'|'used'|'expired')}
+                        options={[{ value:'all', label:'전체 상태' }, { value:'unused', label:'미사용' }, { value:'used', label:'사용완료' }, { value:'expired', label:'기간만료' }]} />
+                      <input type="date" className="adm-select" value={refCpFrom} onChange={e => setRefCpFrom(e.target.value)} />
+                      <span className="adm-muted">~</span>
+                      <input type="date" className="adm-select" value={refCpTo} onChange={e => setRefCpTo(e.target.value)} />
+                      <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
+                        value={refCpSearch} onChange={e => setRefCpSearch(e.target.value)} />
+                    </div>
+                    <div className="adm-toolbar-right">
+                      <button className="adm-btn adm-btn-outline" onClick={loadReferralCoupons}>
+                        <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="adm-card">
+                    {refCouponsLoading ? <PanelLoading /> : (() => {
+                      const cur = Math.min(Math.max(1, refcPage), Math.max(1, Math.ceil(filteredCpGroups.length / refcSize)));
+                      const paged = filteredCpGroups.slice((cur - 1) * refcSize, cur * refcSize);
+                      return (
+                        <>
+                          <div className="adm-table-wrap">
+                            <table className="adm-table">
+                              <thead>
+                                <tr>
+                                  <th>추천인</th>
+                                  <th>추천인 쿠폰</th>
+                                  <th>피추천인</th>
+                                  <th>피추천인 쿠폰</th>
+                                  <th>가입일</th>
+                                  <th>첫 구매일</th>
+                                  <th>리워드 상태</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        <Pager page={cur} pageSize={refcSize} total={refCoupons.length} onPage={setRefcPage} onPageSize={setRefcSize} />
-                      </>
-                    );
-                  })()}
-                </div>
+                              </thead>
+                              <tbody>
+                                {filteredCpGroups.length === 0 ? (
+                                  <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                                    {refCoupons.length === 0 ? '발급된 추천 쿠폰이 없습니다.' : '검색 결과 없음'}
+                                  </td></tr>
+                                ) : paged.map(g => {
+                                  const referredId = g.rel?.referred_id;
+                                  return (
+                                    <tr key={g.refId}>
+                                      <td>
+                                        <div style={{ fontWeight:500 }}>{g.referrer?.recipient_name || g.rel?.referrer?.name || '(탈퇴)'}</div>
+                                        <div className="adm-muted" style={{ fontSize:11 }}>{g.referrer?.recipient_email || g.rel?.referrer?.email || ''}</div>
+                                      </td>
+                                      <td><CpBadge c={g.referrer} /></td>
+                                      <td>
+                                        <div style={{ fontWeight:500 }}>{g.referred?.recipient_name || g.rel?.referred?.name || '(탈퇴)'}</div>
+                                        <div className="adm-muted" style={{ fontSize:11 }}>{g.referred?.recipient_email || g.rel?.referred?.email || ''}</div>
+                                      </td>
+                                      <td><CpBadge c={g.referred} /></td>
+                                      <td className="adm-muted">{g.rel ? fmtDateShort(g.rel.created_at) : '—'}</td>
+                                      <td className="adm-muted">{referredId && firstOrderMap[referredId] ? fmtDateShort(firstOrderMap[referredId]) : '—'}</td>
+                                      <td>
+                                        <span className={`adm-badge ${g.rel?.rewarded ? 'badge-paid' : 'badge-wait'}`}>
+                                          {g.rel?.rewarded ? '지급 완료' : '대기중'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          {filteredCpGroups.length > 0 && (
+                            <Pager page={cur} pageSize={refcSize} total={filteredCpGroups.length} onPage={setRefcPage} onPageSize={setRefcSize} />
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </>)}
               </div>
             );
           })()}
