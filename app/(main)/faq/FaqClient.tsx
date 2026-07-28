@@ -8,25 +8,10 @@ interface FaqItem {
   id: string; category: string; question: string; answer: string; sort_order: number;
 }
 
-const CATS = [
-  { value: '',        label: '자주 묻는 질문' },
-  { value: 'delivery',label: '배송' },
-  { value: 'return',  label: '취소/교환/반품' },
-  { value: 'order',   label: '결제/주문' },
-  { value: 'product', label: '상품' },
-  { value: 'member',  label: '회원관련' },
-  { value: 'etc',     label: '기타' },
-];
-
-/* 카테고리값 → 표시 레이블 */
-const CAT_LABEL: Record<string, string> = {
-  delivery:'배송', return:'취소/교환/반품', order:'결제/주문',
-  product:'상품', member:'회원관련', etc:'기타',
-};
-
 export default function FaqClient() {
   const router = useRouter();
   const [items,   setItems]   = useState<FaqItem[]>([]);
+  const [catNames, setCatNames] = useState<string[]>([]);
   const [cat,     setCat]     = useState('');
   const [q,       setQ]       = useState('');
   const [open,    setOpen]    = useState<string | null>(null);
@@ -35,13 +20,18 @@ export default function FaqClient() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase.from('faq_items').select('*')
-        .eq('is_active', true).order('category').order('sort_order');
+      const [{ data }, { data: cats }] = await Promise.all([
+        supabase.from('faq_items').select('*').eq('is_active', true).order('category').order('sort_order'),
+        supabase.from('faq_categories').select('name, sort_order').order('sort_order'),
+      ]);
       setItems((data as FaqItem[]) || []);
+      setCatNames(((cats as { name: string }[]) || []).map(c => c.name));
       setLoading(false);
     }
     load();
   }, []);
+
+  const CATS = [{ value: '', label: '자주 묻는 질문' }, ...catNames.map(n => ({ value: n, label: n }))];
 
   /* 필터 */
   const filtered = items.filter(i => {
@@ -53,8 +43,7 @@ export default function FaqClient() {
   /* 전체 탭일 때 카테고리별 그룹핑 */
   const grouped: { cat: string; items: FaqItem[] }[] = [];
   if (!cat) {
-    const order = ['delivery','return','order','product','member','etc'];
-    order.forEach(c => {
+    catNames.forEach(c => {
       const list = filtered.filter(i => i.category === c);
       if (list.length) grouped.push({ cat: c, items: list });
     });
@@ -147,7 +136,7 @@ export default function FaqClient() {
                 {/* 카테고리 섹션 헤더 */}
                 <div style={{ fontSize:12, fontWeight:700, color:'#888',
                   padding:'10px 0 6px', borderBottom:'1px solid #F0F0F0', marginBottom:0 }}>
-                  {CAT_LABEL[g.cat] ?? g.cat}
+                  {g.cat}
                 </div>
                 <FaqList items={g.items} open={open} setOpen={setOpen} />
               </div>

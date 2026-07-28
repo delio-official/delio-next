@@ -463,11 +463,6 @@ const TITLES: Record<PanelKey, string> = {
   refund:'환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
-const FAQ_CATS: Record<string, string> = {
-  delivery:'배송', return:'취소/교환/반품', order:'결제/주문',
-  product:'상품', member:'회원관련', etc:'기타',
-};
-
 const CS_CAT_LABEL: Record<string, string> = {
   order:'주문/배송', return:'취소/교환/반품', product:'상품',
   member:'회원/계정', other:'기타',
@@ -2383,14 +2378,20 @@ export default function AdminClient() {
   const [faqLoading, setFaqLoading] = useState(false);
   const [faqModal, setFaqModal] = useState(false);
   const [editingFaq, setEditingFaq] = useState<FaqItem | null>(null);
-  const FAQ_EMPTY = { category: 'delivery', question: '', answer: '', sort_order: 0, is_active: true };
+  const FAQ_EMPTY = { category: '', question: '', answer: '', sort_order: 0, is_active: true };
   const [faqForm, setFaqForm] = useState<typeof FAQ_EMPTY>({ ...FAQ_EMPTY });
   const [faqSaving, setFaqSaving] = useState(false);
   const [faqSearch, setFaqSearch] = useState('');
   const [faqCatFilter, setFaqCatFilter] = useState('');
+  const [faqActiveFilter, setFaqActiveFilter] = useState<'all'|'on'|'off'>('all');
   const [dragFaqId, setDragFaqId] = useState<string | null>(null);
   const [faqPage, setFaqPage] = useState(1);
   const [faqPageSize, setFaqPageSize] = useState(30);
+  // FAQ 카테고리 (동적)
+  const [faqCats, setFaqCats] = useState<{ id: string; name: string; sort_order: number }[]>([]);
+  const [faqCatModal, setFaqCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [dragCatId, setDragCatId] = useState<string | null>(null);
 
   /* ── 상품 문의 ── */
   const [productInquiries, setProductInquiries] = useState<AdminProductInquiry[]>([]);
@@ -4174,9 +4175,68 @@ export default function AdminClient() {
   async function loadFaq() {
     setFaqLoading(true);
     const supabase = createClient();
-    const { data } = await supabase.from('faq_items').select('*').order('category').order('sort_order');
+    const [{ data }, { data: cats }] = await Promise.all([
+      supabase.from('faq_items').select('*').order('category').order('sort_order'),
+      supabase.from('faq_categories').select('id, name, sort_order').order('sort_order'),
+    ]);
     setFaqItems((data as FaqItem[]) || []);
+    setFaqCats((cats as { id: string; name: string; sort_order: number }[]) || []);
     setFaqLoading(false);
+  }
+
+  /* ── FAQ 카테고리 관리 ── */
+  async function addFaqCat() {
+    const name = newCatName.trim();
+    if (!name) return;
+    if (faqCats.some(c => c.name === name)) { alert('이미 있는 카테고리입니다.'); return; }
+    const supabase = createClient();
+    const sort_order = faqCats.length ? Math.max(...faqCats.map(c => c.sort_order)) + 1 : 0;
+    const { data, error } = await supabase.from('faq_categories').insert({ name, sort_order }).select('id, name, sort_order').single();
+    if (error) { alert('추가 실패: ' + error.message); return; }
+    setFaqCats(prev => [...prev, data as { id: string; name: string; sort_order: number }]);
+    setNewCatName('');
+  }
+  async function renameFaqCat(cat: { id: string; name: string }) {
+    const name = prompt('카테고리 이름 변경', cat.name)?.trim();
+    if (!name || name === cat.name) return;
+    if (faqCats.some(c => c.name === name)) { alert('이미 있는 카테고리입니다.'); return; }
+    const supabase = createClient();
+    // 카테고리명 변경 + 해당 FAQ들의 category 값도 함께 변경
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('faq_categories').update({ name }).eq('id', cat.id),
+      supabase.from('faq_items').update({ category: name }).eq('category', cat.name),
+    ]);
+    if (e1 || e2) { alert('변경 실패: ' + (e1 || e2)!.message); return; }
+    setFaqCats(prev => prev.map(c => c.id === cat.id ? { ...c, name } : c));
+    setFaqItems(prev => prev.map(f => f.category === cat.name ? { ...f, category: name } : f));
+    if (faqCatFilter === cat.name) setFaqCatFilter(name);
+  }
+  async function deleteFaqCat(cat: { id: string; name: string }) {
+    if (cat.name === '기타') { alert("'기타'는 삭제할 수 없습니다."); return; }
+    const cnt = faqItems.filter(f => f.category === cat.name).length;
+    if (!confirm(`'${cat.name}' 카테고리를 삭제하시겠습니까?${cnt ? `\n소속 FAQ ${cnt}건은 '기타'로 이동됩니다.` : ''}`)) return;
+    const supabase = createClient();
+    const [{ error: e1 }, { error: e2 }] = await Promise.all([
+      supabase.from('faq_items').update({ category: '기타' }).eq('category', cat.name),
+      supabase.from('faq_categories').delete().eq('id', cat.id),
+    ]);
+    if (e1 || e2) { alert('삭제 실패: ' + (e1 || e2)!.message); return; }
+    setFaqItems(prev => prev.map(f => f.category === cat.name ? { ...f, category: '기타' } : f));
+    setFaqCats(prev => prev.filter(c => c.id !== cat.id));
+    if (faqCatFilter === cat.name) setFaqCatFilter('');
+  }
+  async function reorderFaqCat(fromId: string, toId: string) {
+    if (fromId === toId) return;
+    const arr = [...faqCats].sort((a, b) => a.sort_order - b.sort_order);
+    const fromIdx = arr.findIndex(c => c.id === fromId);
+    const toIdx = arr.findIndex(c => c.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    const reordered = arr.map((c, i) => ({ ...c, sort_order: i }));
+    setFaqCats(reordered);
+    const supabase = createClient();
+    await Promise.all(reordered.map(c => supabase.from('faq_categories').update({ sort_order: c.sort_order }).eq('id', c.id)));
   }
 
   /* FAQ 순서 이동 (같은 카테고리 내 인접 항목과 sort_order 교환) */
@@ -4207,15 +4267,19 @@ export default function AdminClient() {
   }
 
   async function saveFaq() {
+    if (!faqForm.category) { alert('카테고리를 선택하세요.'); return; }
     if (!faqForm.question.trim()) { alert('질문을 입력하세요.'); return; }
     if (!faqForm.answer.trim())   { alert('답변을 입력하세요.'); return; }
     setFaqSaving(true);
     const supabase = createClient();
+    // 신규 등록 시 해당 카테고리 맨 뒤 순서로
+    const nextSort = editingFaq ? faqForm.sort_order
+      : (faqItems.filter(f => f.category === faqForm.category).reduce((m, f) => Math.max(m, f.sort_order), 0) + 1);
     const payload = {
       category: faqForm.category,
       question: faqForm.question.trim(),
       answer: faqForm.answer.trim(),
-      sort_order: Number(faqForm.sort_order) || 0,
+      sort_order: Number(nextSort) || 0,
       is_active: Boolean(faqForm.is_active),
     };
     const { error } = editingFaq
@@ -6105,14 +6169,16 @@ export default function AdminClient() {
   /* FAQ 필터 */
   const filteredFaq = faqItems.filter(f => {
     if (faqCatFilter && f.category !== faqCatFilter) return false;
+    if (faqActiveFilter === 'on' && !f.is_active) return false;
+    if (faqActiveFilter === 'off' && f.is_active) return false;
     if (faqSearch.trim() && !f.question.includes(faqSearch.trim()) && !f.answer.includes(faqSearch.trim())) return false;
     return true;
   });
   const faqTotalPages = Math.max(1, Math.ceil(filteredFaq.length / faqPageSize));
   const faqCurPage = Math.min(faqPage, faqTotalPages);
   const pagedFaq = filteredFaq.slice((faqCurPage - 1) * faqPageSize, faqCurPage * faqPageSize);
-  /* 드래그 정렬: 특정 카테고리 선택 + 검색 없을 때만 (전체에선 순서 의미 없음) */
-  const canDragFaq = !!faqCatFilter && !faqSearch.trim();
+  /* 드래그 정렬: 특정 카테고리 선택 + 검색/노출필터 없을 때만 (전체에선 순서 의미 없음) */
+  const canDragFaq = !!faqCatFilter && !faqSearch.trim() && faqActiveFilter === 'all';
   async function reorderFaq(fromId: string, toId: string) {
     if (fromId === toId) return;
     const list = filteredFaq;
@@ -6834,24 +6900,16 @@ export default function AdminClient() {
       {/* ===== FAQ 등록/수정 모달 ===== */}
       {faqModal && (
         <div className="adm-modal-bg open" onClick={() => setFaqModal(false)}>
-          <div className="adm-modal" style={{ maxWidth:580, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="adm-modal" style={{ maxWidth:520, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">{editingFaq ? 'FAQ 수정' : 'FAQ 등록'}</span>
-              <button className="adm-modal-close" onClick={() => setFaqModal(false)}>✕</button>
             </div>
-            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                <div>
-                  <label className="adm-label">카테고리 *</label>
-                  <AdmSelect className="adm-cs-full" value={faqForm.category}
-                    onChange={v => setFaqForm(f => ({ ...f, category: v }))}
-                    options={Object.entries(FAQ_CATS).map(([v, l]) => ({ value:v, label:l as string }))} />
-                </div>
-                <div>
-                  <label className="adm-label">정렬 순서</label>
-                  <input className="adm-input-text" style={{ width:'100%' }} type="number" value={faqForm.sort_order}
-                    onChange={e => setFaqForm(f => ({ ...f, sort_order: Number(e.target.value) }))} />
-                </div>
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <div>
+                <label className="adm-label">카테고리 *</label>
+                <AdmSelect className="adm-cs-full" value={faqForm.category} placeholder="카테고리 선택"
+                  onChange={v => setFaqForm(f => ({ ...f, category: v }))}
+                  options={faqCats.map(c => ({ value:c.name, label:c.name }))} />
               </div>
               <div>
                 <label className="adm-label">질문 *</label>
@@ -6865,16 +6923,61 @@ export default function AdminClient() {
                   onChange={e => setFaqForm(f => ({ ...f, answer: e.target.value }))}
                   placeholder="고객에게 보여질 답변을 입력하세요." />
               </div>
-              <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
-                <input type="checkbox" checked={faqForm.is_active}
-                  onChange={e => setFaqForm(f => ({ ...f, is_active: e.target.checked }))} />
-                노출 활성화
-              </label>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600 }}>노출 여부</div>
+                  <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>비활성 시 고객 페이지에 표시되지 않습니다</div>
+                </div>
+                <AdmToggle on={faqForm.is_active} onChange={v => setFaqForm(f => ({ ...f, is_active: v }))} />
+              </div>
               <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setFaqModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFaq} disabled={faqSaving}>
-                  {faqSaving ? '저장 중...' : editingFaq ? '수정 완료' : 'FAQ 등록'}
+                  {faqSaving ? '저장 중...' : '저장'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== FAQ 카테고리 관리 모달 ===== */}
+      {faqCatModal && (
+        <div className="adm-modal-bg open" onClick={() => setFaqCatModal(false)}>
+          <div className="adm-modal" style={{ maxWidth:460, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">카테고리 편집</span>
+            </div>
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              <div className="adm-muted" style={{ fontSize:12 }}>≡ 드래그로 순서 변경 · 카테고리 삭제 시 해당 FAQ는 '기타'로 이동</div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {[...faqCats].sort((a,b) => a.sort_order - b.sort_order).map(c => {
+                  const cnt = faqItems.filter(f => f.category === c.name).length;
+                  return (
+                    <div key={c.id}
+                      draggable
+                      onDragStart={() => setDragCatId(c.id)}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={() => { if (dragCatId) reorderFaqCat(dragCatId, c.id); setDragCatId(null); }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 12px', border:'1px solid #E2E8F0', borderRadius:10, background: dragCatId===c.id ? '#EFF6FF' : '#fff' }}>
+                      <span style={{ color:'#CBD5E1', cursor:'grab', fontSize:15 }}>⠿</span>
+                      <span style={{ flex:1, fontSize:13, fontWeight:600 }}>{c.name}</span>
+                      <span className="adm-muted" style={{ fontSize:12 }}>{cnt}개</span>
+                      <button className="adm-row-btn" onClick={() => renameFaqCat(c)}>수정</button>
+                      <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFaqCat(c)} disabled={c.name==='기타'}
+                        style={c.name==='기타' ? { opacity:0.4, cursor:'not-allowed' } : undefined}>삭제</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                <input className="adm-input-text" style={{ flex:1 }} placeholder="새 카테고리명 입력"
+                  value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addFaqCat(); }} />
+                <button className="adm-btn adm-btn-primary" onClick={addFaqCat}>+ 추가</button>
+              </div>
+              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
+                <button className="adm-btn adm-btn-outline" onClick={() => setFaqCatModal(false)}>닫기</button>
               </div>
             </div>
           </div>
@@ -10984,26 +11087,32 @@ export default function AdminClient() {
           {/* ===== FAQ 관리 ===== */}
           {panel === 'faq' && (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={faqCatFilter} onChange={v => { setFaqCatFilter(v); setFaqPage(1); }}
-                    options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(FAQ_CATS).map(([v, l]) => ({ value:v, label:l as string }))]} />
+                    options={[{ value:'', label:'전체 카테고리' }, ...faqCats.map(c => ({ value:c.name, label:c.name }))]} />
+                  <AdmSelect value={faqActiveFilter} onChange={v => { setFaqActiveFilter(v as 'all'|'on'|'off'); setFaqPage(1); }}
+                    options={[{ value:'all', label:'전체 노출' }, { value:'on', label:'노출중' }, { value:'off', label:'숨김' }]} />
                   <input type="text" className="adm-input-text" placeholder="질문 · 답변 검색"
                     value={faqSearch} onChange={e => { setFaqSearch(e.target.value); setFaqPage(1); }} />
                 </div>
-                <div className="adm-toolbar-right">
+                <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
                   <AdmSelect value={String(faqPageSize)} onChange={v => { setFaqPageSize(Number(v)); setFaqPage(1); }}
                     options={[10,30,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
+                  <button className="adm-btn adm-btn-outline" onClick={() => setFaqCatModal(true)}>카테고리 관리</button>
                   <button className="adm-btn adm-btn-outline" onClick={loadFaq}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFaqModal()}>+ FAQ 등록</button>
                 </div>
               </div>
+              {!faqCatFilter && !faqSearch.trim() && faqActiveFilter === 'all' && (
+                <div className="adm-muted" style={{ fontSize:12, margin:'0 0 10px 2px' }}>💡 순서를 바꾸려면 특정 카테고리를 선택하세요. 그러면 맨 앞 손잡이로 드래그해 정렬할 수 있습니다.</div>
+              )}
               <div className="adm-card">
                 {faqLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
-                        <tr>{canDragFaq && <th style={{ width:34 }}></th>}<th>카테고리</th><th>질문</th><th>노출</th><th>관리</th></tr>
+                        <tr>{canDragFaq && <th style={{ width:34 }}></th>}<th>카테고리</th><th style={{ textAlign:'left' }}>질문</th><th>노출</th><th>관리</th></tr>
                       </thead>
                       <tbody>
                         {filteredFaq.length === 0 ? (
@@ -11018,14 +11127,16 @@ export default function AdminClient() {
                             onDrop={canDragFaq ? () => { if (dragFaqId) reorderFaq(dragFaqId, f.id); setDragFaqId(null); } : undefined}
                             style={canDragFaq ? { cursor:'move', background: dragFaqId===f.id ? '#EFF6FF' : undefined } : undefined}>
                             {canDragFaq && <td style={{ color:'#CBD5E1', textAlign:'center', cursor:'grab', fontSize:15 }}>⠿</td>}
-                            <td><span className="adm-badge badge-paid">{FAQ_CATS[f.category] || f.category}</span></td>
-                            <td style={{ maxWidth:340, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
+                            <td>{f.category}</td>
+                            <td style={{ textAlign:'left', maxWidth:420, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
                             <td>
                               <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
                             </td>
-                            <td style={{ display:'flex', gap:6 }}>
-                              <button className="adm-row-btn" onClick={() => openFaqModal(f)}>수정</button>
-                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFaq(f.id)}>삭제</button>
+                            <td>
+                              <div style={{ display:'inline-flex', gap:6 }}>
+                                <button className="adm-row-btn" onClick={() => openFaqModal(f)}>수정</button>
+                                <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFaq(f.id)}>삭제</button>
+                              </div>
                             </td>
                           </tr>
                         ))}
