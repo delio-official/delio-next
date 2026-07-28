@@ -458,7 +458,7 @@ const TITLES: Record<PanelKey, string> = {
   dashboard:'대시보드', orders:'주문 관리', products:'상품 관리', menu:'메뉴 관리', farms:'브랜드 관리',
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
-  inquiry:'입점 문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
+  inquiry:'입점 협업문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
   refund:'환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
@@ -1545,6 +1545,12 @@ const PROVIDER_META: Record<'kakao'|'naver'|'email', { label:string; bg:string; 
   naver: { label:'네이버', bg:'#03C75A', color:'#fff' },
   email: { label:'일반',   bg:'#EEF2F6', color:'#475569' },
 };
+
+/* ===== 입점·협업 문의 유형 ===== */
+const inqTypeKey = (t?: string | null): 'listing'|'collab'|'other' =>
+  t === 'listing' ? 'listing' : t === 'collab' ? 'collab' : 'other';
+const inqTypeLabel = (t?: string | null): string =>
+  t === 'listing' ? '입점문의' : t === 'collab' ? '협업,제휴' : '기타';
 
 /* ===== 미니 스파크라인 (판매 성과 그래프 보기) ===== */
 function Spark({ data, color }: { data:number[]; color:string }) {
@@ -7797,7 +7803,7 @@ export default function AdminClient() {
             </div>
             <div className="adm-nav-group">
               <div className="adm-nav-label">고객지원</div>
-              <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 문의"
+              <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 협업문의"
                 badge={pendingInquiries.length || undefined} />
               <NavItem panel="faq" icon={<Icon.Faq />} label="FAQ 관리" />
               <NavItem panel="cs"  icon={<Icon.Cs />}  label="1:1 문의"
@@ -10851,15 +10857,30 @@ export default function AdminClient() {
           {/* ===== 문의 관리 ===== */}
           {panel === 'inquiry' && (
             <div className="adm-content">
+              {/* 상단 KPI 3박스 (클릭 시 탭 필터) */}
+              <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                {(() => {
+                  const acceptedCnt = inquiries.filter(i => i.status === 'answered' || i.status === 'done').length;
+                  return [
+                    { l:'전체 문의', v:inquiries.length,        tab:'tab-all',     on: inquiryTab === 'tab-all' },
+                    { l:'답변 대기', v:pendingInquiries.length,  tab:'tab-general', on: inquiryTab === 'tab-general' },
+                    { l:'수락완료',  v:acceptedCnt,              tab:'tab-done',    on: inquiryTab === 'tab-done' },
+                  ];
+                })().map(c => (
+                  <div key={c.l} className="adm-kpi-card" onClick={() => setInquiryTab(c.tab)}
+                    style={{ cursor:'pointer', outline: c.on ? '2px solid #1A1A1A' : 'none', outlineOffset:-1 }}>
+                    <div className="adm-kpi-label">{c.l}{c.on && ' ✓'}</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{c.v.toLocaleString()}건</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 필터 툴바 (안 짤리게 좌측 정렬·줄바꿈) */}
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
-                  <span className="adm-card-title">입점·협업 문의</span>
-                  <span className="adm-badge badge-paid">총 {inquiries.length}건</span>
-                </div>
-                <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                   <AdmSelect value={inquiryTypeFilter} onChange={setInquiryTypeFilter}
-                    options={[{ value:'', label:'전체 유형' }, ...[...new Set(inquiries.map(i => i.inquiry_type).filter(Boolean))].map(t => ({ value:t as string, label:t as string }))]} />
-                  <div style={{ display:'inline-flex', gap:4 }}>
+                    options={[{ value:'', label:'전체 유형' }, { value:'listing', label:'입점문의' }, { value:'collab', label:'협업,제휴' }, { value:'other', label:'기타' }]} />
+                  <div style={{ display:'inline-flex', gap:4, flexWrap:'wrap' }}>
                     {([['오늘',0],['3일',3],['1주일',7],['1개월',30],['3개월',90]] as const).map(([lb, d]) => (
                       <button key={lb} className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'5px 10px' }}
                         onClick={() => { const to = new Date(); const from = new Date(); from.setDate(from.getDate() - d); setInquiryFrom(from.toISOString().slice(0,10)); setInquiryTo(to.toISOString().slice(0,10)); }}>{lb}</button>
@@ -10868,16 +10889,20 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={inquiryFrom} onChange={e => setInquiryFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={inquiryTo} onChange={e => setInquiryTo(e.target.value)} />
-                  <input type="text" className="adm-input-text" placeholder="업체·이름·연락처·이메일·내용 검색"
+                  <input type="text" className="adm-input-text" placeholder="업체·이름·연락처·이메일 검색"
                     value={inquirySearch} onChange={e => setInquirySearch(e.target.value)} />
+                </div>
+                <div className="adm-toolbar-right">
                   {(inquiryFrom || inquiryTo || inquirySearch || inquiryTypeFilter) && <button className="adm-btn adm-btn-outline" onClick={() => { setInquiryFrom(''); setInquiryTo(''); setInquirySearch(''); setInquiryTypeFilter(''); }}>초기화</button>}
                 </div>
               </div>
+
+              {/* 하단 탭: 전체 / 답변대기 / 답변완료 */}
               <TabBtns active={inquiryTab} setActive={setInquiryTab}
                 tabs={[
+                  { id:'tab-all',     label: '전체' },
                   { id:'tab-general', label: <span>답변대기 {pendingInquiries.length > 0 && <span className="adm-tab-count adm-tab-count-red">{pendingInquiries.length}</span>}</span> },
                   { id:'tab-done',    label: '답변완료' },
-                  { id:'tab-all',     label: '전체' },
                 ]} />
               <div className="adm-card">
                 {inquiriesLoading ? <PanelLoading /> : (() => {
@@ -10890,27 +10915,26 @@ export default function AdminClient() {
                   const q = inquirySearch.trim().toLowerCase();
                   const list = base.filter(i =>
                     inDate(i.created_at) &&
-                    (!inquiryTypeFilter || i.inquiry_type === inquiryTypeFilter) &&
-                    (!q || [i.company, i.contact, i.email, i.message].some(v => (v || '').toLowerCase().includes(q)))
+                    (!inquiryTypeFilter || inqTypeKey(i.inquiry_type) === inquiryTypeFilter) &&
+                    (!q || [i.company, i.contact, i.email].some(v => (v || '').toLowerCase().includes(q)))
                   );
                   return (
                     <div className="adm-table-wrap">
                       <table className="adm-table">
                         <thead>
-                          <tr><th>유형</th><th>업체/이름</th><th>연락처</th><th>이메일</th><th>내용</th><th>접수일</th><th>상태</th></tr>
+                          <tr><th>유형</th><th>업체명</th><th>연락처</th><th>이메일</th><th>접수일</th><th>상태</th></tr>
                         </thead>
                         <tbody>
                           {list.length === 0 ? (
-                            <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                            <tr><td colSpan={6} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                               {inquiries.length === 0 ? '문의 없음 (create_admin_policies.sql 실행 필요)' : '해당 항목 없음'}
                             </td></tr>
                           ) : list.map(inq => (
                             <tr key={inq.id} style={{ cursor:'pointer' }} onClick={() => setSelectedInquiry(inq)}>
-                              <td><span className="adm-badge badge-paid">{inq.inquiry_type}</span></td>
+                              <td><span className="adm-badge badge-paid">{inqTypeLabel(inq.inquiry_type)}</span></td>
                               <td>{inq.company}</td>
                               <td className="adm-mono">{inq.contact}</td>
                               <td className="adm-muted">{inq.email}</td>
-                              <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{inq.message}</td>
                               <td className="adm-muted">{fmtDate(inq.created_at)}</td>
                               <td>
                                 <span className={`adm-badge ${inq.status === 'answered' || inq.status === 'done' ? 'badge-done' : inq.status === 'rejected' ? 'badge-off' : 'badge-wait'}`}>
@@ -12892,7 +12916,7 @@ export default function AdminClient() {
               <button onClick={() => setSelectedInquiry(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             {[
-              ['유형', selectedInquiry.inquiry_type],
+              ['유형', inqTypeLabel(selectedInquiry.inquiry_type)],
               ['업체/이름', selectedInquiry.company],
               ['연락처', selectedInquiry.contact],
               ['이메일', selectedInquiry.email],
