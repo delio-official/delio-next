@@ -1065,6 +1065,16 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     alert('템플릿을 저장했습니다.');
     loadTemplates();
   }
+  async function deleteTemplate() {
+    const t = templates.find(x => x.id === tplSel);
+    if (!t) { alert('삭제할 템플릿을 선택하세요.'); return; }
+    if (!confirm(`템플릿 "${t.title}"을(를) 삭제하시겠습니까?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('sms_templates').delete().eq('id', t.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setTplSel('');
+    loadTemplates();
+  }
 
   /* 회원 목록 필터 (선택 모드) */
   const filteredForSelect = members.filter(m => {
@@ -1282,6 +1292,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   options={templates.map(t => ({ value:t.id, label:t.title }))} />
                 <button className="adm-btn adm-btn-outline" onClick={applyTemplate}>불러오기</button>
                 <button className="adm-btn adm-btn-outline" onClick={saveTemplate}>현재 내용 저장</button>
+                <button className="adm-btn adm-btn-outline" onClick={deleteTemplate} disabled={!tplSel}
+                  style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
               </div>
             </div>
 
@@ -1299,7 +1311,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             </div>
 
             {/* 예약 발송 */}
-            <div className="adm-form-row" style={{ alignItems:'center', gap:12, flexWrap:'wrap' }}>
+            <div className="adm-form-row" style={{ flexDirection:'row', alignItems:'center', justifyContent:'flex-start', gap:12, flexWrap:'wrap' }}>
               <label className="adm-label" style={{ margin:0 }}>예약 발송</label>
               <AdmToggle on={reserveOn} onChange={setReserveOn} />
               {reserveOn && (
