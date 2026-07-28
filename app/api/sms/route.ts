@@ -53,15 +53,17 @@ export async function POST(req: NextRequest) {
   }
 
   /* ── 유형·금액·예약 ── */
-  const isLms = byteLen(text) > 90;
+  const kind  = msgKind === 'notice' ? 'notice' : 'ad';
+  // 광고성: 법정 필수 요소((광고) 표기 + 무료수신거부)를 실제 발송 문구에 자동 삽입
+  const finalText = kind === 'ad' ? `(광고) ${text}\n무료수신거부 080-500-4233` : text;
+  const isLms = byteLen(finalText) > 90;
   const unit  = isLms ? LMS_COST : SMS_COST;
   const cost  = unit * targets.length;
-  const kind  = msgKind === 'notice' ? 'notice' : 'ad';
   // 예약: 미래 시각이면 예약, 아니면 즉시
   const schedDate = scheduledAt && new Date(scheduledAt).getTime() > Date.now() ? scheduledAt : null;
 
   /* ── Solapi 전송 ── */
-  const messages = targets.map(to => ({ to, from: fromNum, text }));
+  const messages = targets.map(to => ({ to, from: fromNum, text: finalText }));
   const payload: Record<string, unknown> = { messages };
   if (schedDate) payload.scheduledDate = new Date(schedDate).toISOString();
 
@@ -80,7 +82,7 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     await supabase.from('sms_logs').insert({
-      message:       text,
+      message:       finalText,
       target_count:  targets.length,
       msg_type:      isLms ? 'LMS' : 'SMS',
       msg_kind:      kind,

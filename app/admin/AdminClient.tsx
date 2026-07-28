@@ -1136,7 +1136,10 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   }
 
   const byteLen = (s: string) => { let n = 0; for (const ch of s) n += ch.charCodeAt(0) > 0x7f ? 2 : 1; return n; };
-  const byteCount    = byteLen(smsText);
+  // 광고성은 실제 발송 시 (광고) 표기 + 무료수신거부가 자동 삽입되므로 글자수·금액도 그 기준으로 계산
+  const AD_OPTOUT    = '무료수신거부 080-500-4233';
+  const effectiveText = smsKind === 'ad' && smsText ? `(광고) ${smsText}\n${AD_OPTOUT}` : smsText;
+  const byteCount    = byteLen(effectiveText);
   const msgType      = byteCount > 90 ? 'LMS' : 'SMS';
   const unitCost     = msgType === 'LMS' ? 45 : 18;
   const targetCount  = buildTargets().length;
@@ -1398,6 +1401,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-all', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', whiteSpace:'pre-wrap' }}>
                     {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
                     {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
+                    {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>{AD_OPTOUT}</span>}
                   </div>
                 </div>
               </div>
