@@ -2411,6 +2411,8 @@ export default function AdminClient() {
   const [csAnswer, setCsAnswer] = useState('');
   const [csAnswering, setCsAnswering] = useState(false);
   const [csUserMap, setCsUserMap] = useState<Record<string, { name: string; email: string }>>({});
+  const [csTemplates, setCsTemplates] = useState<{ id: string; title: string; content: string }[]>([]);
+  const [csTplSel, setCsTplSel] = useState('');
   const [csAdminTab, setCsAdminTab] = useState('tab-all');
   const [csCatFilter, setCsCatFilter] = useState('');
   const [csFrom, setCsFrom] = useState('');
@@ -4341,6 +4343,7 @@ export default function AdminClient() {
     const list = (data as CsInquiryAdmin[]) || [];
     setCsItems(list);
     setCsAdminLoading(false);
+    loadCsTemplates();
     // 작성자(이름·이메일) 매핑
     const ids = [...new Set(list.map(c => c.user_id).filter(Boolean))];
     if (ids.length) {
@@ -4361,6 +4364,51 @@ export default function AdminClient() {
     setSelectedCs(null);
     setCsAnswer('');
     setCsAnswering(false);
+  }
+
+  /* ── 1:1 답변 템플릿 ── */
+  async function loadCsTemplates() {
+    const supabase = createClient();
+    const { data } = await supabase.from('cs_templates').select('id, title, content').order('created_at', { ascending: false });
+    setCsTemplates((data as { id: string; title: string; content: string }[]) || []);
+  }
+  function applyCsTemplate() {
+    const t = csTemplates.find(x => x.id === csTplSel);
+    if (!t) { alert('불러올 템플릿을 선택하세요.'); return; }
+    setCsAnswer(t.content);
+  }
+  async function saveCsTemplate() {
+    if (!csAnswer.trim()) { alert('저장할 내용이 없습니다.'); return; }
+    const title = prompt('템플릿 이름을 입력하세요.');
+    if (!title || !title.trim()) return;
+    const supabase = createClient();
+    const { data, error } = await supabase.from('cs_templates').insert({ title: title.trim(), content: csAnswer }).select('id, title, content').single();
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setCsTemplates(prev => [data as { id: string; title: string; content: string }, ...prev]);
+    setCsTplSel((data as { id: string }).id);
+    alert('템플릿을 저장했습니다.');
+  }
+  async function updateCsTemplate() {
+    const t = csTemplates.find(x => x.id === csTplSel);
+    if (!t) { alert('수정할 템플릿을 선택하세요.'); return; }
+    const title = prompt('템플릿 이름', t.title)?.trim();
+    if (!title) return;
+    if (!confirm(`'${title}' 템플릿을 현재 답변 내용으로 저장할까요?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('cs_templates').update({ title, content: csAnswer }).eq('id', t.id);
+    if (error) { alert('수정 실패: ' + error.message); return; }
+    setCsTemplates(prev => prev.map(x => x.id === t.id ? { ...x, title, content: csAnswer } : x));
+    alert('템플릿을 수정했습니다.');
+  }
+  async function deleteCsTemplate() {
+    const t = csTemplates.find(x => x.id === csTplSel);
+    if (!t) { alert('삭제할 템플릿을 선택하세요.'); return; }
+    if (!confirm(`템플릿 "${t.title}"을(를) 삭제하시겠습니까?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('cs_templates').delete().eq('id', t.id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
+    setCsTemplates(prev => prev.filter(x => x.id !== t.id));
+    setCsTplSel('');
   }
 
   /* ========== 팝업 관리 ========== */
@@ -7120,64 +7168,75 @@ export default function AdminClient() {
       {/* ===== 1:1 문의 상세 모달 ===== */}
       {selectedCs && (
         <div className="adm-modal-bg open" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>
-          <div className="adm-modal" style={{ maxWidth:600, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+          <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">
               <span className="adm-modal-title">문의 상세</span>
-              <button className="adm-modal-close" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>✕</button>
             </div>
-            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                <div className="adm-detail-group">
-                  <div className="adm-detail-label">카테고리</div>
-                  <div className="adm-detail-val">{CS_CAT_LABEL[selectedCs.category] || selectedCs.category}</div>
-                </div>
-                <div className="adm-detail-group">
-                  <div className="adm-detail-label">접수일시</div>
-                  <div className="adm-detail-val">{fmtDate(selectedCs.created_at)}</div>
-                </div>
-                <div className="adm-detail-group" style={{ gridColumn:'1 / -1' }}>
-                  <div className="adm-detail-label">작성자</div>
-                  <div className="adm-detail-val">
-                    {csUserMap[selectedCs.user_id]?.name || '-'}
-                    {csUserMap[selectedCs.user_id]?.email && <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>{csUserMap[selectedCs.user_id]?.email}</span>}
-                  </div>
-                </div>
-                <div className="adm-detail-group" style={{ gridColumn:'1 / -1' }}>
-                  <div className="adm-detail-label">제목</div>
-                  <div className="adm-detail-val">{selectedCs.title}</div>
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
+              {/* 문의 정보 */}
+              <div>
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>문의 정보</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px 16px' }}>
+                  {([
+                    ['카테고리', CS_CAT_LABEL[selectedCs.category] || selectedCs.category],
+                    ['접수일시', fmtDate(selectedCs.created_at)],
+                    ['작성자', csUserMap[selectedCs.user_id]?.name || '-'],
+                    ['이메일', csUserMap[selectedCs.user_id]?.email || '-'],
+                    ['제목', selectedCs.title],
+                  ] as [string, string][]).map(([l, v], i) => (
+                    <div key={l} style={i === 4 ? { gridColumn:'1 / -1' } : undefined}>
+                      <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', wordBreak:'break-all' }}>{v}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
+
+              {/* 문의 내용 */}
               <div>
-                <div className="adm-detail-label" style={{ marginBottom:6 }}>문의 내용</div>
-                <div style={{ background:'#F8FAFC', borderRadius:8, padding:'14px 16px', fontSize:13, lineHeight:1.8, color:'#334155', whiteSpace:'pre-line' }}>
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>문의 내용</div>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', fontSize:13, lineHeight:1.8, color:'#334155', whiteSpace:'pre-line' }}>
                   {selectedCs.message}
                 </div>
               </div>
+
               {selectedCs.attachments && selectedCs.attachments.length > 0 && (
                 <div>
-                  <div className="adm-detail-label" style={{ marginBottom:6 }}>첨부파일</div>
+                  <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>첨부파일</div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     {selectedCs.attachments.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer"
-                        style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'4px 10px',
-                          background:'#EFF6FF', borderRadius:6, fontSize:12, color:'#2563EB', textDecoration:'none' }}>
+                        style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'6px 12px',
+                          background:'#EFF6FF', borderRadius:8, fontSize:12, color:'#2563EB', textDecoration:'none' }}>
                         📎 파일 {i + 1}
                       </a>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* 답변 작성 */}
               <div>
-                <label className="adm-label">답변 {selectedCs.status === 'answered' && <span className="adm-muted" style={{ fontWeight:400 }}>(수정)</span>}</label>
+                <div style={{ fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 }}>답변 작성 {selectedCs.status === 'answered' && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(수정)</span>}</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+                  <AdmSelect value={csTplSel} onChange={setCsTplSel} placeholder="템플릿 선택..." style={{ minWidth:180, flex:1 }}
+                    options={[{ value:'', label:'선택 안함' }, ...csTemplates.map(t => ({ value:t.id, label:t.title }))]} />
+                  <button className="adm-btn adm-btn-outline" onClick={applyCsTemplate}>불러오기</button>
+                  <button className="adm-btn adm-btn-outline" onClick={saveCsTemplate}>현재 내용 저장</button>
+                  <button className="adm-btn adm-btn-outline" onClick={updateCsTemplate} disabled={!csTplSel}>수정</button>
+                  <button className="adm-btn adm-btn-outline" onClick={deleteCsTemplate} disabled={!csTplSel}
+                    style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
+                </div>
                 <textarea className="adm-textarea" rows={6} style={{ width:'100%' }}
                   value={csAnswer}
                   onChange={e => setCsAnswer(e.target.value)}
                   placeholder="고객에게 전달할 답변을 입력하세요." />
               </div>
+
               <div className="adm-flex-gap adm-flex-end">
                 <button className="adm-btn adm-btn-outline" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>닫기</button>
                 <button className="adm-btn adm-btn-primary" onClick={answerCs} disabled={csAnswering}>
-                  {csAnswering ? '저장 중...' : '답변 저장'}
+                  {csAnswering ? '저장 중...' : '저장'}
                 </button>
               </div>
             </div>
