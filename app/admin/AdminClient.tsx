@@ -989,6 +989,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   loadMembers: () => void;
   membersLoading: boolean;
 }) {
+  const [smsTab,       setSmsTab]       = useState<'compose'|'history'>('compose');
   const [smsText,      setSmsText]      = useState('');
   const [smsKind,      setSmsKind]      = useState<'ad'|'notice'>('ad'); // 광고성(동의자만) / 안내성(전원)
   const [targetMode,   setTargetMode]   = useState<'all'|'grade'|'select'|'custom'>('all');
@@ -998,31 +999,71 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const [customNums,   setCustomNums]   = useState('');
   const [sending,      setSending]      = useState(false);
   const [preview,      setPreview]      = useState(false);
-  const [smsLogs,      setSmsLogs]      = useState<{ id: string; message: string; target_count: number; msg_type: string; status: string; error_msg: string|null; created_at: string }[]>([]);
+  const [reserveOn,    setReserveOn]    = useState(false);
+  const [reserveAt,    setReserveAt]    = useState(''); // datetime-local 문자열
+  const [templates,    setTemplates]    = useState<{ id: string; title: string; content: string }[]>([]);
+  const [tplSel,       setTplSel]       = useState('');
+  const [smsLogs,      setSmsLogs]      = useState<{ id: string; message: string; target_count: number; msg_type: string; msg_kind: string|null; cost: number|null; scheduled_at: string|null; status: string; error_msg: string|null; created_at: string }[]>([]);
   const [logsLoading,  setLogsLoading]  = useState(false);
   const [smsFrom, setSmsFrom] = useState('');
   const [smsTo, setSmsTo] = useState('');
-  const [smsTotalCount, setSmsTotalCount] = useState(0);
+  // KPI 집계 (전체 이력 기준)
+  const [statCount,      setStatCount]      = useState(0);
+  const [statCost,       setStatCost]       = useState(0);
+  const [statMonthCount, setStatMonthCount] = useState(0);
+  const [statMonthCost,  setStatMonthCost]  = useState(0);
 
   useEffect(() => {
     if (members.length === 0) loadMembers();
     loadSmsLogs();
+    loadSmsStats();
+    loadTemplates();
   }, []); // eslint-disable-line
 
   async function loadSmsLogs(from?: string, to?: string) {
     setLogsLoading(true);
     const f = from ?? smsFrom; const t = to ?? smsTo;
     const supabase = createClient();
-    let q = supabase.from('sms_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    let q = supabase.from('sms_logs').select('*').order('created_at', { ascending: false }).limit(500);
     if (f) q = q.gte('created_at', new Date(`${f}T00:00:00`).toISOString());
     if (t) q = q.lte('created_at', new Date(`${t}T23:59:59`).toISOString());
-    const [{ data }, totalRes] = await Promise.all([
-      q,
-      supabase.from('sms_logs').select('id', { count: 'exact', head: true }),
-    ]);
+    const { data } = await q;
     setSmsLogs((data || []) as typeof smsLogs);
-    setSmsTotalCount(totalRes.count || 0);
     setLogsLoading(false);
+  }
+
+  async function loadSmsStats() {
+    const supabase = createClient();
+    const { data } = await supabase.from('sms_logs').select('cost, created_at, status').neq('status', 'failed').limit(10000);
+    const rows = (data || []) as { cost: number|null; created_at: string; status: string }[];
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    let cc = 0, ct = 0, mc = 0, mt = 0;
+    for (const r of rows) {
+      cc++; ct += r.cost || 0;
+      if (new Date(r.created_at) >= monthStart) { mc++; mt += r.cost || 0; }
+    }
+    setStatCount(cc); setStatCost(ct); setStatMonthCount(mc); setStatMonthCost(mt);
+  }
+
+  async function loadTemplates() {
+    const supabase = createClient();
+    const { data } = await supabase.from('sms_templates').select('id, title, content').order('created_at', { ascending: false });
+    setTemplates((data || []) as typeof templates);
+  }
+  function applyTemplate() {
+    const t = templates.find(x => x.id === tplSel);
+    if (!t) { alert('불러올 템플릿을 선택하세요.'); return; }
+    setSmsText(t.content);
+  }
+  async function saveTemplate() {
+    if (!smsText.trim()) { alert('저장할 내용이 없습니다.'); return; }
+    const title = prompt('템플릿 이름을 입력하세요.');
+    if (!title || !title.trim()) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('sms_templates').insert({ title: title.trim(), content: smsText });
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    alert('템플릿을 저장했습니다.');
+    loadTemplates();
   }
 
   /* 회원 목록 필터 (선택 모드) */
@@ -1065,35 +1106,74 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     const targets = buildTargets();
     if (!smsText.trim()) { alert('메시지를 입력하세요.'); return; }
     if (targets.length === 0) { alert('발송 대상이 없습니다. 전화번호가 등록된 회원을 선택해주세요.'); return; }
-    if (!confirm(`${targets.length}명에게 발송하시겠습니까?`)) return;
+    let scheduledAt: string | null = null;
+    if (reserveOn) {
+      if (!reserveAt || new Date(reserveAt).getTime() <= Date.now()) { alert('예약 시각을 현재 이후로 설정하세요.'); return; }
+      scheduledAt = new Date(reserveAt).toISOString();
+    }
+    const verb = scheduledAt ? '예약' : '발송';
+    if (!confirm(`${targets.length}명에게 ${verb}하시겠습니까?`)) return;
     setSending(true);
-    const res = await fetch('/api/sms', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text: smsText, targets }) });
+    const res = await fetch('/api/sms', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text: smsText, targets, msgKind: smsKind, scheduledAt }) });
     const data = await res.json();
     setSending(false);
     if (!res.ok) { alert('발송 실패: ' + (data.error || '알 수 없는 오류')); }
-    else { alert(`✅ ${data.sent}명에게 ${data.type} 발송 완료`); setSmsText(''); setSelectedIds(new Set()); loadSmsLogs(); }
+    else {
+      alert(data.reserved ? `✅ ${data.sent}명에게 예약 완료` : `✅ ${data.sent}명에게 ${data.type} 발송 완료`);
+      setSmsText(''); setSelectedIds(new Set()); setReserveOn(false); setReserveAt('');
+      loadSmsLogs(); loadSmsStats();
+    }
   }
 
-  const charCount    = smsText.length;
-  const msgType      = charCount > 90 ? 'LMS' : 'SMS';
+  const byteLen = (s: string) => { let n = 0; for (const ch of s) n += ch.charCodeAt(0) > 0x7f ? 2 : 1; return n; };
+  const byteCount    = byteLen(smsText);
+  const msgType      = byteCount > 90 ? 'LMS' : 'SMS';
+  const unitCost     = msgType === 'LMS' ? 45 : 18;
   const targetCount  = buildTargets().length;
+  const estCost      = unitCost * targetCount;
   const GRADE_LABEL_MAP: Record<string,string> = { beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터' };
+  const gradeCount = (g: string) => g === 'high'
+    ? members.filter(m => ['buyer','master'].includes(m.grade)).length
+    : members.filter(m => m.grade === g).length;
+  const GRADE_OPTS: [string, string][] = [
+    ['beginner','비기너만'], ['taster','테이스터만'], ['buyer','바이어만'], ['master','마스터만'], ['high','바이어·마스터 이상'],
+  ];
+  const kindLabel = (k: string|null) => k === 'notice' ? '안내성' : '광고성';
+  const nowMs = Date.now();
+  const dispStatus = (log: typeof smsLogs[number]) => {
+    if (log.status === 'failed') return { label:'실패', color:'#DC2626' };
+    if (log.status === 'reserved' && log.scheduled_at && new Date(log.scheduled_at).getTime() > nowMs) return { label:'예약', color:'#2563EB' };
+    return { label:'완료', color:'#16A34A' };
+  };
+  const dispWhen = (log: typeof smsLogs[number]) => (log.status === 'reserved' && log.scheduled_at) ? log.scheduled_at : log.created_at;
 
-  const smsPeriodRecipients = smsLogs.reduce((s, l) => s + (l.target_count || 0), 0);
   return (
     <div className="adm-content">
-      <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+      {/* KPI 4종 */}
+      <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
         {[
-          ['누적 발송 횟수', `${smsTotalCount.toLocaleString()}회`],
-          ['조회 기간 발송', `${smsLogs.length.toLocaleString()}회`],
-          ['조회 기간 수신자', `${smsPeriodRecipients.toLocaleString()}명`],
+          ['누적 발송 횟수', `${statCount.toLocaleString()}회`],
+          ['누적 발송 금액', `${statCost.toLocaleString()}원`],
+          ['이번달 발송 횟수', `${statMonthCount.toLocaleString()}회`],
+          ['이번달 발송 금액', `${statMonthCost.toLocaleString()}원`],
         ].map(([l, v]) => (
           <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt">{v}</div></div>
         ))}
       </div>
-      <div className="adm-row" style={{ alignItems:'flex-start' }}>
 
-        {/* 좌: 작성 영역 */}
+      {/* 서브탭 */}
+      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+        {([['compose','작성'],['history','발송 이력']] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setSmsTab(v)}
+            style={{ padding:'8px 18px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:600, cursor:'pointer',
+              borderColor: smsTab === v ? '#1A1A1A' : '#E2E8F0', background: smsTab === v ? '#1A1A1A' : '#fff', color: smsTab === v ? '#fff' : '#64748B' }}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== 작성 ===== */}
+      {smsTab === 'compose' && (
         <div className="adm-card adm-card-lg">
           <div className="adm-card-head"><span className="adm-card-title">SMS 작성</span></div>
           <div className="adm-form">
@@ -1134,10 +1214,17 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                 ))}
               </div>
 
-              {/* 등급별 선택 */}
+              {/* 등급별 선택 — 라디오 목록 + 인원수 */}
               {targetMode === 'grade' && (
-                <AdmSelect value={gradeFilter} onChange={setGradeFilter}
-                  options={[{ value:'high', label:'바이어·마스터' }, ...Object.entries(GRADE_LABEL_MAP).map(([v,l]) => ({ value:v, label:`${l}만` }))]} />
+                <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', width:'100%', maxWidth:420 }}>
+                  {GRADE_OPTS.map(([v, l]) => (
+                    <label key={v} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', borderBottom:'1px solid #F4F4F4', cursor:'pointer', background: gradeFilter === v ? '#F8FAFC' : '#fff' }}>
+                      <input type="radio" name="smsGrade" checked={gradeFilter === v} onChange={() => setGradeFilter(v)} />
+                      <span style={{ flex:1, fontSize:13, fontWeight:500 }}>{l}</span>
+                      <span className="adm-muted" style={{ fontSize:13 }}>{gradeCount(v).toLocaleString()}명</span>
+                    </label>
+                  ))}
+                </div>
               )}
 
               {/* 번호 직접입력 */}
@@ -1187,95 +1274,147 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               </div>
             )}
 
-            {/* 메시지 작성 */}
-            <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
-              <label className="adm-label">메시지 내용</label>
-              <textarea className="adm-textarea" placeholder="최대 90자 (SMS) · 91자 이상 자동 LMS 전환" rows={5}
-                style={{ width:'100%' }} value={smsText} onChange={e => setSmsText(e.target.value)} />
-              <div className="adm-char-count">
-                <span style={{ color: charCount > 2000 ? '#DC2626' : 'inherit' }}>{charCount}</span>
-                &nbsp;/ {charCount > 90 ? '2,000자 (LMS)' : '90자 (SMS)'}
-                &nbsp;<span style={{ background: msgType==='LMS'?'#FEF3C7':'#EFF6FF', color: msgType==='LMS'?'#92400E':'#1D4ED8', padding:'1px 6px', borderRadius:4, fontSize:11, fontWeight:700 }}>{msgType}</span>
+            {/* 템플릿 */}
+            <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:8 }}>
+              <label className="adm-label">템플릿</label>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', width:'100%' }}>
+                <AdmSelect value={tplSel} onChange={setTplSel} placeholder="템플릿 선택..." style={{ minWidth:200, flex:1 }}
+                  options={templates.map(t => ({ value:t.id, label:t.title }))} />
+                <button className="adm-btn adm-btn-outline" onClick={applyTemplate}>불러오기</button>
+                <button className="adm-btn adm-btn-outline" onClick={saveTemplate}>현재 내용 저장</button>
               </div>
             </div>
 
-            <div className="adm-form-actions">
+            {/* 메시지 작성 */}
+            <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
+              <label className="adm-label">메시지 내용</label>
+              <textarea className="adm-textarea" placeholder="한글 45자(90byte) 이하 SMS · 초과 시 자동 LMS 전환" rows={5}
+                style={{ width:'100%' }} value={smsText} onChange={e => setSmsText(e.target.value)} />
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%' }}>
+                <span className="adm-muted" style={{ fontSize:12 }}>
+                  {smsText.length.toLocaleString()}자 · <span style={{ color: byteCount > 2000 ? '#DC2626' : 'inherit' }}>{byteCount.toLocaleString()}</span> / {msgType === 'LMS' ? '2,000' : '90'} byte
+                </span>
+                <span style={{ background: msgType==='LMS'?'#FEF3C7':'#EFF6FF', color: msgType==='LMS'?'#92400E':'#1D4ED8', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700 }}>{msgType}</span>
+              </div>
+            </div>
+
+            {/* 예약 발송 */}
+            <div className="adm-form-row" style={{ alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <label className="adm-label" style={{ margin:0 }}>예약 발송</label>
+              <AdmToggle on={reserveOn} onChange={setReserveOn} />
+              {reserveOn && (
+                <input type="datetime-local" className="adm-select" style={{ fontSize:13 }}
+                  value={reserveAt} onChange={e => setReserveAt(e.target.value)} />
+              )}
+            </div>
+
+            <div className="adm-form-actions" style={{ justifyContent:'flex-end' }}>
               <button className="adm-btn adm-btn-outline" disabled={!smsText.trim()} onClick={() => setPreview(true)}>미리보기</button>
               <button className="adm-btn adm-btn-primary" onClick={sendSms} disabled={sending || !smsText.trim()}>
-                {sending ? '발송 중...' : `발송하기 (${targetCount}명)`}
+                {sending ? '처리 중...' : (reserveOn ? `예약하기 (${targetCount}명)` : `발송하기 (${targetCount}명)`)}
               </button>
             </div>
           </div>
         </div>
+      )}
 
-        {/* 우: 발송 이력 */}
-        <div className="adm-card adm-card-sm">
+      {/* ===== 발송 이력 ===== */}
+      {smsTab === 'history' && (
+        <div className="adm-card">
           <div className="adm-card-head">
             <span className="adm-card-title">발송 이력</span>
-            <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }} onClick={() => loadSmsLogs()}>
-              <span className="adm-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg></span>새로고침
-            </button>
-          </div>
-          {/* 기간 조회 */}
-          <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 18px', borderBottom:'1px solid #F1F5F9' }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-              <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:0 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
-              <span style={{ color:'#94A3B8', flexShrink:0 }}>~</span>
-              <input type="date" className="adm-select" style={{ fontSize:12, flex:1, minWidth:0 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
+            <div style={{ display:'flex', gap:8, alignItems:'center', marginLeft:'auto' }}>
+              <input type="date" className="adm-select" style={{ fontSize:12 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
+              <span style={{ color:'#94A3B8' }}>~</span>
+              <input type="date" className="adm-select" style={{ fontSize:12 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
+              <button className="adm-btn adm-btn-primary" style={{ fontSize:12 }} onClick={() => loadSmsLogs()}>조회</button>
+              <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={() => { setSmsFrom(''); setSmsTo(''); loadSmsLogs('', ''); }}>전체</button>
             </div>
-            <button className="adm-btn adm-btn-primary" style={{ fontSize:12, width:'100%' }} onClick={() => loadSmsLogs()}>조회</button>
           </div>
-          {logsLoading ? <PanelLoading /> : smsLogs.length === 0 ? (
-            <div className="adm-muted" style={{ padding:'28px 18px', fontSize:13, textAlign:'center' }}>발송 이력 없음</div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:8, padding:'14px 18px' }}>
-              {smsLogs.map(log => (
-                <div key={log.id} style={{ padding:'12px 14px', border:'1px solid #EEF2F6', borderRadius:10, background:'#fff' }}>
-                  <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
-                    <span style={{ fontSize:11, background: log.status==='sent'?'#DCFCE7':'#FEE2E2', color: log.status==='sent'?'#166534':'#991B1B', borderRadius:4, padding:'2px 7px', fontWeight:700 }}>
-                      {log.status==='sent' ? '발송완료' : '실패'}
-                    </span>
-                    <span style={{ fontSize:11, background:'#F1F5F9', color:'#64748B', borderRadius:4, padding:'2px 7px', fontWeight:700, marginLeft:'auto' }}>{log.msg_type}</span>
-                  </div>
-                  <div style={{ fontSize:13, color:'#1A1A1A', marginBottom:6, lineHeight:1.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</div>
-                  <div style={{ fontSize:11, color:'#94A3B8', display:'flex', gap:6, alignItems:'center' }}>
-                    <span style={{ fontWeight:700, color:'#475569' }}>{log.target_count}명</span>
-                    <span>·</span>
-                    <span>{new Date(log.created_at).toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</span>
-                  </div>
-                  {log.error_msg && <div style={{ fontSize:11, color:'#DC2626', marginTop:4 }}>{log.error_msg}</div>}
-                </div>
-              ))}
+          {logsLoading ? <PanelLoading /> : (
+            <div className="adm-table-wrap">
+              <table className="adm-table">
+                <thead>
+                  <tr>
+                    <th>종류</th>
+                    <th>유형</th>
+                    <th style={{ textAlign:'left' }}>내용</th>
+                    <th>대상</th>
+                    <th>금액</th>
+                    <th>상태</th>
+                    <th>발송일시</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {smsLogs.length === 0 ? (
+                    <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>발송 이력 없음</td></tr>
+                  ) : smsLogs.map(log => {
+                    const st = dispStatus(log);
+                    return (
+                      <tr key={log.id}>
+                        <td>{kindLabel(log.msg_kind)}</td>
+                        <td>{log.msg_type}</td>
+                        <td style={{ textAlign:'left', maxWidth:320, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</td>
+                        <td>{(log.target_count || 0).toLocaleString()}명</td>
+                        <td>{(log.cost || 0).toLocaleString()}원</td>
+                        <td><span style={{ fontWeight:600, color: st.color }}>{st.label}</span></td>
+                        <td className="adm-muted">{new Date(dispWhen(log)).toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-      </div>
+      )}
 
       {/* 미리보기 모달 */}
       {preview && (
         <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }}
           onClick={() => setPreview(false)}>
-          <div style={{ background:'#fff', borderRadius:16, padding:28, width:320 }} onClick={e => e.stopPropagation()}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <span style={{ fontSize:15, fontWeight:700 }}>SMS 미리보기</span>
-              <button onClick={() => setPreview(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
-            </div>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:340, maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>SMS 미리보기</div>
+
             {/* 폰 목업 */}
-            <div style={{ background:'#1A1A1A', borderRadius:28, padding:'12px 8px', margin:'0 auto', width:260 }}>
-              <div style={{ background:'#fff', borderRadius:20, padding:'16px 12px', minHeight:160 }}>
-                <div style={{ fontSize:10, color:'#94A3B8', marginBottom:8, textAlign:'center' }}>문자 메시지</div>
-                <div style={{ background:'#E9F5FF', borderRadius:'14px 14px 14px 4px', padding:'10px 12px', fontSize:13, lineHeight:1.7, color:'#1A1A1A', wordBreak:'break-all' }}>
-                  {smsText || <span style={{ color:'#94A3B8' }}>메시지를 입력하세요</span>}
+            <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px', margin:'0 auto', width:250 }}>
+              <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 8px' }} />
+              <div style={{ background:'#F2F3F5', borderRadius:22, padding:'12px 10px', minHeight:150 }}>
+                <div style={{ fontSize:10, color:'#8A8F98', marginBottom:10, textAlign:'center', fontWeight:600 }}>문자 메시지 · 델리오</div>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
+                  <div style={{ fontSize:10, color:'#8A8F98', margin:'0 0 4px 4px' }}>델리오</div>
+                  <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-all', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', whiteSpace:'pre-wrap' }}>
+                    {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
+                    {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
+                    {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>무료수신거부 080-XXX-XXXX</span>}
+                  </div>
                 </div>
               </div>
             </div>
-            <div style={{ marginTop:16, textAlign:'center', fontSize:12, color:'#94A3B8' }}>
-              {charCount}자 · {msgType} · {targetCount}명 발송 예정
+
+            {/* 상세 */}
+            <div style={{ marginTop:18, border:'1px solid #EEF2F6', borderRadius:12, overflow:'hidden' }}>
+              {[
+                ['발송 종류', smsKind === 'ad' ? '광고성' : '안내성'],
+                ['메시지 유형', `${msgType} (${byteCount} byte)`],
+                ['발송 대상', `${targetCount.toLocaleString()}명`],
+                ['예약 발송', reserveOn && reserveAt ? `${new Date(reserveAt).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })} 예약` : '즉시 발송'],
+                ['예상 비용', `약 ${estCost.toLocaleString()}원 (건당 ${unitCost}원)`],
+              ].map(([l, v], i) => (
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'10px 14px', fontSize:13, borderTop: i ? '1px solid #F1F5F9' : 'none' }}>
+                  <span style={{ color:'#64748B' }}>{l}</span>
+                  <span style={{ fontWeight:600, color: l === '예상 비용' ? '#EA580C' : '#1A1A1A' }}>{v}</span>
+                </div>
+              ))}
             </div>
-            <button className="adm-btn adm-btn-primary" style={{ width:'100%', marginTop:12 }} onClick={() => { setPreview(false); sendSms(); }}
-              disabled={sending || !smsText.trim() || targetCount === 0}>
-              {sending ? '발송 중...' : `바로 발송 (${targetCount}명)`}
-            </button>
+
+            <div style={{ display:'flex', gap:8, marginTop:16 }}>
+              <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => setPreview(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { setPreview(false); sendSms(); }}
+                disabled={sending || !smsText.trim() || targetCount === 0}>
+                {sending ? '처리 중...' : `발송하기 (${targetCount}명)`}
+              </button>
+            </div>
           </div>
         </div>
       )}

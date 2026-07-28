@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createHmac, randomBytes } from 'crypto';
 
+/* ── 건당 단가(원) — Solapi 웹 표준단가 ── */
+const SMS_COST = 18;
+const LMS_COST = 45;
+
+/* ── EUC-KR 바이트 길이(한글 2byte / 그 외 1byte). SMS 한계 = 90byte ── */
+function byteLen(s: string) {
+  let n = 0;
+  for (const ch of s) n += ch.charCodeAt(0) > 0x7f ? 2 : 1;
+  return n;
+}
+
 /* ── Solapi HMAC 인증 헤더 생성 ── */
 function solapiAuth(apiKey: string, apiSecret: string) {
   const date = new Date().toISOString();
@@ -31,7 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '필수 필드 누락 (text, targets)' }, { status: 400 });
   }
 
-  const { text, targets }: { text: string; targets: string[] } = body;
+  const { text, targets, msgKind, scheduledAt }: {
+    text: string; targets: string[]; msgKind?: 'ad' | 'notice'; scheduledAt?: string | null;
+  } = body;
   if (!Array.isArray(targets) || targets.length === 0) {
     return NextResponse.json({ error: '수신자가 없습니다.' }, { status: 400 });
   }
@@ -39,9 +52,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '메시지 내용을 입력하세요.' }, { status: 400 });
   }
 
+  /* ── 유형·금액·예약 ── */
+  const isLms = byteLen(text) > 90;
+  const unit  = isLms ? LMS_COST : SMS_COST;
+  const cost  = unit * targets.length;
+  const kind  = msgKind === 'notice' ? 'notice' : 'ad';
+  // 예약: 미래 시각이면 예약, 아니면 즉시
+  const schedDate = scheduledAt && new Date(scheduledAt).getTime() > Date.now() ? scheduledAt : null;
+
   /* ── Solapi 전송 ── */
   const messages = targets.map(to => ({ to, from: fromNum, text }));
-  const isLms = text.length > 90;
+  const payload: Record<string, unknown> = { messages };
+  if (schedDate) payload.scheduledDate = new Date(schedDate).toISOString();
 
   const solapiRes = await fetch('https://api.solapi.com/messages/v4/send-many', {
     method: 'POST',
@@ -49,7 +71,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
       'Authorization': solapiAuth(apiKey, apiSecret),
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(payload),
   });
 
   const result = await solapiRes.json().catch(() => ({}));
@@ -61,7 +83,10 @@ export async function POST(req: NextRequest) {
       message:       text,
       target_count:  targets.length,
       msg_type:      isLms ? 'LMS' : 'SMS',
-      status:        solapiRes.ok ? 'sent' : 'failed',
+      msg_kind:      kind,
+      cost:          solapiRes.ok ? cost : 0,
+      scheduled_at:  schedDate,
+      status:        !solapiRes.ok ? 'failed' : (schedDate ? 'reserved' : 'sent'),
       error_msg:     solapiRes.ok ? null : (result?.error?.message || JSON.stringify(result)),
     });
   } catch { /* 로그 저장 실패는 무시 */ }
@@ -77,5 +102,7 @@ export async function POST(req: NextRequest) {
     success: true,
     sent: targets.length,
     type: isLms ? 'LMS' : 'SMS',
+    reserved: !!schedDate,
+    cost,
   });
 }
