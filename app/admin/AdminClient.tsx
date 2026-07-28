@@ -2069,8 +2069,12 @@ export default function AdminClient() {
   const [members, setMembers] = useState<AdminProfile[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [memberTab, setMemberTab] = useState<'list'|'withdrawn'>('list');
-  const [withdrawnList, setWithdrawnList] = useState<{ id:string; email:string|null; phone:string|null; reason:string|null; withdrawn_at:string }[]>([]);
+  const [withdrawnList, setWithdrawnList] = useState<{ id:string; name:string|null; email:string|null; phone:string|null; reason:string|null; withdrawn_at:string }[]>([]);
   const [withdrawnLoading, setWithdrawnLoading] = useState(false);
+  const [wdSearch, setWdSearch] = useState('');
+  const [wdFrom, setWdFrom] = useState('');
+  const [wdTo, setWdTo] = useState('');
+  const [wdReason, setWdReason] = useState(''); // 사유 카드 클릭 필터
   const [memberSearch, setMemberSearch] = useState('');
   const [memberGradeFilter, setMemberGradeFilter] = useState('');
   const [memberBlockFilter, setMemberBlockFilter] = useState<'all'|'active'|'blocked'>('all');
@@ -3507,7 +3511,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('withdrawn_users')
-      .select('id, email, phone, reason, withdrawn_at')
+      .select('id, name, email, phone, reason, withdrawn_at')
       .order('withdrawn_at', { ascending: false })
       .limit(500);
     setWithdrawnList((data as typeof withdrawnList) || []);
@@ -10333,51 +10337,78 @@ export default function AdminClient() {
               </div>
               <Pager page={memCur} pageSize={memSize} total={filteredMembers.length} onPage={setMemPage} onPageSize={setMemSize} />
               </>) : (<>
-              {/* 탈퇴 사유 집계 */}
               {(() => {
+                const reasonKey = (w: typeof withdrawnList[number]) => (w.reason || '기타').split(/[—:]/)[0].trim() || '기타';
                 const counts: Record<string, number> = {};
-                withdrawnList.forEach(w => { const k = (w.reason || '기타').split(/[—:]/)[0].trim() || '기타'; counts[k] = (counts[k] || 0) + 1; });
+                withdrawnList.forEach(w => { const k = reasonKey(w); counts[k] = (counts[k] || 0) + 1; });
                 const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
-                return top.length === 0 ? null : (
-                  <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                    {top.map(([k, v]) => (
-                      <div key={k} className="adm-kpi-card">
-                        <div className="adm-kpi-label">{k}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt">{v}건</div>
+                const q = wdSearch.trim().toLowerCase();
+                const digits = q.replace(/[^0-9]/g, '');
+                const filtered = withdrawnList.filter(w => {
+                  if (wdReason && reasonKey(w) !== wdReason) return false;
+                  if (wdFrom && w.withdrawn_at.slice(0,10) < wdFrom) return false;
+                  if (wdTo && w.withdrawn_at.slice(0,10) > wdTo) return false;
+                  if (q) { const hit = (w.name||'').toLowerCase().includes(q) || (w.email||'').toLowerCase().includes(q) || (!!digits && (w.phone||'').replace(/[^0-9]/g,'').includes(digits)); if (!hit) return false; }
+                  return true;
+                });
+                return (
+                  <>
+                    {/* 탈퇴 사유 집계 — 클릭 시 필터 */}
+                    {top.length > 0 && (
+                      <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                        {top.map(([k, v]) => {
+                          const on = wdReason === k;
+                          return (
+                            <div key={k} className="adm-kpi-card" onClick={() => setWdReason(on ? '' : k)}
+                              style={{ cursor:'pointer', outline: on ? '2px solid #1A1A1A' : 'none', outlineOffset:-1 }}>
+                              <div className="adm-kpi-label">{k}{on && ' ✓'}</div>
+                              <div className="adm-kpi-value adm-kpi-value-mt">{v}건</div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                    <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                      <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
+                          value={wdSearch} onChange={e => setWdSearch(e.target.value)} />
+                        <input type="date" className="adm-select" value={wdFrom} onChange={e => setWdFrom(e.target.value)} />
+                        <span style={{ color:'#94A3B8' }}>~</span>
+                        <input type="date" className="adm-select" value={wdTo} onChange={e => setWdTo(e.target.value)} />
+                        {(wdReason || wdSearch || wdFrom || wdTo) && (
+                          <button className="adm-btn adm-btn-outline" style={{ height:34, fontSize:12 }} onClick={() => { setWdReason(''); setWdSearch(''); setWdFrom(''); setWdTo(''); }}>필터 해제</button>
+                        )}
+                        <span style={{ fontSize:13, color:'#64748B', marginLeft:4 }}>총 <strong>{filtered.length}</strong>건</span>
+                      </div>
+                      <div className="adm-toolbar-right">
+                        <button className="adm-btn adm-btn-outline" onClick={() => { setWdReason(''); setWdSearch(''); setWdFrom(''); setWdTo(''); loadWithdrawn(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                      </div>
+                    </div>
+                    <div className="adm-card">
+                      {withdrawnLoading ? <PanelLoading /> : (
+                        <div className="adm-table-wrap">
+                          <table className="adm-table">
+                            <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>탈퇴일</th><th>탈퇴 사유</th></tr></thead>
+                            <tbody>
+                              {filtered.length === 0 ? (
+                                <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{withdrawnList.length === 0 ? '탈퇴 이력이 없습니다.' : '조건에 맞는 이력이 없습니다.'}</td></tr>
+                              ) : filtered.map(w => (
+                                <tr key={w.id}>
+                                  <td style={{ fontWeight:500 }}>{w.name || '-'}</td>
+                                  <td className="adm-muted">{w.email || '-'}</td>
+                                  <td className="adm-muted">{w.phone || '-'}</td>
+                                  <td className="adm-muted">{fmtDateShort(w.withdrawn_at)}</td>
+                                  <td className="adm-muted">{w.reason || '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 );
               })()}
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <span style={{ fontSize:13, color:'#64748B' }}>총 <strong>{withdrawnList.length}</strong>건의 탈퇴 이력</span>
-                </div>
-                <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={loadWithdrawn}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                </div>
-              </div>
-              <div className="adm-card">
-                {withdrawnLoading ? <PanelLoading /> : (
-                  <div className="adm-table-wrap">
-                    <table className="adm-table">
-                      <thead><tr><th>탈퇴일</th><th>이메일</th><th>연락처</th><th>탈퇴 사유</th></tr></thead>
-                      <tbody>
-                        {withdrawnList.length === 0 ? (
-                          <tr><td colSpan={4} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>탈퇴 이력이 없습니다.</td></tr>
-                        ) : withdrawnList.map(w => (
-                          <tr key={w.id}>
-                            <td className="adm-muted">{fmtDateShort(w.withdrawn_at)}</td>
-                            <td className="adm-muted">{w.email || '-'}</td>
-                            <td className="adm-muted">{w.phone || '-'}</td>
-                            <td>{w.reason || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
               </>)}
             </div>
           )}
