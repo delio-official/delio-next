@@ -2521,7 +2521,7 @@ export default function AdminClient() {
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
   // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
-  const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: number; defective: number }[]>([]);
+  const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string }[]>([]);
   const [refundMemoInput, setRefundMemoInput] = useState('');
   const [refundSaving, setRefundSaving] = useState(false);
 
@@ -4063,17 +4063,17 @@ export default function AdminClient() {
     const saved = r.refund_items || [];
     const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => {
       const prev = saved.find(s => s.name === it.product_name);
-      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: prev?.total ?? (it.quantity || 1), defective: prev?.defective ?? 0 };
+      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(prev?.total ?? (it.quantity || 1)), defective: String(prev?.defective ?? 0) };
     });
     setRefundOrderItems(items);
   }
 
   /* 부분환불 계산 + 저장 (하자수량 비율로 순환불액·재송금액 산출) */
-  function calcRefund(items: { name: string; subtotal: number; total: number; defective: number }[], orderTotal: number) {
-    const refundItems = items.map(it => ({
-      name: it.name, total: it.total, defective: it.defective,
-      refund: it.total > 0 ? Math.round(it.subtotal * Math.min(it.defective, it.total) / it.total) : 0,
-    }));
+  function calcRefund(items: { name: string; subtotal: number; total: string | number; defective: string | number }[], orderTotal: number) {
+    const refundItems = items.map(it => {
+      const t = Number(it.total) || 0, d = Number(it.defective) || 0;
+      return { name: it.name, total: t, defective: d, refund: t > 0 ? Math.round(it.subtotal * Math.min(d, t) / t) : 0 };
+    });
     const refundAmount = refundItems.reduce((s, it) => s + it.refund, 0);
     const resendAmount = Math.max(0, orderTotal - refundAmount);
     return { refundItems, refundAmount, resendAmount };
@@ -4082,7 +4082,7 @@ export default function AdminClient() {
     if (!refundDetail) return;
     setRefundSaving(true);
     const orderTotal = refundDetail.orders?.final_amount || 0;
-    const anyDefect = refundOrderItems.some(it => it.defective > 0);
+    const anyDefect = refundOrderItems.some(it => (Number(it.defective) || 0) > 0);
     const { refundItems, refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
     const payload = {
       memo: refundMemoInput || null,
@@ -11754,10 +11754,10 @@ export default function AdminClient() {
                 const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
                 const orderTotal = r.orders?.final_amount || 0;
                 const { refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
-                const hasDefect = refundOrderItems.some(it => it.defective > 0);
+                const hasDefect = refundOrderItems.some(it => (Number(it.defective) || 0) > 0);
                 const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
-                const setItem = (id: string, key: 'total'|'defective', val: number) =>
-                  setRefundOrderItems(prev => prev.map(it => it.id === id ? { ...it, [key]: Math.max(0, val || 0) } : it));
+                const setItem = (id: string, key: 'total'|'defective', val: string) =>
+                  setRefundOrderItems(prev => prev.map(it => it.id === id ? { ...it, [key]: val.replace(/[^0-9]/g, '') } : it));
                 const info: [string, string][] = [
                   ['신청자', `${r.profiles?.name || '(탈퇴)'}${r.profiles?.email ? ` · ${r.profiles.email}` : ''}`],
                   ['주문번호', r.orders?.order_no || '-'],
@@ -11800,7 +11800,8 @@ export default function AdminClient() {
                           ) : (
                             <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
                               {refundOrderItems.map((it, idx) => {
-                                const itRefund = it.total > 0 ? Math.round(it.subtotal * Math.min(it.defective, it.total) / it.total) : 0;
+                                const t = Number(it.total) || 0, d = Number(it.defective) || 0;
+                                const itRefund = t > 0 ? Math.round(it.subtotal * Math.min(d, t) / t) : 0;
                                 return (
                                   <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 14px', borderTop: idx ? '1px solid #F1F5F9' : 'none', flexWrap:'wrap' }}>
                                     <div style={{ flex:1, minWidth:140 }}>
@@ -11808,9 +11809,9 @@ export default function AdminClient() {
                                       <div className="adm-muted" style={{ fontSize:11 }}>{fmtPrice(it.subtotal)}원</div>
                                     </div>
                                     <span style={{ fontSize:12, color:'#64748B' }}>전체</span>
-                                    <input type="number" min={1} value={it.total} onChange={e => setItem(it.id, 'total', Number(e.target.value))} style={numInput} />
+                                    <input type="text" inputMode="numeric" value={it.total} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'total', e.target.value)} style={numInput} />
                                     <span style={{ fontSize:12, color:'#64748B' }}>중 하자</span>
-                                    <input type="number" min={0} max={it.total} value={it.defective} onChange={e => setItem(it.id, 'defective', Number(e.target.value))} style={{ ...numInput, borderColor: it.defective > 0 ? '#FCA5A5' : '#E2E8F0' }} />
+                                    <input type="text" inputMode="numeric" value={it.defective} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'defective', e.target.value)} style={{ ...numInput, borderColor: d > 0 ? '#FCA5A5' : '#E2E8F0' }} />
                                     <span style={{ width:78, textAlign:'right', fontWeight:700, fontSize:13, color: itRefund > 0 ? '#DC2626' : '#94A3B8' }}>{fmtPrice(itRefund)}원</span>
                                   </div>
                                 );
