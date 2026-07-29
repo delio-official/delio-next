@@ -460,7 +460,7 @@ const TITLES: Record<PanelKey, string> = {
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 협업문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  refund:'환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
+  refund:'취소·환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
 const CS_CAT_LABEL: Record<string, string> = {
@@ -2505,7 +2505,7 @@ export default function AdminClient() {
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
-  const [refundTypeFilter, setRefundTypeFilter] = useState<'' | 'cancel' | 'refund'>('');
+  const [refundTypeFilter, setRefundTypeFilter] = useState<'' | 'cancel' | 'refund'>('refund'); // 서브탭(환불 먼저)
   const [refundStatusFilter, setRefundStatusFilter] = useState('');
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
@@ -2980,11 +2980,12 @@ export default function AdminClient() {
     /* 조회 기준(주문일/결제일) + 기간 필터 */
     if (from) query = query.gte(basis, new Date(`${from}T00:00:00`).toISOString());
     if (to)   query = query.lte(basis, new Date(`${to}T23:59:59`).toISOString());
-    /* 무통장 미입금(pending)·입금기한 만료(expired)는 paid_at이 없어 위 조회에서 빠짐 → created_at 기준으로 별도 합류 */
+    /* 무통장 미입금 주문(입금대기 pending · 입금기한 만료 expired · 미입금 취소 cancelled)은 paid_at이 없어
+       위 조회에서 빠짐 → created_at 기준으로 별도 합류. (미입금 취소는 돈이 안 움직였으므로 주문관리에서 처리) */
     let unpaidQ = supabase
       .from('orders')
       .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
-      .in('status', ['pending', 'expired'])
+      .or('status.in.(pending,expired),and(status.eq.cancelled,paid_at.is.null)')
       .order('created_at', { ascending: false })
       .limit(500);
     if (from) unpaidQ = unpaidQ.gte('created_at', new Date(`${from}T00:00:00`).toISOString());
@@ -8114,7 +8115,7 @@ export default function AdminClient() {
                 badge={csPending.length || undefined} />
               <NavItem panel="productinquiry" icon={<Icon.Faq />} label="상품 문의"
                 badge={productInquiries.filter(q => !q.answer).length || undefined} />
-              <NavItem panel="refund" icon={<Icon.Settlement />} label="환불 관리"
+              <NavItem panel="refund" icon={<Icon.Settlement />} label="취소·환불 관리"
                 badge={refundReqs.filter(r => r.status === 'pending').length || undefined} />
             </div>
             <div className="adm-nav-group">
@@ -8564,6 +8565,17 @@ export default function AdminClient() {
                           if (groups.length === 0) groups.push({ key:'__none', farmName:'-', items:[], sub:o.final_amount||0, shipped:false, tracking:'', courier:'' });
                           const n = groups.length;
                           const cancelledLike = ['cancelled','refunded','refunding','exchanging','exchanged'].includes(o.status);
+                          const isPending = o.status === 'pending';
+                          const isExpired = o.status === 'expired';
+                          const noFulfill = cancelledLike || isPending || isExpired; // 배송/송장 없음
+                          // 미입금 취소는 '결제취소'로 구분 표기
+                          const oPaidAt = (o as { paid_at?: string | null }).paid_at;
+                          const oStatusLabel = (o.status === 'cancelled' && !oPaidAt) ? '결제취소' : (STATUS_LABEL[o.status] || o.status);
+                          // 입금대기 카운트다운 (주문일 + 3일)
+                          const expireMs = new Date(o.created_at).getTime() + 3 * 86400000 - Date.now();
+                          const expireText = expireMs <= 0 ? '만료 임박'
+                            : expireMs >= 86400000 ? `약 ${Math.floor(expireMs / 86400000)}일 후 만료`
+                            : `약 ${Math.max(1, Math.floor(expireMs / 3600000))}시간 후 만료`;
 
                           return groups.map((g, gi) => {
                             const editKey = `${o.id}::${g.key}`;
@@ -8604,10 +8616,15 @@ export default function AdminClient() {
                                 <td rowSpan={n} style={{ fontWeight:700 }}>{fmtPrice(o.final_amount)}원</td>
                               )}
 
-                              {/* 상태 — 브랜드별. 취소·환불은 주문 상태 그대로 */}
+                              {/* 상태 — 브랜드별. 취소·환불/입금대기/만료는 주문 상태 그대로 */}
                               <td>
-                                {cancelledLike ? (
-                                  <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>{STATUS_LABEL[o.status] || o.status}</span>
+                                {isPending ? (
+                                  <span style={{ display:'inline-flex', flexDirection:'column', gap:2, alignItems:'flex-start' }}>
+                                    <span className="adm-badge badge-wait">입금대기</span>
+                                    <span style={{ fontSize:10, fontWeight:700, color: expireMs <= 0 ? '#DC2626' : '#EA580C' }}>{expireText}</span>
+                                  </span>
+                                ) : noFulfill ? (
+                                  <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{oStatusLabel}</span>
                                 ) : (
                                   <span className={`adm-badge ${g.shipped ? 'badge-shipping' : 'badge-ready'}`}>{g.shipped ? '배송중' : '배송준비중'}</span>
                                 )}
@@ -8620,7 +8637,7 @@ export default function AdminClient() {
 
                               {/* 송장 — 브랜드별 입력 */}
                               <td onClick={e => e.stopPropagation()}>
-                                {cancelledLike ? <span className="adm-muted">—</span> : (editing || !g.tracking) ? (
+                                {noFulfill ? <span className="adm-muted">—</span> : (editing || !g.tracking) ? (
                                   <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                                     <select value={editing ? trackEditCourier : g.courier} disabled={saving}
                                       onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditVal(g.tracking); } setTrackEditCourier(e.target.value); }}
@@ -11512,12 +11529,22 @@ export default function AdminClient() {
             );
           })()}
 
-          {/* ===== 환불 관리 ===== */}
+          {/* ===== 취소·환불 관리 ===== */}
           {panel === 'refund' && (
             <div className="adm-content">
+              {/* 환불 / 취소 서브탭 (환불 먼저) */}
+              <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+                {([['refund','환불'],['cancel','취소']] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => { setRefundTypeFilter(v); setRefundStatusFilter(''); }}
+                    style={{ padding:'8px 20px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:700, cursor:'pointer',
+                      borderColor: refundTypeFilter === v ? '#1A1A1A' : '#E2E8F0', background: refundTypeFilter === v ? '#1A1A1A' : '#fff', color: refundTypeFilter === v ? '#fff' : '#64748B' }}>
+                    {l}
+                  </button>
+                ))}
+              </div>
               <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                 {(() => {
-                  const w = refundTypeFilter === 'cancel' ? '취소' : refundTypeFilter === 'refund' ? '환불' : '취소·환불';
+                  const w = refundTypeFilter === 'cancel' ? '취소' : '환불';
                   return [
                   { l:`${w} 요청`, st:'pending',    red:true  },
                   { l:`${w} 보류`, st:'hold',       red:false },
@@ -11544,20 +11571,15 @@ export default function AdminClient() {
                       <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
                     ))}
                   </div>
-                  <div className="adm-btn-group">
-                    {([['','유형 전체'],['cancel','취소'],['refund','환불']] as const).map(([id, label]) => (
-                      <button key={id} className={`adm-seg-btn${refundTypeFilter===id?' active':''}`} onClick={() => setRefundTypeFilter(id)}>{label}</button>
-                    ))}
-                  </div>
                   <AdmSelect value={refundStatusFilter} onChange={setRefundStatusFilter}
-                    options={[
+                    options={(() => { const w = refundTypeFilter === 'cancel' ? '취소' : '환불'; return [
                       { value:'', label:'전체 상태' },
-                      { value:'pending', label:'환불 요청' },
-                      { value:'hold', label:'환불 보류' },
+                      { value:'pending', label:`${w} 요청` },
+                      { value:'hold', label:`${w} 보류` },
                       { value:'processing', label:'진행중' },
-                      { value:'completed', label:'환불 완료' },
-                      { value:'rejected', label:'환불 불가' },
-                    ]} />
+                      { value:'completed', label:`${w} 완료` },
+                      { value:'rejected', label:`${w} 불가` },
+                    ]; })()} />
                   <input type="date" className="adm-select" value={refundFrom} onChange={e => setRefundFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={refundTo} onChange={e => setRefundTo(e.target.value)} />
