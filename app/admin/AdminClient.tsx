@@ -5270,13 +5270,18 @@ export default function AdminClient() {
       supplyCost = items.filter(it => confirmedIds.has(it.order_id)).reduce((s, it) => s + (Number(it.supply_price) || 0) * (it.quantity || 0), 0);
       const { data: prods } = await supabase.from('products').select('id, category');
       const prodCat = new Map((prods || []).map((p: { id: string; category: string }) => [p.id, p.category]));
+      /* 카테고리 슬러그 → 한글 라벨 (filter_tabs에서 직접 조회 — 매출현황 진입 시 filterTabs 미로드 대비) */
+      const catLabelMap: Record<string, string> = {};
+      const { data: catTabs } = await supabase.from('filter_tabs').select('tab_value, label').eq('tab_type', 'category');
+      (catTabs as { tab_value: string; label: string }[] | null || []).forEach(t => { catLabelMap[t.tab_value] = t.label; });
+      const catLabel = (cat: string) => catLabelMap[cat] || catOptions[cat] || CAT_LABEL[cat] || cat;
       const pMap: Record<string, { qty: number; amount: number }> = {};
       const cMap: Record<string, { qty: number; amount: number }> = {};
       items.forEach(it => {
         const nm = it.product_name || '(상품)';
         if (!pMap[nm]) pMap[nm] = { qty: 0, amount: 0 }; pMap[nm].qty += it.quantity || 0; pMap[nm].amount += it.subtotal || 0;
         const cat = (prodCat.get(it.product_id) as string) || '기타';
-        const cl = (catOptions[cat] || CAT_LABEL[cat] || cat);
+        const cl = catLabel(cat);
         if (!cMap[cl]) cMap[cl] = { qty: 0, amount: 0 }; cMap[cl].qty += it.quantity || 0; cMap[cl].amount += it.subtotal || 0;
       });
       topProducts = Object.entries(pMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
