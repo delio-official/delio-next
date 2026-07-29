@@ -11734,7 +11734,7 @@ export default function AdminClient() {
                                   <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
                                   <td style={{ textAlign:'left' }} className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
                                   <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
-                                  <td className="adm-muted">-</td>
+                                  <td><button className="adm-row-btn" onClick={() => setSelectedOrder(o)}>상세</button></td>
                                 </tr>
                               ))}
                             </>
