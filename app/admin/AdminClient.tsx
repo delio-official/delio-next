@@ -465,7 +465,7 @@ const TITLES: Record<PanelKey, string> = {
   reviews:'리뷰 관리', coupon:'쿠폰 / 포인트', banner:'배너 / 팝업', events:'이벤트',
   lounge:'라운지 관리', homesections:'메인페이지 섹션관리', members:'회원 관리', referral:'친구 추천', sms:'SMS 발송',
   inquiry:'입점 협업문의', faq:'FAQ 관리', cs:'1:1 문의 관리', productinquiry:'상품 문의',
-  refund:'취소·환불 관리', settlement:'정산 관리', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
+  refund:'취소·환불 관리', settlement:'매출 현황', farmsettle:'브랜드 정산', tasteprofile:'취향 프로파일', analytics:'마케팅 분석', settings:'설정',
 };
 
 const CS_CAT_LABEL: Record<string, string> = {
@@ -2574,19 +2574,23 @@ export default function AdminClient() {
   const [settlementData, setSettlementData] = useState<{
     confirmed: number; pending: number; cancelled: number;
     total: number; orderCount: number;
+    unpaidAmount: number; unpaidCount: number;
+    supplyCost: number; margin: number; marginRate: number;
     byStatus: { status: string; count: number; amount: number }[];
     byMethod: { method: string; count: number; amount: number }[];
+    byGrade: { grade: string; count: number; amount: number }[];
+    newAmount: number; newCount: number; repeatAmount: number; repeatCount: number;
     daily: { date: string; amount: number }[];
     realSettle: number; aov: number; couponTotal: number; pointTotal: number;
-    refundCount: number; refundRate: number;
+    refundCount: number; refundRate: number; prevRefundRate: number;
     prevTotal: number; prevOrderCount: number;
     topProducts: { name: string; qty: number; amount: number }[];
     topCategories: { category: string; qty: number; amount: number }[];
   } | null>(null);
   /* 기간 프리셋 */
   const [settlementPreset, setSettlementPreset] = useState<'today'|'yesterday'|'7d'|'30d'|'thisMonth'|'lastMonth'|'all'|'custom'>('thisMonth');
-  const [settlementCustFrom, setSettlementCustFrom] = useState('');
-  const [settlementCustTo, setSettlementCustTo] = useState('');
+  const [settlementCustFrom, setSettlementCustFrom] = useState<string>(() => { const d = new Date(); return ymd(new Date(d.getFullYear(), d.getMonth(), 1)); });
+  const [settlementCustTo, setSettlementCustTo] = useState<string>(() => ymd(new Date()));
   const [settlementLoading, setSettlementLoading] = useState(false);
   /* ── 농가 정산 ── */
   const [farmSettleMonth, setFarmSettleMonth] = useState(() => {
@@ -5165,33 +5169,71 @@ export default function AdminClient() {
     const isConfirmed = (s: string) => s === 'delivered' || s === 'confirmed';
     const isPending = (s: string) => ['paid','preparing','shipped'].includes(s);
     const isCancel = (s: string) => ['cancelled','refunded','refunding'].includes(s);
+    const isUnpaid = (s: string) => ['pending','expired'].includes(s); // 무통장 미입금·만료
 
     const { data } = await supabase
       .from('orders')
-      .select('id, status, final_amount, coupon_discount, point_used, payment_method, created_at')
+      .select('id, user_id, status, buyer_grade, final_amount, coupon_discount, point_used, payment_method, created_at')
       .gte('created_at', fromISO).lt('created_at', toISO).limit(5000);
     if (!data) { setSettlementLoading(false); return; }
 
-    const confirmed = data.filter(o => isConfirmed(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const pending   = data.filter(o => isPending(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const cancelled = data.filter(o => isCancel(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const total     = data.reduce((s, o) => s + (o.final_amount || 0), 0);
-    const couponTotal = data.reduce((s, o) => s + (o.coupon_discount || 0), 0);
-    const pointTotal  = data.reduce((s, o) => s + (o.point_used || 0), 0);
-    const validOrders = data.filter(o => !isCancel(o.status));
+    /* 무통장 미입금·만료는 실결제가 아니므로 총주문금액에서 제외하고 별도 집계 */
+    const paidData = data.filter(o => !isUnpaid(o.status));
+    const unpaidData = data.filter(o => isUnpaid(o.status));
+    const unpaidAmount = unpaidData.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const unpaidCount = unpaidData.length;
+
+    const confirmed = paidData.filter(o => isConfirmed(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const pending   = paidData.filter(o => isPending(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const cancelled = paidData.filter(o => isCancel(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const total     = paidData.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const couponTotal = paidData.reduce((s, o) => s + (o.coupon_discount || 0), 0);
+    const pointTotal  = paidData.reduce((s, o) => s + (o.point_used || 0), 0);
+    const validOrders = paidData.filter(o => !isCancel(o.status));
     const validTotal  = validOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
     const aov = validOrders.length ? Math.round(validTotal / validOrders.length) : 0;
-    const realSettle = confirmed; // 확정 매출(쿠폰·포인트 차감 후 실수령 추정)
-    const refundCount = data.filter(o => isCancel(o.status)).length;
-    const refundRate = data.length ? (refundCount / data.length * 100) : 0;
+    const refundCount = paidData.filter(o => isCancel(o.status)).length;
+    const refundRate = paidData.length ? (refundCount / paidData.length * 100) : 0;
 
     const statusMap: Record<string, { count: number; amount: number }> = {};
-    data.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += o.final_amount || 0; });
+    paidData.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += o.final_amount || 0; });
     const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.amount - a.amount);
 
     const methodMap: Record<string, { count: number; amount: number }> = {};
-    data.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += o.final_amount || 0; });
+    paidData.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += o.final_amount || 0; });
     const byMethod = Object.entries(methodMap).map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount);
+
+    /* 멤버십 등급별 매출 (유효주문 기준, buyer_grade 우선·없으면 현재 프로필 등급) */
+    const userIds = [...new Set(validOrders.map(o => o.user_id).filter(Boolean))] as string[];
+    const gradeByUser: Record<string, string> = {};
+    if (userIds.length) {
+      const { data: profs } = await supabase.from('profiles').select('id, grade').in('id', userIds);
+      (profs as { id: string; grade: string | null }[] | null || []).forEach(p => { gradeByUser[p.id] = p.grade || 'beginner'; });
+    }
+    const gradeMap: Record<string, { count: number; amount: number }> = {};
+    validOrders.forEach(o => {
+      const g = (o.buyer_grade as string) || gradeByUser[o.user_id as string] || 'beginner';
+      if (!gradeMap[g]) gradeMap[g] = { count: 0, amount: 0 };
+      gradeMap[g].count++; gradeMap[g].amount += o.final_amount || 0;
+    });
+    const GRADE_ORDER = ['master','buyer','taster','beginner'];
+    const byGrade = Object.entries(gradeMap).map(([grade, v]) => ({ grade, ...v }))
+      .sort((a, b) => GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade));
+
+    /* 신규 vs 재구매 매출 (유효주문 중, 해당 고객의 그 주문 이전 유효주문 존재 여부) */
+    let newAmount = 0, newCount = 0, repeatAmount = 0, repeatCount = 0;
+    if (userIds.length) {
+      const { data: hist } = await supabase.from('orders').select('user_id, created_at, status')
+        .in('user_id', userIds).in('status', VALID_ORDER_STATUS).order('created_at', { ascending: true }).limit(20000);
+      const firstAt: Record<string, string> = {};
+      (hist as { user_id: string; created_at: string }[] | null || []).forEach(h => { if (h.user_id && !firstAt[h.user_id]) firstAt[h.user_id] = h.created_at; });
+      validOrders.forEach(o => {
+        const first = firstAt[o.user_id as string];
+        const isNew = first && new Date(o.created_at).getTime() <= new Date(first).getTime() + 1000; // 첫 유효주문
+        if (isNew) { newCount++; newAmount += o.final_amount || 0; }
+        else { repeatCount++; repeatAmount += o.final_amount || 0; }
+      });
+    }
 
     // 일별 (범위 92일 이하만 — 너무 길면 월별 그래프 사용)
     const dayMs = 86400000;
@@ -5204,23 +5246,28 @@ export default function AdminClient() {
     }
     const daily = Object.entries(dailyMap).map(([date, amount]) => ({ date, amount }));
 
-    // 전기간 대비 (직전 동일 길이)
+    // 전기간 대비 (직전 동일 길이) — 실결제 기준(미입금 제외), 환불취소율 증감 계산
     const lenMs = to.getTime() - from.getTime();
-    const { data: prev } = await supabase.from('orders').select('final_amount')
+    const { data: prev } = await supabase.from('orders').select('final_amount, status')
       .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO).limit(5000);
-    const prevTotal = (prev || []).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const prevOrderCount = (prev || []).length;
+    const prevPaid = (prev || []).filter(o => !isUnpaid(o.status));
+    const prevTotal = prevPaid.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const prevOrderCount = prevPaid.length;
+    const prevRefundRate = prevPaid.length ? (prevPaid.filter(o => isCancel(o.status)).length / prevPaid.length * 100) : 0;
 
-    // TOP 상품/카테고리 (order_items, 200개씩 청크)
-    const orderIds = data.map(o => o.id);
+    // TOP 상품/카테고리 + 확정매출 상품원가(공급가) — order_items, 200개씩 청크
+    const orderIds = paidData.map(o => o.id);
+    const confirmedIds = new Set(paidData.filter(o => isConfirmed(o.status)).map(o => o.id));
+    let supplyCost = 0;
     let topProducts: { name: string; qty: number; amount: number }[] = [];
     let topCategories: { category: string; qty: number; amount: number }[] = [];
     if (orderIds.length) {
-      const items: { product_id: string; product_name: string; quantity: number; subtotal: number }[] = [];
+      const items: { order_id: string; product_id: string; product_name: string; quantity: number; subtotal: number; supply_price: number | null }[] = [];
       for (let i = 0; i < orderIds.length; i += 200) {
-        const { data: it } = await supabase.from('order_items').select('product_id, product_name, quantity, subtotal').in('order_id', orderIds.slice(i, i + 200));
+        const { data: it } = await supabase.from('order_items').select('order_id, product_id, product_name, quantity, subtotal, supply_price').in('order_id', orderIds.slice(i, i + 200));
         if (it) items.push(...(it as typeof items));
       }
+      supplyCost = items.filter(it => confirmedIds.has(it.order_id)).reduce((s, it) => s + (Number(it.supply_price) || 0) * (it.quantity || 0), 0);
       const { data: prods } = await supabase.from('products').select('id, category');
       const prodCat = new Map((prods || []).map((p: { id: string; category: string }) => [p.id, p.category]));
       const pMap: Record<string, { qty: number; amount: number }> = {};
@@ -5236,9 +5283,51 @@ export default function AdminClient() {
       topCategories = Object.entries(cMap).map(([category, v]) => ({ category, ...v })).sort((a, b) => b.amount - a.amount).slice(0, 5);
     }
 
-    setSettlementData({ confirmed, pending, cancelled, total, orderCount: data.length, byStatus, byMethod, daily,
-      realSettle, aov, couponTotal, pointTotal, refundCount, refundRate, prevTotal, prevOrderCount, topProducts, topCategories });
+    const margin = confirmed - supplyCost;
+    const marginRate = confirmed > 0 ? (margin / confirmed * 100) : 0;
+    setSettlementData({ confirmed, pending, cancelled, total, orderCount: paidData.length,
+      unpaidAmount, unpaidCount, supplyCost, margin, marginRate,
+      byStatus, byMethod, byGrade, newAmount, newCount, repeatAmount, repeatCount, daily,
+      realSettle: margin, aov, couponTotal, pointTotal, refundCount, refundRate, prevRefundRate, prevTotal, prevOrderCount, topProducts, topCategories });
     setSettlementLoading(false);
+  }
+
+  /* 매출현황 엑셀(CSV) 다운로드 */
+  function downloadSettlementExcel() {
+    const d = settlementData;
+    if (!d) return;
+    const GL: Record<string,string> = { beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터' };
+    const rows: (string | number)[][] = [];
+    const push = (...r: (string | number)[]) => rows.push(r);
+    push('매출 현황', `${settlementCustFrom} ~ ${settlementCustTo}`);
+    push('');
+    push('구분', '값');
+    push('총 주문금액', d.total); push('확정 매출', d.confirmed); push('처리 중', d.pending);
+    push('취소·환불', d.cancelled); push('무통장 미입금', d.unpaidAmount);
+    push('상품원가(공급가)', d.supplyCost); push('예상 마진', d.margin); push('마진율(%)', d.marginRate.toFixed(1));
+    push('객단가', d.aov); push('쿠폰 차감', d.couponTotal); push('포인트 사용', d.pointTotal);
+    push('환불·취소율(%)', d.refundRate.toFixed(1));
+    push('');
+    push('주문 상태별', '건수', '금액');
+    d.byStatus.forEach(r => push(STATUS_LABEL[r.status] || r.status, r.count, r.amount));
+    push('');
+    push('결제 수단별', '건수', '금액');
+    d.byMethod.forEach(r => push(PAYMENT_LABEL[r.method] || r.method, r.count, r.amount));
+    push('');
+    push('멤버십 등급별', '주문수', '매출');
+    d.byGrade.forEach(r => push(GL[r.grade] || r.grade, r.count, r.amount));
+    push('');
+    push('신규/재구매', '주문수', '매출');
+    push('재구매', d.repeatCount, d.repeatAmount); push('신규', d.newCount, d.newAmount);
+    push('');
+    push('상위 판매 상품', '수량', '매출');
+    d.topProducts.forEach(r => push(r.name, r.qty, r.amount));
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `매출현황_${settlementCustFrom}_${settlementCustTo}.csv`;
+    a.click(); URL.revokeObjectURL(url);
   }
 
   /* 기간 프리셋 → [from, to] Date */
@@ -8235,7 +8324,7 @@ export default function AdminClient() {
             </div>
             <div className="adm-nav-group">
               <div className="adm-nav-label">정산·설정</div>
-              <NavItem panel="settlement"   icon={<Icon.Settlement />} label="정산 관리" />
+              <NavItem panel="settlement"   icon={<Icon.Settlement />} label="매출 현황" />
               <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="브랜드 정산" />
               <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
               <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
@@ -12003,23 +12092,24 @@ export default function AdminClient() {
                   <AdmSelect value={settlementPreset} onChange={v => {
                     const pv = v as typeof settlementPreset;
                     setSettlementPreset(pv);
-                    if (pv !== 'custom') { const [f, t] = settlementRange(pv); setSettlementData(null); loadSettlement(f, t); }
+                    if (pv !== 'custom') { const [f, t] = settlementRange(pv); setSettlementCustFrom(ymd(f)); setSettlementCustTo(ymd(new Date(t.getTime() - 1))); setSettlementData(null); loadSettlement(f, t); }
                   }} options={[
                     { value:'today', label:'오늘' }, { value:'yesterday', label:'어제' },
                     { value:'7d', label:'최근 7일' }, { value:'30d', label:'최근 30일' },
                     { value:'thisMonth', label:'이번 달' }, { value:'lastMonth', label:'지난 달' },
-                    { value:'all', label:'전체 기간' }, { value:'custom', label:'사용자 정의' },
+                    { value:'all', label:'전체 기간' }, { value:'custom', label:'직접 설정' },
                   ]} />
-                  {settlementPreset === 'custom' && (
-                    <>
-                      <input type="date" className="adm-select" value={settlementCustFrom} onChange={e => setSettlementCustFrom(e.target.value)} />
-                      <span style={{ color:'#94A3B8' }}>~</span>
-                      <input type="date" className="adm-select" value={settlementCustTo} onChange={e => setSettlementCustTo(e.target.value)} />
-                      <button className="adm-btn adm-btn-primary" onClick={() => { const [f, t] = settlementRange(); setSettlementData(null); loadSettlement(f, t); }}>조회</button>
-                    </>
-                  )}
+                  {/* 달력 상시 표기 — 날짜를 직접 바꾸면 '직접 설정'으로 전환 */}
+                  <input type="date" className="adm-select" value={settlementCustFrom}
+                    onChange={e => { setSettlementCustFrom(e.target.value); setSettlementPreset('custom'); const t = settlementCustTo ? new Date(`${settlementCustTo}T23:59:59`) : new Date(); const f = e.target.value ? new Date(`${e.target.value}T00:00:00`) : new Date(2020,0,1); setSettlementData(null); loadSettlement(f, t); }} />
+                  <span style={{ color:'#94A3B8' }}>~</span>
+                  <input type="date" className="adm-select" value={settlementCustTo}
+                    onChange={e => { setSettlementCustTo(e.target.value); setSettlementPreset('custom'); const f = settlementCustFrom ? new Date(`${settlementCustFrom}T00:00:00`) : new Date(2020,0,1); const t = e.target.value ? new Date(`${e.target.value}T23:59:59`) : new Date(); setSettlementData(null); loadSettlement(f, t); }} />
                 </div>
-                <div className="adm-toolbar-right">
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  <button className="adm-btn adm-btn-outline" onClick={downloadSettlementExcel} disabled={!settlementData}>
+                    <span className="adm-btn-icon"><Icon.Download /></span>엑셀 다운로드
+                  </button>
                   <button className="adm-btn adm-btn-outline" onClick={() => { const [f, t] = settlementRange(); loadSettlement(f, t); }}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                   </button>
@@ -12030,30 +12120,67 @@ export default function AdminClient() {
                 <div className="adm-card adm-card-empty">데이터를 불러오는 중...</div>
               ) : (
                 <>
-                  {/* KPI */}
-                  <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
-                    {[
-                      ['총 주문금액', `${fmtPrice(settlementData.total)}원`, '#1A1A1A'],
-                      ['확정 매출', `${fmtPrice(settlementData.confirmed)}원`, '#16A34A'],
-                      ['처리 중', `${fmtPrice(settlementData.pending)}원`, '#2563EB'],
-                      ['취소/환불', `${fmtPrice(settlementData.cancelled)}원`, '#DC2626'],
-                      ['총 주문수', `${settlementData.orderCount}건`, '#7C3AED'],
-                    ].map(([l, v, c]) => (
-                      <div key={l} className="adm-kpi-card">
-                        <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
-                      </div>
-                    ))}
+                  {/* 전기간 대비 (매출 / 주문수 / 환불·취소율) */}
+                  <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px' }}>
+                    <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>전기간 대비 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(직전 동일 길이 기간)</span></div>
+                    <div style={{ display:'flex', gap:40, flexWrap:'wrap' }}>
+                      {([
+                        ['매출', settlementData.total, settlementData.prevTotal, 'money', false],
+                        ['주문수', settlementData.orderCount, settlementData.prevOrderCount, 'count', false],
+                        ['환불·취소율', settlementData.refundRate, settlementData.prevRefundRate, 'rate', true],
+                      ] as [string, number, number, string, boolean][]).map(([lb, cur, prev, kind, lowerBetter]) => {
+                        const diff = kind === 'rate' ? (cur - prev) : (prev > 0 ? ((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0));
+                        const up = diff >= 0;
+                        const good = lowerBetter ? !up : up; // 환불취소율은 내려가야 좋음
+                        const curTxt = kind === 'money' ? `${fmtPrice(cur)}원` : kind === 'rate' ? `${cur.toFixed(1)}%` : `${cur}건`;
+                        const prevTxt = kind === 'money' ? `${fmtPrice(prev)}원` : kind === 'rate' ? `${prev.toFixed(1)}%` : `${prev}건`;
+                        return (
+                          <div key={lb}>
+                            <div className="adm-muted" style={{ fontSize:11, marginBottom:2 }}>{lb}</div>
+                            <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
+                              <span style={{ fontSize:17, fontWeight:800 }}>{curTxt}</span>
+                              <span style={{ fontSize:13, fontWeight:700, color: good ? '#16A34A' : '#DC2626' }}>{up ? '▲' : '▼'} {kind === 'rate' ? `${Math.abs(diff).toFixed(1)}p` : `${Math.abs(diff).toFixed(1)}%`}</span>
+                            </div>
+                            <div className="adm-muted" style={{ fontSize:10, marginTop:1 }}>이전: {prevTxt}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* 핵심 정산 지표 */}
+                  {/* 예상 마진 (확정매출 − 상품원가) */}
+                  <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+                      <span style={{ fontSize:13, fontWeight:800 }}>예상 마진 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(확정매출 기준 · 상품원가(공급가) 차감)</span></span>
+                      <span style={{ fontSize:18, fontWeight:800, color:'#16A34A' }}>{fmtPrice(settlementData.margin)}원 <span style={{ fontSize:12, color:'#94A3B8' }}>마진율 {settlementData.marginRate.toFixed(1)}%</span></span>
+                    </div>
+                    {(() => {
+                      const conf = settlementData.confirmed || 1;
+                      const costPct = Math.round(settlementData.supplyCost / conf * 100);
+                      const marginPct = Math.max(0, 100 - costPct);
+                      return (
+                        <>
+                          <div style={{ display:'flex', height:14, borderRadius:7, overflow:'hidden', background:'#F1F5F9' }}>
+                            <div style={{ width:`${costPct}%`, background:'#CBD5E1' }} />
+                            <div style={{ width:`${marginPct}%`, background:'#16A34A' }} />
+                          </div>
+                          <div style={{ display:'flex', gap:16, marginTop:8, fontSize:12, flexWrap:'wrap' }}>
+                            <span><span style={{ display:'inline-block', width:9, height:9, borderRadius:2, background:'#CBD5E1', marginRight:5 }} />상품원가 {fmtPrice(settlementData.supplyCost)}원 ({costPct}%)</span>
+                            <span><span style={{ display:'inline-block', width:9, height:9, borderRadius:2, background:'#16A34A', marginRight:5 }} />마진 {fmtPrice(settlementData.margin)}원 ({marginPct}%)</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* KPI 윗줄 5 */}
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                     {[
-                      ['실정산 예상액', `${fmtPrice(settlementData.realSettle)}원`, '#16A34A', '확정 매출(쿠폰·포인트 차감 후)'],
-                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '취소 제외 평균 주문금액'],
-                      ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
-                      ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
-                      ['환불·취소율', `${settlementData.refundRate.toFixed(1)}%`, '#DC2626', `${settlementData.refundCount}건 / ${settlementData.orderCount}건`],
+                      ['총 주문금액', `${fmtPrice(settlementData.total)}원`, '#1A1A1A', '미입금 제외 실주문'],
+                      ['확정 매출', `${fmtPrice(settlementData.confirmed)}원`, '#16A34A', '배송완료·구매확정'],
+                      ['처리 중', `${fmtPrice(settlementData.pending)}원`, '#2563EB', '결제완료·배송준비·배송중'],
+                      ['취소·환불', `${fmtPrice(settlementData.cancelled)}원`, '#DC2626', `${settlementData.refundCount}건`],
+                      ['무통장 미입금', `${fmtPrice(settlementData.unpaidAmount)}원`, '#94A3B8', `입금대기·만료 ${settlementData.unpaidCount}건`],
                     ].map(([l, v, c, sub]) => (
                       <div key={l} className="adm-kpi-card">
                         <div className="adm-kpi-label">{l}</div>
@@ -12063,99 +12190,24 @@ export default function AdminClient() {
                     ))}
                   </div>
 
-                  {/* 전기간 대비 */}
-                  <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px' }}>
-                    <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>전기간 대비 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(직전 동일 길이 기간)</span></div>
-                    <div style={{ display:'flex', gap:32, flexWrap:'wrap' }}>
-                      {([['매출', settlementData.total, settlementData.prevTotal, true], ['주문수', settlementData.orderCount, settlementData.prevOrderCount, false]] as [string, number, number, boolean][]).map(([lb, cur, prev, money]) => {
-                        const p = prev > 0 ? ((cur - prev) / prev * 100) : (cur > 0 ? 100 : 0);
-                        const up = p >= 0;
-                        return (
-                          <div key={lb}>
-                            <div className="adm-muted" style={{ fontSize:11, marginBottom:2 }}>{lb}</div>
-                            <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
-                              <span style={{ fontSize:17, fontWeight:800 }}>{money ? `${fmtPrice(cur)}원` : `${cur}건`}</span>
-                              <span style={{ fontSize:13, fontWeight:700, color: up ? '#16A34A' : '#DC2626' }}>{up ? '▲' : '▼'} {Math.abs(p).toFixed(1)}%</span>
-                            </div>
-                            <div className="adm-muted" style={{ fontSize:10, marginTop:1 }}>이전: {money ? `${fmtPrice(prev)}원` : `${prev}건`}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  {/* KPI 아랫줄 4 */}
+                  <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                    {[
+                      ['예상 마진', `${fmtPrice(settlementData.margin)}원`, '#16A34A', `마진율 ${settlementData.marginRate.toFixed(1)}%`],
+                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '취소 제외 평균 주문금액'],
+                      ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
+                      ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
+                    ].map(([l, v, c, sub]) => (
+                      <div key={l} className="adm-kpi-card">
+                        <div className="adm-kpi-label">{l}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
+                        {sub && <div className="adm-muted" style={{ fontSize:10, marginTop:2, lineHeight:1.3 }}>{sub}</div>}
+                      </div>
+                    ))}
                   </div>
 
-                  {/* TOP 상품 / 카테고리 */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                    <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
-                      <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
-                        <tbody>
-                          {settlementData.topProducts.length === 0
-                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
-                            : settlementData.topProducts.map((r, i) => (
-                              <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.name}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">카테고리별 매출 TOP</span></div>
-                      <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>카테고리</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
-                        <tbody>
-                          {settlementData.topCategories.length === 0
-                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
-                            : settlementData.topCategories.map((r, i) => (
-                              <tr key={r.category}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.category}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-                    {/* 주문 상태별 */}
-                    <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">주문 상태별 현황</span></div>
-                      <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>상태</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
-                        <tbody>
-                          {settlementData.byStatus.length === 0
-                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
-                            : settlementData.byStatus.map(r => (
-                            <tr key={r.status}>
-                              <td><span className={`adm-badge ${STATUS_BADGE_CLS[r.status] || 'badge-wait'}`}>{STATUS_LABEL[r.status] || r.status}</span></td>
-                              <td className="adm-num">{r.count}건</td>
-                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* 결제 수단별 */}
-                    <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">결제 수단별 현황</span></div>
-                      <table className="adm-table" style={{ marginTop:4 }}>
-                        <thead><tr><th>결제수단</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
-                        <tbody>
-                          {settlementData.byMethod.length === 0
-                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
-                            : settlementData.byMethod.map(r => (
-                            <tr key={r.method}>
-                              <td style={{ fontWeight:500 }}>{r.method}</td>
-                              <td className="adm-num">{r.count}건</td>
-                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* 매출 그래프 (일별/월별) */}
-                  <div className="adm-card">
+                  {/* 매출 그래프 (일별/월별) — 전기간대비 아래 */}
+                  <div className="adm-card" style={{ marginBottom:16 }}>
                     <div className="adm-card-head">
                       <span className="adm-card-title">{settlementView === 'daily' ? '일별 매출' : `${settlementMonth.slice(0,4)}년 월별 매출`}</span>
                       <div className="adm-btn-group">
@@ -12202,18 +12254,14 @@ export default function AdminClient() {
                         const polyline = pts.map(p => `${p.x},${p.y}`).join(' ');
                         return (
                           <svg width={totalW} height={H + 20} style={{ display:'block' }}>
-                            {/* 그리드 라인 */}
                             {[0.25,0.5,0.75,1].map(r => {
                               const y = H - pad - Math.round(r * (H - pad * 2));
                               return <line key={r} x1={pad} x2={totalW - pad} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
                             })}
-                            {/* 영역 채우기 */}
                             <polygon
                               points={`${pts[0]?.x},${H - pad} ${polyline} ${pts[pts.length-1]?.x},${H - pad}`}
                               fill="#3B82F6" fillOpacity="0.08" />
-                            {/* 꺾은선 */}
                             <polyline points={polyline} fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-                            {/* 점 + 날짜 라벨 */}
                             {pts.map((p, i) => (
                               <g key={i}>
                                 {p.d.amount > 0 && <circle cx={p.x} cy={p.y} r="3.5" fill="#fff" stroke="#3B82F6" strokeWidth="2" />}
@@ -12227,6 +12275,114 @@ export default function AdminClient() {
                     </div>
                     <div style={{ display:'flex', justifyContent:'flex-end', padding:'4px 16px 0', fontSize:12, color:'#94A3B8' }}>
                       일평균: {settlementData.orderCount > 0 ? fmtPrice(Math.round(settlementData.total / Math.max(settlementData.daily.filter(d => d.amount > 0).length, 1))) : 0}원
+                    </div>
+                  </div>
+
+                  {/* 주문 상태별 / 결제 수단별 */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">주문 상태별 현황</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>상태</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
+                        <tbody>
+                          {settlementData.byStatus.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
+                            : settlementData.byStatus.map(r => (
+                            <tr key={r.status}>
+                              <td><span className={`adm-badge ${STATUS_BADGE_CLS[r.status] || 'badge-wait'}`}>{STATUS_LABEL[r.status] || r.status}</span></td>
+                              <td className="adm-num">{r.count}건</td>
+                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">결제 수단별 현황</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>결제수단</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
+                        <tbody>
+                          {settlementData.byMethod.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>주문 없음</td></tr>
+                            : settlementData.byMethod.map(r => (
+                            <tr key={r.method}>
+                              <td style={{ fontWeight:500 }}>{PAYMENT_LABEL[r.method] || r.method}</td>
+                              <td className="adm-num">{r.count}건</td>
+                              <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* 멤버십 등급별 매출 / 신규 vs 재구매 */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">멤버십 등급별 매출 비중</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>등급</th><th className="adm-num">주문수</th><th className="adm-num">매출</th><th className="adm-num">비중</th></tr></thead>
+                        <tbody>
+                          {settlementData.byGrade.length === 0
+                            ? <tr><td colSpan={4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
+                            : (() => { const gt = settlementData.byGrade.reduce((s, x) => s + x.amount, 0) || 1; const GL: Record<string,string> = { beginner:'비기너', taster:'테이스터', buyer:'바이어', master:'마스터' };
+                                return settlementData.byGrade.map(r => (
+                                  <tr key={r.grade}>
+                                    <td style={{ fontWeight:500 }}>{GL[r.grade] || r.grade}</td>
+                                    <td className="adm-num">{r.count}건</td>
+                                    <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
+                                    <td className="adm-num">{(r.amount / gt * 100).toFixed(1)}%</td>
+                                  </tr>
+                                )); })()}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">신규 vs 재구매 매출 비중</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>구분</th><th className="adm-num">주문수</th><th className="adm-num">매출</th><th className="adm-num">비중</th></tr></thead>
+                        <tbody>
+                          {(() => { const nt = (settlementData.newAmount + settlementData.repeatAmount) || 1;
+                            return ([['재구매 고객', settlementData.repeatCount, settlementData.repeatAmount], ['신규 고객', settlementData.newCount, settlementData.newAmount]] as [string, number, number][]).map(([lb, cnt, amt]) => (
+                              <tr key={lb}>
+                                <td style={{ fontWeight:500 }}>{lb}</td>
+                                <td className="adm-num">{cnt}건</td>
+                                <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(amt)}원</td>
+                                <td className="adm-num">{(amt / nt * 100).toFixed(1)}%</td>
+                              </tr>
+                            )); })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* TOP 상품 / 카테고리 */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
+                        <tbody>
+                          {settlementData.topProducts.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
+                            : settlementData.topProducts.map((r, i) => (
+                              <tr key={r.name}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.name}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="adm-card">
+                      <div className="adm-card-head"><span className="adm-card-title">카테고리별 매출 TOP</span></div>
+                      <table className="adm-table" style={{ marginTop:4 }}>
+                        <thead><tr><th>카테고리</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
+                        <tbody>
+                          {settlementData.topCategories.length === 0
+                            ? <tr><td colSpan={3} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>데이터 없음</td></tr>
+                            : settlementData.topCategories.map((r, i) => (
+                              <tr key={r.category}><td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i+1}</span>{r.category}</td><td className="adm-num">{r.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td></tr>
+                            ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </>

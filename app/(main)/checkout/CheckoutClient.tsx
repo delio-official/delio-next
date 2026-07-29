@@ -473,10 +473,13 @@ export default function CheckoutClient() {
           }
         }
 
+        /* 주문 시점 회원 등급 스냅샷 */
+        let vbankGrade: string | null = null;
+        try { const { data: pf } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle(); vbankGrade = (pf as { grade?: string | null } | null)?.grade ?? null; } catch { /* 무시 */ }
         const { data: order, error: orderErr } = await supabase
           .from('orders')
           .insert({
-            user_id: user.id, status: 'pending',
+            user_id: user.id, status: 'pending', buyer_grade: vbankGrade,
             total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
             coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
             used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),

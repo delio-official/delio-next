@@ -79,9 +79,14 @@ export async function finalizeOrder(
       return { success: false, error: '이 쿠폰은 포인트와 함께 사용할 수 없습니다.', status: 400 };
     }
   }
+  /* 주문 시점 회원 등급 스냅샷 (매출현황 등급별 집계 정확도용) */
+  let buyerGrade: string | null = null;
+  try { const { data: pf } = await supabase.from('profiles').select('grade').eq('id', orderData.userId).maybeSingle(); buyerGrade = (pf as { grade?: string | null } | null)?.grade ?? null; } catch { /* 무시 */ }
+
   const insertRow: Record<string, unknown> = {
     user_id:         orderData.userId,
     status:          'paid',
+    buyer_grade:     buyerGrade,
     total_amount:    orderData.subtotal,
     discount_amount: couponDiscount + pointUsed,
     coupon_discount: couponDiscount,
