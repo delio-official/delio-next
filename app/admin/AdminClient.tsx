@@ -11750,9 +11750,10 @@ export default function AdminClient() {
                             if (!arr.length) return '-';
                             return arr.length > 1 ? `${arr[0].product_name} 외 ${arr.length - 1}건` : arr[0].product_name;
                           };
+                          const openOrderModal = (o: Order) => { setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); };
                           const openOrder = (orderNo?: string | null, req?: AdminRefundReq) => {
                             const ord = orders.find(o => o.order_no === orderNo);
-                            if (ord) setSelectedOrder(ord); else if (req) openRefundDetail(req);
+                            if (ord) openOrderModal(ord); else if (req) openRefundDetail(req);
                           };
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
@@ -11790,7 +11791,7 @@ export default function AdminClient() {
                                   </tr>
                                 ))}
                                 {directCancels.map(o => (
-                                  <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => setSelectedOrder(o)}>
+                                  <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => openOrderModal(o)}>
                                     <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
                                     <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
                                     <td className="adm-mono">{o.order_no}</td>
@@ -11798,7 +11799,7 @@ export default function AdminClient() {
                                     <td style={{ textAlign:'left' }} className="adm-muted">—</td>
                                     <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
                                     <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
-                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); setSelectedOrder(o); }}>보기</button></td>
+                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrderModal(o); }}>보기</button></td>
                                   </tr>
                                 ))}
                               </>
@@ -11838,7 +11839,7 @@ export default function AdminClient() {
                                   <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
                                   <td style={{ textAlign:'left' }} className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
                                   <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
-                                  <td><button className="adm-row-btn" onClick={() => setSelectedOrder(o)}>상세</button></td>
+                                  <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
                                 </tr>
                               ))}
                             </>
