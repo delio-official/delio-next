@@ -4025,8 +4025,11 @@ export default function AdminClient() {
         });
       }
     }
-    /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
-    if (newStatus === 'completed' && req.order_id) {
+    /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리)
+       단, 부분환불(전액취소+정상분 재송금)은 쿠폰·포인트를 복구하지 않음 —
+       할인이 이미 실결제액에 녹아있어, 정상분 재입금으로 정산되므로 복구 시 이중혜택이 됨. */
+    const isPartial = (req.refund_amount != null) && ((req.resend_amount || 0) > 0);
+    if (newStatus === 'completed' && req.order_id && !isPartial) {
       try {
         const rr = await fetch('/api/admin/refund-restore', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4070,11 +4073,15 @@ export default function AdminClient() {
 
   /* 부분환불 계산 + 저장 (하자수량 비율로 순환불액·재송금액 산출) */
   function calcRefund(items: { name: string; subtotal: number; total: string | number; defective: string | number }[], orderTotal: number) {
+    // 실결제액(orderTotal) 기준으로 안분 — 쿠폰·포인트 할인이 이미 반영된 금액이라 정가가 아닌 결제액으로 계산
+    const grossTotal = items.reduce((s, it) => s + it.subtotal, 0);
+    const ratio = grossTotal > 0 ? orderTotal / grossTotal : 0; // 정가→실결제 할인비율
     const refundItems = items.map(it => {
       const t = Number(it.total) || 0, d = Number(it.defective) || 0;
-      return { name: it.name, total: t, defective: d, refund: t > 0 ? Math.round(it.subtotal * Math.min(d, t) / t) : 0 };
+      const grossRefund = t > 0 ? it.subtotal * Math.min(d, t) / t : 0;
+      return { name: it.name, total: t, defective: d, refund: Math.round(grossRefund * ratio) };
     });
-    const refundAmount = refundItems.reduce((s, it) => s + it.refund, 0);
+    const refundAmount = Math.min(orderTotal, refundItems.reduce((s, it) => s + it.refund, 0));
     const resendAmount = Math.max(0, orderTotal - refundAmount);
     return { refundItems, refundAmount, resendAmount };
   }
@@ -4084,11 +4091,13 @@ export default function AdminClient() {
     const orderTotal = refundDetail.orders?.final_amount || 0;
     const anyDefect = refundOrderItems.some(it => (Number(it.defective) || 0) > 0);
     const { refundItems, refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
+    const partial = anyDefect && resendAmount > 0;
     const payload = {
       memo: refundMemoInput || null,
       refund_items: anyDefect ? refundItems : null,
       refund_amount: anyDefect ? refundAmount : null,
       resend_amount: anyDefect ? resendAmount : null,
+      resend_status: partial ? (refundDetail.resend_status && refundDetail.resend_status !== 'none' ? refundDetail.resend_status : 'waiting') : 'none',
     };
     const supabase = createClient();
     const { error } = await supabase.from('refund_requests').update(payload).eq('id', refundDetail.id);
@@ -11801,7 +11810,9 @@ export default function AdminClient() {
                             <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
                               {refundOrderItems.map((it, idx) => {
                                 const t = Number(it.total) || 0, d = Number(it.defective) || 0;
-                                const itRefund = t > 0 ? Math.round(it.subtotal * Math.min(d, t) / t) : 0;
+                                const _gt = refundOrderItems.reduce((s, x) => s + x.subtotal, 0);
+                                const _ratio = _gt > 0 ? orderTotal / _gt : 0;
+                                const itRefund = t > 0 ? Math.round(it.subtotal * Math.min(d, t) / t * _ratio) : 0;
                                 return (
                                   <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 14px', borderTop: idx ? '1px solid #F1F5F9' : 'none', flexWrap:'wrap' }}>
                                     <div style={{ flex:1, minWidth:140 }}>
@@ -11862,7 +11873,10 @@ export default function AdminClient() {
                             <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
                           )}
                           {r.status !== 'completed' && (
-                            <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => { if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
+                            <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => {
+                              if (hasDefect && r.refund_amount == null) { alert('부분환불은 먼저 "상품·메모 저장"을 눌러 확정한 뒤 승인해주세요.'); return; }
+                              if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. (쿠폰·포인트는 복구하지 않음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
+                            }}>환불승인</button>
                           )}
                           {r.status !== 'rejected' && r.status !== 'completed' && (
                             <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
