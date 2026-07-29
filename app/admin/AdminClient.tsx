@@ -2705,7 +2705,7 @@ export default function AdminClient() {
     setOrderFarmFilter(''); setOrderSearch(''); setOrderPage(1);
     setRefundFilter('all');
     setOrderStatusFilter(pendingOrderStatus.current ?? '');
-    setRefundTypeFilter(pendingRefundType.current ?? '');
+    setRefundTypeFilter((pendingRefundType.current as '' | 'cancel' | 'refund') || 'refund'); // 서브탭 기본 환불
     setRefundStatusFilter(pendingRefundStatus.current ?? '');
     pendingOrderStatus.current = null;
     pendingRefundType.current = null;
