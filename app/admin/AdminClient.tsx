@@ -413,7 +413,7 @@ interface AdminRefundReq {
   resend_status?: string | null;   // none | waiting | received
   refund_items?: { name: string; total: number; defective: number; refund: number }[] | null;
   memo?: string | null;
-  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null; payment_method: string | null } | null;
+  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null; payment_method: string | null; order_items?: { product_name: string; quantity: number }[] } | null;
   profiles: { name: string | null; email: string | null } | null;
 }
 
@@ -2518,6 +2518,7 @@ export default function AdminClient() {
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
   const [refundTypeFilter, setRefundTypeFilter] = useState<'' | 'cancel' | 'refund'>('refund'); // 서브탭(환불 먼저)
   const [refundStatusFilter, setRefundStatusFilter] = useState('');
+  const [cancelReasonFilter, setCancelReasonFilter] = useState(''); // 취소 탭 사유 필터
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
   // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
@@ -4000,7 +4001,7 @@ export default function AdminClient() {
       .select(`
         id, order_id, reason, detail, status, reject_reason, created_at, type,
         refund_amount, resend_amount, resend_status, refund_items, memo,
-        orders ( order_no, final_amount, status, portone_payment_id, payment_method ),
+        orders ( order_no, final_amount, status, portone_payment_id, payment_method, order_items ( product_name, quantity ) ),
         profiles:user_id ( name, email )
       `)
       .order('created_at', { ascending: false })
@@ -11680,25 +11681,41 @@ export default function AdminClient() {
 
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <div className="adm-btn-group">
-                    {([['all','전체'],['customer','고객신청'],['admin','관리자취소']] as const).map(([id, label]) => (
-                      <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
-                    ))}
-                  </div>
-                  <AdmSelect value={refundStatusFilter} onChange={setRefundStatusFilter}
-                    options={(() => { const w = refundTypeFilter === 'cancel' ? '취소' : '환불'; return [
-                      { value:'', label:'전체 상태' },
-                      { value:'pending', label:`${w} 요청` },
-                      { value:'hold', label:`${w} 보류` },
-                      { value:'processing', label:'진행중' },
-                      { value:'completed', label:`${w} 완료` },
-                      { value:'rejected', label:`${w} 불가` },
-                    ]; })()} />
+                  {refundTypeFilter === 'cancel' ? (
+                    /* 취소 탭: 유형(고객/판매자) + 사유 필터 (보기·로그용) */
+                    <>
+                      <div className="adm-btn-group">
+                        {([['all','전체'],['customer','고객 직접취소'],['admin','판매자 직접취소']] as const).map(([id, label]) => (
+                          <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
+                        ))}
+                      </div>
+                      <AdmSelect value={cancelReasonFilter} onChange={setCancelReasonFilter}
+                        options={[{ value:'', label:'전체 사유' }, ...[...new Set(refundReqs.filter(r => (r.type||'refund')==='cancel').map(r => r.reason).filter(Boolean))].map(rs => ({ value:rs as string, label:rs as string }))]} />
+                    </>
+                  ) : (
+                    /* 환불 탭: 신청출처 + 상태 필터 (처리·관리용) */
+                    <>
+                      <div className="adm-btn-group">
+                        {([['all','전체'],['customer','고객신청'],['admin','관리자환불']] as const).map(([id, label]) => (
+                          <button key={id} className={`adm-seg-btn${refundFilter===id?' active':''}`} onClick={() => setRefundFilter(id)}>{label}</button>
+                        ))}
+                      </div>
+                      <AdmSelect value={refundStatusFilter} onChange={setRefundStatusFilter}
+                        options={[
+                          { value:'', label:'전체 상태' },
+                          { value:'pending', label:'환불 요청' },
+                          { value:'hold', label:'환불 보류' },
+                          { value:'processing', label:'진행중' },
+                          { value:'completed', label:'환불 완료' },
+                          { value:'rejected', label:'환불 불가' },
+                        ]} />
+                    </>
+                  )}
                   <input type="date" className="adm-select" value={refundFrom} onChange={e => setRefundFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={refundTo} onChange={e => setRefundTo(e.target.value)} />
-                  {(refundStatusFilter || refundFrom || refundTo) && (
-                    <button className="adm-btn adm-btn-outline" onClick={() => { setRefundStatusFilter(''); setRefundFrom(''); setRefundTo(''); }}>초기화</button>
+                  {(refundStatusFilter || cancelReasonFilter || refundFrom || refundTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setRefundStatusFilter(''); setCancelReasonFilter(''); setRefundFrom(''); setRefundTo(''); }}>초기화</button>
                   )}
                 </div>
                 <div className="adm-toolbar-right">
@@ -11713,10 +11730,11 @@ export default function AdminClient() {
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
-                        <tr>
-                          <th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th style={{ textAlign:'left' }}>사유</th>
-                          <th>상태</th><th>관리</th>
-                        </tr>
+                        {refundTypeFilter === 'cancel' ? (
+                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th style={{ textAlign:'left' }}>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
+                        ) : (
+                          <tr><th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th style={{ textAlign:'left' }}>사유</th><th>상태</th><th>관리</th></tr>
+                        )}
                       </thead>
                       <tbody>
                         {(() => {
@@ -11725,24 +11743,69 @@ export default function AdminClient() {
                           const inDate = (ts: string) =>
                             (!refundFrom || ts >= new Date(`${refundFrom}T00:00:00`).toISOString()) &&
                             (!refundTo   || ts <= new Date(`${refundTo}T23:59:59`).toISOString());
+                          const isCancelTab = refundTypeFilter === 'cancel';
+                          const payLabel = (pm?: string | null) => PAYMENT_LABEL[pm || ''] || (pm || '-');
+                          const prodSummary = (items?: { product_name: string }[]) => {
+                            const arr = items || [];
+                            if (!arr.length) return '-';
+                            return arr.length > 1 ? `${arr[0].product_name} 외 ${arr.length - 1}건` : arr[0].product_name;
+                          };
+                          const openOrder = (orderNo?: string | null, req?: AdminRefundReq) => {
+                            const ord = orders.find(o => o.order_no === orderNo);
+                            if (ord) setSelectedOrder(ord); else if (req) openRefundDetail(req);
+                          };
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
                           const customerReqs = (refundFilter === 'admin' ? [] : refundReqs)
                             .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at)
-                              && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter));
-                          /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김 */
+                              && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter)
+                              && (!isCancelTab || !cancelReasonFilter || r.reason === cancelReasonFilter));
+                          /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김. 취소탭 사유필터 있으면 판매자취소 숨김(사유없음) */
                           const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
                           /* 관리자 직접취소: 주문상태 cancelled=취소, refunded/refunding=환불 */
-                          const directCancels = (refundFilter === 'customer' || !adminStatusOk ? [] : orders).filter(o =>
+                          const directCancels = (refundFilter === 'customer' || !adminStatusOk || (isCancelTab && cancelReasonFilter) ? [] : orders).filter(o =>
                             ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
                             && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
                             /* 무통장 미입금(결제 안 됨) 취소는 환불관리에서 제외 — 돌려줄 돈이 없음 */
                             && !(o.status === 'cancelled' && !(o as { paid_at?: string | null }).paid_at)
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
-                            return <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
+                            return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{isCancelTab ? '취소 내역이 없습니다.' : '환불 내역이 없습니다.'}</td></tr>;
                           }
-                          const payLabel = (pm?: string | null) => PAYMENT_LABEL[pm || ''] || (pm || '-');
+
+                          /* ── 취소 탭: 로그·보기용 (유형/신청자/주문번호/상품/사유/일자/상태/보기) ── */
+                          if (isCancelTab) {
+                            return (
+                              <>
+                                {customerReqs.map(r => (
+                                  <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => openOrder(r.orders?.order_no, r)}>
+                                    <td><span className="adm-badge badge-normal">고객 직접취소</span></td>
+                                    <td><div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div></td>
+                                    <td className="adm-mono">{r.orders?.order_no || '-'}</td>
+                                    <td style={{ textAlign:'left', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(r.orders?.order_items)}</td>
+                                    <td style={{ textAlign:'left', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
+                                    <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                    <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
+                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrder(r.orders?.order_no, r); }}>보기</button></td>
+                                  </tr>
+                                ))}
+                                {directCancels.map(o => (
+                                  <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => setSelectedOrder(o)}>
+                                    <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
+                                    <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
+                                    <td className="adm-mono">{o.order_no}</td>
+                                    <td style={{ textAlign:'left', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(o.order_items)}</td>
+                                    <td style={{ textAlign:'left' }} className="adm-muted">—</td>
+                                    <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
+                                    <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
+                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); setSelectedOrder(o); }}>보기</button></td>
+                                  </tr>
+                                ))}
+                              </>
+                            );
+                          }
+
+                          /* ── 환불 탭: 처리·관리용 (기존) ── */
                           return (
                             <>
                               {customerReqs.map(r => {
