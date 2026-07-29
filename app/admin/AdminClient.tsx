@@ -2627,18 +2627,49 @@ export default function AdminClient() {
       .in('orders.status', ['delivered', 'confirmed'])
       .limit(10000);
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number }> = {};
+    const addRow = (prod: { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, unitSupply: number) => {
+      const farmId = prod?.farm_id ?? null;
+      const key = farmId ?? '__none__';
+      if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0 };
+      map[key].qty += qty; map[key].sales += sales; map[key].payout += unitSupply * qty;
+    };
     (data as Record<string, unknown>[] | null || []).forEach(row => {
       const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
-      const farmId = prod?.farm_id ?? null;
-      const farmName = prod?.farms?.name ?? '브랜드 미지정';
-      const key = farmId ?? '__none__';
       const qty = Number(row.quantity) || 0;
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
-      if (!map[key]) map[key] = { farmId, farmName, qty: 0, sales: 0, payout: 0 };
-      map[key].qty    += qty;
-      map[key].sales  += Number(row.subtotal) || 0;
-      map[key].payout += unitSupply * qty;
+      addRow(prod, qty, Number(row.subtotal) || 0, unitSupply);
     });
+
+    /* 부분환불(승인완료) 주문 — 전액취소로 status=refunded라 위 조회에서 빠짐.
+       정상분(전체−하자)만 농가에 정산하고 하자분 공급가는 농가 부담(차감)으로 처리 → 정상분 다시 더함. */
+    const { data: partialReqs } = await supabase
+      .from('refund_requests')
+      .select('order_id, refund_items, orders!inner(created_at)')
+      .not('refund_amount', 'is', null).gt('resend_amount', 0).eq('status', 'completed')
+      .gte('orders.created_at', from).lt('orders.created_at', to);
+    const defectiveByOrder: Record<string, Record<string, number>> = {};
+    (partialReqs as { order_id: string; refund_items: { name: string; defective: number }[] | null }[] | null || []).forEach(pr => {
+      if (!pr.order_id) return;
+      const m: Record<string, number> = {};
+      (pr.refund_items || []).forEach(it => { m[it.name] = (m[it.name] || 0) + (Number(it.defective) || 0); });
+      defectiveByOrder[pr.order_id] = m;
+    });
+    const partialOrderIds = Object.keys(defectiveByOrder);
+    if (partialOrderIds.length) {
+      const { data: pItems } = await supabase.from('order_items')
+        .select('order_id, product_name, quantity, subtotal, supply_price, products!inner(farm_id, supply_price, farms(id, name))')
+        .in('order_id', partialOrderIds);
+      (pItems as Record<string, unknown>[] | null || []).forEach(row => {
+        const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
+        const totalQty = Number(row.quantity) || 0;
+        const defect = defectiveByOrder[row.order_id as string]?.[row.product_name as string] || 0;
+        const keptQty = Math.max(0, totalQty - defect);
+        if (keptQty <= 0) return;
+        const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
+        const keptSales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * keptQty / totalQty) : 0;
+        addRow(prod, keptQty, keptSales, unitSupply);
+      });
+    }
     const rows = Object.values(map)
       .map(r => ({ ...r, margin: r.sales - r.payout }))
       .sort((a, b) => b.payout - a.payout);
