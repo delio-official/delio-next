@@ -408,7 +408,12 @@ interface AdminRefundReq {
   reject_reason?: string | null;
   created_at: string;
   type?: string; // 'cancel' | 'refund'
-  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null } | null;
+  refund_amount?: number | null;   // 하자분 순환불액
+  resend_amount?: number | null;   // 소비자 재송금액
+  resend_status?: string | null;   // none | waiting | received
+  refund_items?: { name: string; total: number; defective: number; refund: number }[] | null;
+  memo?: string | null;
+  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null; payment_method: string | null } | null;
   profiles: { name: string | null; email: string | null } | null;
 }
 
@@ -478,6 +483,12 @@ const STATUS_BADGE_CLS: Record<string, string> = {
   pending:'badge-wait', paid:'badge-paid', preparing:'badge-ready',
   shipped:'badge-shipping', delivered:'badge-done', confirmed:'badge-done', cancelled:'badge-off',
   refunding:'badge-refund', refunded:'badge-off', expired:'badge-off',
+};
+
+/* 결제수단 라벨 */
+const PAYMENT_LABEL: Record<string, string> = {
+  card:'카드', kakao:'카카오페이', naver:'네이버페이', toss:'토스페이',
+  vbank:'무통장입금', bank:'무통장입금', transfer:'계좌이체',
 };
 
 /* 주문 상태 변경 버튼 — 선택 시 주문관리 표 뱃지와 동일 색상 */
@@ -2509,6 +2520,10 @@ export default function AdminClient() {
   const [refundStatusFilter, setRefundStatusFilter] = useState('');
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
+  // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
+  const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: number; defective: number }[]>([]);
+  const [refundMemoInput, setRefundMemoInput] = useState('');
+  const [refundSaving, setRefundSaving] = useState(false);
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
@@ -3953,7 +3968,8 @@ export default function AdminClient() {
       .from('refund_requests')
       .select(`
         id, order_id, reason, detail, status, reject_reason, created_at, type,
-        orders ( order_no, final_amount, status, portone_payment_id ),
+        refund_amount, resend_amount, resend_status, refund_items, memo,
+        orders ( order_no, final_amount, status, portone_payment_id, payment_method ),
         profiles:user_id ( name, email )
       `)
       .order('created_at', { ascending: false })
@@ -4033,6 +4049,63 @@ export default function AdminClient() {
     setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : prev.reject_reason } : prev);
     if (req.order_id && nextOrderStatus) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: nextOrderStatus as string } : o));
     refreshStageCounts(); // 환불 처리로 바뀐 주문상태를 현황판에 반영
+  }
+
+  /* 환불 상세 열기 — 주문 상품 로드 + 부분환불 입력·메모 초기화 */
+  async function openRefundDetail(r: AdminRefundReq) {
+    setRefundDetail(r);
+    setRefundMemoInput(r.memo || '');
+    setRefundOrderItems([]);
+    if (!r.order_id) return;
+    const supabase = createClient();
+    const { data } = await supabase.from('order_items')
+      .select('id, product_name, quantity, subtotal').eq('order_id', r.order_id);
+    const saved = r.refund_items || [];
+    const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => {
+      const prev = saved.find(s => s.name === it.product_name);
+      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: prev?.total ?? (it.quantity || 1), defective: prev?.defective ?? 0 };
+    });
+    setRefundOrderItems(items);
+  }
+
+  /* 부분환불 계산 + 저장 (하자수량 비율로 순환불액·재송금액 산출) */
+  function calcRefund(items: { name: string; subtotal: number; total: number; defective: number }[], orderTotal: number) {
+    const refundItems = items.map(it => ({
+      name: it.name, total: it.total, defective: it.defective,
+      refund: it.total > 0 ? Math.round(it.subtotal * Math.min(it.defective, it.total) / it.total) : 0,
+    }));
+    const refundAmount = refundItems.reduce((s, it) => s + it.refund, 0);
+    const resendAmount = Math.max(0, orderTotal - refundAmount);
+    return { refundItems, refundAmount, resendAmount };
+  }
+  async function saveRefundPartial() {
+    if (!refundDetail) return;
+    setRefundSaving(true);
+    const orderTotal = refundDetail.orders?.final_amount || 0;
+    const anyDefect = refundOrderItems.some(it => it.defective > 0);
+    const { refundItems, refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
+    const payload = {
+      memo: refundMemoInput || null,
+      refund_items: anyDefect ? refundItems : null,
+      refund_amount: anyDefect ? refundAmount : null,
+      resend_amount: anyDefect ? resendAmount : null,
+    };
+    const supabase = createClient();
+    const { error } = await supabase.from('refund_requests').update(payload).eq('id', refundDetail.id);
+    setRefundSaving(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setRefundReqs(prev => prev.map(r => r.id === refundDetail.id ? { ...r, ...payload } : r));
+    setRefundDetail(prev => prev ? { ...prev, ...payload } : prev);
+    alert('저장했습니다.');
+  }
+  /* 재송금 상태 변경 (대기 → 입금확인) */
+  async function setResendStatus(next: 'waiting' | 'received') {
+    if (!refundDetail) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('refund_requests').update({ resend_status: next }).eq('id', refundDetail.id);
+    if (error) { alert('처리 실패: ' + error.message); return; }
+    setRefundReqs(prev => prev.map(r => r.id === refundDetail.id ? { ...r, resend_status: next } : r));
+    setRefundDetail(prev => prev ? { ...prev, resend_status: next } : prev);
   }
 
   async function loadReviews() {
@@ -11600,8 +11673,8 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         <tr>
-                          <th>유형</th><th>신청자</th><th>주문번호</th><th>금액</th><th>사유</th>
-                          <th>일자</th><th>상태</th><th>관리</th>
+                          <th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th style={{ textAlign:'left' }}>사유</th>
+                          <th>상태</th><th>관리</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -11626,35 +11699,40 @@ export default function AdminClient() {
                             && !(o.status === 'cancelled' && !(o as { paid_at?: string | null }).paid_at)
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
-                            return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
+                            return <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>환불·취소 내역이 없습니다.</td></tr>;
                           }
+                          const payLabel = (pm?: string | null) => PAYMENT_LABEL[pm || ''] || (pm || '-');
                           return (
                             <>
-                              {customerReqs.map(r => (
+                              {customerReqs.map(r => {
+                                const amt = r.refund_amount != null ? r.refund_amount : (r.orders?.final_amount ?? null);
+                                return (
                                 <tr key={r.id}>
-                                  <td><span className={`adm-badge ${r.type === 'cancel' ? 'badge-off' : 'badge-paid'}`}>{r.type === 'cancel' ? '취소신청' : '환불신청'}</span></td>
                                   <td>
                                     <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
                                     <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
                                   </td>
                                   <td className="adm-mono">{r.orders?.order_no || '-'}</td>
-                                  <td>{r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'}</td>
-                                  <td style={{ maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
-                                  <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                  <td>
+                                    {amt != null ? `${fmtPrice(amt)}원` : '-'}
+                                    {r.refund_amount != null && r.orders && r.refund_amount !== r.orders.final_amount && <div className="adm-muted" style={{ fontSize:10 }}>부분환불</div>}
+                                  </td>
+                                  <td>{payLabel(r.orders?.payment_method)}</td>
+                                  <td style={{ textAlign:'left', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                   <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')}</span></td>
                                   <td>
-                                    <button className="adm-row-btn" onClick={() => setRefundDetail(r)}>상세</button>
+                                    <button className="adm-row-btn" onClick={() => openRefundDetail(r)}>상세</button>
                                   </td>
                                 </tr>
-                              ))}
+                                );
+                              })}
                               {directCancels.map(o => (
                                 <tr key={o.id}>
-                                  <td><span className="adm-badge badge-off">{o.status === 'cancelled' ? '관리자취소' : '관리자환불'}</span></td>
                                   <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
                                   <td className="adm-mono">{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
-                                  <td className="adm-muted">관리자 취소</td>
-                                  <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
+                                  <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
+                                  <td style={{ textAlign:'left' }} className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
                                   <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
                                   <td className="adm-muted">-</td>
                                 </tr>
@@ -11673,57 +11751,126 @@ export default function AdminClient() {
                 const r = refundDetail;
                 const stLabel: Record<string,string> = { pending:'환불요청', hold:'환불보류', processing:'진행중', completed:'환불완료', rejected:'환불불가' };
                 const stCls: Record<string,string> = { pending:'badge-wait', hold:'badge-ready', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
-                const rows: [string, string][] = [
+                const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
+                const orderTotal = r.orders?.final_amount || 0;
+                const { refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
+                const hasDefect = refundOrderItems.some(it => it.defective > 0);
+                const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
+                const setItem = (id: string, key: 'total'|'defective', val: number) =>
+                  setRefundOrderItems(prev => prev.map(it => it.id === id ? { ...it, [key]: Math.max(0, val || 0) } : it));
+                const info: [string, string][] = [
                   ['신청자', `${r.profiles?.name || '(탈퇴)'}${r.profiles?.email ? ` · ${r.profiles.email}` : ''}`],
                   ['주문번호', r.orders?.order_no || '-'],
-                  ['결제금액', r.orders ? `${fmtPrice(r.orders.final_amount)}원` : '-'],
+                  ['결제수단', PAYMENT_LABEL[r.orders?.payment_method || ''] || (r.orders?.payment_method || '-')],
+                  ['결제금액', `${fmtPrice(orderTotal)}원`],
                   ['신청일', fmtDateShort(r.created_at)],
                   ['사유', r.reason],
                   ...(r.status === 'rejected' && r.reject_reason ? [['거부사유', r.reject_reason]] as [string,string][] : []),
                 ];
                 return (
-                  <div className="adm-float-overlay" onClick={() => setRefundDetail(null)}>
-                    <div className="adm-float-modal" style={{ maxWidth:480, padding:28 }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-                        <h3 style={{ fontSize:15, fontWeight:700, margin:0 }}>환불 신청 상세</h3>
-                        <button onClick={() => setRefundDetail(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
-                      </div>
+                  <div className="adm-modal-bg open" onClick={() => setRefundDetail(null)}>
+                    <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+                      <div className="adm-modal-head"><span className="adm-modal-title">환불 신청 상세</span></div>
+                      <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
 
-                      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
-                        {rows.map(([label, val]) => (
-                          <div key={label} style={{ display:'flex', gap:12, fontSize:13 }}>
-                            <span style={{ width:64, flexShrink:0, color:'#94A3B8', fontWeight:600 }}>{label}</span>
-                            <span style={{ color:'#1A1A1A', fontWeight:500 }}>{val}</span>
+                        {/* 신청 정보 */}
+                        <div>
+                          <div style={secTitle}>신청 정보 <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`} style={{ marginLeft:6 }}>{(stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')}</span></div>
+                          <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 16px' }}>
+                            {info.map(([l, v], i) => (
+                              <div key={l} style={i >= 4 ? { gridColumn:'1 / -1' } : undefined}>
+                                <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div>
+                                <div style={{ fontSize:13, fontWeight:600, color:'#1A1A1A', wordBreak:'break-all' }}>{v}</div>
+                              </div>
+                            ))}
+                            {r.detail && (
+                              <div style={{ gridColumn:'1 / -1' }}>
+                                <div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>상세 내용</div>
+                                <div style={{ fontSize:13, color:'#334155', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{r.detail}</div>
+                              </div>
+                            )}
                           </div>
-                        ))}
-                        <div style={{ display:'flex', gap:12, fontSize:13, alignItems:'center' }}>
-                          <span style={{ width:64, flexShrink:0, color:'#94A3B8', fontWeight:600 }}>상태</span>
-                          <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{stLabel[r.status] || r.status}</span>
                         </div>
-                      </div>
 
-                      <div style={{ fontSize:12, color:'#94A3B8', fontWeight:600, marginBottom:6 }}>상세 내용</div>
-                      <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:'14px 16px',
-                        fontSize:13, color:'#334155', lineHeight:1.7, whiteSpace:'pre-wrap', minHeight:60, marginBottom:20 }}>
-                        {r.detail || '(상세 내용 없음)'}
-                      </div>
+                        {/* 환불 대상 상품 (부분환불 — 박스/kg 비율 계산) */}
+                        <div>
+                          <div style={secTitle}>환불 대상 상품 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(하자 수량 입력 시 부분환불 자동계산)</span></div>
+                          {refundOrderItems.length === 0 ? (
+                            <div className="adm-muted" style={{ fontSize:13, padding:'8px 2px' }}>상품 정보를 불러오는 중…</div>
+                          ) : (
+                            <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
+                              {refundOrderItems.map((it, idx) => {
+                                const itRefund = it.total > 0 ? Math.round(it.subtotal * Math.min(it.defective, it.total) / it.total) : 0;
+                                return (
+                                  <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 14px', borderTop: idx ? '1px solid #F1F5F9' : 'none', flexWrap:'wrap' }}>
+                                    <div style={{ flex:1, minWidth:140 }}>
+                                      <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
+                                      <div className="adm-muted" style={{ fontSize:11 }}>{fmtPrice(it.subtotal)}원</div>
+                                    </div>
+                                    <span style={{ fontSize:12, color:'#64748B' }}>전체</span>
+                                    <input type="number" min={1} value={it.total} onChange={e => setItem(it.id, 'total', Number(e.target.value))} style={numInput} />
+                                    <span style={{ fontSize:12, color:'#64748B' }}>중 하자</span>
+                                    <input type="number" min={0} max={it.total} value={it.defective} onChange={e => setItem(it.id, 'defective', Number(e.target.value))} style={{ ...numInput, borderColor: it.defective > 0 ? '#FCA5A5' : '#E2E8F0' }} />
+                                    <span style={{ width:78, textAlign:'right', fontWeight:700, fontSize:13, color: itRefund > 0 ? '#DC2626' : '#94A3B8' }}>{fmtPrice(itRefund)}원</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {hasDefect && (
+                            <div style={{ marginTop:10, background:'#FFF7ED', border:'1px solid #FED7AA', borderRadius:10, padding:'12px 14px', fontSize:13 }}>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">카드 전액취소</span><span style={{ fontWeight:600 }}>{fmtPrice(orderTotal)}원</span></div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">하자 순환불액</span><span style={{ fontWeight:700, color:'#DC2626' }}>{fmtPrice(refundAmount)}원</span></div>
+                              <div style={{ display:'flex', justifyContent:'space-between' }}><span className="adm-muted">소비자 재송금액(정상분)</span><span style={{ fontWeight:800, color:'#2563EB' }}>{fmtPrice(resendAmount)}원</span></div>
+                            </div>
+                          )}
+                        </div>
 
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        {(r.status === 'pending' || r.status === 'rejected' || r.status === 'hold') && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'processing')}>처리중</button>
+                        {/* 재송금 상태 (부분환불 저장된 경우) */}
+                        {r.refund_amount != null && (r.resend_amount || 0) > 0 && (
+                          <div>
+                            <div style={secTitle}>재송금 (정상분 재입금)</div>
+                            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:13 }}>받을 금액 <strong style={{ color:'#2563EB' }}>{fmtPrice(r.resend_amount || 0)}원</strong></span>
+                              {r.resend_status === 'received'
+                                ? <span className="adm-badge badge-paid">입금확인 완료</span>
+                                : <>
+                                    <span className="adm-badge badge-wait">재송금 대기</span>
+                                    <button className="adm-btn adm-btn-primary" style={{ fontSize:12 }} onClick={() => setResendStatus('received')}>재송금 입금확인</button>
+                                  </>}
+                            </div>
+                          </div>
                         )}
-                        {r.status !== 'completed' && r.status !== 'hold' && r.status !== 'rejected' && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
-                        )}
-                        {r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => { if (confirm('환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
-                        )}
-                        {r.status !== 'rejected' && r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
-                            const reason = prompt('환불 불가(거부) 사유를 입력하세요. 고객에게 전달됩니다.');
-                            if (reason && reason.trim()) updateRefundStatus(r, 'rejected', reason.trim());
-                          }}>환불 불가</button>
-                        )}
+
+                        {/* 메모 */}
+                        <div>
+                          <div style={secTitle}>메모 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(작업상태·특이사항)</span></div>
+                          <textarea className="adm-textarea" rows={3} style={{ width:'100%' }} value={refundMemoInput}
+                            onChange={e => setRefundMemoInput(e.target.value)} placeholder="예) 계좌이체 환불 예정 / 고객 재송금 안내 완료 등" />
+                          <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
+                            <button className="adm-btn adm-btn-outline" onClick={saveRefundPartial} disabled={refundSaving}>{refundSaving ? '저장 중…' : '상품·메모 저장'}</button>
+                          </div>
+                        </div>
+
+                        {/* 상태 변경 버튼 */}
+                        <div style={{ borderTop:'1px solid #EEF2F6', paddingTop:14, display:'flex', gap:8, flexWrap:'wrap' }}>
+                          {(r.status === 'pending' || r.status === 'rejected' || r.status === 'hold') && (
+                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'processing')}>진행중(이체대기)</button>
+                          )}
+                          {r.status !== 'completed' && r.status !== 'hold' && r.status !== 'rejected' && (
+                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
+                          )}
+                          {r.status !== 'completed' && (
+                            <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => { if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed'); }}>환불승인</button>
+                          )}
+                          {r.status !== 'rejected' && r.status !== 'completed' && (
+                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
+                              const reason = prompt('환불 불가(거부) 사유를 입력하세요. 고객에게 전달됩니다.');
+                              if (reason && reason.trim()) updateRefundStatus(r, 'rejected', reason.trim());
+                            }}>환불 불가</button>
+                          )}
+                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => setRefundDetail(null)}>닫기</button>
+                        </div>
                       </div>
                     </div>
                   </div>
