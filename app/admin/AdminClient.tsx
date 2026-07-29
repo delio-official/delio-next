@@ -11778,7 +11778,7 @@ export default function AdminClient() {
                 ];
                 return (
                   <div className="adm-modal-bg open" onClick={() => setRefundDetail(null)}>
-                    <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+                    <div className="adm-modal" style={{ maxWidth:680, width:'95vw', maxHeight:'92vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
                       <div className="adm-modal-head"><span className="adm-modal-title">환불 신청 상세</span></div>
                       <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
 
