@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   const targets = ids.filter(id => !blocked.has(id));
 
   if (targets.length > 0) {
-    const { error: upErr } = await admin.from('orders').update({ status: 'confirmed' }).in('id', targets);
+    const { error: upErr } = await admin.from('orders').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).in('id', targets);
     if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
   }
 

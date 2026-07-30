@@ -2649,12 +2649,12 @@ export default function AdminClient() {
     const bankMap: Record<string, { bank_name: string; bank_account: string }> = {};
     (bankData as { farm_id: string; bank_name: string|null; bank_account: string|null }[] | null || []).forEach(b => { bankMap[b.farm_id] = { bank_name: b.bank_name || '', bank_account: b.bank_account || '' }; });
     setFarmBankMap(bankMap);
-    // 배송완료/구매확정 주문 상품항목 (배송완료일 기준 반차 범위)
+    // 구매확정 주문 상품항목 (구매확정일 기준 반차 범위)
     const { data } = await supabase
       .from('order_items')
-      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, delivered_at), products!inner(farm_id, supply_price, farms(id, name))')
-      .gte('orders.delivered_at', from).lt('orders.delivered_at', to)
-      .in('orders.status', ['delivered', 'confirmed'])
+      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name))')
+      .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
+      .eq('orders.status', 'confirmed')
       .limit(10000);
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
     const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string) => {
@@ -12498,7 +12498,7 @@ export default function AdminClient() {
               <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                 <span style={{ fontSize:15, fontWeight:800 }}>{farmSettleMonth.replace('-','년 ')}월 {farmSettleHalf}차</span>
                 <span className="adm-muted" style={{ fontSize:13 }}>({info.rangeLabel} · {info.payLabel} 지급)</span>
-                <span className="adm-muted" style={{ fontSize:11 }}>· 배송완료일 기준</span>
+                <span className="adm-muted" style={{ fontSize:11 }}>· 구매확정일 기준</span>
                 {info.overdue && unpaidCount > 0 && (
                   <span className="adm-badge badge-off" style={{ background:'#FEE2E2', color:'#B91C1C', fontWeight:700 }}>⚠ 지급일 경과 · 미정산 {unpaidCount}건</span>
                 )}
@@ -12585,7 +12585,7 @@ export default function AdminClient() {
                 <div className="adm-modal" style={{ maxWidth:640, width:'95vw', maxHeight:'92vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
                   <div className="adm-modal-head"><span className="adm-modal-title">{r.farmName} 정산 상세</span></div>
                   <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
-                    <div className="adm-muted" style={{ fontSize:12, marginTop:-6 }}>{farmSettleMonth} {farmSettleHalf}차 ({info.rangeLabel}) · 지급예정 {info.payLabel} · 배송완료 기준</div>
+                    <div className="adm-muted" style={{ fontSize:12, marginTop:-6 }}>{farmSettleMonth} {farmSettleHalf}차 ({info.rangeLabel}) · 지급예정 {info.payLabel} · 구매확정 기준</div>
 
                     {/* 요약 */}
                     <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 16px' }}>
