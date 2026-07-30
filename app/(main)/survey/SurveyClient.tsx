@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { shareKakaoFeed } from '@/lib/kakao';
+import { defaultSellerScore } from '@/lib/taste';
 import '@/styles/survey.css';
 
 // ════════════════════════════════════════════════
@@ -273,6 +274,7 @@ export default function SurveyClient() {
   interface RecProduct {
     id: string; name: string; price: number; discounted_price: number;
     discount_rate: number; thumbnail_url: string | null; category: string; avg_rating: number;
+    seller_score: Record<string, number> | null; is_best: boolean; created_at: string;
   }
   const [recProducts, setRecProducts] = useState<RecProduct[]>([]);
   const [recLoaded, setRecLoaded] = useState(false);
@@ -286,17 +288,28 @@ export default function SurveyClient() {
       const { data: setting } = await supabase
         .from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
       setShowRecProducts(setting?.value !== 'false');
-      /* axis1: routine→베스트 우선, free→신상 우선 (카테고리는 커스텀 슬러그라 필터 없이 취향 성향순으로 추천) */
-      const order = result!.axis1 === 'routine'
-        ? { col: 'is_best', asc: false }
-        : { col: 'created_at', asc: false };
+      /* 과일별 맛 지표(seller_score: 당도·산도·식감)로 입맛(axis3) 정확매칭.
+         강한맛 지수 = 당도+산도+식감 (미설정 시 카테고리 기본값). vitamin→강한 우선, healing→섬세(담백) 우선 */
       const { data } = await supabase
         .from('products')
-        .select('id,name,price,discounted_price,discount_rate,thumbnail_url,category,avg_rating')
+        .select('id,name,price,discounted_price,discount_rate,thumbnail_url,category,avg_rating,seller_score,is_best,created_at')
         .eq('is_active', true)
-        .order(order.col, { ascending: order.asc })
-        .limit(6);
-      if (data) setRecProducts(data as RecProduct[]);
+        .limit(200);
+      const rows = (data as RecProduct[]) || [];
+      const strongIdx = (p: RecProduct) => {
+        const s = (p.seller_score && Object.keys(p.seller_score).length > 0)
+          ? p.seller_score : defaultSellerScore(p.category);
+        return (s.sweet ?? 3) + (s.sour ?? 3) + (s.texture ?? 3);   // 3~15, 높을수록 강한입맛
+      };
+      const vitamin = result!.axis3 === 'vitamin';
+      const sorted = rows.slice().sort((a, b) => {
+        const d = vitamin ? strongIdx(b) - strongIdx(a) : strongIdx(a) - strongIdx(b);
+        if (d !== 0) return d;
+        /* 동점 시 생활방식(axis1): routine→베스트 우선, free→신상 우선 */
+        if (result!.axis1 === 'routine' && a.is_best !== b.is_best) return a.is_best ? -1 : 1;
+        return (b.created_at || '').localeCompare(a.created_at || '');
+      });
+      setRecProducts(sorted.slice(0, 6));
       setRecLoaded(true);
     }
     loadRecs();
