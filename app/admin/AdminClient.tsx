@@ -5031,6 +5031,14 @@ export default function AdminClient() {
     else alert('저장되었습니다!');
   }
 
+  /* 인기 검색어 저장 (마케팅 분석 패널로 이동됨) */
+  async function savePopularKeywords() {
+    const { error } = await createClient().from('site_settings')
+      .upsert({ key: 'popular_keywords', value: siteSettings.popular_keywords || '' }, { onConflict: 'key' });
+    if (error) alert('저장 실패: ' + error.message);
+    else alert('인기 검색어가 저장되었습니다.');
+  }
+
   /* 관리자 계정 이메일 로드 (설정 패널 진입 시) */
   async function loadAdminEmail() {
     const { data } = await createClient().auth.getUser();
@@ -6388,7 +6396,7 @@ export default function AdminClient() {
       case 'cs':        loadCsInquiries(); break;
       case 'refund':    loadRefundRequests(); loadOrders(); break;
       case 'settings':    loadSettings(); loadAdminEmail(); break;
-      case 'analytics':   loadMarketing(); loadSearchStats(statsDays); break;
+      case 'analytics':   loadMarketing(); loadSearchStats(statsDays); loadSettings(); break;
       case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
       case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
     }
@@ -13445,6 +13453,67 @@ export default function AdminClient() {
                         )
                       )}
                     </div>
+
+                    {/* ── 인기 검색어 (설정에서 이동) ── */}
+                    <div className="adm-card" style={{ marginBottom:16 }}>
+                      <div className="adm-card-head"><span className="adm-card-title">인기 검색어 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>· 검색창·검색페이지 추천</span></span></div>
+                      <div className="adm-form">
+                        <div className="adm-form-row" style={{ alignItems:'flex-start' }}>
+                          <label className="adm-label" style={{ paddingTop:6 }}>순위</label>
+                          <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1 }}>
+                            <button className="adm-btn adm-btn-outline" style={{ alignSelf:'flex-start', fontSize:13 }}
+                              onClick={() => {
+                                if (searchStats.length === 0) { alert('먼저 위 검색어 통계를 새로고침 해주세요.'); return; }
+                                const top = searchStats.slice(0, 10).map(s => s.keyword);
+                                const padded = [...top, ...Array(10).fill('')].slice(0, 10);
+                                setSiteSettings(prev => ({ ...prev, popular_keywords: padded.join(', ') }));
+                              }}>
+                              📊 검색통계 TOP {Math.min(searchStats.length, 10)}개로 자동 채우기
+                            </button>
+                            {Array.from({ length: 10 }, (_, i) => {
+                              const arr10 = () => {
+                                const a = (siteSettings.popular_keywords || '').split(',').map(x => x.trim());
+                                while (a.length < 10) a.push('');
+                                return a;
+                              };
+                              const val = arr10()[i] || '';
+                              const moveItem = (from: number, to: number) => {
+                                const a = arr10();
+                                const [item] = a.splice(from, 1);
+                                a.splice(to, 0, item);
+                                setSiteSettings(prev => ({ ...prev, popular_keywords: a.join(', ') }));
+                              };
+                              return (
+                                <div key={i} draggable
+                                  onDragStart={e => { e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed = 'move'; (e.currentTarget as HTMLDivElement).style.opacity = '0.4'; }}
+                                  onDragEnd={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
+                                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; (e.currentTarget as HTMLDivElement).style.background = '#F1F5F9'; }}
+                                  onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ''; }}
+                                  onDrop={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.background = ''; const from = parseInt(e.dataTransfer.getData('text/plain')); if (!isNaN(from) && from !== i) moveItem(from, i); }}
+                                  style={{ display:'flex', alignItems:'center', gap:8, padding:'2px 6px', borderRadius:8, transition:'background .12s' }}>
+                                  <svg viewBox="0 0 10 16" width="10" height="16" fill="#CBD5E1" style={{ flexShrink:0, cursor:'grab' }}>
+                                    <circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/>
+                                  </svg>
+                                  <span style={{ fontSize:12, fontWeight:700, color:'#94A3B8', minWidth:28, textAlign:'right', flexShrink:0 }}>{i + 1}위</span>
+                                  <input className="adm-input-text" style={{ flex:1 }} value={val} placeholder={`${i + 1}위 검색어`}
+                                    onChange={e => { const a = arr10(); a[i] = e.target.value; setSiteSettings(prev => ({ ...prev, popular_keywords: a.join(', ') })); }} />
+                                  <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
+                                    <button onClick={() => { if (i > 0) moveItem(i, i - 1); }} disabled={i === 0}
+                                      style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===0?'#F8FAFC':'#fff', cursor: i===0?'default':'pointer', fontSize:9, color: i===0?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▲</button>
+                                    <button onClick={() => { if (i < 9) moveItem(i, i + 1); }} disabled={i === 9}
+                                      style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===9?'#F8FAFC':'#fff', cursor: i===9?'default':'pointer', fontSize:9, color: i===9?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▼</button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:4 }}>
+                              <span className="adm-muted" style={{ fontSize:11 }}>헤더 검색창 및 검색 페이지에 표시됩니다 · 빈 칸은 건너뜁니다</span>
+                              <button className="adm-btn adm-btn-primary" style={{ fontSize:13 }} onClick={savePopularKeywords}>저장</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </>
                 );
               })()}
@@ -13549,105 +13618,6 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 인기 검색어 */}
-              <div className="adm-card adm-card-settings">
-                <div className="adm-card-head"><span className="adm-card-title">인기 검색어 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>· 검색창·검색페이지 추천</span></span></div>
-                <div className="adm-form">
-                  <div className="adm-form-row" style={{ alignItems:'flex-start' }}>
-                    <label className="adm-label" style={{ paddingTop:6 }}>순위</label>
-                    <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1 }}>
-                      <button className="adm-btn adm-btn-outline" style={{ alignSelf:'flex-start', fontSize:13 }}
-                        onClick={() => {
-                          if (searchStats.length === 0) {
-                            alert('먼저 위 검색어 통계를 새로고침 해주세요.');
-                            return;
-                          }
-                          const top = searchStats.slice(0, 10).map(s => s.keyword);
-                          const padded = [...top, ...Array(10).fill('')].slice(0, 10);
-                          setSiteSettings(prev => ({ ...prev, popular_keywords: padded.join(', ') }));
-                        }}>
-                        📊 검색통계 TOP {Math.min(searchStats.length, 10)}개로 자동 채우기
-                      </button>
-                      {Array.from({ length: 10 }, (_, i) => {
-                        const arr10 = () => {
-                          const a = (siteSettings.popular_keywords || '').split(',').map(x => x.trim());
-                          while (a.length < 10) a.push('');
-                          return a;
-                        };
-                        const val = arr10()[i] || '';
-                        const moveItem = (from: number, to: number) => {
-                          const a = arr10();
-                          const [item] = a.splice(from, 1);
-                          a.splice(to, 0, item);
-                          setSiteSettings(prev => ({ ...prev, popular_keywords: a.join(', ') }));
-                        };
-                        return (
-                          <div key={i}
-                            draggable
-                            onDragStart={e => {
-                              e.dataTransfer.setData('text/plain', String(i));
-                              e.dataTransfer.effectAllowed = 'move';
-                              (e.currentTarget as HTMLDivElement).style.opacity = '0.4';
-                            }}
-                            onDragEnd={e => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
-                            onDragOver={e => {
-                              e.preventDefault();
-                              e.dataTransfer.dropEffect = 'move';
-                              (e.currentTarget as HTMLDivElement).style.background = '#F1F5F9';
-                            }}
-                            onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ''; }}
-                            onDrop={e => {
-                              e.preventDefault();
-                              (e.currentTarget as HTMLDivElement).style.background = '';
-                              const from = parseInt(e.dataTransfer.getData('text/plain'));
-                              if (!isNaN(from) && from !== i) moveItem(from, i);
-                            }}
-                            style={{ display:'flex', alignItems:'center', gap:8, padding:'2px 6px', borderRadius:8, transition:'background .12s' }}>
-
-                            {/* 드래그 핸들 */}
-                            <svg viewBox="0 0 10 16" width="10" height="16" fill="#CBD5E1" style={{ flexShrink:0, cursor:'grab' }}>
-                              <circle cx="3" cy="3"  r="1.4"/><circle cx="7" cy="3"  r="1.4"/>
-                              <circle cx="3" cy="8"  r="1.4"/><circle cx="7" cy="8"  r="1.4"/>
-                              <circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/>
-                            </svg>
-
-                            <span style={{ fontSize:12, fontWeight:700, color:'#94A3B8', minWidth:28, textAlign:'right', flexShrink:0 }}>
-                              {i + 1}위
-                            </span>
-
-                            <input
-                              className="adm-input-text"
-                              style={{ flex:1 }}
-                              value={val}
-                              placeholder={`${i + 1}위 검색어`}
-                              onChange={e => {
-                                const a = arr10();
-                                a[i] = e.target.value;
-                                setSiteSettings(prev => ({ ...prev, popular_keywords: a.join(', ') }));
-                              }}
-                            />
-
-                            {/* 위/아래 버튼 */}
-                            <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
-                              <button
-                                onClick={() => { if (i > 0) moveItem(i, i - 1); }}
-                                disabled={i === 0}
-                                style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===0?'#F8FAFC':'#fff', cursor: i===0?'default':'pointer', fontSize:9, color: i===0?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▲</button>
-                              <button
-                                onClick={() => { if (i < 9) moveItem(i, i + 1); }}
-                                disabled={i === 9}
-                                style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===9?'#F8FAFC':'#fff', cursor: i===9?'default':'pointer', fontSize:9, color: i===9?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▼</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <span className="adm-muted" style={{ fontSize:11, marginTop:2 }}>
-                        헤더 검색창 및 검색 페이지에 표시됩니다 · 빈 칸은 건너뜁니다
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
               </div>{/* /.adm-settings-cols */}
 
               <div className="adm-form-actions adm-settings-save">
