@@ -13525,100 +13525,127 @@ export default function AdminClient() {
             <div className="adm-content">
 
 
-              {/* ── 사이트 정보 (푸터 표기) ── */}
-              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
+              {/* ── 사이트 정보 (폼 + 푸터 미리보기 2단) ── */}
+              {(() => {
+                const sv = (k: string, d: string) => (siteSettings[k]?.trim() ? siteSettings[k] : d);
+                const biz = sv('biz_name','델리오'), ceo = sv('biz_ceo','송민창'),
+                  no = sv('biz_no','288-12-02921'), mo = sv('biz_mail_order','2026-고양덕양구-1612'),
+                  addr = sv('biz_addr','경기도 고양시 덕양구 권율대로 656, 13층 1329호'),
+                  phone = sv('cs_phone','070-8064-3601'), email = sv('cs_email','deli_o@naver.com');
+                return (
+              <div className="adm-card" style={{ marginBottom:20 }}>
                 <div className="adm-card-head"><span className="adm-card-title">사이트 정보</span><span className="adm-muted" style={{ fontSize:12 }}>· 사이트 하단 푸터에 표기됩니다</span></div>
-                <div className="adm-form">
-                  {([
-                    ['biz_name', '상호명', '델리오'],
-                    ['biz_ceo', '대표자명', '송민창'],
-                    ['biz_no', '사업자등록번호', '288-12-02921'],
-                    ['biz_mail_order', '통신판매업 신고번호', '2026-고양덕양구-1612'],
-                    ['cs_phone', '고객센터 연락처', '070-8064-3601'],
-                    ['cs_email', '고객센터 이메일', 'deli_o@naver.com'],
-                    ['biz_addr', '사업장 주소', '경기도 고양시 덕양구 …'],
-                  ] as [string, string, string][]).map(([key, label, ph]) => (
-                    <div className="adm-form-row" key={key}>
-                      <label className="adm-label">{label}</label>
-                      <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0 }}
-                        value={siteSettings[key] ?? ''} placeholder={ph}
-                        onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
+                <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
+                  <div className="adm-form" style={{ flex:'1 1 380px', minWidth:0 }}>
+                    {([
+                      ['biz_name', '상호명', '델리오'],
+                      ['biz_ceo', '대표자명', '송민창'],
+                      ['biz_no', '사업자등록번호', '288-12-02921'],
+                      ['biz_mail_order', '통신판매업 신고번호', '2026-고양덕양구-1612'],
+                      ['cs_phone', '고객센터 연락처', '070-8064-3601'],
+                      ['cs_email', '고객센터 이메일', 'deli_o@naver.com'],
+                      ['biz_addr', '사업장 주소', '경기도 고양시 덕양구 …'],
+                    ] as [string, string, string][]).map(([key, label, ph]) => (
+                      <div className="adm-form-row" key={key}>
+                        <label className="adm-label">{label}</label>
+                        <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                          value={siteSettings[key] ?? ''} placeholder={ph}
+                          onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
+                      </div>
+                    ))}
+                    <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
+                  </div>
+                  {/* 푸터 미리보기 */}
+                  <div style={{ flex:'1 1 320px', minWidth:0 }}>
+                    <div className="adm-muted" style={{ fontSize:12, marginBottom:8, fontWeight:600 }}>푸터 미리보기</div>
+                    <div style={{ background:'#1A1A1A', borderRadius:12, padding:'20px 22px', color:'#B8B8B8', fontSize:12.5, lineHeight:1.85 }}>
+                      <div style={{ color:'#fff', fontWeight:800, fontSize:16, marginBottom:12 }}>{biz}</div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 16px', marginBottom:12 }}>
+                        <div>상호명 : {biz}</div>
+                        <div>대표 : {ceo}</div>
+                        <div style={{ gridColumn:'1 / -1' }}>주소 : {addr}</div>
+                        <div>사업자등록 : {no}</div>
+                        <div>통신판매업 : {mo}</div>
+                      </div>
+                      <div style={{ borderTop:'1px solid #333', paddingTop:12 }}>
+                        <div style={{ color:'#888', fontSize:11, marginBottom:2 }}>고객센터</div>
+                        <div style={{ color:'#fff', fontWeight:800, fontSize:20, letterSpacing:'-0.5px' }}>{phone}</div>
+                        <div style={{ fontSize:12, marginTop:4 }}>{email} · 평일 09:00-18:00</div>
+                      </div>
                     </div>
-                  ))}
-                  <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
+                  </div>
                 </div>
               </div>
+                );
+              })()}
 
-              {/* ── 결제 수단 노출 ── */}
-              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
-                <div className="adm-card-head"><span className="adm-card-title">결제 수단 노출</span><span className="adm-muted" style={{ fontSize:12 }}>· 끄면 주문서(체크아웃)에서 숨겨집니다</span></div>
-                <div className="adm-form">
-                  {([
-                    ['pay_card', '신용카드', true],
-                    ['pay_kakao', '카카오페이', true],
-                    ['pay_naver', '네이버페이', false],
-                    ['pay_vbank', '무통장입금', true],
-                  ] as [string, string, boolean][]).map(([key, label, defOn]) => (
-                    <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
-                      <label className="adm-label">{label}</label>
-                      <Toggle
-                        defaultOn={siteSettings[key] !== undefined ? siteSettings[key] !== 'false' : defOn}
-                        onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
+              {/* ── 결제 수단 / 관리자 계정 / 표시·배송 (3단 반응형) ── */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:20, marginBottom:20, alignItems:'start' }}>
+                {/* 결제 수단 노출 */}
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">결제 수단 노출</span></div>
+                  <div className="adm-form" style={{ padding:'14px 18px' }}>
+                    {([
+                      ['pay_card', '신용카드', true],
+                      ['pay_kakao', '카카오페이', true],
+                      ['pay_naver', '네이버페이', false],
+                      ['pay_vbank', '무통장입금', true],
+                    ] as [string, string, boolean][]).map(([key, label, defOn]) => (
+                      <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
+                        <label className="adm-label">{label}</label>
+                        <Toggle
+                          defaultOn={siteSettings[key] !== undefined ? siteSettings[key] !== 'false' : defOn}
+                          onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
+                      </div>
+                    ))}
+                    <div className="adm-muted" style={{ fontSize:11 }}>* 끄면 주문서에서 숨겨집니다. 네이버페이 등 PG 미승인 수단은 켜도 결제 실패할 수 있습니다.</div>
+                  </div>
+                </div>
+
+                {/* 관리자 계정 */}
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">관리자 계정</span><span className="adm-muted" style={{ fontSize:12 }}>· 비밀번호 변경</span></div>
+                  <div className="adm-form" style={{ padding:'14px 18px' }}>
+                    <div className="adm-form-row">
+                      <label className="adm-label">이메일</label>
+                      <span style={{ fontSize:14, color:'#475569' }}>{adminEmail || '—'}</span>
                     </div>
-                  ))}
-                  <div className="adm-muted" style={{ fontSize:11 }}>* 네이버페이 등 PG 미승인 수단을 켜면 결제 단계에서 실패할 수 있습니다.</div>
-                </div>
-              </div>
-
-              {/* ── 관리자 계정 ── */}
-              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
-                <div className="adm-card-head"><span className="adm-card-title">관리자 계정</span><span className="adm-muted" style={{ fontSize:12 }}>· 비밀번호 변경</span></div>
-                <div className="adm-form">
-                  <div className="adm-form-row">
-                    <label className="adm-label">이메일</label>
-                    <span style={{ fontSize:14, color:'#475569' }}>{adminEmail || '—'}</span>
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">새 비밀번호</label>
-                    <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
-                      value={adminPw} placeholder="8자 이상" autoComplete="new-password"
-                      onChange={e => setAdminPw(e.target.value)} />
-                  </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">비밀번호 확인</label>
-                    <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
-                      value={adminPw2} placeholder="새 비밀번호 재입력" autoComplete="new-password"
-                      onChange={e => setAdminPw2(e.target.value)} />
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                    <button className="adm-btn adm-btn-primary" onClick={changeAdminPassword} disabled={adminPwSaving || !adminPw}>
-                      {adminPwSaving ? '변경 중...' : '비밀번호 변경'}
-                    </button>
+                    <div className="adm-form-row">
+                      <label className="adm-label">새 비밀번호</label>
+                      <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                        value={adminPw} placeholder="8자 이상" autoComplete="new-password"
+                        onChange={e => setAdminPw(e.target.value)} />
+                    </div>
+                    <div className="adm-form-row">
+                      <label className="adm-label">비밀번호 확인</label>
+                      <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                        value={adminPw2} placeholder="새 비밀번호 재입력" autoComplete="new-password"
+                        onChange={e => setAdminPw2(e.target.value)} />
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                      <button className="adm-btn adm-btn-primary" onClick={changeAdminPassword} disabled={adminPwSaving || !adminPw}>
+                        {adminPwSaving ? '변경 중...' : '비밀번호 변경'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="adm-settings-cols">
-              {/* 표시 · 배송 설정 */}
-              <div className="adm-card adm-card-settings">
-                <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
-                <div className="adm-form">
-                  <div className="adm-form-row">
-                    <label className="adm-label">전체 출발 마감 시간 (기본값)</label>
-                    <div className="adm-flex-center-gap">
+                {/* 표시 · 배송 설정 */}
+                <div className="adm-card">
+                  <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
+                  <div className="adm-form" style={{ padding:'14px 18px' }}>
+                    <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
+                      <label className="adm-label">전체 출발 마감 시간 (기본값)</label>
                       <input type="text" className="adm-input-text adm-input-w100" value={siteSettings.dispatch_cutoff ?? ''} placeholder="예: 14:00" onChange={e => setSiteSettings(prev => ({ ...prev, dispatch_cutoff: e.target.value }))} />
-                      <span className="adm-muted">상품별 설정 없으면 이 값으로 표시</span>
+                      <span className="adm-muted" style={{ fontSize:11 }}>상품별 설정 없으면 이 값으로 표시</span>
+                    </div>
+                    <div className="adm-form-row" style={{ alignItems:'center' }}>
+                      <label className="adm-label">상단 배송안내 탭 노출</label>
+                      <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                     </div>
                   </div>
-                  <div className="adm-form-row">
-                    <label className="adm-label">상단 배송안내 탭 노출</label>
-                    <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
-                  </div>
-                  {/* 리뷰 적립 포인트는 쿠폰/포인트 > 포인트 관리 탭으로 이전 */}
                 </div>
               </div>
-
-              </div>{/* /.adm-settings-cols */}
 
               <div className="adm-form-actions adm-settings-save">
                 <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
