@@ -2655,6 +2655,7 @@ export default function AdminClient() {
       .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name))')
       .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
       .eq('orders.status', 'confirmed')
+      .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
       .limit(10000);
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
     const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string) => {
@@ -5254,7 +5255,8 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('orders')
       .select('id, user_id, status, buyer_grade, final_amount, coupon_discount, point_used, payment_method, created_at')
-      .gte('created_at', fromISO).lt('created_at', toISO).limit(5000);
+      .gte('created_at', fromISO).lt('created_at', toISO)
+      .not('order_no', 'like', 'TEST%').limit(5000);
     if (!data) { setSettlementLoading(false); return; }
 
     /* 무통장 미입금·만료는 실결제가 아니므로 총주문금액에서 제외하고 별도 집계 */
@@ -5329,7 +5331,8 @@ export default function AdminClient() {
     // 전기간 대비 (직전 동일 길이) — 실결제 기준(미입금 제외), 환불취소율 증감 계산
     const lenMs = to.getTime() - from.getTime();
     const { data: prev } = await supabase.from('orders').select('final_amount, status')
-      .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO).limit(5000);
+      .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO)
+      .not('order_no', 'like', 'TEST%').limit(5000);
     const prevPaid = (prev || []).filter(o => !isUnpaid(o.status));
     const prevTotal = prevPaid.reduce((s, o) => s + (o.final_amount || 0), 0);
     const prevOrderCount = prevPaid.length;
