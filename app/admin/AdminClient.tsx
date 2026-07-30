@@ -12600,17 +12600,25 @@ export default function AdminClient() {
                     {/* 주문 내역 */}
                     <div>
                       <div style={secTitle}>정산 대상 주문 내역</div>
-                      <div className="adm-table-wrap">
-                        <table className="adm-table">
-                          <thead><tr><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th className="adm-num">수량</th><th className="adm-num">공급가</th></tr></thead>
-                          <tbody>
-                            {r.orders.length === 0 ? <tr><td colSpan={4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>내역 없음</td></tr>
-                              : r.orders.map((o, i) => (
-                                <tr key={i}><td className="adm-mono">{o.order_no}</td><td style={{ textAlign:'left' }}>{o.product}</td><td className="adm-num">{o.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(o.supply)}원</td></tr>
-                              ))}
-                          </tbody>
-                        </table>
-                      </div>
+                      <table className="adm-table" style={{ width:'100%', tableLayout:'fixed' }}>
+                        <thead><tr>
+                          <th style={{ textAlign:'left', width:150 }}>주문번호</th>
+                          <th style={{ textAlign:'left' }}>상품</th>
+                          <th className="adm-num" style={{ width:64 }}>수량</th>
+                          <th className="adm-num" style={{ width:96 }}>공급가</th>
+                        </tr></thead>
+                        <tbody>
+                          {r.orders.length === 0 ? <tr><td colSpan={4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>내역 없음</td></tr>
+                            : r.orders.map((o, i) => (
+                              <tr key={i}>
+                                <td className="adm-mono" style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.order_no}>{o.order_no}</td>
+                                <td style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
+                                <td className="adm-num">{o.qty}개</td>
+                                <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(o.supply)}원</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
                       <div style={{ textAlign:'right', fontWeight:800, fontSize:15, marginTop:8 }}>정산 합계: {fmtPrice(r.payout)}원</div>
                     </div>
 
