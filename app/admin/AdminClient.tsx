@@ -10861,6 +10861,9 @@ export default function AdminClient() {
                 })()}
               </div>
 
+              {/* ── 델리오 픽 (퀵 가이드 위) ── */}
+              <SectionCuration sec="pick" items={products.filter(p => p.is_active).map(p => ({ id: p.id, label: p.name, sub: `${fmtPrice(p.discounted_price || p.price)}원` }))} />
+
               {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
                 <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', marginBottom: secOpen.qg ? 12 : 0 }}>
@@ -10953,7 +10956,6 @@ export default function AdminClient() {
                 </>)}
               </div>
 
-              <SectionCuration sec="pick" items={products.filter(p => p.is_active).map(p => ({ id: p.id, label: p.name, sub: `${fmtPrice(p.discounted_price || p.price)}원` }))} />
               <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
