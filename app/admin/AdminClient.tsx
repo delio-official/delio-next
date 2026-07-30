@@ -12709,10 +12709,12 @@ export default function AdminClient() {
             /* 완료율 = 완료(응답) / 시작 */
             const compRateThis = surveyStarts.thisMonth > 0 ? Math.min(100, Math.round(thisMonthCnt / surveyStarts.thisMonth * 100)) : 0;
             const compRateLast = surveyStarts.lastMonth > 0 ? Math.min(100, Math.round(lastMonthCnt / surveyStarts.lastMonth * 100)) : 0;
-            /* 회원 응답률(전체 대비 회원 비중) + 전월 대비 */
-            const memberRate = total > 0 ? Math.round(memberCnt / total * 100) : 0;
+            /* 회원 응답률(전체 회원 대비 응답 회원) + 전월 대비(응답 중 회원 비중 변화) */
+            const memberRate = surveyMemberTotal > 0 ? Math.round(memberCnt / surveyMemberTotal * 100) : 0;
             const memShareThis = thisMonthCnt > 0 ? thisMonthArr.filter(r => r.user_id).length / thisMonthCnt * 100 : 0;
             const memShareLast = lastMonthCnt > 0 ? lastMonthArr.filter(r => r.user_id).length / lastMonthCnt * 100 : 0;
+            /* 맛 프로파일 색상 팔레트 (당도·산도·과즙·식감) */
+            const TASTE_HEX = ['#E8632B', '#C99A06', '#2E8FD6', '#3E9B5F'];
             /* 전월대비 증감(%p 기준 화살표) */
             const diffPP = (a: number, b: number) => Math.round(a - b);
             const trendChip = (v: number) => {
@@ -12772,7 +12774,7 @@ export default function AdminClient() {
                     <div className="adm-kpi-value adm-kpi-value-mt">{compRateThis}%</div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
                       {surveyStarts.lastMonth > 0 && trendChip(diffPP(compRateThis, compRateLast))}
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>이번달 시작 {surveyStarts.thisMonth}중 완료 {thisMonthCnt}</span>
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>진행 {surveyStarts.thisMonth}건 중 완료 {thisMonthCnt}건</span>
                     </div>
                   </div>
                   {/* 이번달 응답 */}
@@ -12787,7 +12789,7 @@ export default function AdminClient() {
                     <div className="adm-kpi-value adm-kpi-value-mt">{memberRate}%</div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
                       {lastMonthCnt > 0 && trendChip(diffPP(memShareThis, memShareLast))}
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>회원 {memberCnt}건 · 비회원 {total - memberCnt}건</span>
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>회원 {memberCnt}/{surveyMemberTotal}명</span>
                     </div>
                   </div>
                 </div>
@@ -12804,7 +12806,7 @@ export default function AdminClient() {
                           </div>
                           <div style={{ display:'flex', height:26, borderRadius:6, overflow:'hidden', border:'1px solid #EEF2F6' }}>
                             {row.map((e, i) => (
-                              <div key={e.lb} style={{ width:`${e.pct}%`, background: i === 0 ? '#3B82F6' : '#CBD5E1', color:'#fff', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', whiteSpace:'nowrap' }}>
+                              <div key={e.lb} style={{ width:`${e.pct}%`, background: i === 0 ? TASTE_HEX[ai % TASTE_HEX.length] : `${TASTE_HEX[ai % TASTE_HEX.length]}33`, color: i === 0 ? '#fff' : '#475569', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', whiteSpace:'nowrap' }}>
                                 {e.pct >= 10 && `${e.pct}%`}
                               </div>
                             ))}
@@ -12827,26 +12829,6 @@ export default function AdminClient() {
                   </div>
                 )}
 
-                {/* 유형별 분포 */}
-                {typeSorted.length > 0 && (
-                  <div className="adm-card" style={{ marginBottom:16 }}>
-                    <div className="adm-card-head">
-                      <span className="adm-card-title">유형별 분포</span>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:10, padding:'4px 0 8px' }}>
-                      {typeSorted.map(([type, cnt]) => (
-                        <div key={type} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'#F8F9FA', borderRadius:10 }}>
-                          <span style={{ fontSize:22 }}>{TYPE_EMOJI[type] || '🍑'}</span>
-                          <div>
-                            <div style={{ fontSize:13, fontWeight:700 }}>{type}</div>
-                            <div style={{ fontSize:12, color:'#64748B' }}>{cnt}건 ({total > 0 ? Math.round(cnt/total*100) : 0}%)</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* 응답 분포 (마케팅용) */}
                 {(() => {
                   const AGE_LABEL: Record<string,string> = { '10s':'10대','20s':'20대','30s':'30대','40s':'40대','50s':'50대 이상' };
@@ -12857,10 +12839,10 @@ export default function AdminClient() {
                     return Object.entries(m).sort((a,b) => b[1]-a[1]).map(([k,c]) => ({ label: labelMap?.[k] || k, c }));
                   };
                   const blocks: [string, { label:string; c:number }[], string][] = [
-                    ['성별', dist('gender', GENDER_LABEL), '#2563EB'],
-                    ['나이대', dist('age_group', AGE_LABEL), '#16A34A'],
-                    ['구매 목적', dist('purchase_purpose'), '#9333EA'],
-                    ['구매 빈도', dist('purchase_frequency'), '#EA580C'],
+                    ['성별', dist('gender', GENDER_LABEL), TASTE_HEX[0]],
+                    ['나이대', dist('age_group', AGE_LABEL), TASTE_HEX[1]],
+                    ['구매 목적', dist('purchase_purpose'), TASTE_HEX[2]],
+                    ['구매 빈도', dist('purchase_frequency'), TASTE_HEX[3]],
                   ];
                   return (
                     <div className="adm-dist-grid">
@@ -12889,15 +12871,40 @@ export default function AdminClient() {
                   );
                 })()}
 
-                {/* 유형 필터 + 검색 */}
-                <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                  <div className="adm-toolbar-left">
-                    <div className="adm-btn-group" style={{ flexWrap:'wrap' }}>
-                      <button className={`adm-seg-btn${surveyTypeFilter===''?' active':''}`} onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }}>전체</button>
-                      {typeSorted.map(([type]) => (
-                        <button key={type} className={`adm-seg-btn${surveyTypeFilter===type?' active':''}`} onClick={() => { setSurveyTypeFilter(type); setSurveyPage(1); }}>{TYPE_EMOJI[type] || ''} {type}</button>
+                {/* 유형별 분포 = 필터 (클릭하면 해당 유형만 목록에 표시) */}
+                {typeSorted.length > 0 && (
+                  <div className="adm-card" style={{ marginBottom:16 }}>
+                    <div className="adm-card-head">
+                      <span className="adm-card-title">유형별 분포</span>
+                      <span className="adm-muted" style={{ fontSize:12 }}>· 클릭하면 해당 유형만 조회</span>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10, padding:'4px 0 8px' }}>
+                      {/* 전체 */}
+                      <button onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }}
+                        style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, cursor:'pointer', textAlign:'left',
+                          background: surveyTypeFilter==='' ? '#EFF6FF' : '#F8F9FA', border: surveyTypeFilter==='' ? '1.5px solid #3B82F6' : '1.5px solid transparent' }}>
+                        <span style={{ fontSize:22 }}>📊</span>
+                        <div><div style={{ fontSize:13, fontWeight:700 }}>전체</div><div style={{ fontSize:12, color:'#64748B' }}>{total}건 (100%)</div></div>
+                      </button>
+                      {typeSorted.map(([type, cnt]) => (
+                        <button key={type} onClick={() => { setSurveyTypeFilter(type); setSurveyPage(1); }}
+                          style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, cursor:'pointer', textAlign:'left',
+                            background: surveyTypeFilter===type ? '#EFF6FF' : '#F8F9FA', border: surveyTypeFilter===type ? '1.5px solid #3B82F6' : '1.5px solid transparent' }}>
+                          <span style={{ fontSize:22 }}>{TYPE_EMOJI[type] || '🍑'}</span>
+                          <div>
+                            <div style={{ fontSize:13, fontWeight:700 }}>{type}</div>
+                            <div style={{ fontSize:12, color:'#64748B' }}>{cnt}건 ({total > 0 ? Math.round(cnt/total*100) : 0}%)</div>
+                          </div>
+                        </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 검색 */}
+                <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                  <div className="adm-toolbar-left">
+                    {surveyTypeFilter && <span className="adm-muted" style={{ fontSize:13 }}>필터: <b style={{ color:'#1A1A1A' }}>{TYPE_EMOJI[surveyTypeFilter] || ''} {surveyTypeFilter}</b> · <button onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }} style={{ border:'none', background:'none', color:'#3B82F6', cursor:'pointer', fontSize:13, padding:0 }}>전체 보기</button></span>}
                   </div>
                   <div className="adm-toolbar-right">
                     <input className="adm-input" placeholder="회원명·이메일 검색" value={surveySearch}
@@ -13002,9 +13009,7 @@ export default function AdminClient() {
                   const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
                   const ageTxt = (a: string | null) => a ? a.replace('s', '대').replace('plus', '대+') : '—';
                   const rows: [string, string][] = [
-                    ['유형', `${TYPE_EMOJI[r.result_label || ''] || '🍑'} ${r.result_label || r.result_type || '—'}`],
                     ['축 조합', `${AXIS1_LABEL[r.axis1 || ''] || r.axis1 || '—'} · ${AXIS2_LABEL[r.axis2 || ''] || r.axis2 || '—'} · ${AXIS3_LABEL[r.axis3 || ''] || r.axis3 || '—'}`],
-                    ['회원', r.profiles ? `${r.profiles.name} (${r.profiles.email})` : '비회원'],
                     ['성별', genderTxt(r.gender)],
                     ['나이대', ageTxt(r.age_group)],
                     ['가족 구성', r.family_size || '—'],
@@ -13018,9 +13023,14 @@ export default function AdminClient() {
                       style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
                       <div onClick={e => e.stopPropagation()}
                         style={{ background:'#fff', borderRadius:16, width:'min(460px,100%)', maxHeight:'85vh', overflow:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #F1F5F9' }}>
-                          <span style={{ fontSize:15, fontWeight:800 }}>응답 상세</span>
-                          <button onClick={() => setSurveyDetail(null)} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#94A3B8', lineHeight:1 }}>×</button>
+                        <div style={{ padding:'18px 20px', borderBottom:'1px solid #F1F5F9', position:'relative' }}>
+                          <button onClick={() => setSurveyDetail(null)} style={{ position:'absolute', top:14, right:16, border:'none', background:'none', fontSize:22, cursor:'pointer', color:'#94A3B8', lineHeight:1 }}>×</button>
+                          <div style={{ fontSize:20, fontWeight:900, color:'#1A1A1A' }}>{r.profiles ? r.profiles.name : '비회원'}</div>
+                          {r.profiles && <div style={{ fontSize:12, color:'#94A3B8', marginTop:2 }}>{r.profiles.email}</div>}
+                          <div style={{ marginTop:9, display:'inline-flex', alignItems:'center', gap:5, background:'#F1F5F9', borderRadius:99, padding:'4px 12px' }}>
+                            <span style={{ fontSize:15 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
+                            <span style={{ fontSize:13, fontWeight:800, color:'#334155' }}>{r.result_label || r.result_type || '—'} 유형</span>
+                          </div>
                         </div>
                         <div style={{ padding:'8px 20px 20px' }}>
                           {rows.map(([k, v]) => (
