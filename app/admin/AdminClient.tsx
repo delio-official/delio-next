@@ -13555,24 +13555,33 @@ export default function AdminClient() {
                     ))}
                     <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
                   </div>
-                  {/* 푸터 미리보기 */}
-                  <div style={{ flex:'1 1 320px', minWidth:0 }}>
+                  {/* 푸터 미리보기 (실제 사이트 푸터와 동일 구성) */}
+                  <div style={{ flex:'1 1 340px', minWidth:0 }}>
                     <div className="adm-muted" style={{ fontSize:12, marginBottom:8, fontWeight:600 }}>푸터 미리보기</div>
-                    <div style={{ background:'#1A1A1A', borderRadius:12, padding:'20px 22px', color:'#B8B8B8', fontSize:12.5, lineHeight:1.85 }}>
-                      <div style={{ color:'#fff', fontWeight:800, fontSize:16, marginBottom:12 }}>{biz}</div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 16px', marginBottom:12 }}>
-                        <div>상호명 : {biz}</div>
-                        <div>대표 : {ceo}</div>
-                        <div style={{ gridColumn:'1 / -1' }}>주소 : {addr}</div>
-                        <div>사업자등록 : {no}</div>
-                        <div>통신판매업 : {mo}</div>
+                    <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:12, padding:'22px 24px' }}>
+                      {/* 로고 */}
+                      <img src="/DelioLogo.png" alt="Delio" style={{ height:30, width:'auto', display:'block', objectFit:'contain', marginBottom:16 }} />
+                      {/* 사업자 정보 */}
+                      <div style={{ fontSize:12, color:'#888', lineHeight:1.9 }}>
+                        <div>상호명 : {biz} &nbsp;|&nbsp; 대표 : {ceo}</div>
+                        <div>주소 : {addr}</div>
+                        <div>사업자등록번호 : {no} &nbsp;|&nbsp; 통신판매업신고 : {mo}</div>
+                        <div>개인정보보호책임자 : {ceo} ({email})</div>
+                        <div>모든 거래에 대한 책임과 환불·민원 처리는 {biz}가 진행합니다. &nbsp;|&nbsp; 민원담당자 : {ceo} ({phone})</div>
+                        <div style={{ color:'#c0c0c0', marginTop:6 }}>© {biz}. All rights reserved.</div>
                       </div>
-                      <div style={{ borderTop:'1px solid #333', paddingTop:12 }}>
-                        <div style={{ color:'#888', fontSize:11, marginBottom:2 }}>고객센터</div>
-                        <div style={{ color:'#fff', fontWeight:800, fontSize:20, letterSpacing:'-0.5px' }}>{phone}</div>
-                        <div style={{ fontSize:12, marginTop:4 }}>{email} · 평일 09:00-18:00</div>
+                      {/* 고객센터 */}
+                      <div style={{ borderTop:'1px solid #F0F0EE', marginTop:16, paddingTop:16 }}>
+                        <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:14, marginBottom:6 }}>고객센터 안내</div>
+                        <div style={{ fontSize:24, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>{phone}</div>
+                        <div style={{ fontSize:12.5, color:'#888', marginTop:8, lineHeight:1.8 }}>
+                          <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>운영시간</span>평일 09:00 - 18:00</div>
+                          <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>점심시간</span>12:00 - 13:00</div>
+                          <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>휴무일</span>주말 및 공휴일</div>
+                        </div>
                       </div>
                     </div>
+                    <div className="adm-muted" style={{ fontSize:11, marginTop:6 }}>* 운영시간·입금계좌 등은 코드 기본값입니다(현재 편집 대상 아님).</div>
                   </div>
                 </div>
               </div>
