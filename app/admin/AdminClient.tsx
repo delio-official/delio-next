@@ -2482,6 +2482,10 @@ export default function AdminClient() {
   const [surveyShowProducts, setSurveyShowProducts] = useState(true);
   const [surveyMemberTotal, setSurveyMemberTotal] = useState(0);
   const [surveyTypeFilter, setSurveyTypeFilter] = useState('');
+  const [surveyStarts, setSurveyStarts] = useState<{ thisMonth: number; lastMonth: number }>({ thisMonth: 0, lastMonth: 0 });
+  const [surveySearch, setSurveySearch] = useState('');
+  const [surveyPage, setSurveyPage] = useState(1);
+  const [surveyDetail, setSurveyDetail] = useState<AdminSurveyResult | null>(null);
 
   /* ── 친구 추천 ── */
   const [referrals, setReferrals] = useState<AdminReferral[]>([]);
@@ -3946,6 +3950,15 @@ export default function AdminClient() {
     setSurveyResults((data as unknown as AdminSurveyResult[]) || []);
     const { count } = await supabase.from('profiles').select('id', { count: 'exact', head: true });
     setSurveyMemberTotal(count || 0);
+    /* 완료율 집계: 이번달/지난달 시작 수 */
+    const now = new Date();
+    const thisStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const lastStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const [{ count: sThis }, { count: sLast }] = await Promise.all([
+      supabase.from('survey_starts').select('id', { count: 'exact', head: true }).gte('created_at', thisStart),
+      supabase.from('survey_starts').select('id', { count: 'exact', head: true }).gte('created_at', lastStart).lt('created_at', thisStart),
+    ]);
+    setSurveyStarts({ thisMonth: sThis || 0, lastMonth: sLast || 0 });
     setSurveyLoading(false);
   }
 
@@ -12662,10 +12675,36 @@ export default function AdminClient() {
 
           {/* ===== 취향 프로파일 ===== */}
           {panel === 'tasteprofile' && (() => {
-            const thisMonth = new Date().toISOString().slice(0, 7);
+            const now = new Date();
+            const thisMonth = now.toISOString().slice(0, 7);
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
             const total      = surveyResults.length;
-            const thisMonthCnt = surveyResults.filter(r => r.created_at.startsWith(thisMonth)).length;
+            const thisMonthArr = surveyResults.filter(r => r.created_at.startsWith(thisMonth));
+            const lastMonthArr = surveyResults.filter(r => r.created_at.startsWith(lastMonth));
+            const thisMonthCnt = thisMonthArr.length;
+            const lastMonthCnt = lastMonthArr.length;
             const memberCnt  = surveyResults.filter(r => r.user_id).length;
+            /* 완료율 = 완료(응답) / 시작 */
+            const compRateThis = surveyStarts.thisMonth > 0 ? Math.min(100, Math.round(thisMonthCnt / surveyStarts.thisMonth * 100)) : 0;
+            const compRateLast = surveyStarts.lastMonth > 0 ? Math.min(100, Math.round(lastMonthCnt / surveyStarts.lastMonth * 100)) : 0;
+            /* 회원 응답률(전체 대비 회원 비중) + 전월 대비 */
+            const memberRate = total > 0 ? Math.round(memberCnt / total * 100) : 0;
+            const memShareThis = thisMonthCnt > 0 ? thisMonthArr.filter(r => r.user_id).length / thisMonthCnt * 100 : 0;
+            const memShareLast = lastMonthCnt > 0 ? lastMonthArr.filter(r => r.user_id).length / lastMonthCnt * 100 : 0;
+            /* 전월대비 증감(%p 기준 화살표) */
+            const diffPP = (a: number, b: number) => Math.round(a - b);
+            const trendChip = (v: number) => {
+              const up = v >= 0;
+              return <span style={{ fontSize:10.5, fontWeight:800, color: up ? '#16A34A' : '#DC2626', background: up ? '#ECFDF5' : '#FEF2F2', borderRadius:5, padding:'2px 7px' }}>{up ? '▲' : '▼'} {Math.abs(v)}%p</span>;
+            };
+            const AXIS_DEF: Record<string, string> = {
+              routine:'계획과 규칙적인 리듬 속에서 안정을 찾는 성향',
+              free:'그날의 컨디션과 영감에 따라 유연하게 움직이는 성향',
+              care:'소중한 사람들과 함께할 때 에너지가 충전되는 성향',
+              self:'혼자만의 시간으로 에너지를 회복하는 성향',
+              vitamin:'달고 새콤한, 강한 맛을 선호하는 입맛',
+              healing:'담백하고 은은한, 섬세한 맛을 선호하는 입맛',
+            };
 
             /* 유형별 집계 */
             const TYPE_EMOJI: Record<string, string> = {
@@ -12687,7 +12726,7 @@ export default function AdminClient() {
               const c: Record<string, number> = {};
               vals.forEach(v => { if (v) c[v] = (c[v] || 0) + 1; });
               const tot = Object.values(c).reduce((s, n) => s + n, 0) || 1;
-              return Object.entries(labels).map(([k, lb]) => ({ lb, n: c[k] || 0, pct: Math.round((c[k] || 0) / tot * 100) }));
+              return Object.entries(labels).map(([k, lb]) => ({ k, lb, n: c[k] || 0, pct: Math.round((c[k] || 0) / tot * 100) }));
             };
             const axisRows = [
               axisDist(surveyResults.map(r => r.axis1), AXIS1_LABEL),
@@ -12699,25 +12738,43 @@ export default function AdminClient() {
               <div className="adm-content">
                 {/* KPI */}
                 <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                  {[
-                    ['총 응답 수', `${total.toLocaleString()}건`],
-                    ['회원 응답률', surveyMemberTotal > 0 ? `${Math.round(memberCnt/surveyMemberTotal*100)}%` : '-', `회원 ${memberCnt}/${surveyMemberTotal}명`],
-                    ['이번달 응답', `${thisMonthCnt.toLocaleString()}건`],
-                    ['회원 응답', `${memberCnt.toLocaleString()}건`],
-                  ].map(([l, v, sub]) => (
-                    <div key={l} className="adm-kpi-card">
-                      <div className="adm-kpi-label">{l}</div>
-                      <div className="adm-kpi-value adm-kpi-value-mt">{v}</div>
-                      {sub && <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{sub}</div>}
+                  {/* 총 응답 수 */}
+                  <div className="adm-kpi-card">
+                    <div className="adm-kpi-label">총 응답 수</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{total.toLocaleString()}건</div>
+                    <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>누적 완료 응답</div>
+                  </div>
+                  {/* 완료율 */}
+                  <div className="adm-kpi-card">
+                    <div className="adm-kpi-label">완료율</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{compRateThis}%</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
+                      {surveyStarts.lastMonth > 0 && trendChip(diffPP(compRateThis, compRateLast))}
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>이번달 시작 {surveyStarts.thisMonth}중 완료 {thisMonthCnt}</span>
                     </div>
-                  ))}
+                  </div>
+                  {/* 이번달 응답 */}
+                  <div className="adm-kpi-card">
+                    <div className="adm-kpi-label">이번달 응답</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{thisMonthCnt.toLocaleString()}건</div>
+                    <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>지난달 {lastMonthCnt.toLocaleString()}건</div>
+                  </div>
+                  {/* 회원 응답률 */}
+                  <div className="adm-kpi-card">
+                    <div className="adm-kpi-label">회원 응답률</div>
+                    <div className="adm-kpi-value adm-kpi-value-mt">{memberRate}%</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
+                      {lastMonthCnt > 0 && trendChip(diffPP(memShareThis, memShareLast))}
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>회원 {memberCnt}건 · 비회원 {total - memberCnt}건</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* 성향 축 분포 */}
+                {/* 성향 축 분포 + 성향 정의 */}
                 {total > 0 && (
                   <div className="adm-card" style={{ marginBottom:16 }}>
-                    <div className="adm-card-head"><span className="adm-card-title">성향(축) 분포</span></div>
-                    <div style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:16 }}>
+                    <div className="adm-card-head"><span className="adm-card-title">성향(축) 분포</span><span className="adm-muted" style={{ fontSize:12 }}>· 3개 축의 응답 비율</span></div>
+                    <div style={{ padding:'14px 18px', display:'flex', flexDirection:'column', gap:18 }}>
                       {axisRows.map((row, ai) => (
                         <div key={ai}>
                           <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:700, color:'#475569', marginBottom:5 }}>
@@ -12733,25 +12790,20 @@ export default function AdminClient() {
                           <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#94A3B8', marginTop:3 }}>
                             {row.map(e => <span key={e.lb}>{e.lb} {e.n}명 ({e.pct}%)</span>)}
                           </div>
+                          {/* 성향 정의 */}
+                          <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                            {row.map(e => (
+                              <div key={e.lb} style={{ flex:1, background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'8px 10px' }}>
+                                <div style={{ fontSize:11.5, fontWeight:800, color:'#334155', marginBottom:2 }}>{e.lb}</div>
+                                <div style={{ fontSize:11, color:'#94A3B8', lineHeight:1.45 }}>{AXIS_DEF[e.k] || ''}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-
-                {/* 결과 페이지 설정 */}
-                <div className="adm-card" style={{ marginBottom:16 }}>
-                  <div className="adm-card-head"><span className="adm-card-title">진단 결과 페이지 설정</span></div>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px' }}>
-                    <div>
-                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품 노출</div>
-                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:3 }}>
-                        끄면 취향진단 결과 화면에서 추천 상품 섹션이 숨겨집니다.
-                      </div>
-                    </div>
-                    <Toggle defaultOn={surveyShowProducts} onChange={toggleSurveyProducts} />
-                  </div>
-                </div>
 
                 {/* 유형별 분포 */}
                 {typeSorted.length > 0 && (
@@ -12783,8 +12835,8 @@ export default function AdminClient() {
                     return Object.entries(m).sort((a,b) => b[1]-a[1]).map(([k,c]) => ({ label: labelMap?.[k] || k, c }));
                   };
                   const blocks: [string, { label:string; c:number }[], string][] = [
-                    ['나이대', dist('age_group', AGE_LABEL), '#16A34A'],
                     ['성별', dist('gender', GENDER_LABEL), '#2563EB'],
+                    ['나이대', dist('age_group', AGE_LABEL), '#16A34A'],
                     ['구매 목적', dist('purchase_purpose'), '#9333EA'],
                     ['구매 빈도', dist('purchase_frequency'), '#EA580C'],
                   ];
@@ -12815,76 +12867,161 @@ export default function AdminClient() {
                   );
                 })()}
 
-                {/* 유형 필터 */}
-                {typeSorted.length > 0 && (
-                  <div className="adm-toolbar">
-                    <div className="adm-toolbar-left">
-                      <div className="adm-btn-group" style={{ flexWrap:'wrap' }}>
-                        <button className={`adm-seg-btn${surveyTypeFilter===''?' active':''}`} onClick={() => setSurveyTypeFilter('')}>전체</button>
-                        {typeSorted.map(([type]) => (
-                          <button key={type} className={`adm-seg-btn${surveyTypeFilter===type?' active':''}`} onClick={() => setSurveyTypeFilter(type)}>{type}</button>
-                        ))}
-                      </div>
+                {/* 유형 필터 + 검색 */}
+                <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                  <div className="adm-toolbar-left">
+                    <div className="adm-btn-group" style={{ flexWrap:'wrap' }}>
+                      <button className={`adm-seg-btn${surveyTypeFilter===''?' active':''}`} onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }}>전체</button>
+                      {typeSorted.map(([type]) => (
+                        <button key={type} className={`adm-seg-btn${surveyTypeFilter===type?' active':''}`} onClick={() => { setSurveyTypeFilter(type); setSurveyPage(1); }}>{TYPE_EMOJI[type] || ''} {type}</button>
+                      ))}
                     </div>
                   </div>
-                )}
+                  <div className="adm-toolbar-right">
+                    <input className="adm-input" placeholder="회원명·이메일 검색" value={surveySearch}
+                      onChange={e => { setSurveySearch(e.target.value); setSurveyPage(1); }}
+                      style={{ minWidth:200 }} />
+                  </div>
+                </div>
 
                 {/* 응답 목록 */}
-                <div className="adm-card">
-                  {surveyLoading ? <PanelLoading /> : (
-                    <div className="adm-table-wrap">
-                      <table className="adm-table">
-                        <thead>
-                          <tr>
-                            <th>유형</th>
-                            <th>축 조합</th>
-                            <th>회원</th>
-                            <th>성별</th>
-                            <th>나이</th>
-                            <th>구매 목적</th>
-                            <th>응답일</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(() => {
-                          const shown = surveyResults.filter(r => !surveyTypeFilter || (r.result_label || r.result_type) === surveyTypeFilter);
-                          return shown.length === 0 ? (
-                            <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
-                              설문 응답 없음
-                            </td></tr>
-                          ) : shown.map(r => (
-                            <tr key={r.id}>
-                              <td>
-                                <span style={{ marginRight:4 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
-                                <strong>{r.result_label || r.result_type || '—'}</strong>
-                              </td>
-                              <td>
-                                <span className="adm-badge badge-normal" style={{ marginRight:2 }}>{AXIS1_LABEL[r.axis1 || ''] || r.axis1}</span>
-                                <span className="adm-badge badge-normal" style={{ marginRight:2 }}>{AXIS2_LABEL[r.axis2 || ''] || r.axis2}</span>
-                                <span className="adm-badge badge-normal">{AXIS3_LABEL[r.axis3 || ''] || r.axis3}</span>
-                              </td>
-                              <td>
-                                {r.profiles ? (
-                                  <>
-                                    <div style={{ fontWeight:500 }}>{r.profiles.name}</div>
-                                    <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles.email}</div>
-                                  </>
-                                ) : <span className="adm-muted">비회원</span>}
-                              </td>
-                              <td className="adm-muted">
-                                {r.gender === 'male' ? '남성' : r.gender === 'female' ? '여성' : r.gender === 'none' ? '미응답' : '—'}
-                              </td>
-                              <td className="adm-muted">{r.age_group ? r.age_group.replace('s','대').replace('plus','대+') : '—'}</td>
-                              <td className="adm-muted">{r.purchase_purpose || '—'}</td>
-                              <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
-                            </tr>
-                          ));
-                          })()}
-                        </tbody>
-                      </table>
+                {(() => {
+                  const kw = surveySearch.trim().toLowerCase();
+                  const shown = surveyResults.filter(r => {
+                    if (surveyTypeFilter && (r.result_label || r.result_type) !== surveyTypeFilter) return false;
+                    if (kw) {
+                      const hay = `${r.profiles?.name || ''} ${r.profiles?.email || ''}`.toLowerCase();
+                      if (!hay.includes(kw)) return false;
+                    }
+                    return true;
+                  });
+                  const PAGE_SIZE = 20;
+                  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+                  const page = Math.min(surveyPage, totalPages);
+                  const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+                  const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
+                  const ageTxt = (a: string | null) => a ? a.replace('s', '대').replace('plus', '대+') : '—';
+                  return (
+                    <div className="adm-card">
+                      {surveyLoading ? <PanelLoading /> : (
+                        <>
+                          <div className="adm-table-wrap">
+                            <table className="adm-table">
+                              <thead>
+                                <tr>
+                                  <th>유형</th>
+                                  <th>회원</th>
+                                  <th>성별</th>
+                                  <th>나이</th>
+                                  <th>구매 목적</th>
+                                  <th>구매 빈도</th>
+                                  <th>응답일</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {pageRows.length === 0 ? (
+                                  <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                                    설문 응답 없음
+                                  </td></tr>
+                                ) : pageRows.map(r => (
+                                  <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => setSurveyDetail(r)}>
+                                    <td>
+                                      <span style={{ marginRight:4 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
+                                      <strong>{r.result_label || r.result_type || '—'}</strong>
+                                    </td>
+                                    <td>
+                                      {r.profiles ? (
+                                        <>
+                                          <div style={{ fontWeight:500 }}>{r.profiles.name}</div>
+                                          <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles.email}</div>
+                                        </>
+                                      ) : <span className="adm-muted">비회원</span>}
+                                    </td>
+                                    <td className="adm-muted">{genderTxt(r.gender)}</td>
+                                    <td className="adm-muted">{ageTxt(r.age_group)}</td>
+                                    <td className="adm-muted">{r.purchase_purpose || '—'}</td>
+                                    <td className="adm-muted">{r.purchase_frequency || '—'}</td>
+                                    <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          {totalPages > 1 && (
+                            <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, padding:'14px 0 4px' }}>
+                              <button className="adm-btn adm-btn-outline" disabled={page <= 1} onClick={() => setSurveyPage(page - 1)}>이전</button>
+                              <span className="adm-muted" style={{ fontSize:13 }}>{page} / {totalPages}</span>
+                              <button className="adm-btn adm-btn-outline" disabled={page >= totalPages} onClick={() => setSurveyPage(page + 1)}>다음</button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  )}
+                  );
+                })()}
+
+                {/* 결과 페이지 설정 (추천 상품 노출 토글) — 하단 이동 */}
+                <div className="adm-card" style={{ marginTop:16 }}>
+                  <div className="adm-card-head"><span className="adm-card-title">진단 결과 페이지 설정</span></div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px' }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품 노출</div>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:3 }}>
+                        끄면 취향진단 결과 화면에서 추천 상품 섹션이 숨겨집니다.
+                      </div>
+                    </div>
+                    <Toggle defaultOn={surveyShowProducts} onChange={toggleSurveyProducts} />
+                  </div>
                 </div>
+
+                {/* 상세 모달 */}
+                {surveyDetail && (() => {
+                  const r = surveyDetail;
+                  const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
+                  const ageTxt = (a: string | null) => a ? a.replace('s', '대').replace('plus', '대+') : '—';
+                  const rows: [string, string][] = [
+                    ['유형', `${TYPE_EMOJI[r.result_label || ''] || '🍑'} ${r.result_label || r.result_type || '—'}`],
+                    ['축 조합', `${AXIS1_LABEL[r.axis1 || ''] || r.axis1 || '—'} · ${AXIS2_LABEL[r.axis2 || ''] || r.axis2 || '—'} · ${AXIS3_LABEL[r.axis3 || ''] || r.axis3 || '—'}`],
+                    ['회원', r.profiles ? `${r.profiles.name} (${r.profiles.email})` : '비회원'],
+                    ['성별', genderTxt(r.gender)],
+                    ['나이대', ageTxt(r.age_group)],
+                    ['가족 구성', r.family_size || '—'],
+                    ['구매 목적', r.purchase_purpose || '—'],
+                    ['구매 빈도', r.purchase_frequency || '—'],
+                    ['구매 결정 요인', r.decision_factor || '—'],
+                    ['응답일', fmtDateShort(r.created_at)],
+                  ];
+                  return (
+                    <div onClick={() => setSurveyDetail(null)}
+                      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
+                      <div onClick={e => e.stopPropagation()}
+                        style={{ background:'#fff', borderRadius:16, width:'min(460px,100%)', maxHeight:'85vh', overflow:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid #F1F5F9' }}>
+                          <span style={{ fontSize:15, fontWeight:800 }}>응답 상세</span>
+                          <button onClick={() => setSurveyDetail(null)} style={{ border:'none', background:'none', fontSize:20, cursor:'pointer', color:'#94A3B8', lineHeight:1 }}>×</button>
+                        </div>
+                        <div style={{ padding:'8px 20px 20px' }}>
+                          {rows.map(([k, v]) => (
+                            <div key={k} style={{ display:'flex', gap:12, padding:'10px 0', borderBottom:'1px solid #F8FAFC' }}>
+                              <span style={{ width:110, flexShrink:0, fontSize:12.5, color:'#94A3B8', fontWeight:600 }}>{k}</span>
+                              <span style={{ fontSize:13, color:'#1A1A1A', fontWeight:500 }}>{v}</span>
+                            </div>
+                          ))}
+                          {/* 성향 정의 */}
+                          <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:6 }}>
+                            {[r.axis1, r.axis2, r.axis3].map((ax, i) => ax && (
+                              <div key={i} style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'8px 10px' }}>
+                                <span style={{ fontSize:11.5, fontWeight:800, color:'#334155' }}>
+                                  {(i === 0 ? AXIS1_LABEL : i === 1 ? AXIS2_LABEL : AXIS3_LABEL)[ax] || ax}</span>
+                                <span style={{ fontSize:11, color:'#94A3B8', marginLeft:6 }}>{AXIS_DEF[ax] || ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}

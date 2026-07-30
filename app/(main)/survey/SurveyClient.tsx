@@ -246,6 +246,17 @@ export default function SurveyClient() {
   const [sharingInsta, setSharingInsta] = useState(false);
   const [savingImg, setSavingImg] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
+
+  /* 완료율 집계용: 진단 시작(정보입력 후 문항 진입) 1회 로깅 */
+  async function logStart() {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    try {
+      const supabase = createClient();
+      await supabase.from('survey_starts').insert({ user_id: user?.id || null });
+    } catch { /* silent */ }
+  }
 
   /* 공유 링크(?r=key)로 들어오면 결과 화면을 바로 표시 (처음부터 다시 안 하게) */
   useEffect(() => {
@@ -503,7 +514,7 @@ export default function SurveyClient() {
             const allFilled = info.gender !== '' && info.age !== '' && info.family !== '';
             return (
               <button
-                onClick={() => { if (allFilled) setPhase('quiz'); }}
+                onClick={() => { if (allFilled) { logStart(); setPhase('quiz'); } }}
                 disabled={!allFilled}
                 style={{ width:'100%', padding:'16px', background: allFilled ? '#1A1A1A' : '#CFCFCF',
                   color:'#fff', border:'none', borderRadius:12, fontSize:16, fontWeight:800,
