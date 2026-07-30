@@ -264,6 +264,7 @@ export default function SurveyClient() {
     discount_rate: number; thumbnail_url: string | null; category: string; avg_rating: number;
   }
   const [recProducts, setRecProducts] = useState<RecProduct[]>([]);
+  const [recLoaded, setRecLoaded] = useState(false);
   const [showRecProducts, setShowRecProducts] = useState(true);
 
   useEffect(() => {
@@ -274,22 +275,18 @@ export default function SurveyClient() {
       const { data: setting } = await supabase
         .from('site_settings').select('value').eq('key', 'survey_show_products').maybeSingle();
       setShowRecProducts(setting?.value !== 'false');
-      /* axis3: vitamin→강한맛 과일, healing→부드러운 과일 */
-      const cats = result!.axis3 === 'vitamin'
-        ? ['citrus', 'berry', 'apple']
-        : ['melon', 'grape', 'kiwi'];
-      /* axis1: routine→베스트 우선, free→신상 우선 */
+      /* axis1: routine→베스트 우선, free→신상 우선 (카테고리는 커스텀 슬러그라 필터 없이 취향 성향순으로 추천) */
       const order = result!.axis1 === 'routine'
         ? { col: 'is_best', asc: false }
         : { col: 'created_at', asc: false };
       const { data } = await supabase
         .from('products')
         .select('id,name,price,discounted_price,discount_rate,thumbnail_url,category,avg_rating')
-        .in('category', cats)
         .eq('is_active', true)
         .order(order.col, { ascending: order.asc })
         .limit(6);
       if (data) setRecProducts(data as RecProduct[]);
+      setRecLoaded(true);
     }
     loadRecs();
   }, [result]);
@@ -335,6 +332,8 @@ export default function SurveyClient() {
       const supabase = createClient();
       const res = RESULTS[r.key];
       const getOpt = (id: string) => QS.find(q => q.id === id)?.opts[ans[id]];
+      /* 동일 회원 재검사 시 기존 기록 삭제 → 항상 1인 1건만 유지(모든 지표 최신 반영). 비회원은 식별 불가라 그대로 누적 */
+      if (user?.id) { await supabase.from('survey_results').delete().eq('user_id', user.id); }
       await supabase.from('survey_results').insert({
         user_id:            user?.id || null,
         gender:             info.gender || null,
@@ -777,7 +776,7 @@ export default function SurveyClient() {
               {recProducts.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'32px 0', color:'#aaa', fontSize:13,
                   background:'#F7F7F5', borderRadius:12 }}>
-                  상품을 불러오는 중...
+                  {recLoaded ? '추천할 상품이 아직 없습니다.' : '상품을 불러오는 중...'}
                 </div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12 }}>
@@ -999,16 +998,16 @@ export default function SurveyClient() {
           </div>
         </div>
 
-        {/* 홈으로 가기 + 재검사 */}
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
-          <Link href="/"
-            style={{ width:'100%', maxWidth:320, textAlign:'center', padding:'13px 28px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', textDecoration:'none' }}>
-            홈으로 가기
-          </Link>
+        {/* 홈으로 가기 + 재검사 (좌우 배치) */}
+        <div style={{ display:'flex', gap:10 }}>
           <button onClick={() => { setPhase('intro'); setStep(0); setAnswers({}); setResult(null); setInfo({ gender:'', age:'', family:'' }); }}
-            style={{ padding:'11px 28px', border:'1.5px solid #DDDDD8', borderRadius:10, background:'#fff', color:'#888', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            style={{ flex:1, padding:'13px 20px', border:'1.5px solid #DDDDD8', borderRadius:10, background:'#fff', color:'#666', fontSize:14, fontWeight:700, cursor:'pointer' }}>
             재검사하기
           </button>
+          <Link href="/"
+            style={{ flex:1, textAlign:'center', padding:'13px 20px', border:'none', borderRadius:10, background:'#1A1A1A', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', textDecoration:'none' }}>
+            홈으로 가기
+          </Link>
         </div>
       </div>
     </div>

@@ -12779,7 +12779,7 @@ export default function AdminClient() {
                   const GENDER_LABEL: Record<string,string> = { male:'남성', female:'여성', other:'기타' };
                   const dist = (field: keyof AdminSurveyResult, labelMap?: Record<string,string>) => {
                     const m: Record<string, number> = {};
-                    surveyResults.forEach(r => { const v = (r[field] as string) || '미응답'; m[v] = (m[v]||0)+1; });
+                    surveyResults.forEach(r => { let v = (r[field] as string) || '미응답'; if (v === 'none') v = '미응답'; m[v] = (m[v]||0)+1; });
                     return Object.entries(m).sort((a,b) => b[1]-a[1]).map(([k,c]) => ({ label: labelMap?.[k] || k, c }));
                   };
                   const blocks: [string, { label:string; c:number }[], string][] = [
