@@ -6352,7 +6352,7 @@ export default function AdminClient() {
       case 'farms':     loadFarms(); break;
       case 'members':   loadMembers(); break;
       case 'banner':    loadBanners(); loadPopups(); break;
-      case 'reviews':   loadReviews(); loadFarms(); break;   // farms = 농가 필터 드롭다운 목록
+      case 'reviews':   loadReviews(); loadFarms(); loadSettings(); break;   // farms = 농가 필터, settings = 리뷰 적립 포인트
       case 'coupon':    loadCoupons(); loadPointData(); loadSettings(); loadMTiers(); loadCouponLogs(); break;
       case 'events':    loadEvents(); break;
       case 'lounge':    loadLounge(); break;
@@ -8917,7 +8917,8 @@ export default function AdminClient() {
                             {orders.length === 0 ? '주문 데이터 없음 (create_admin_policies.sql 실행 필요)' : '검색 결과 없음'}
                           </td></tr>
                         ) : pagedOrders.flatMap(o => {
-                          const items = o.order_items || [];
+                          /* 브랜드 검색 중이면 해당 브랜드 품목만 표시(타 브랜드 줄 숨김) */
+                          const items = (o.order_items || []).filter(i => !orderFarmFilter || i.farm_id === orderFarmFilter);
                           /* 브랜드(농가)별로 묶기 — 한 주문에 여러 브랜드면 줄을 나눠 각각 송장·상태·알림톡 분리 */
                           const gmap = new Map<string, { farmName: string; items: typeof items }>();
                           items.forEach(i => {
@@ -9451,6 +9452,34 @@ export default function AdminClient() {
           {/* ===== 리뷰 관리 ===== */}
           {panel === 'reviews' && (
             <div className="adm-content">
+              {/* 리뷰 작성 적립 포인트 설정 */}
+              <div className="adm-card" style={{ marginBottom:16, padding:'18px 20px' }}>
+                <div className="adm-card-head" style={{ padding:0, marginBottom:14 }}><span className="adm-card-title">리뷰 작성 적립 포인트</span><span className="adm-muted" style={{ fontSize:12 }}>· 고객이 리뷰 작성 시 지급</span></div>
+                <div className="adm-kpi-grid adm-kpi-2" style={{ marginTop:0, marginBottom:0 }}>
+                  {([
+                    { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50' },
+                    { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150' },
+                  ] as { label:string; sub:string; key:string; def:string }[]).map(f => (
+                    <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', alignItems:'center', gap:12 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{f.label}</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4 }}>{f.sub}</div>
+                      </div>
+                      <div className="adm-flex-center-gap" style={{ flexShrink:0 }}>
+                        <input type="number" className="adm-input-text" style={{ width:64, textAlign:'right' }} min={0} step={1}
+                          value={siteSettings[f.key] ?? f.def} onChange={e => setSiteSettings(prev => ({ ...prev, [f.key]: e.target.value }))} />
+                        <span className="adm-muted" style={{ width:14 }}>P</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
+                  <button className="adm-btn adm-btn-primary" onClick={saveEarnSettings} disabled={earnSaving}>
+                    {earnSaving ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              </div>
+
               {/* 확인 대기 신고 알림 — 예전 안내 박스 자리 */}
               {(() => {
                 const rep = reviews.filter(r => (r.report_count || 0) > 0);
@@ -9776,8 +9805,6 @@ export default function AdminClient() {
                     <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:0, marginBottom:0 }}>
                       {([
                         { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
-                        { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
-                        { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
                       ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
                         <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', alignItems:'center', gap:12 }}>
                           <div style={{ flex:1, minWidth:0 }}>
