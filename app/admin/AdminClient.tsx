@@ -10953,6 +10953,7 @@ export default function AdminClient() {
                 </>)}
               </div>
 
+              <SectionCuration sec="pick" items={products.filter(p => p.is_active).map(p => ({ id: p.id, label: p.name, sub: `${fmtPrice(p.discounted_price || p.price)}원` }))} />
               <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
