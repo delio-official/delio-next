@@ -6385,8 +6385,8 @@ export default function AdminClient() {
       case 'faq':       loadFaq(); break;
       case 'cs':        loadCsInquiries(); break;
       case 'refund':    loadRefundRequests(); loadOrders(); break;
-      case 'settings':    loadSettings(); loadSearchStats(7); loadAdminEmail(); break;
-      case 'analytics':   loadMarketing(); break;
+      case 'settings':    loadSettings(); loadAdminEmail(); break;
+      case 'analytics':   loadMarketing(); loadSearchStats(statsDays); break;
       case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
       case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
     }
@@ -13345,6 +13345,104 @@ export default function AdminClient() {
                         </div>
                       </div>
                     </div>
+
+                    {/* ── 검색어 통계 (설정에서 이동) ── */}
+                    <div className="adm-card" style={{ marginBottom:16 }}>
+                      <div className="adm-card-head">
+                        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                          <span className="adm-card-title">검색어 통계</span>
+                          <div className="adm-btn-group">
+                            {([7, 30] as const).map(d => (
+                              <button key={d} className={`adm-seg-btn${statsDays===d?' active':''}`}
+                                onClick={() => { setStatsDays(d); loadSearchStats(d); }}>{d}일</button>
+                            ))}
+                          </div>
+                        </div>
+                        <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
+                          onClick={() => loadSearchStats(statsDays)}>
+                          <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
+                        </button>
+                      </div>
+                      {/* 탭 */}
+                      <div style={{ display:'flex', borderBottom:'1px solid #E2E8F0' }}>
+                        {([['all','전체 검색어'],['empty','결과없음']] as const).map(([id, label]) => (
+                          <button key={id} onClick={() => setStatsTab(id)}
+                            style={{ padding:'8px 16px', fontSize:13, border:'none', background:'none', cursor:'pointer',
+                              fontWeight: statsTab===id ? 700 : 400, color: statsTab===id ? '#1A1A1A' : '#94A3B8',
+                              borderBottom: statsTab===id ? '2px solid #1A1A1A' : '2px solid transparent' }}>
+                            {label}
+                            {id==='empty' && noResultStats.length > 0 &&
+                              <span style={{ marginLeft:5, background:'#FEE2E2', color:'#DC2626', borderRadius:99, padding:'1px 6px', fontSize:10, fontWeight:700 }}>{noResultStats.length}</span>}
+                          </button>
+                        ))}
+                      </div>
+                      {searchStatsLoading ? (
+                        <div style={{ textAlign:'center', padding:40, color:'#94A3B8', fontSize:14 }}>집계 중...</div>
+                      ) : statsTab === 'all' ? (
+                        searchStats.length === 0 ? (
+                          <div style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8', fontSize:14 }}>아직 검색 데이터가 없습니다
+                            <div style={{ fontSize:12, marginTop:4 }}>사용자가 검색하면 자동으로 집계됩니다</div>
+                          </div>
+                        ) : (
+                          <div className="adm-table-wrap">
+                            <table className="adm-table">
+                              <thead><tr><th style={{ width:56 }}>순위</th><th style={{ textAlign:'left' }}>검색어</th><th>검색 횟수</th><th>증감</th><th>관리</th></tr></thead>
+                              <tbody>
+                                {searchStats.map((s, i) => (
+                                  <tr key={s.keyword}>
+                                    <td style={{ color:'#94A3B8', fontWeight:700 }}>{i + 1}</td>
+                                    <td style={{ fontWeight:600, textAlign:'left' }}>{s.keyword}</td>
+                                    <td><strong style={{ fontSize:15 }}>{s.count.toLocaleString()}</strong><span style={{ color:'#94A3B8', fontSize:12 }}> 회</span></td>
+                                    <td>
+                                      {s.isNew ? <span style={{ fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:99, padding:'2px 8px', fontWeight:700 }}>NEW</span>
+                                        : s.trend >= 50 ? <span style={{ fontSize:11, background:'#FEF2F2', color:'#DC2626', borderRadius:99, padding:'2px 8px', fontWeight:700 }}>🔥 +{s.trend}%</span>
+                                        : s.trend > 0 ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>↑ +{s.trend}%</span>
+                                        : s.trend < 0 ? <span style={{ fontSize:12, color:'#94A3B8' }}>↓ {s.trend}%</span>
+                                        : <span style={{ fontSize:12, color:'#CBD5E1' }}>—</span>}
+                                    </td>
+                                    <td>
+                                      <div style={{ display:'inline-flex', gap:6 }}>
+                                        <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteSearchKeyword(s.keyword)}>삭제</button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      ) : (
+                        noResultStats.length === 0 ? (
+                          <div style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8', fontSize:14 }}>결과없음 검색어가 없습니다 🎉
+                            <div style={{ fontSize:12, marginTop:4 }}>모든 검색에 상품이 매칭되고 있습니다</div>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ padding:'10px 16px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', fontSize:12, color:'#92400E' }}>💡 아래 키워드는 검색 결과가 0건이었습니다. 상품 추가 또는 상품명 수정을 검토하세요.</div>
+                            <div className="adm-table-wrap">
+                              <table className="adm-table">
+                                <thead><tr><th style={{ width:56 }}>순위</th><th style={{ textAlign:'left' }}>검색어</th><th>검색 횟수</th><th>처리</th></tr></thead>
+                                <tbody>
+                                  {noResultStats.map((s, i) => (
+                                    <tr key={s.keyword}>
+                                      <td style={{ color:'#94A3B8', fontWeight:700 }}>{i + 1}</td>
+                                      <td style={{ fontWeight:600, textAlign:'left' }}>{s.keyword}</td>
+                                      <td><strong style={{ fontSize:15 }}>{s.count.toLocaleString()}</strong><span style={{ color:'#94A3B8', fontSize:12 }}> 회</span></td>
+                                      <td>
+                                        <div style={{ display:'inline-flex', gap:6 }}>
+                                          <button className="adm-row-btn" style={{ color:'#2563EB' }} onClick={() => window.open(`/search?q=${encodeURIComponent(s.keyword)}`, '_blank')}>검색 확인</button>
+                                          <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteSearchKeyword(s.keyword)}>로그 삭제</button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        )
+                      )}
+                    </div>
                   </>
                 );
               })()}
@@ -13355,25 +13453,16 @@ export default function AdminClient() {
           {panel === 'settings' && (
             <div className="adm-content">
 
-              {/* ── 검색어 통계 카드 ── */}
+              {/* 검색어 통계 카드는 마케팅 분석으로 이동함 (searchStatsCard) */}
+              {false && (
               <div className="adm-card" style={{ marginBottom:20 }}>
                 <div className="adm-card-head">
-                  <span className="adm-card-title">🔍 검색어 통계</span>
+                  <span className="adm-card-title">검색어 통계</span>
                   <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                     {([7, 30] as const).map(d => (
                       <button key={d} className={`adm-seg-btn${statsDays===d?' active':''}`}
                         onClick={() => { setStatsDays(d); loadSearchStats(d); }}>{d}일</button>
                     ))}
-                    <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px' }}
-                      onClick={() => loadSearchStats(statsDays)}>
-                      <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
-                    </button>
-                    {searchStats.length > 0 && (
-                      <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 10px', color:'#DC2626', borderColor:'#FECACA' }}
-                        onClick={clearAllSearchLogs}>
-                        전체 삭제
-                      </button>
-                    )}
                   </div>
                 </div>
                 {/* 탭 */}
@@ -13492,6 +13581,7 @@ export default function AdminClient() {
                   )
                 )}
               </div>
+              )}
 
               {/* ── 사이트 정보 (푸터 표기) ── */}
               <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
