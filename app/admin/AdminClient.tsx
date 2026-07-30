@@ -5188,9 +5188,12 @@ export default function AdminClient() {
 
     setMarketing({ todayOrders, monthOrders: monthOrdersArr.length, repeatCustomers, prevRepeat, monthSales, prevSales, refundRate, refundCount, newMembers, prevNewMembers, aov, prevAov, adView, adClick, adCtr, channels, byHour, byAge: byAgeFinal, couponActive, couponTotal, couponIssued, couponUsed, topCoupons, smsCount, smsRecipients });
     setMarketingLoading(false);
-    /* GA 오늘 방문자 (실패해도 마케팅 지표엔 영향 없음) */
+    /* GA 방문자 — 선택 기간에 맞춰 조회 (실패해도 마케팅 지표엔 영향 없음) */
     try {
-      const g = await fetch('/api/ga-stats?start=today&end=today').then(r => r.json());
+      const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const gaStart = ymd(rStart);
+      const gaEnd = ymd(new Date(rEnd.getTime() - 86400000));   // rEnd는 배타적 → 하루 빼서 포함 종료일
+      const g = await fetch(`/api/ga-stats?start=${gaStart}&end=${gaEnd}`).then(r => r.json());
       setMktGa(g?.configured ? { configured: true, sessions: g.sessions || 0, users: g.users || 0 } : { configured: false, sessions: 0, users: 0 });
     } catch { setMktGa({ configured: false, sessions: 0, users: 0 }); }
   }
@@ -13122,10 +13125,10 @@ export default function AdminClient() {
                       {kpiCard('신규 회원', `${m.newMembers}명`, `${rangeLabel} 가입`, { trend: trendObj(pct(m.newMembers, m.prevNewMembers)) })}
                       {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '기간 내 2회 이상 구매', { trend: trendObj(pct(m.repeatCustomers, m.prevRepeat)) })}
                       {mktGa?.configured
-                        ? kpiCard('오늘 방문자', `${mktGa.sessions.toLocaleString()}명`, `순 방문 ${mktGa.users.toLocaleString()}명 · GA 세션`, { valColor: '#2563EB' })
-                        : kpiCard('오늘 방문자', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
+                        ? kpiCard('방문자', `${mktGa.sessions.toLocaleString()}명`, `${rangeLabel} · 순 방문 ${mktGa.users.toLocaleString()}명`, { valColor: '#2563EB' })
+                        : kpiCard('방문자', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
                       {mktGa?.configured
-                        ? kpiCard('결제 전환율', `${(mktGa.sessions > 0 ? (m.todayOrders / mktGa.sessions * 100) : 0).toFixed(2)}%`, `오늘 주문 ${m.todayOrders}건 ÷ 방문 ${mktGa.sessions.toLocaleString()}`, { valColor: '#16A34A' })
+                        ? kpiCard('결제 전환율', `${(mktGa.sessions > 0 ? (m.monthOrders / mktGa.sessions * 100) : 0).toFixed(2)}%`, `${rangeLabel} 주문 ${m.monthOrders}건 ÷ 방문 ${mktGa.sessions.toLocaleString()}`, { valColor: '#16A34A' })
                         : kpiCard('결제 전환율', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
                     </div>
 
