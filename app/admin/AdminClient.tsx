@@ -2597,9 +2597,29 @@ export default function AdminClient() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   });
-  const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number }[]>([]);
+  const [farmSettleHalf, setFarmSettleHalf] = useState<1 | 2>(1); // 1차(1~15) / 2차(16~말)
+  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number };
+  const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
-  const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, string>>({}); // farmId → paid_at
+  const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
+  const [farmBankMap, setFarmBankMap] = useState<Record<string, { bank_name: string; bank_account: string }>>({});
+  const [farmSettleSearch, setFarmSettleSearch] = useState('');
+  const [farmSettleStatus, setFarmSettleStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
+  const [selFarmSettle, setSelFarmSettle] = useState<Set<string>>(new Set());
+  const [selectedFarmSettle, setSelectedFarmSettle] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] } | null>(null);
+  /* 정산 기간 키 & 범위(배송완료일 기준) & 지급일 */
+  function farmPeriodInfo(month = farmSettleMonth, half = farmSettleHalf) {
+    const [y, m] = month.split('-').map(Number);
+    const key = `${month}-${half}`;
+    const from = half === 1 ? new Date(y, m - 1, 1) : new Date(y, m - 1, 16);
+    const to   = half === 1 ? new Date(y, m - 1, 16) : new Date(y, m, 1);
+    const payAt = half === 1 ? new Date(y, m - 1, 16) : new Date(y, m, 1); // 1차 16일 / 2차 익월 1일
+    const fmt = (d: Date) => `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+    const rangeLabel = `${fmt(from)}~${fmt(new Date(to.getTime()-1))}`;
+    const payLabel = `${payAt.getFullYear()}.${String(payAt.getMonth()+1).padStart(2,'0')}.${String(payAt.getDate()).padStart(2,'0')}`;
+    const overdue = Date.now() >= payAt.getTime(); // 지급일 지남
+    return { key, from, to, rangeLabel, payLabel, overdue };
+  }
   /* 농가 상세 분석 */
   const [farmDetailOpen, setFarmDetailOpen] = useState(false);
   const [farmDetailTarget, setFarmDetailTarget] = useState<AdminFarm | null>(null);
@@ -2612,46 +2632,53 @@ export default function AdminClient() {
   const [farmChartFrom, setFarmChartFrom] = useState('');      // 달력 직접 지정(비면 개월수 사용)
   const [farmChartTo,   setFarmChartTo]   = useState('');
 
-  async function loadFarmSettlement(month: string) {
+  async function loadFarmSettlement(month = farmSettleMonth, half = farmSettleHalf) {
     setFarmSettleLoading(true);
+    setSelFarmSettle(new Set());
     const supabase = createClient();
-    const [year, mon] = month.split('-').map(Number);
-    const from = new Date(year, mon - 1, 1).toISOString();
-    const to   = new Date(year, mon,     1).toISOString();
-    // 이미 정산완료한 내역
+    const info = farmPeriodInfo(month, half);
+    const from = info.from.toISOString(), to = info.to.toISOString();
+    // 이미 정산완료한 내역 (계산서 수령 포함)
     const { data: paidData } = await supabase
-      .from('farm_settlements').select('farm_id, paid_at').eq('period', month).eq('status', 'paid');
-    const paidMap: Record<string, string> = {};
-    (paidData || []).forEach((p: { farm_id: string; paid_at: string|null }) => { paidMap[p.farm_id] = p.paid_at || ''; });
+      .from('farm_settlements').select('farm_id, paid_at, invoice_received').eq('period', info.key).eq('status', 'paid');
+    const paidMap: Record<string, { paidAt: string; invoice: boolean }> = {};
+    (paidData || []).forEach((p: { farm_id: string; paid_at: string|null; invoice_received: boolean|null }) => { paidMap[p.farm_id] = { paidAt: p.paid_at || '', invoice: !!p.invoice_received }; });
     setFarmSettlePaid(paidMap);
-    // 배송완료/구매확정 주문의 상품항목 + 농가 정보
+    // 지급계좌 (브랜드 관리 등록 계좌)
+    const { data: bankData } = await supabase.from('farm_bank_info').select('farm_id, bank_name, bank_account');
+    const bankMap: Record<string, { bank_name: string; bank_account: string }> = {};
+    (bankData as { farm_id: string; bank_name: string|null; bank_account: string|null }[] | null || []).forEach(b => { bankMap[b.farm_id] = { bank_name: b.bank_name || '', bank_account: b.bank_account || '' }; });
+    setFarmBankMap(bankMap);
+    // 배송완료/구매확정 주문 상품항목 (배송완료일 기준 반차 범위)
     const { data } = await supabase
       .from('order_items')
-      .select('quantity, subtotal, supply_price, orders!inner(status, created_at), products!inner(farm_id, supply_price, farms(id, name))')
-      .gte('orders.created_at', from).lt('orders.created_at', to)
+      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, delivered_at), products!inner(farm_id, supply_price, farms(id, name))')
+      .gte('orders.delivered_at', from).lt('orders.delivered_at', to)
       .in('orders.status', ['delivered', 'confirmed'])
       .limit(10000);
-    const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number }> = {};
-    const addRow = (prod: { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, unitSupply: number) => {
+    const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
+    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string) => {
       const farmId = prod?.farm_id ?? null;
       const key = farmId ?? '__none__';
-      if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0 };
-      map[key].qty += qty; map[key].sales += sales; map[key].payout += unitSupply * qty;
+      if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0, orderNos: new Set(), orders: [] };
+      map[key].qty += qty; map[key].sales += sales; map[key].payout += supplyTotal;
+      if (orderNo) map[key].orderNos.add(orderNo);
+      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal });
     };
     (data as Record<string, unknown>[] | null || []).forEach(row => {
       const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
+      const ord = row.orders as { order_no: string } | null;
       const qty = Number(row.quantity) || 0;
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
-      addRow(prod, qty, Number(row.subtotal) || 0, unitSupply);
+      addRow(prod, qty, Number(row.subtotal) || 0, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품');
     });
 
-    /* 부분환불(승인완료) 주문 — 전액취소로 status=refunded라 위 조회에서 빠짐.
-       정상분(전체−하자)만 농가에 정산하고 하자분 공급가는 농가 부담(차감)으로 처리 → 정상분 다시 더함. */
+    /* 부분환불(승인완료) 정상분 — 배송완료일 반차 범위 · 하자분 공급가는 농가 부담(차감) */
     const { data: partialReqs } = await supabase
       .from('refund_requests')
-      .select('order_id, refund_items, orders!inner(created_at)')
+      .select('order_id, refund_items, orders!inner(order_no, delivered_at)')
       .not('refund_amount', 'is', null).gt('resend_amount', 0).eq('status', 'completed')
-      .gte('orders.created_at', from).lt('orders.created_at', to);
+      .gte('orders.delivered_at', from).lt('orders.delivered_at', to);
     const defectiveByOrder: Record<string, Record<string, number>> = {};
     (partialReqs as { order_id: string; refund_items: { name: string; defective: number }[] | null }[] | null || []).forEach(pr => {
       if (!pr.order_id) return;
@@ -2662,21 +2689,22 @@ export default function AdminClient() {
     const partialOrderIds = Object.keys(defectiveByOrder);
     if (partialOrderIds.length) {
       const { data: pItems } = await supabase.from('order_items')
-        .select('order_id, product_name, quantity, subtotal, supply_price, products!inner(farm_id, supply_price, farms(id, name))')
+        .select('order_id, product_name, quantity, subtotal, supply_price, orders!inner(order_no), products!inner(farm_id, supply_price, farms(id, name))')
         .in('order_id', partialOrderIds);
       (pItems as Record<string, unknown>[] | null || []).forEach(row => {
         const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
+        const ord = row.orders as { order_no: string } | null;
         const totalQty = Number(row.quantity) || 0;
         const defect = defectiveByOrder[row.order_id as string]?.[row.product_name as string] || 0;
         const keptQty = Math.max(0, totalQty - defect);
         if (keptQty <= 0) return;
         const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
         const keptSales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * keptQty / totalQty) : 0;
-        addRow(prod, keptQty, keptSales, unitSupply);
+        addRow(prod, keptQty, keptSales, unitSupply * keptQty, ord?.order_no || '', (row.product_name as string) || '상품');
       });
     }
     const rows = Object.values(map)
-      .map(r => ({ ...r, margin: r.sales - r.payout }))
+      .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
       .sort((a, b) => b.payout - a.payout);
     setFarmSettleRows(rows);
     setFarmSettleLoading(false);
@@ -2685,20 +2713,72 @@ export default function AdminClient() {
   async function markFarmSettled(row: { farmId: string|null; sales: number; payout: number; margin: number }) {
     if (!row.farmId) { alert('브랜드 미지정 항목은 정산할 수 없습니다.'); return; }
     const supabase = createClient();
+    const key = farmPeriodInfo().key;
     const { error } = await supabase.from('farm_settlements').upsert({
-      farm_id: row.farmId, period: farmSettleMonth,
+      farm_id: row.farmId, period: key,
       payout: row.payout, sales: row.sales, margin: row.margin,
       status: 'paid', paid_at: new Date().toISOString(),
     }, { onConflict: 'farm_id,period' });
     if (error) { alert('정산 처리 실패: ' + error.message); return; }
-    setFarmSettlePaid(prev => ({ ...prev, [row.farmId!]: new Date().toISOString() }));
+    setFarmSettlePaid(prev => ({ ...prev, [row.farmId!]: { paidAt: new Date().toISOString(), invoice: prev[row.farmId!]?.invoice || false } }));
+  }
+  /* 선택 항목 일괄 정산완료 */
+  async function markFarmSettledBulk() {
+    const targets = farmSettleRows.filter(r => r.farmId && selFarmSettle.has(r.farmId) && !farmSettlePaid[r.farmId!]);
+    if (targets.length === 0) { alert('정산할 미정산 항목을 선택하세요.'); return; }
+    if (!confirm(`${targets.length}개 브랜드를 정산완료 처리할까요?`)) return;
+    const supabase = createClient();
+    const now = new Date().toISOString();
+    const key = farmPeriodInfo().key;
+    const { error } = await supabase.from('farm_settlements').upsert(
+      targets.map(r => ({ farm_id: r.farmId!, period: key, payout: r.payout, sales: r.sales, margin: r.margin, status: 'paid', paid_at: now })),
+      { onConflict: 'farm_id,period' });
+    if (error) { alert('일괄 정산 실패: ' + error.message); return; }
+    setFarmSettlePaid(prev => { const n = { ...prev }; targets.forEach(r => { n[r.farmId!] = { paidAt: now, invoice: n[r.farmId!]?.invoice || false }; }); return n; });
+    setSelFarmSettle(new Set());
   }
   /* 정산 취소 */
   async function unmarkFarmSettled(farmId: string) {
     const supabase = createClient();
-    const { error } = await supabase.from('farm_settlements').delete().eq('farm_id', farmId).eq('period', farmSettleMonth);
+    const { error } = await supabase.from('farm_settlements').delete().eq('farm_id', farmId).eq('period', farmPeriodInfo().key);
     if (error) { alert('취소 실패: ' + error.message); return; }
     setFarmSettlePaid(prev => { const n = { ...prev }; delete n[farmId]; return n; });
+  }
+  /* 세금계산서 수령 확인 토글 */
+  async function toggleFarmInvoice(farmId: string) {
+    const cur = farmSettlePaid[farmId];
+    if (!cur) { alert('정산완료 처리 후에 계산서 수령을 체크할 수 있습니다.'); return; }
+    const next = !cur.invoice;
+    const supabase = createClient();
+    const { error } = await supabase.from('farm_settlements').update({ invoice_received: next, invoice_received_at: next ? new Date().toISOString() : null }).eq('farm_id', farmId).eq('period', farmPeriodInfo().key);
+    if (error) { alert('처리 실패: ' + error.message); return; }
+    setFarmSettlePaid(prev => ({ ...prev, [farmId]: { ...prev[farmId], invoice: next } }));
+  }
+  /* 정산 명세서 PDF (브라우저 인쇄 → PDF 저장) — 판매건수·공급가(배송비 포함) 합계, 마진·매출 제외 */
+  function downloadFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; orders: FarmSettleOrder[] }) {
+    const info = farmPeriodInfo();
+    const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
+    const rowsHtml = row.orders.map(o => `<tr><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td><td style="text-align:center">${o.qty}</td><td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`).join('');
+    const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>정산명세서_${esc(row.farmName)}</title>
+      <style>body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;color:#1a1a1a;padding:32px;}
+      h1{font-size:20px;margin:0 0 4px;} .sub{color:#666;font-size:13px;margin-bottom:20px;}
+      .box{border:1px solid #ddd;border-radius:8px;padding:14px 16px;margin-bottom:16px;}
+      .row{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;} th,td{border:1px solid #e0e0e0;padding:8px 10px;}
+      th{background:#f5f5f5;text-align:left;} .total{text-align:right;font-size:16px;font-weight:800;margin-top:12px;}
+      @media print{body{padding:0;}}</style></head><body>
+      <h1>정산 명세서</h1>
+      <div class="sub">${esc(row.farmName)} · ${farmSettleMonth} ${farmSettleHalf}차 (${info.rangeLabel}) · 지급예정 ${info.payLabel}</div>
+      <div class="box">
+        <div class="row"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
+        <div class="row"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
+      </div>
+      <table><thead><tr><th>주문번호</th><th>상품</th><th style="text-align:center">수량</th><th style="text-align:right">공급가</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <div class="total">정산 합계: ${row.payout.toLocaleString()}원</div>
+      <script>window.onload=()=>{window.print();}</script></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.'); return; }
+    w.document.write(html); w.document.close();
   }
   const [settlementView, setSettlementView] = useState<'daily'|'monthly'>('daily');
   const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
@@ -12399,56 +12479,86 @@ export default function AdminClient() {
           )}
 
           {/* ===== 농가 정산 ===== */}
-          {panel === 'farmsettle' && (
+          {panel === 'farmsettle' && (() => {
+            const info = farmPeriodInfo();
+            const q = farmSettleSearch.trim().toLowerCase();
+            const filtered = farmSettleRows.filter(r => {
+              const paid = !!(r.farmId && farmSettlePaid[r.farmId]);
+              if (farmSettleStatus === 'paid' && !paid) return false;
+              if (farmSettleStatus === 'unpaid' && paid) return false;
+              if (q && !r.farmName.toLowerCase().includes(q)) return false;
+              return true;
+            });
+            const unpaidCount = farmSettleRows.filter(r => r.farmId && !farmSettlePaid[r.farmId]).length;
+            const totalPayout = farmSettleRows.reduce((s, r) => s + r.payout, 0);
+            const selectable = filtered.filter(r => r.farmId && !farmSettlePaid[r.farmId!]);
+            return (
             <div className="adm-content">
-              <div className="adm-toolbar">
-                <div className="adm-toolbar-left">
-                  <input type="month" className="adm-input-text" value={farmSettleMonth}
-                    onChange={e => { setFarmSettleMonth(e.target.value); loadFarmSettlement(e.target.value); }} />
+              {/* 기간·차수 헤더 */}
+              <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <span style={{ fontSize:15, fontWeight:800 }}>{farmSettleMonth.replace('-','년 ')}월 {farmSettleHalf}차</span>
+                <span className="adm-muted" style={{ fontSize:13 }}>({info.rangeLabel} · {info.payLabel} 지급)</span>
+                <span className="adm-muted" style={{ fontSize:11 }}>· 배송완료일 기준</span>
+                {info.overdue && unpaidCount > 0 && (
+                  <span className="adm-badge badge-off" style={{ background:'#FEE2E2', color:'#B91C1C', fontWeight:700 }}>⚠ 지급일 경과 · 미정산 {unpaidCount}건</span>
+                )}
+              </div>
+
+              <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                  <input type="month" className="adm-select" value={farmSettleMonth}
+                    onChange={e => { setFarmSettleMonth(e.target.value); loadFarmSettlement(e.target.value, farmSettleHalf); }} />
+                  <AdmSelect value={String(farmSettleHalf)} onChange={v => { const h = Number(v) as 1|2; setFarmSettleHalf(h); loadFarmSettlement(farmSettleMonth, h); }}
+                    options={[{ value:'1', label:'1차 (1~15일)' }, { value:'2', label:'2차 (16~말일)' }]} />
+                  <AdmSelect value={farmSettleStatus} onChange={v => setFarmSettleStatus(v as 'all'|'unpaid'|'paid')}
+                    options={[{ value:'all', label:'전체 상태' }, { value:'unpaid', label:'미정산' }, { value:'paid', label:'정산완료' }]} />
+                  <input type="text" className="adm-input-text" placeholder="브랜드 검색"
+                    value={farmSettleSearch} onChange={e => setFarmSettleSearch(e.target.value)} />
                 </div>
-                <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={() => loadFarmSettlement(farmSettleMonth)}>
+                <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  {selFarmSettle.size > 0 && <button className="adm-btn adm-btn-primary" onClick={markFarmSettledBulk}>선택 {selFarmSettle.size}건 정산완료</button>}
+                  <button className="adm-btn adm-btn-outline" onClick={() => loadFarmSettlement(farmSettleMonth, farmSettleHalf)}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                   </button>
                 </div>
               </div>
-              {(() => {
-                const t = farmSettleRows.reduce((a, r) => ({ sales:a.sales+r.sales, payout:a.payout+r.payout, margin:a.margin+r.margin }), { sales:0, payout:0, margin:0 });
-                return (
-                  <div className="adm-kpi-grid adm-kpi-mb16" style={{ gridTemplateColumns:'repeat(3, 1fr)' }}>
-                    <div className="adm-kpi-card"><div className="adm-kpi-label">매출 합계</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.sales)}원</div></div>
-                    <div className="adm-kpi-card"><div className="adm-kpi-label">브랜드 정산액(공급가)</div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(t.payout)}원</div></div>
-                    <div className="adm-kpi-card"><div className="adm-kpi-label">마진</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ color:'#16A34A' }}>{fmtPrice(t.margin)}원</div></div>
-                  </div>
-                );
-              })()}
+
+              <div className="adm-kpi-grid adm-kpi-mb16" style={{ gridTemplateColumns:'repeat(3, 1fr)' }}>
+                <div className="adm-kpi-card"><div className="adm-kpi-label">정산 대상 브랜드</div><div className="adm-kpi-value adm-kpi-value-mt">{farmSettleRows.filter(r=>r.farmId).length}곳</div></div>
+                <div className="adm-kpi-card"><div className="adm-kpi-label">정산액 합계 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:10 }}>(공급가·배송비 포함)</span></div><div className="adm-kpi-value adm-kpi-value-mt">{fmtPrice(totalPayout)}원</div></div>
+                <div className="adm-kpi-card"><div className="adm-kpi-label">미정산 브랜드</div><div className="adm-kpi-value adm-kpi-value-mt" style={{ color: unpaidCount>0 ? '#DC2626' : '#16A34A' }}>{unpaidCount}곳</div></div>
+              </div>
+
               <div className="adm-card">
                 {farmSettleLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>브랜드</th><th className="adm-num">판매수량</th><th className="adm-num">매출</th><th className="adm-num">정산액(공급가)</th><th className="adm-num">마진</th><th>상태</th><th>처리</th></tr></thead>
+                      <thead><tr>
+                        <th style={{ width:34 }}><input type="checkbox" checked={selectable.length > 0 && selectable.every(r => selFarmSettle.has(r.farmId!))}
+                          onChange={e => setSelFarmSettle(e.target.checked ? new Set(selectable.map(r => r.farmId!)) : new Set())} /></th>
+                        <th style={{ textAlign:'left' }}>브랜드명</th><th className="adm-num">판매건수</th><th className="adm-num">정산액 <span style={{ fontWeight:400, color:'#94A3B8' }}>(공급가·배송비 포함)</span></th><th>상태</th><th>계산서</th><th>관리</th>
+                      </tr></thead>
                       <tbody>
-                        {farmSettleRows.length === 0 ? (
-                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 월 정산 내역이 없습니다.</td></tr>
-                        ) : farmSettleRows.map(r => {
-                          const paidAt = r.farmId ? farmSettlePaid[r.farmId] : undefined;
+                        {filtered.length === 0 ? (
+                          <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 기간 정산 내역이 없습니다.</td></tr>
+                        ) : filtered.map(r => {
+                          const meta = r.farmId ? farmSettlePaid[r.farmId] : undefined;
                           return (
                           <tr key={r.farmId ?? 'none'}>
-                            <td><strong>{r.farmName}</strong></td>
-                            <td className="adm-num">{r.qty.toLocaleString()}개</td>
-                            <td className="adm-num adm-muted">{fmtPrice(r.sales)}원</td>
+                            <td>{r.farmId && !meta ? <input type="checkbox" checked={selFarmSettle.has(r.farmId)}
+                              onChange={e => setSelFarmSettle(prev => { const n = new Set(prev); if (e.target.checked) n.add(r.farmId!); else n.delete(r.farmId!); return n; })} /> : null}</td>
+                            <td style={{ textAlign:'left', fontWeight:500 }}>{r.farmName}</td>
+                            <td className="adm-num">{r.orderCount.toLocaleString()}건</td>
                             <td className="adm-num"><strong>{fmtPrice(r.payout)}원</strong></td>
-                            <td className="adm-num" style={{ color: r.margin >= 0 ? '#16A34A' : '#DC2626' }}>{fmtPrice(r.margin)}원</td>
+                            <td>{meta ? <span className="adm-badge badge-on" title={new Date(meta.paidAt).toLocaleString('ko-KR')}>정산완료</span> : <span className="adm-badge badge-off">미정산</span>}</td>
+                            <td>{meta ? (meta.invoice ? <span className="adm-badge badge-paid">수령</span> : <span className="adm-badge badge-wait">대기</span>) : <span className="adm-muted">—</span>}</td>
                             <td>
-                              {paidAt
-                                ? <span className="adm-badge badge-on" title={new Date(paidAt).toLocaleString('ko-KR')}>정산완료</span>
-                                : <span className="adm-badge badge-off">미정산</span>}
-                            </td>
-                            <td>
-                              {!r.farmId ? <span className="adm-muted" style={{ fontSize:12 }}>—</span>
-                                : paidAt
+                              <div style={{ display:'inline-flex', gap:6 }}>
+                                <button className="adm-row-btn" onClick={() => setSelectedFarmSettle(r)} disabled={!r.farmId}>상세</button>
+                                {r.farmId && (meta
                                   ? <button className="adm-row-btn adm-row-btn-danger" onClick={() => unmarkFarmSettled(r.farmId!)}>정산취소</button>
-                                  : <button className="adm-row-btn" onClick={() => markFarmSettled(r)}>정산완료</button>}
+                                  : <button className="adm-row-btn" onClick={() => markFarmSettled(r)}>정산완료</button>)}
+                              </div>
                             </td>
                           </tr>
                           );
@@ -12459,7 +12569,85 @@ export default function AdminClient() {
                 )}
               </div>
             </div>
-          )}
+            );
+          })()}
+
+          {/* ===== 브랜드 정산 상세 모달 ===== */}
+          {selectedFarmSettle && (() => {
+            const r = selectedFarmSettle;
+            const info = farmPeriodInfo();
+            const meta = r.farmId ? farmSettlePaid[r.farmId] : undefined;
+            const bank = r.farmId ? farmBankMap[r.farmId] : undefined;
+            const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
+            const acctStr = bank ? `${bank.bank_name} ${bank.bank_account}` : '';
+            return (
+              <div className="adm-modal-bg open" onClick={() => setSelectedFarmSettle(null)}>
+                <div className="adm-modal" style={{ maxWidth:640, width:'95vw', maxHeight:'92vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+                  <div className="adm-modal-head"><span className="adm-modal-title">{r.farmName} 정산 상세</span></div>
+                  <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:18 }}>
+                    <div className="adm-muted" style={{ fontSize:12, marginTop:-6 }}>{farmSettleMonth} {farmSettleHalf}차 ({info.rangeLabel}) · 지급예정 {info.payLabel} · 배송완료 기준</div>
+
+                    {/* 요약 */}
+                    <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 16px' }}>
+                      {([
+                        ['판매 건수', `${r.orderCount.toLocaleString()}건 (${r.qty.toLocaleString()}개)`],
+                        ['정산액 (공급가·배송비 포함)', `${fmtPrice(r.payout)}원`],
+                      ] as [string, string][]).map(([l, v]) => (
+                        <div key={l}><div style={{ fontSize:11, color:'#94A3B8', marginBottom:3 }}>{l}</div><div style={{ fontSize:14, fontWeight:700 }}>{v}</div></div>
+                      ))}
+                    </div>
+
+                    {/* 주문 내역 */}
+                    <div>
+                      <div style={secTitle}>정산 대상 주문 내역</div>
+                      <div className="adm-table-wrap">
+                        <table className="adm-table">
+                          <thead><tr><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th className="adm-num">수량</th><th className="adm-num">공급가</th></tr></thead>
+                          <tbody>
+                            {r.orders.length === 0 ? <tr><td colSpan={4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>내역 없음</td></tr>
+                              : r.orders.map((o, i) => (
+                                <tr key={i}><td className="adm-mono">{o.order_no}</td><td style={{ textAlign:'left' }}>{o.product}</td><td className="adm-num">{o.qty}개</td><td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(o.supply)}원</td></tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style={{ textAlign:'right', fontWeight:800, fontSize:15, marginTop:8 }}>정산 합계: {fmtPrice(r.payout)}원</div>
+                    </div>
+
+                    {/* 지급 계좌 */}
+                    <div>
+                      <div style={secTitle}>지급 계좌 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(브랜드 관리 등록 계좌)</span></div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 14px' }}>
+                        <span style={{ flex:1, fontSize:14, fontWeight:600 }}>{acctStr || '등록된 계좌 없음 — 브랜드 관리에서 등록하세요'}</span>
+                        {acctStr && <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={() => { navigator.clipboard?.writeText(acctStr); alert('계좌 정보를 복사했습니다.'); }}>복사</button>}
+                      </div>
+                      <button className="adm-row-btn" style={{ marginTop:8 }} onClick={() => { const f = farms.find(x => x.id === r.farmId); setSelectedFarmSettle(null); go('farms'); if (f) setTimeout(() => openFarmModal(f), 100); }}>브랜드 정보 보기/수정 →</button>
+                    </div>
+
+                    {/* 계산서 수령 */}
+                    {meta && (
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ fontSize:13, fontWeight:600 }}>세금계산서 수령</span>
+                        {meta.invoice ? <span className="adm-badge badge-paid">수령 완료</span>
+                          : <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={() => r.farmId && toggleFarmInvoice(r.farmId)}>계산서 수령 확인</button>}
+                        {meta.invoice && <button className="adm-row-btn" onClick={() => r.farmId && toggleFarmInvoice(r.farmId)}>수령 취소</button>}
+                      </div>
+                    )}
+
+                    {/* 푸터 */}
+                    <div style={{ display:'flex', alignItems:'center', gap:8, borderTop:'1px solid #EEF2F6', paddingTop:14 }}>
+                      <button className="adm-btn adm-btn-outline" onClick={() => downloadFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>정산명세서(PDF)</button>
+                      <div style={{ flex:1 }} />
+                      <button className="adm-btn adm-btn-outline" onClick={() => setSelectedFarmSettle(null)}>닫기</button>
+                      {r.farmId && (meta
+                        ? <button className="adm-btn adm-btn-outline" style={{ color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { unmarkFarmSettled(r.farmId!); }}>정산 취소</button>
+                        : <button className="adm-btn adm-btn-primary" onClick={() => { markFarmSettled(r); }}>정산완료 처리</button>)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ===== 취향 프로파일 ===== */}
           {panel === 'tasteprofile' && (() => {
