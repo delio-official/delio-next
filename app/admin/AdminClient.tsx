@@ -5174,7 +5174,9 @@ export default function AdminClient() {
 
     const inRange = (d: string) => d >= startISO && d < endISO;
     const inPrev  = (d: string) => d >= pStartISO && d < startISO;
-    const valid = (o: { status: string }) => !isCancel(o.status);
+    /* 유효주문 = 취소·환불 제외 + 무통장 미입금(pending)·만료(expired) 제외 → 매출현황과 동일 기준(객단가·매출 정합) */
+    const isUnpaid = (s: string) => ['pending', 'expired'].includes(s);
+    const valid = (o: { status: string }) => !isCancel(o.status) && !isUnpaid(o.status);
 
     const monthOrdersArr = orders.filter(o => inRange(o.created_at));   // 기간 내 주문
     const todayOrders = orders.filter(o => o.created_at >= today.toISOString()).length;   // 오늘 주문(결제전환율 GA용)
@@ -12411,7 +12413,7 @@ export default function AdminClient() {
                   <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
                     {[
                       ['예상 마진', `${fmtPrice(settlementData.margin)}원`, '#16A34A', `마진율 ${settlementData.marginRate.toFixed(1)}%`],
-                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '취소 제외 평균 주문금액'],
+                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '실결제액 ÷ 유효주문(취소·미입금 제외) · 기간 기준'],
                       ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
                       ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
                     ].map(([l, v, c, sub]) => (
