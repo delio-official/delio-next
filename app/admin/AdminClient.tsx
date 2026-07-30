@@ -2556,9 +2556,9 @@ export default function AdminClient() {
   const [marketingTab, setMarketingTab] = useState<'channel'|'hour'|'age'>('channel');
   const [marketingLoading, setMarketingLoading] = useState(false);
   const [marketing, setMarketing] = useState<{
-    todayOrders: number; monthOrders: number; repeatCustomers: number;
+    todayOrders: number; monthOrders: number; repeatCustomers: number; prevRepeat: number;
     monthSales: number; prevSales: number; refundRate: number; refundCount: number;
-    newMembers: number; aov: number; prevAov: number;
+    newMembers: number; prevNewMembers: number; aov: number; prevAov: number;
     adView: number; adClick: number; adCtr: number;
     channels: { label: string; orders: number; revenue: number; color: string }[];
     byHour: { h: number; count: number }[];
@@ -2568,6 +2568,14 @@ export default function AdminClient() {
     smsCount: number; smsRecipients: number;
   } | null>(null);
   const [mktGa, setMktGa] = useState<{ configured: boolean; sessions: number; users: number } | null>(null);
+  const [mktRange, setMktRange] = useState<'today'|'week'|'month'|'lastmonth'|'custom'>('month');
+  const [mktFrom, setMktFrom] = useState('');
+  const [mktTo, setMktTo] = useState('');
+  /* 프리셋 변경 시 자동 재조회(직접설정은 조회 버튼으로) */
+  useEffect(() => {
+    if (panel === 'analytics' && mktRange !== 'custom') loadMarketing();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mktRange]);
   const [statsTab, setStatsTab] = useState<'all'|'empty'>('all');
 
   /* ── 정산 관리 ── */
@@ -5086,45 +5094,59 @@ export default function AdminClient() {
     const supabase = createClient();
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevPeriodEnd = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate(), 23, 59, 59);
     const isCancel = (s: string) => ['cancelled', 'refunded', 'refunding'].includes(s);
 
+    /* ── 기간 범위 산출 (오늘/이번주/이번달/지난달/직접) ── */
+    let rStart: Date, rEnd: Date;
+    if (mktRange === 'today') { rStart = today; rEnd = new Date(today.getTime() + 86400000); }
+    else if (mktRange === 'week') { const wd = (today.getDay() + 6) % 7; rStart = new Date(today.getTime() - wd * 86400000); rEnd = new Date(rStart.getTime() + 7 * 86400000); }
+    else if (mktRange === 'lastmonth') { rStart = new Date(now.getFullYear(), now.getMonth() - 1, 1); rEnd = new Date(now.getFullYear(), now.getMonth(), 1); }
+    else if (mktRange === 'custom') {
+      rStart = mktFrom ? new Date(mktFrom + 'T00:00:00') : new Date(now.getFullYear(), now.getMonth(), 1);
+      rEnd = mktTo ? new Date(new Date(mktTo + 'T00:00:00').getTime() + 86400000) : new Date(today.getTime() + 86400000);
+    } else { rStart = new Date(now.getFullYear(), now.getMonth(), 1); rEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1); }
+    const dur = rEnd.getTime() - rStart.getTime();
+    const pStart = new Date(rStart.getTime() - dur);   // 전(前) 동일 길이 구간
+    const startISO = rStart.toISOString(), endISO = rEnd.toISOString(), pStartISO = pStart.toISOString();
+
     const [oRes, pRes, bRes, cRes, ucRes, sRes, svRes] = await Promise.all([
-      supabase.from('orders').select('user_id, final_amount, status, created_at').gte('created_at', lastMonthStart.toISOString()).order('created_at', { ascending: false }).limit(8000),
+      supabase.from('orders').select('user_id, final_amount, status, created_at').gte('created_at', pStartISO).order('created_at', { ascending: false }).limit(8000),
       supabase.from('profiles').select('id, created_at, provider').limit(10000),
       supabase.from('banners').select('view_count, click_count'),
       supabase.from('coupons').select('id, name, is_active'),
       supabase.from('user_coupons').select('coupon_id, is_used').limit(10000),
-      supabase.from('sms_logs').select('target_count, created_at').gte('created_at', monthStart.toISOString()).limit(2000),
+      supabase.from('sms_logs').select('target_count, created_at').gte('created_at', pStartISO).limit(2000),
       supabase.from('survey_results').select('age_group').limit(5000),
     ]);
     const orders = (oRes.data || []) as { user_id: string|null; final_amount: number; status: string; created_at: string }[];
     const profs = (pRes.data || []) as { id: string; created_at: string; provider: string|null }[];
 
-    const inMonth = (d: string) => d >= monthStart.toISOString();
-    const inPrev = (d: string) => d >= lastMonthStart.toISOString() && d < monthStart.toISOString();
-    const inPrevSame = (d: string) => d >= lastMonthStart.toISOString() && d <= prevPeriodEnd.toISOString();
+    const inRange = (d: string) => d >= startISO && d < endISO;
+    const inPrev  = (d: string) => d >= pStartISO && d < startISO;
     const valid = (o: { status: string }) => !isCancel(o.status);
 
-    const monthOrdersArr = orders.filter(o => inMonth(o.created_at));
-    const todayOrders = orders.filter(o => o.created_at >= today.toISOString()).length;
+    const monthOrdersArr = orders.filter(o => inRange(o.created_at));   // 기간 내 주문
+    const todayOrders = orders.filter(o => o.created_at >= today.toISOString()).length;   // 오늘 주문(결제전환율 GA용)
     const monthSales = monthOrdersArr.filter(valid).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const prevSales = orders.filter(o => inPrevSame(o.created_at) && valid(o)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const prevSales = orders.filter(o => inPrev(o.created_at) && valid(o)).reduce((s, o) => s + (o.final_amount || 0), 0);
     const refundCount = monthOrdersArr.filter(o => isCancel(o.status)).length;
     const refundRate = monthOrdersArr.length ? refundCount / monthOrdersArr.length * 100 : 0;
-    // 재주문 고객(2회+ 구매)
+    // 재주문 고객(기간 내 2회+ 구매)
     const userOrderCnt: Record<string, number> = {};
-    orders.filter(valid).forEach(o => { if (o.user_id) userOrderCnt[o.user_id] = (userOrderCnt[o.user_id] || 0) + 1; });
+    monthOrdersArr.filter(valid).forEach(o => { if (o.user_id) userOrderCnt[o.user_id] = (userOrderCnt[o.user_id] || 0) + 1; });
     const repeatCustomers = Object.values(userOrderCnt).filter(n => n >= 2).length;
-    // 객단가
+    // 재주문(전 구간) — 증감용
+    const prevUserCnt: Record<string, number> = {};
+    orders.filter(o => inPrev(o.created_at) && valid(o)).forEach(o => { if (o.user_id) prevUserCnt[o.user_id] = (prevUserCnt[o.user_id] || 0) + 1; });
+    const prevRepeat = Object.values(prevUserCnt).filter(n => n >= 2).length;
+    // 객단가(기간)
     const mValid = monthOrdersArr.filter(valid);
     const aov = mValid.length ? Math.round(monthSales / mValid.length) : 0;
     const pValid = orders.filter(o => inPrev(o.created_at) && valid(o));
     const prevAov = pValid.length ? Math.round(pValid.reduce((s, o) => s + (o.final_amount || 0), 0) / pValid.length) : 0;
-    // 신규 회원(이번달)
-    const newMembers = profs.filter(p => inMonth(p.created_at)).length;
+    // 신규 회원(기간) + 전 구간
+    const newMembers = profs.filter(p => inRange(p.created_at)).length;
+    const prevNewMembers = profs.filter(p => inPrev(p.created_at)).length;
     // 광고(배너)
     const adView = (bRes.data || []).reduce((s: number, b: { view_count: number|null }) => s + (b.view_count || 0), 0);
     const adClick = (bRes.data || []).reduce((s: number, b: { click_count: number|null }) => s + (b.click_count || 0), 0);
@@ -5132,16 +5154,16 @@ export default function AdminClient() {
     // 채널별(가입경로) — 회원 기준 주문/매출
     const provMap = new Map(profs.map(p => [p.id, providerKey(p.provider)]));
     const chAgg: Record<string, { orders: number; revenue: number }> = { kakao: { orders:0, revenue:0 }, naver: { orders:0, revenue:0 }, email: { orders:0, revenue:0 } };
-    orders.filter(valid).forEach(o => { const ch = (o.user_id && provMap.get(o.user_id)) || 'email'; chAgg[ch].orders++; chAgg[ch].revenue += o.final_amount || 0; });
+    monthOrdersArr.filter(valid).forEach(o => { const ch = (o.user_id && provMap.get(o.user_id)) || 'email'; chAgg[ch].orders++; chAgg[ch].revenue += o.final_amount || 0; });
     const channels = [
       { label: '카카오', ...chAgg.kakao, color: '#FEE500' },
       { label: '네이버', ...chAgg.naver, color: '#03C75A' },
       { label: '일반', ...chAgg.email, color: '#94A3B8' },
     ];
-    // 시간대별 주문(최근 fetch 범위)
+    // 시간대별 주문(기간 내)
     const hourMap: Record<number, number> = {};
     for (let h = 0; h < 24; h++) hourMap[h] = 0;
-    orders.forEach(o => { hourMap[new Date(o.created_at).getHours()]++; });
+    monthOrdersArr.forEach(o => { hourMap[new Date(o.created_at).getHours()]++; });
     const byHour = Object.entries(hourMap).map(([h, count]) => ({ h: Number(h), count }));
     // 연령대(취향진단)
     const AGE_ORDER = ['10대', '20대', '30대', '40대', '50대 이상'];
@@ -5160,12 +5182,12 @@ export default function AdminClient() {
     const cAgg: Record<string, { used: number; issued: number }> = {};
     ucs.forEach(u => { (cAgg[u.coupon_id] ||= { used: 0, issued: 0 }); cAgg[u.coupon_id].issued++; if (u.is_used) cAgg[u.coupon_id].used++; });
     const topCoupons = Object.entries(cAgg).map(([id, v]) => ({ name: (cName.get(id) as string) || '(삭제된 쿠폰)', used: v.used, issued: v.issued, rate: v.issued ? Math.round(v.used / v.issued * 100) : 0 })).sort((a, b) => b.used - a.used).slice(0, 3);
-    // SMS
-    const sms = (sRes.data || []) as { target_count: number|null }[];
+    // SMS (기간 내)
+    const sms = ((sRes.data || []) as { target_count: number|null; created_at: string }[]).filter(x => inRange(x.created_at));
     const smsCount = sms.length;
     const smsRecipients = sms.reduce((s, x) => s + (x.target_count || 0), 0);
 
-    setMarketing({ todayOrders, monthOrders: monthOrdersArr.length, repeatCustomers, monthSales, prevSales, refundRate, refundCount, newMembers, aov, prevAov, adView, adClick, adCtr, channels, byHour, byAge: byAgeFinal, couponActive, couponTotal, couponIssued, couponUsed, topCoupons, smsCount, smsRecipients });
+    setMarketing({ todayOrders, monthOrders: monthOrdersArr.length, repeatCustomers, prevRepeat, monthSales, prevSales, refundRate, refundCount, newMembers, prevNewMembers, aov, prevAov, adView, adClick, adCtr, channels, byHour, byAge: byAgeFinal, couponActive, couponTotal, couponIssued, couponUsed, topCoupons, smsCount, smsRecipients });
     setMarketingLoading(false);
     /* GA 오늘 방문자 (실패해도 마케팅 지표엔 영향 없음) */
     try {
@@ -13030,12 +13052,23 @@ export default function AdminClient() {
           {panel === 'analytics' && (
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                <div className="adm-toolbar-left" style={{ alignItems:'baseline', gap:8 }}>
+                <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
                   <span className="adm-card-title">마케팅 분석</span>
-                  <span className="adm-muted" style={{ fontSize:12 }}>· 우리 데이터 실시간 집계</span>
+                  <div className="adm-btn-group" style={{ flexWrap:'wrap' }}>
+                    {([['today','오늘'],['week','이번주'],['month','이번달'],['lastmonth','지난달'],['custom','직접설정']] as const).map(([k, lb]) => (
+                      <button key={k} className={`adm-seg-btn${mktRange===k?' active':''}`} onClick={() => { setMktRange(k); }}>{lb}</button>
+                    ))}
+                  </div>
+                  {mktRange === 'custom' && (
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <input type="date" className="adm-input" value={mktFrom} onChange={e => setMktFrom(e.target.value)} style={{ padding:'6px 8px' }} />
+                      <span className="adm-muted">~</span>
+                      <input type="date" className="adm-input" value={mktTo} onChange={e => setMktTo(e.target.value)} style={{ padding:'6px 8px' }} />
+                    </div>
+                  )}
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
-                  <button className="adm-btn adm-btn-outline" onClick={loadMarketing}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-outline" onClick={loadMarketing}><span className="adm-btn-icon"><Icon.Refresh /></span>조회</button>
                   <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
                 </div>
               </div>
@@ -13046,6 +13079,8 @@ export default function AdminClient() {
                 const arrC = (v: number) => v >= 0 ? '#16A34A' : '#DC2626';
                 const salesPct = pct(m.monthSales, m.prevSales);
                 const aovPct = pct(m.aov, m.prevAov);
+                void salesPct; void aovPct;
+                const rangeLabel = mktRange==='today'?'오늘':mktRange==='week'?'이번주':mktRange==='month'?'이번달':mktRange==='lastmonth'?'지난달':'선택 기간';
                 const trendObj = (v: number) => ({ t: arr(v), c: arrC(v), bg: v >= 0 ? '#ECFDF5' : '#FEF2F2' });
                 const kpiCard = (l: string, v: string, sub: string, opts: { trend?: { t: string; c: string; bg: string }; valColor?: string } = {}) => (
                   <div key={l} className="adm-kpi-card">
@@ -13066,24 +13101,16 @@ export default function AdminClient() {
                 );
                 return (
                   <>
-                    {sectionH('핵심 지표', '· 매일 먼저 확인')}
+                    {sectionH('회원 성장·재구매', `· ${rangeLabel} 기준`)}
                     <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                      {kpiCard('오늘 주문 건수', `${m.todayOrders}건`, `이번달 누적 ${m.monthOrders}건`)}
-                      {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '2회 이상 구매 고객')}
-                      {kpiCard('이번달 매출', `${fmtPrice(m.monthSales)}원`, '전월 동기 대비', { trend: trendObj(salesPct) })}
-                      {kpiCard('환불·취소율', `${m.refundRate.toFixed(1)}%`, `이번달 ${m.refundCount}건`, { valColor: m.refundRate > 0 ? '#DC2626' : undefined })}
-                    </div>
-
-                    {sectionH('참고 지표', '· 맥락 파악용')}
-                    <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                      {kpiCard('신규 회원', `${m.newMembers}명`, '이번달 가입')}
-                      {kpiCard('평균 객단가', `${fmtPrice(m.aov)}원`, '전월 평균 대비', { trend: trendObj(aovPct) })}
+                      {kpiCard('신규 회원', `${m.newMembers}명`, `${rangeLabel} 가입`, { trend: trendObj(pct(m.newMembers, m.prevNewMembers)) })}
+                      {kpiCard('재주문 고객수', `${m.repeatCustomers}명`, '기간 내 2회 이상 구매', { trend: trendObj(pct(m.repeatCustomers, m.prevRepeat)) })}
                       {mktGa?.configured
                         ? kpiCard('오늘 방문자', `${mktGa.sessions.toLocaleString()}명`, `순 방문 ${mktGa.users.toLocaleString()}명 · GA 세션`, { valColor: '#2563EB' })
-                        : kpiCard('오늘 방문자', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
+                        : kpiCard('오늘 방문자', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
                       {mktGa?.configured
                         ? kpiCard('결제 전환율', `${(mktGa.sessions > 0 ? (m.todayOrders / mktGa.sessions * 100) : 0).toFixed(2)}%`, `오늘 주문 ${m.todayOrders}건 ÷ 방문 ${mktGa.sessions.toLocaleString()}`, { valColor: '#16A34A' })
-                        : kpiCard('결제 전환율', '—', 'GA 연동 시 표시', { valColor: '#CBD5E1' })}
+                        : kpiCard('결제 전환율', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
                     </div>
 
                     {sectionH('광고(배너) 지표', '· 등록 배너 기준')}
@@ -13186,7 +13213,7 @@ export default function AdminClient() {
                         <div className="adm-card-head"><span className="adm-card-title">💬 마케팅 메시지 (SMS)</span></div>
                         <div style={{ padding:'14px 18px' }}>
                           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                            {[['이번달 발송', `${m.smsCount}건`], ['총 수신자', `${m.smsRecipients.toLocaleString()}명`]].map(([l, v]) => (
+                            {[[`${rangeLabel} 발송`, `${m.smsCount}건`], ['총 수신자', `${m.smsRecipients.toLocaleString()}명`]].map(([l, v]) => (
                               <div key={l} className="adm-kpi-card"><div className="adm-kpi-label">{l}</div><div className="adm-kpi-value adm-kpi-value-mt">{v}</div></div>
                             ))}
                           </div>
