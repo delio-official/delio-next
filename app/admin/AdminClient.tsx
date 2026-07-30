@@ -2553,7 +2553,6 @@ export default function AdminClient() {
   const [searchStatsLoading, setSearchStatsLoading] = useState(false);
   const [statsDays, setStatsDays] = useState<7|30>(7);
   /* ── 마케팅 분석 (자체 DB) ── */
-  const [marketingTab, setMarketingTab] = useState<'channel'|'hour'|'age'>('channel');
   const [marketingLoading, setMarketingLoading] = useState(false);
   const [marketing, setMarketing] = useState<{
     todayOrders: number; monthOrders: number; repeatCustomers: number; prevRepeat: number;
@@ -13130,63 +13129,65 @@ export default function AdminClient() {
                         : kpiCard('결제 전환율', 'GA4 연동 예정', '', { valColor: '#CBD5E1' })}
                     </div>
 
-                    {sectionH('광고(배너) 지표', '· 등록 배너 기준')}
-                    <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
-                      {kpiCard('총 조회수', m.adView.toLocaleString(), '배너 노출 합계', { valColor: '#2563EB' })}
-                      {kpiCard('총 클릭수', m.adClick.toLocaleString(), '배너 클릭 합계', { valColor: '#7C3AED' })}
-                      {kpiCard('평균 CTR', `${m.adCtr.toFixed(2)}%`, '클릭 ÷ 조회', { valColor: '#16A34A' })}
-                    </div>
-
-                    {/* 마케팅 주요 지표 (토글) */}
-                    <div className="adm-card" style={{ marginBottom:16 }}>
-                      <div className="adm-card-head"><span className="adm-card-title">마케팅 주요 지표</span></div>
-                      <div style={{ padding:'16px 18px' }}>
-                        <div style={{ display:'inline-flex', background:'#F1F5F9', borderRadius:10, padding:3, gap:2, marginBottom:18 }}>
-                          {([['channel','채널별 유입'],['hour','시간대별 주문'],['age','연령대 분포']] as const).map(([k, lb]) => (
-                            <button key={k} onClick={() => setMarketingTab(k)} style={{ border:'none', cursor:'pointer', fontSize:12.5, fontWeight:700, padding:'7px 16px', borderRadius:8, whiteSpace:'nowrap', background: marketingTab===k ? '#fff' : 'transparent', color: marketingTab===k ? '#1A1A1A' : '#94A3B8', boxShadow: marketingTab===k ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition:'all .15s' }}>{lb}</button>
-                          ))}
+                    {/* 마케팅 주요 지표 — 3분할(채널/시간대/연령대) */}
+                    {sectionH('마케팅 주요 지표', `· ${rangeLabel} 기준`)}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16, marginBottom:16 }}>
+                      {/* 채널별 유입 */}
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">채널별 유입</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          {(() => {
+                            const max = Math.max(...m.channels.map(c => c.orders), 1);
+                            return (
+                              <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                                {m.channels.map(c => (
+                                  <div key={c.label}>
+                                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                                      <span style={{ fontWeight:700 }}>{c.label}</span>
+                                      <span className="adm-muted">{c.orders}건 · {fmtPrice(c.revenue)}원</span>
+                                    </div>
+                                    <div style={{ height:20, background:'#F1F5F9', borderRadius:5, overflow:'hidden' }}>
+                                      <div style={{ width:`${c.orders/max*100}%`, height:'100%', background: c.color === '#FEE500' ? '#F2C200' : c.color }} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
-                        {marketingTab === 'channel' ? (() => {
-                          const max = Math.max(...m.channels.map(c => c.orders), 1);
-                          return (
-                            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                              {m.channels.map(c => (
-                                <div key={c.label}>
-                                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-                                    <span style={{ fontWeight:700 }}>{c.label}</span>
-                                    <span className="adm-muted">{c.orders}건 · {fmtPrice(c.revenue)}원</span>
-                                  </div>
-                                  <div style={{ height:20, background:'#F1F5F9', borderRadius:5, overflow:'hidden' }}>
-                                    <div style={{ width:`${c.orders/max*100}%`, height:'100%', background: c.color === '#FEE500' ? '#F2C200' : c.color }} />
-                                  </div>
+                      </div>
+                      {/* 시간대별 주문 */}
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">시간대별 주문</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          {(() => {
+                            const max = Math.max(...m.byHour.map(h => h.count), 1);
+                            const peak = m.byHour.reduce((a, b) => b.count > a.count ? b : a, m.byHour[0]);
+                            return (
+                              <div>
+                                <div style={{ fontSize:11, color:'#94A3B8', marginBottom:8 }}>가장 주문 많은 시간대 <span style={{ color:'#1A1A1A', fontWeight:700 }}>{peak.h}시 ({peak.count}건)</span></div>
+                                <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:130, borderBottom:'1.5px solid #E2E8F0' }}>
+                                  {m.byHour.map(h => (
+                                    <div key={h.h} style={{ flex:1, height:'100%', display:'flex', alignItems:'flex-end', justifyContent:'center' }} title={`${h.h}시 ${h.count}건`}>
+                                      {h.count > 0 && <div style={{ width:'68%', height:`${Math.max(3, h.count / max * 100)}%`, background: h.h === peak.h ? '#2563EB' : '#93C5FD', borderRadius:'3px 3px 0 0' }} />}
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                          );
-                        })() : marketingTab === 'hour' ? (() => {
-                          const max = Math.max(...m.byHour.map(h => h.count), 1);
-                          const peak = m.byHour.reduce((a, b) => b.count > a.count ? b : a, m.byHour[0]);
-                          return (
-                            <div>
-                              <div style={{ fontSize:11, color:'#94A3B8', marginBottom:8 }}>가장 주문 많은 시간대 <span style={{ color:'#1A1A1A', fontWeight:700 }}>{peak.h}시 ({peak.count}건)</span></div>
-                              {/* 막대 */}
-                              <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:130, borderBottom:'1.5px solid #E2E8F0' }}>
-                                {m.byHour.map(h => (
-                                  <div key={h.h} style={{ flex:1, height:'100%', display:'flex', alignItems:'flex-end', justifyContent:'center' }} title={`${h.h}시 ${h.count}건`}>
-                                    {h.count > 0 && <div style={{ width:'68%', height:`${Math.max(3, h.count / max * 100)}%`, background: h.h === peak.h ? '#2563EB' : '#93C5FD', borderRadius:'3px 3px 0 0' }} />}
-                                  </div>
-                                ))}
+                                <div style={{ display:'flex', gap:3, marginTop:5 }}>
+                                  {m.byHour.map(h => (
+                                    <div key={h.h} style={{ flex:1, textAlign:'center', fontSize:9, color:'#94A3B8' }}>{h.h % 3 === 0 ? `${h.h}시` : ''}</div>
+                                  ))}
+                                </div>
                               </div>
-                              {/* 라벨 */}
-                              <div style={{ display:'flex', gap:3, marginTop:5 }}>
-                                {m.byHour.map(h => (
-                                  <div key={h.h} style={{ flex:1, textAlign:'center', fontSize:9, color:'#94A3B8' }}>{h.h % 3 === 0 ? `${h.h}시` : ''}</div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })() : (
-                          m.byAge.length === 0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>취향진단 데이터 없음</div> : (() => {
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      {/* 연령대 분포 */}
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">연령대 분포</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          {m.byAge.length === 0 ? <div className="adm-muted" style={{ fontSize:12, padding:'10px 0' }}>취향진단 데이터 없음</div> : (() => {
                             const max = Math.max(...m.byAge.map(a => a.n), 1);
                             return (
                               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -13199,17 +13200,17 @@ export default function AdminClient() {
                                 ))}
                               </div>
                             );
-                          })()
-                        )}
+                          })()}
+                        </div>
                       </div>
                     </div>
 
-                    {/* 마케팅 진단 */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                    {/* 쿠폰 효과 / 마케팅 메시지 / 광고 지표 — 3분할 */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:16, marginBottom:16 }}>
                       <div className="adm-card">
                         <div className="adm-card-head"><span className="adm-card-title">🎟 쿠폰 효과</span></div>
                         <div style={{ padding:'14px 18px' }}>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom:14 }}>
                             {[['발행 쿠폰', `${m.couponActive}/${m.couponTotal}`], ['사용률', `${m.couponIssued ? Math.round(m.couponUsed/m.couponIssued*100) : 0}%`], ['발급', `${m.couponIssued}건`], ['사용', `${m.couponUsed}건`]].map(([l, v]) => (
                               <div key={l} style={{ background:'#F8FAFC', borderRadius:8, padding:'9px 10px' }}>
                                 <div style={{ fontSize:10, color:'#64748B' }}>{l}</div>
@@ -13235,6 +13236,20 @@ export default function AdminClient() {
                             ))}
                           </div>
                           <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.5 }}>읽음·클릭률은 SMS로는 추적이 안 됩니다. (카카오 알림톡 전환 시 가능)</div>
+                        </div>
+                      </div>
+                      <div className="adm-card">
+                        <div className="adm-card-head"><span className="adm-card-title">📢 광고(배너) 지표</span><span className="adm-muted" style={{ fontSize:12 }}>· 등록 배너 기준</span></div>
+                        <div style={{ padding:'14px 18px' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+                            {[['총 조회수', m.adView.toLocaleString()], ['총 클릭수', m.adClick.toLocaleString()], ['평균 CTR', `${m.adCtr.toFixed(2)}%`]].map(([l, v]) => (
+                              <div key={l} style={{ background:'#F8FAFC', borderRadius:8, padding:'9px 10px' }}>
+                                <div style={{ fontSize:10, color:'#64748B' }}>{l}</div>
+                                <div style={{ fontSize:15, fontWeight:800, marginTop:2, color:'#1A1A1A' }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="adm-muted" style={{ fontSize:11, marginTop:10, lineHeight:1.5 }}>배너 클릭·노출 누적 합계입니다.</div>
                         </div>
                       </div>
                     </div>
