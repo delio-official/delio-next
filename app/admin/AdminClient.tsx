@@ -12706,9 +12706,12 @@ export default function AdminClient() {
             const thisMonthCnt = thisMonthArr.length;
             const lastMonthCnt = lastMonthArr.length;
             const memberCnt  = surveyResults.filter(r => r.user_id).length;
-            /* 완료율 = 완료(응답) / 시작 */
-            const compRateThis = surveyStarts.thisMonth > 0 ? Math.min(100, Math.round(thisMonthCnt / surveyStarts.thisMonth * 100)) : 0;
-            const compRateLast = surveyStarts.lastMonth > 0 ? Math.min(100, Math.round(lastMonthCnt / surveyStarts.lastMonth * 100)) : 0;
+            /* 완료율 = 완료(응답) / 시작. 완료건은 반드시 시작했으므로 진행 = max(시작로그, 완료) 로 보정
+               (start 로깅 도입 이전 완료분은 start 로그가 없어 시작<완료가 될 수 있음) */
+            const startThisEff = Math.max(surveyStarts.thisMonth, thisMonthCnt);
+            const startLastEff = Math.max(surveyStarts.lastMonth, lastMonthCnt);
+            const compRateThis = startThisEff > 0 ? Math.round(thisMonthCnt / startThisEff * 100) : 0;
+            const compRateLast = startLastEff > 0 ? Math.round(lastMonthCnt / startLastEff * 100) : 0;
             /* 회원 응답률(전체 회원 대비 응답 회원) + 전월 대비(응답 중 회원 비중 변화) */
             const memberRate = surveyMemberTotal > 0 ? Math.round(memberCnt / surveyMemberTotal * 100) : 0;
             const memShareThis = thisMonthCnt > 0 ? thisMonthArr.filter(r => r.user_id).length / thisMonthCnt * 100 : 0;
@@ -12773,8 +12776,8 @@ export default function AdminClient() {
                     <div className="adm-kpi-label">완료율</div>
                     <div className="adm-kpi-value adm-kpi-value-mt">{compRateThis}%</div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
-                      {surveyStarts.lastMonth > 0 && trendChip(diffPP(compRateThis, compRateLast))}
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>진행 {surveyStarts.thisMonth}건 중 완료 {thisMonthCnt}건</span>
+                      {startLastEff > 0 && trendChip(diffPP(compRateThis, compRateLast))}
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>진행 {startThisEff}건 중 완료 {thisMonthCnt}건</span>
                     </div>
                   </div>
                   {/* 이번달 응답 */}
