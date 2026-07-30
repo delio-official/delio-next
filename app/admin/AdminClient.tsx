@@ -12817,10 +12817,10 @@ export default function AdminClient() {
                           <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#94A3B8', marginTop:3 }}>
                             {row.map(e => <span key={e.lb}>{e.lb} {e.n}명 ({e.pct}%)</span>)}
                           </div>
-                          {/* 성향 정의 */}
+                          {/* 성향 정의 (왼쪽 항목 좌측 / 오른쪽 항목 우측 정렬) */}
                           <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                            {row.map(e => (
-                              <div key={e.lb} style={{ flex:1, background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'8px 10px' }}>
+                            {row.map((e, i) => (
+                              <div key={e.lb} style={{ flex:1, background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'8px 10px', textAlign: i === 0 ? 'left' : 'right' }}>
                                 <div style={{ fontSize:11.5, fontWeight:800, color:'#334155', marginBottom:2 }}>{e.lb}</div>
                                 <div style={{ fontSize:11, color:'#94A3B8', lineHeight:1.45 }}>{AXIS_DEF[e.k] || ''}</div>
                               </div>
