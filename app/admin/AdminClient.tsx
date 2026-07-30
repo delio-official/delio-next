@@ -12777,7 +12777,7 @@ export default function AdminClient() {
                     <div className="adm-kpi-value adm-kpi-value-mt">{compRateThis}%</div>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6, flexWrap:'wrap' }}>
                       {startLastEff > 0 && trendChip(diffPP(compRateThis, compRateLast))}
-                      <span style={{ fontSize:11, color:'#94A3B8' }}>진행 {startThisEff}건 중 완료 {thisMonthCnt}건</span>
+                      <span style={{ fontSize:11, color:'#94A3B8' }}>이번 달 진행 {startThisEff}건 중 완료 {thisMonthCnt}건</span>
                     </div>
                   </div>
                   {/* 이번달 응답 */}
