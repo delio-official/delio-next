@@ -1,12 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
+import { createClient } from '@/lib/supabase';
+
+/* 관리자 설정(site_settings) 미입력 시 사용할 기본값 */
+const FOOTER_DEFAULTS: Record<string, string> = {
+  biz_name: '델리오',
+  biz_ceo: '송민창',
+  biz_addr: '경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 클레시아 더 퍼스트)',
+  biz_no: '288-12-02921',
+  biz_mail_order: '2026-고양덕양구-1612',
+  cs_phone: '070-8064-3601',
+  cs_email: 'deli_o@naver.com',
+};
 
 /* 전 페이지 공용 푸터 — 사업자정보 상시 노출(결제형 심사 필수) */
 export default function SiteFooter() {
   const [bizOpen, setBizOpen] = useState(true); // 모바일 사업자정보 기본 펼침(필수정보 상시 노출)
+  const [cfg, setCfg] = useState<Record<string, string>>(FOOTER_DEFAULTS);
+  useEffect(() => {
+    (async () => {
+      const keys = Object.keys(FOOTER_DEFAULTS);
+      const { data } = await createClient().from('site_settings').select('key,value').in('key', keys);
+      if (!data?.length) return;
+      const next = { ...FOOTER_DEFAULTS };
+      data.forEach((r: { key: string; value: string }) => { if (r.value?.trim()) next[r.key] = r.value; });
+      setCfg(next);
+    })();
+  }, []);
   return (
     <footer className="site-footer">
       <div className="container">
@@ -24,19 +47,19 @@ export default function SiteFooter() {
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div className="footer-biz-detail">
-              <div>상호명 : 델리오 &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : 송민창</div>
-              <div>주소 : 경기도 고양시 덕양구 권율대로 656, 13층 1329호 (원흥동, 클레시아 더 퍼스트)</div>
-              <div>사업자등록번호 : 288-12-02921 &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : 2026-고양덕양구-1612</div>
-              <div>개인정보보호책임자 : 송민창 (deli_o@naver.com)</div>
-              <div>모든 거래에 대한 책임과 환불·민원 처리는 델리오가 진행합니다. &nbsp;|&nbsp; 민원담당자 : 송민창 (070-8064-3601)</div>
+              <div>상호명 : {cfg.biz_name} &nbsp;&nbsp;|&nbsp;&nbsp; 대표 : {cfg.biz_ceo}</div>
+              <div>주소 : {cfg.biz_addr}</div>
+              <div>사업자등록번호 : {cfg.biz_no} &nbsp;&nbsp;|&nbsp;&nbsp; 통신판매업신고 : {cfg.biz_mail_order}</div>
+              <div>개인정보보호책임자 : {cfg.biz_ceo} ({cfg.cs_email})</div>
+              <div>모든 거래에 대한 책임과 환불·민원 처리는 {cfg.biz_name}가 진행합니다. &nbsp;|&nbsp; 민원담당자 : {cfg.biz_ceo} ({cfg.cs_phone})</div>
             </div>
-            <div style={{ color:'#c0c0c0', fontSize:13 }}>© 델리오. All rights reserved.</div>
+            <div style={{ color:'#c0c0c0', fontSize:13 }}>© {cfg.biz_name}. All rights reserved.</div>
           </div>
 
           {/* 고객센터 */}
           <div style={{ display:'flex', flexDirection:'column', gap:9, fontSize:13.5, color:'#888', lineHeight:1.75 }}>
             <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:15 }}>고객센터 안내</div>
-            <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>070-8064-3601</div>
+            <div className="footer-cs-tel" style={{ fontSize:28, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>{cfg.cs_phone}</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               <div style={{ display:'flex', gap:18 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:56, flexShrink:0 }}>운영시간</span><span>평일 09:00 - 18:00</span></div>
               <div style={{ display:'flex', gap:18 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:56, flexShrink:0 }}>점심시간</span><span>12:00 - 13:00</span></div>

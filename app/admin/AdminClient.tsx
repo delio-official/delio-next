@@ -130,6 +130,15 @@ function DragHandle() {
 /* ===== 타입 ===== */
 type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon'|'banner'|'events'|'lounge'|'homesections'|'members'|'referral'|'sms'|'inquiry'|'faq'|'cs'|'productinquiry'|'refund'|'settlement'|'farmsettle'|'tasteprofile'|'analytics'|'settings';
 
+/* 네비 그룹 접기/펼치기용 — 각 패널이 속한 섹션(활성 패널 포함 그룹 자동 펼침) */
+const PANEL_GROUP: Record<string, string> = {
+  dashboard:'운영', orders:'운영', products:'운영', menu:'운영', farms:'운영', reviews:'운영',
+  coupon:'마케팅', banner:'마케팅', events:'마케팅', lounge:'마케팅', homesections:'마케팅',
+  members:'회원', referral:'회원', sms:'회원',
+  inquiry:'고객지원', faq:'고객지원', cs:'고객지원', productinquiry:'고객지원', refund:'고객지원',
+  settlement:'정산·설정', farmsettle:'정산·설정', tasteprofile:'정산·설정', analytics:'정산·설정', settings:'정산·설정',
+};
+
 interface DashboardStats {
   monthRevenue: number;
   todayRevenue: number;
@@ -2545,6 +2554,11 @@ export default function AdminClient() {
 
   /* ── 사이트 설정 ── */
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({ pick_count: '6' });
+  const [navOpen, setNavOpen] = useState<Record<string, boolean>>({});
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPw, setAdminPw] = useState('');
+  const [adminPw2, setAdminPw2] = useState('');
+  const [adminPwSaving, setAdminPwSaving] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   /* ── 검색 통계 ── */
@@ -4996,6 +5010,23 @@ export default function AdminClient() {
     else alert('저장되었습니다!');
   }
 
+  /* 관리자 계정 이메일 로드 (설정 패널 진입 시) */
+  async function loadAdminEmail() {
+    const { data } = await createClient().auth.getUser();
+    setAdminEmail(data.user?.email || '');
+  }
+  /* 관리자 비밀번호 변경 */
+  async function changeAdminPassword() {
+    if (adminPw.length < 8) { alert('비밀번호는 8자 이상이어야 합니다.'); return; }
+    if (adminPw !== adminPw2) { alert('비밀번호 확인이 일치하지 않습니다.'); return; }
+    setAdminPwSaving(true);
+    const { error } = await createClient().auth.updateUser({ password: adminPw });
+    setAdminPwSaving(false);
+    if (error) { alert('변경 실패: ' + error.message); return; }
+    setAdminPw(''); setAdminPw2('');
+    alert('비밀번호가 변경되었습니다.');
+  }
+
   /* ========== 포인트 적립 설정 ========== */
   function openPtEdit() {
     // 예약 변경이 있으면 그 값을, 없으면 현재값을 프리필
@@ -6333,7 +6364,7 @@ export default function AdminClient() {
       case 'faq':       loadFaq(); break;
       case 'cs':        loadCsInquiries(); break;
       case 'refund':    loadRefundRequests(); loadOrders(); break;
-      case 'settings':    loadSettings(); loadSearchStats(7); break;
+      case 'settings':    loadSettings(); loadSearchStats(7); loadAdminEmail(); break;
       case 'analytics':   loadMarketing(); break;
       case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
       case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
@@ -6348,6 +6379,21 @@ export default function AdminClient() {
         {label}
         {badge ? <span className="adm-nav-badge">{badge}</span> : null}
       </a>
+    );
+  }
+
+  /* 네비 그룹 — 섹션별 접기/펼치기(기본 '운영'만 열림, 활성 패널 포함 그룹은 자동 열림) */
+  function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+    const open = navOpen[label] !== undefined ? navOpen[label] : (label === '운영' || PANEL_GROUP[panel] === label);
+    return (
+      <div className="adm-nav-group">
+        <button type="button" className="adm-nav-label" onClick={() => setNavOpen(prev => ({ ...prev, [label]: !open }))}
+          style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', font:'inherit', textAlign:'left' }}>
+          <span>{label}</span>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition:'transform .15s', opacity:.6 }}><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        {open && <div>{children}</div>}
+      </div>
     );
   }
 
@@ -8412,31 +8458,27 @@ export default function AdminClient() {
             <div><div className="adm-logo-sub" style={{ marginTop:2 }}>Admin Console</div></div>
           </div>
           <nav className="adm-nav">
-            <div className="adm-nav-group">
-              <div className="adm-nav-label">운영</div>
+            <NavGroup label="운영">
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="브랜드 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
-            </div>
-            <div className="adm-nav-group">
-              <div className="adm-nav-label">마케팅</div>
+            </NavGroup>
+            <NavGroup label="마케팅">
               <NavItem panel="coupon" icon={<Icon.Coupon />} label="쿠폰 / 포인트" />
               <NavItem panel="banner" icon={<Icon.Banner />} label="배너 / 팝업" />
               <NavItem panel="events" icon={<Icon.Events />} label="이벤트" />
               <NavItem panel="lounge" icon={<Icon.Lounge />} label="라운지 관리" />
               <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
-            </div>
-            <div className="adm-nav-group">
-              <div className="adm-nav-label">회원</div>
+            </NavGroup>
+            <NavGroup label="회원">
               <NavItem panel="members"  icon={<Icon.Members />}  label="회원 관리" />
               <NavItem panel="referral" icon={<Icon.Referral />} label="친구 추천" />
               <NavItem panel="sms"      icon={<Icon.SMS />}      label="SMS 발송" />
-            </div>
-            <div className="adm-nav-group">
-              <div className="adm-nav-label">고객지원</div>
+            </NavGroup>
+            <NavGroup label="고객지원">
               <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 협업문의"
                 badge={pendingInquiries.length || undefined} />
               <NavItem panel="faq" icon={<Icon.Faq />} label="FAQ 관리" />
@@ -8446,15 +8488,14 @@ export default function AdminClient() {
                 badge={productInquiries.filter(q => !q.answer).length || undefined} />
               <NavItem panel="refund" icon={<Icon.Settlement />} label="취소·환불 관리"
                 badge={refundReqs.filter(r => r.status === 'pending').length || undefined} />
-            </div>
-            <div className="adm-nav-group">
-              <div className="adm-nav-label">정산·설정</div>
+            </NavGroup>
+            <NavGroup label="정산·설정">
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="매출 현황" />
               <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="브랜드 정산" />
               <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
               <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
-            </div>
+            </NavGroup>
           </nav>
           <div className="adm-sidebar-footer">
             <div className="adm-sidebar-user">
@@ -13402,6 +13443,79 @@ export default function AdminClient() {
                     </>
                   )
                 )}
+              </div>
+
+              {/* ── 사이트 정보 (푸터 표기) ── */}
+              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
+                <div className="adm-card-head"><span className="adm-card-title">사이트 정보</span><span className="adm-muted" style={{ fontSize:12 }}>· 사이트 하단 푸터에 표기됩니다</span></div>
+                <div className="adm-form">
+                  {([
+                    ['biz_name', '상호명', '델리오'],
+                    ['biz_ceo', '대표자명', '송민창'],
+                    ['biz_no', '사업자등록번호', '288-12-02921'],
+                    ['biz_mail_order', '통신판매업 신고번호', '2026-고양덕양구-1612'],
+                    ['cs_phone', '고객센터 연락처', '070-8064-3601'],
+                    ['cs_email', '고객센터 이메일', 'deli_o@naver.com'],
+                    ['biz_addr', '사업장 주소', '경기도 고양시 덕양구 …'],
+                  ] as [string, string, string][]).map(([key, label, ph]) => (
+                    <div className="adm-form-row" key={key}>
+                      <label className="adm-label">{label}</label>
+                      <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                        value={siteSettings[key] ?? ''} placeholder={ph}
+                        onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
+                    </div>
+                  ))}
+                  <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
+                </div>
+              </div>
+
+              {/* ── 결제 수단 노출 ── */}
+              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
+                <div className="adm-card-head"><span className="adm-card-title">결제 수단 노출</span><span className="adm-muted" style={{ fontSize:12 }}>· 끄면 주문서(체크아웃)에서 숨겨집니다</span></div>
+                <div className="adm-form">
+                  {([
+                    ['pay_card', '신용카드', true],
+                    ['pay_kakao', '카카오페이', true],
+                    ['pay_naver', '네이버페이', false],
+                    ['pay_vbank', '무통장입금', true],
+                  ] as [string, string, boolean][]).map(([key, label, defOn]) => (
+                    <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
+                      <label className="adm-label">{label}</label>
+                      <Toggle
+                        defaultOn={siteSettings[key] !== undefined ? siteSettings[key] !== 'false' : defOn}
+                        onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
+                    </div>
+                  ))}
+                  <div className="adm-muted" style={{ fontSize:11 }}>* 네이버페이 등 PG 미승인 수단을 켜면 결제 단계에서 실패할 수 있습니다.</div>
+                </div>
+              </div>
+
+              {/* ── 관리자 계정 ── */}
+              <div className="adm-card adm-card-settings" style={{ marginBottom:20 }}>
+                <div className="adm-card-head"><span className="adm-card-title">관리자 계정</span><span className="adm-muted" style={{ fontSize:12 }}>· 비밀번호 변경</span></div>
+                <div className="adm-form">
+                  <div className="adm-form-row">
+                    <label className="adm-label">이메일</label>
+                    <span style={{ fontSize:14, color:'#475569' }}>{adminEmail || '—'}</span>
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">새 비밀번호</label>
+                    <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                      value={adminPw} placeholder="8자 이상" autoComplete="new-password"
+                      onChange={e => setAdminPw(e.target.value)} />
+                  </div>
+                  <div className="adm-form-row">
+                    <label className="adm-label">비밀번호 확인</label>
+                    <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                      value={adminPw2} placeholder="새 비밀번호 재입력" autoComplete="new-password"
+                      onChange={e => setAdminPw2(e.target.value)} />
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                    <button className="adm-btn adm-btn-primary" onClick={changeAdminPassword} disabled={adminPwSaving || !adminPw}>
+                      {adminPwSaving ? '변경 중...' : '비밀번호 변경'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="adm-settings-cols">

@@ -71,6 +71,21 @@ export default function CheckoutClient() {
   const [addr2, setAddr2]         = useState('');
   const [memo, setMemo]           = useState('');
   const [payMethod, setPayMethod] = useState('card');
+  const [payVisible, setPayVisible] = useState<typeof PAYMENT_METHODS[number][]>(VISIBLE_PAYMENT_METHODS);
+  /* 관리자 설정(site_settings)에서 결제수단 노출 토글 반영 */
+  useEffect(() => {
+    (async () => {
+      const { data } = await createClient().from('site_settings').select('key,value').like('key', 'pay_%');
+      const map: Record<string, string> = {};
+      (data || []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
+      const vis = PAYMENT_METHODS.filter(m => {
+        const v = map[`pay_${m.value}`];
+        return v !== undefined ? v !== 'false' : m.enabled;   // 설정 있으면 그 값, 없으면 기존 기본값
+      });
+      setPayVisible(vis);
+      setPayMethod(pm => vis.some(m => m.value === pm) ? pm : (vis[0]?.value || 'card'));
+    })();
+  }, []);
   const [loading, setLoading]     = useState(false);
   const [isMobile, setIsMobile]   = useState(false);
   useEffect(() => {
@@ -770,7 +785,7 @@ export default function CheckoutClient() {
           {/* ⑧ 결제수단 */}
           <Section title="결제수단" sk="pay" open={isOpen('pay')} onToggle={toggleSec}>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
-              {VISIBLE_PAYMENT_METHODS.map(m => (
+              {payVisible.map(m => (
                 <button type="button" key={m.value} onClick={() => setPayMethod(m.value)}
                   style={{ padding:'16px 8px', borderRadius:8, cursor:'pointer', fontSize:14, fontFamily:'inherit',
                     border:`1.5px solid ${payMethod===m.value?'#1A1A1A':'#E2E2E2'}`,
