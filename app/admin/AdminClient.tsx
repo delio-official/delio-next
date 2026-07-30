@@ -12932,7 +12932,7 @@ export default function AdminClient() {
                   const page = Math.min(surveyPage, totalPages);
                   const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
                   const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
-                  const ageTxt = (a: string | null) => a ? a.replace('s', '대').replace('plus', '대+') : '—';
+                  const ageTxt = (a: string | null) => !a ? '—' : a.endsWith('plus') ? a.replace('plus', '') + '대 이상' : a.replace('s', '대');
                   return (
                     <div className="adm-card">
                       {surveyLoading ? <PanelLoading /> : (
@@ -12948,15 +12948,16 @@ export default function AdminClient() {
                                   <th>구매 목적</th>
                                   <th>구매 빈도</th>
                                   <th>응답일</th>
+                                  <th>관리</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {pageRows.length === 0 ? (
-                                  <tr><td colSpan={7} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
+                                  <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>
                                     설문 응답 없음
                                   </td></tr>
                                 ) : pageRows.map(r => (
-                                  <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => setSurveyDetail(r)}>
+                                  <tr key={r.id}>
                                     <td>
                                       <span style={{ marginRight:4 }}>{TYPE_EMOJI[r.result_label || ''] || '🍑'}</span>
                                       <strong>{r.result_label || r.result_type || '—'}</strong>
@@ -12974,6 +12975,9 @@ export default function AdminClient() {
                                     <td className="adm-muted">{r.purchase_purpose || '—'}</td>
                                     <td className="adm-muted">{r.purchase_frequency || '—'}</td>
                                     <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
+                                    <td>
+                                      <button className="adm-btn adm-btn-outline" style={{ fontSize:12, padding:'4px 12px' }} onClick={() => setSurveyDetail(r)}>상세</button>
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -13010,7 +13014,7 @@ export default function AdminClient() {
                 {surveyDetail && (() => {
                   const r = surveyDetail;
                   const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
-                  const ageTxt = (a: string | null) => a ? a.replace('s', '대').replace('plus', '대+') : '—';
+                  const ageTxt = (a: string | null) => !a ? '—' : a.endsWith('plus') ? a.replace('plus', '') + '대 이상' : a.replace('s', '대');
                   const rows: [string, string][] = [
                     ['축 조합', `${AXIS1_LABEL[r.axis1 || ''] || r.axis1 || '—'} · ${AXIS2_LABEL[r.axis2 || ''] || r.axis2 || '—'} · ${AXIS3_LABEL[r.axis3 || ''] || r.axis3 || '—'}`],
                     ['성별', genderTxt(r.gender)],
