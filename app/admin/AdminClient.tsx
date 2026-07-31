@@ -13503,12 +13503,6 @@ export default function AdminClient() {
                                   <span style={{ fontSize:12, fontWeight:700, color:'#94A3B8', minWidth:28, textAlign:'right', flexShrink:0 }}>{i + 1}위</span>
                                   <input className="adm-input-text" style={{ flex:1 }} value={val} placeholder={`${i + 1}위 검색어`}
                                     onChange={e => { const a = arr10(); a[i] = e.target.value; setSiteSettings(prev => ({ ...prev, popular_keywords: a.join(', ') })); }} />
-                                  <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
-                                    <button onClick={() => { if (i > 0) moveItem(i, i - 1); }} disabled={i === 0}
-                                      style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===0?'#F8FAFC':'#fff', cursor: i===0?'default':'pointer', fontSize:9, color: i===0?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▲</button>
-                                    <button onClick={() => { if (i < 9) moveItem(i, i + 1); }} disabled={i === 9}
-                                      style={{ width:22, height:19, border:'1px solid #E2E8F0', borderRadius:4, background: i===9?'#F8FAFC':'#fff', cursor: i===9?'default':'pointer', fontSize:9, color: i===9?'#CBD5E1':'#64748B', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>▼</button>
-                                  </div>
                                 </div>
                               );
                             })}
@@ -13654,10 +13648,26 @@ export default function AdminClient() {
                       <input type="text" className="adm-input-text adm-input-w100" value={siteSettings.dispatch_cutoff ?? ''} placeholder="예: 14:00" onChange={e => setSiteSettings(prev => ({ ...prev, dispatch_cutoff: e.target.value }))} />
                       <span className="adm-muted" style={{ fontSize:11 }}>상품별 설정 없으면 이 값으로 표시</span>
                     </div>
+                    {([
+                      ['ship_fee', '기본 배송비', '3000'],
+                      ['free_ship_min', '무료배송 기준금액', '30000'],
+                      ['jeju_extra', '제주·도서산간 추가비', '3000'],
+                    ] as [string, string, string][]).map(([key, label, ph]) => (
+                      <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
+                        <label className="adm-label">{label}</label>
+                        <div className="adm-flex-center-gap">
+                          <input type="number" min={0} step={100} className="adm-input-text" style={{ width:110, textAlign:'right' }}
+                            value={siteSettings[key] ?? ''} placeholder={ph}
+                            onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
+                          <span className="adm-muted">원</span>
+                        </div>
+                      </div>
+                    ))}
                     <div className="adm-form-row" style={{ alignItems:'center' }}>
                       <label className="adm-label">상단 배송안내 탭 노출</label>
                       <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                     </div>
+                    <div className="adm-muted" style={{ fontSize:11 }}>* 배송비 항목은 저장돼 있으나 현재 사이트는 전 상품 무료배송입니다. 체크아웃 실제 적용은 별도 요청 시 연동합니다.</div>
                   </div>
                 </div>
               </div>
