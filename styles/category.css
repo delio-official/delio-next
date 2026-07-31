@@ -82,8 +82,8 @@ body { background: #fff; }
   .farm-prod-arrow.next { right: -26px; }
 }
 
-/* 농가 상세 상단 — 사진 + 소개 좌우 배치 (모바일 세로) */
-.farm-top { display: flex; gap: 36px; align-items: flex-start; }
+/* 농가 상세 상단 — 사진 + 소개 좌우 배치 (모바일 세로). 랜딩 이미지(max 860)와 너비 정렬 */
+.farm-top { display: flex; gap: 36px; align-items: flex-start; max-width: 860px; margin: 0 auto; }
 .farm-top-img { flex: 0 0 400px; max-width: 400px; }
 /* 사진: 원본 비율 그대로(잘림·여백 없음) */
 .farm-top-img img { width: 100%; height: auto; display: block; border-radius: 16px; }
