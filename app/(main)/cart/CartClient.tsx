@@ -38,9 +38,13 @@ function QtyControl({ value, onChange }: { value: number; onChange: (v: number) 
 export default function CartClient() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
-  /* 진입 시 화면 상단으로 (썸네일 담기 → 바로 이동 시 이전 스크롤 위치 유지되는 문제 방지) */
+  /* 진입 시 화면 상단으로. 옵션 드로어의 body 스크롤 잠금 해제가 이동 직후 이전 위치를 복원해
+     덮어쓰는 경우가 있어, 마운트 직후 + 다음 프레임 + 짧은 지연으로 확실히 상단 고정 */
   useEffect(() => {
     window.scrollTo(0, 0);
+    const raf = requestAnimationFrame(() => window.scrollTo(0, 0));
+    const t = setTimeout(() => window.scrollTo(0, 0), 80);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
   }, []);
   /* 비로그인 상태에서 장바구니 접근 → 로그인 페이지로 (장바구니는 기기에 그대로 보존) */
   useEffect(() => {
