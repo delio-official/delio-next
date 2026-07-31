@@ -132,11 +132,12 @@ type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon
 
 /* 네비 그룹 접기/펼치기용 — 각 패널이 속한 섹션(활성 패널 포함 그룹 자동 펼침) */
 const PANEL_GROUP: Record<string, string> = {
-  dashboard:'운영', orders:'운영', products:'운영', menu:'운영', farms:'운영', reviews:'운영',
-  coupon:'마케팅', banner:'마케팅', events:'마케팅', lounge:'마케팅', homesections:'마케팅',
+  dashboard:'운영', orders:'운영', products:'운영', menu:'운영', homesections:'운영', farms:'운영', reviews:'운영',
+  cs:'고객지원', productinquiry:'고객지원', refund:'고객지원', inquiry:'고객지원', faq:'고객지원',
   members:'회원', referral:'회원', sms:'회원',
-  inquiry:'고객지원', faq:'고객지원', cs:'고객지원', productinquiry:'고객지원', refund:'고객지원',
-  settlement:'정산·설정', farmsettle:'정산·설정', tasteprofile:'정산·설정', analytics:'정산·설정', settings:'정산·설정',
+  coupon:'마케팅', banner:'마케팅', events:'마케팅', lounge:'마케팅', tasteprofile:'마케팅', analytics:'마케팅',
+  settlement:'정산', farmsettle:'정산',
+  settings:'설정',
 };
 
 interface DashboardStats {
@@ -8500,37 +8501,39 @@ export default function AdminClient() {
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
+              <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="브랜드 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </NavGroup>
-            <NavGroup label="마케팅">
-              <NavItem panel="coupon" icon={<Icon.Coupon />} label="쿠폰 / 포인트" />
-              <NavItem panel="banner" icon={<Icon.Banner />} label="배너 / 팝업" />
-              <NavItem panel="events" icon={<Icon.Events />} label="이벤트" />
-              <NavItem panel="lounge" icon={<Icon.Lounge />} label="라운지 관리" />
-              <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
-            </NavGroup>
-            <NavGroup label="회원">
-              <NavItem panel="members"  icon={<Icon.Members />}  label="회원 관리" />
-              <NavItem panel="referral" icon={<Icon.Referral />} label="친구 추천" />
-              <NavItem panel="sms"      icon={<Icon.SMS />}      label="SMS 발송" />
-            </NavGroup>
             <NavGroup label="고객지원">
-              <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 협업문의"
-                badge={pendingInquiries.length || undefined} />
-              <NavItem panel="faq" icon={<Icon.Faq />} label="FAQ 관리" />
               <NavItem panel="cs"  icon={<Icon.Cs />}  label="1:1 문의"
                 badge={csPending.length || undefined} />
               <NavItem panel="productinquiry" icon={<Icon.Faq />} label="상품 문의"
                 badge={productInquiries.filter(q => !q.answer).length || undefined} />
               <NavItem panel="refund" icon={<Icon.Settlement />} label="취소·환불 관리"
                 badge={refundReqs.filter(r => r.status === 'pending').length || undefined} />
+              <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 협업문의"
+                badge={pendingInquiries.length || undefined} />
+              <NavItem panel="faq" icon={<Icon.Faq />} label="FAQ 관리" />
             </NavGroup>
-            <NavGroup label="정산·설정">
+            <NavGroup label="회원">
+              <NavItem panel="members"  icon={<Icon.Members />}  label="회원 관리" />
+              <NavItem panel="referral" icon={<Icon.Referral />} label="친구 추천" />
+              <NavItem panel="sms"      icon={<Icon.SMS />}      label="SMS 발송" />
+            </NavGroup>
+            <NavGroup label="마케팅">
+              <NavItem panel="coupon" icon={<Icon.Coupon />} label="쿠폰 / 포인트" />
+              <NavItem panel="banner" icon={<Icon.Banner />} label="배너 / 팝업" />
+              <NavItem panel="events" icon={<Icon.Events />} label="이벤트" />
+              <NavItem panel="lounge" icon={<Icon.Lounge />} label="라운지 관리" />
+              <NavItem panel="tasteprofile" icon={<Icon.Taste />} label="취향 프로파일" />
+              <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
+            </NavGroup>
+            <NavGroup label="정산">
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="매출 현황" />
               <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="브랜드 정산" />
-              <NavItem panel="tasteprofile" icon={<Icon.Taste />}      label="취향 프로파일" />
-              <NavItem panel="analytics"    icon={<Icon.Settlement />} label="마케팅 분석" />
+            </NavGroup>
+            <NavGroup label="설정">
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
             </NavGroup>
           </nav>
