@@ -27,9 +27,8 @@ const SECTIONS = [
     icon: '💰',
     title: '배송비 안내',
     items: [
-      { label: '기본 배송비', desc: '3,000원 (주문금액 50,000원 이상 무료배송)' },
-      { label: '제주 · 도서산간', desc: '추가 배송비 3,000원이 부과됩니다.' },
-      { label: '무료배송 상품', desc: '일부 상품은 개별 무료배송이 적용됩니다. 상품 페이지에서 확인하세요.' },
+      { label: '기본 배송비', desc: '전 상품 무료배송 (배송비 없음)' },
+      { label: '제주 · 도서산간', desc: '추가 배송비 없이 무료 배송됩니다.' },
     ],
   },
   {
@@ -85,7 +84,7 @@ export default function ShippingClient() {
         }}>
           {[
             { icon: '⚡', label: '최단 배송', value: '당일 도착' },
-            { icon: '🎁', label: '무료배송', value: '5만원 이상' },
+            { icon: '🎁', label: '무료배송', value: '전 상품' },
             { icon: '📞', label: '고객센터', value: '평일 09~18시 (점심 12~13시 제외)' },
           ].map(c => (
             <div key={c.label} style={{
