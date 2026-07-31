@@ -13667,7 +13667,7 @@ export default function AdminClient() {
                       <label className="adm-label">상단 배송안내 탭 노출</label>
                       <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                     </div>
-                    <div className="adm-muted" style={{ fontSize:11 }}>* 배송비 항목은 저장돼 있으나 현재 사이트는 전 상품 무료배송입니다. 체크아웃 실제 적용은 별도 요청 시 연동합니다.</div>
+                    <div className="adm-muted" style={{ fontSize:11 }}>* 기본 배송비를 <b>0으로 두면 무료배송</b>입니다. (현재 전 상품 무료배송)</div>
                   </div>
                 </div>
               </div>
