@@ -83,8 +83,9 @@ body { background: #fff; }
 }
 
 /* 농가 상세 상단 — 사진 + 소개 좌우 배치 (모바일 세로) */
-.farm-top { display: flex; gap: 32px; align-items: flex-start; }
-.farm-top-img { flex: 0 0 46%; max-width: 520px; }
+.farm-top { display: flex; gap: 36px; align-items: flex-start; }
+.farm-top-img { flex: 0 0 400px; max-width: 400px; }
+/* 사진: 원본 비율 그대로(잘림·여백 없음) */
 .farm-top-img img { width: 100%; height: auto; display: block; border-radius: 16px; }
 .farm-top-img-empty {
   width: 100%; aspect-ratio: 4 / 3; border-radius: 16px;
@@ -95,7 +96,7 @@ body { background: #fff; }
 .farm-top-info { flex: 1; min-width: 0; }
 @media (max-width: 768px) {
   .farm-top { flex-direction: column; gap: 18px; }
-  .farm-top-img { flex: none; width: 100%; max-width: none; }
+  .farm-top-img { flex: none; width: 100%; max-width: 460px; margin: 0 auto; }
 }
 
 /* 농가 상세 히어로 — 모바일: 풀폭 / PC: container 폭 박스 */
