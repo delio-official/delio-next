@@ -8792,7 +8792,7 @@ export default function AdminClient() {
                           </span>
                         </div>
                       ))}
-                      {orders.length === 0 && <div className="adm-muted" style={{ padding:'16px 0', fontSize:13, textAlign:'center' }}>주문 없음</div>}
+                      {orders.length === 0 && <div className="adm-muted" style={{ padding:'20px 0', fontSize:13, textAlign:'center', width:'100%' }}>주문 없음</div>}
                     </div>
                   </div>
                 </div>
