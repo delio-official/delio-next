@@ -8785,14 +8785,14 @@ export default function AdminClient() {
                     <div className="adm-card-head"><span className="adm-card-title">최근 주문 현황</span></div>
                     <div className="adm-pending-list">
                       {orders.slice(0, 5).map(o => (
-                        <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer' }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
-                          <span className="adm-muted" style={{ fontSize:12 }}>{o.recipient}</span>
-                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`}>
+                        <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
+                          <span className="adm-muted" style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</span>
+                          <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`} style={{ flexShrink:0 }}>
                             {STATUS_LABEL[o.status] || o.status}
                           </span>
                         </div>
                       ))}
-                      {orders.length === 0 && <div className="adm-muted" style={{ padding:'12px 0', fontSize:13 }}>주문 없음</div>}
+                      {orders.length === 0 && <div className="adm-muted" style={{ padding:'16px 0', fontSize:13, textAlign:'center' }}>주문 없음</div>}
                     </div>
                   </div>
                 </div>
