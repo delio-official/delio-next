@@ -82,6 +82,22 @@ body { background: #fff; }
   .farm-prod-arrow.next { right: -26px; }
 }
 
+/* 농가 상세 상단 — 사진 + 소개 좌우 배치 (모바일 세로) */
+.farm-top { display: flex; gap: 32px; align-items: flex-start; }
+.farm-top-img { flex: 0 0 46%; max-width: 520px; }
+.farm-top-img img { width: 100%; height: auto; display: block; border-radius: 16px; }
+.farm-top-img-empty {
+  width: 100%; aspect-ratio: 4 / 3; border-radius: 16px;
+  background: linear-gradient(135deg,#2d5a27,#3d7a35);
+  display: flex; align-items: center; justify-content: center;
+}
+.farm-top-img-empty span { font-size: 72px; }
+.farm-top-info { flex: 1; min-width: 0; }
+@media (max-width: 768px) {
+  .farm-top { flex-direction: column; gap: 18px; }
+  .farm-top-img { flex: none; width: 100%; max-width: none; }
+}
+
 /* 농가 상세 히어로 — 모바일: 풀폭 / PC: container 폭 박스 */
 .farm-hero { width: 100%; background: #F2F0EC; }
 /* 사진 원본 비율 그대로 — 잘리지 않게(박스가 사진에 맞춰 늘어남) */

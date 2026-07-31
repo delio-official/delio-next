@@ -271,44 +271,46 @@ export default function FarmClient() {
 
   return (
     <div style={{ background:'#fff', minHeight:'100vh' }}>
-      {/* ── 상단: 히어로 사진 (모바일 풀폭 / PC는 container 폭) ── */}
-      {(() => {
-        const heroImg = farm.hero_image_url || farm.farmer_image_url || farm.thumbnail_url;
-        return heroImg ? (
-          <div className="farm-hero">
-            <img src={imgThumb(heroImg, 1400)} alt={farm.name} />
+      {/* ── 상단: 농부 사진 + 소개 (좌우 배치 · 모바일 세로) ── */}
+      <div className="container" style={{ paddingTop:28, paddingBottom:28 }}>
+        <div className="farm-top">
+          {/* 사진 (원본 비율, 잘리지 않음) */}
+          <div className="farm-top-img">
+            {(() => {
+              const heroImg = farm.hero_image_url || farm.farmer_image_url || farm.thumbnail_url;
+              return heroImg
+                ? <img src={imgThumb(heroImg, 900)} alt={farm.name} />
+                : <div className="farm-top-img-empty"><span>{emoji}</span></div>;
+            })()}
           </div>
-        ) : (
-          <div className="farm-hero farm-hero-empty"><span>{emoji}</span></div>
-        );
-      })()}
-
-      {/* ── 위치 뱃지 · 하트 / 농가명 / 소개 ── */}
-      <div className="container" style={{ paddingTop:24, paddingBottom:28 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:18 }}>
-          {farm.region ? (
-            <span style={{ display:'inline-flex', alignItems:'center', gap:5,
-              background:'#E53935', color:'#fff', fontSize:13, fontWeight:600,
-              padding:'6px 14px', borderRadius:999 }}>
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden>
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
-              </svg>
-              {farm.region}</span>
-          ) : <span />}
-          <button onClick={toggleFarmWish} aria-label="농가 찜"
-            style={{ display:'inline-flex', alignItems:'center', gap:6, background:'none',
-              border:'none', cursor:'pointer', fontSize:15, color:'#666', fontFamily:'inherit' }}>
-            <span style={{ fontSize:23, lineHeight:1, color: farmWished ? '#E53935' : '#CFCFCF' }}>{farmWished ? '♥' : '♡'}</span>
-            {farmWishCount}
-          </button>
+          {/* 소개 글 */}
+          <div className="farm-top-info">
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:14 }}>
+              {farm.region ? (
+                <span style={{ display:'inline-flex', alignItems:'center', gap:5,
+                  background:'#E53935', color:'#fff', fontSize:13, fontWeight:600,
+                  padding:'6px 14px', borderRadius:999 }}>
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff" aria-hidden>
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+                  </svg>
+                  {farm.region}</span>
+              ) : <span />}
+              <button onClick={toggleFarmWish} aria-label="농가 찜"
+                style={{ display:'inline-flex', alignItems:'center', gap:6, background:'none',
+                  border:'none', cursor:'pointer', fontSize:15, color:'#666', fontFamily:'inherit' }}>
+                <span style={{ fontSize:23, lineHeight:1, color: farmWished ? '#E53935' : '#CFCFCF' }}>{farmWished ? '♥' : '♡'}</span>
+                {farmWishCount}
+              </button>
+            </div>
+            <h1 style={{ fontSize:'clamp(22px,3vw,30px)', fontWeight:800, marginBottom:14, lineHeight:1.3 }}>{farm.name}</h1>
+            {farm.intro && (
+              <p style={{ fontSize:15, lineHeight:1.85, color:'#555', whiteSpace:'pre-line' }}>{farm.intro}</p>
+            )}
+            {farm.farmer_name && (
+              <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
+            )}
+          </div>
         </div>
-        <h1 style={{ fontSize:'clamp(24px,3vw,32px)', fontWeight:800, marginBottom:16, lineHeight:1.3 }}>{farm.name}</h1>
-        {farm.intro && (
-          <p style={{ fontSize:15, lineHeight:1.85, color:'#555', whiteSpace:'pre-line' }}>{farm.intro}</p>
-        )}
-        {farm.farmer_name && (
-          <p style={{ fontSize:13, color:'#999', marginTop:16 }}>농부 · {farm.farmer_name}</p>
-        )}
       </div>
 
       {/* ── 랜딩 이미지 (상세설명 · 긴 이미지) ── */}
