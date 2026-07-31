@@ -63,8 +63,9 @@ export default function OrderCompleteClient() {
         <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>배송 안내</div>
         <p style={{ fontSize:13, color:'#666', lineHeight:1.8 }}>
           · 산지배송: 오전 11시 이전 결제 완료 시 → 당일수확 → 당일배송<br/>
-          · 자사배송: 오전 11시 이전 결제 완료 시 → 결제 후 1~2 영업일 소요<br/>
-          · 문의: {CS_PHONE} ({CS_HOURS} · 점심 {CS_LUNCH} 제외)
+          · 자사배송: 오전 11시 이전 결제 완료 시 → 당일배송<br/>
+          · 문의: {CS_PHONE}<br/>
+          <span style={{ display:'inline-block', paddingLeft:14, color:'#999', fontSize:12 }}>{CS_HOURS} · 점심 {CS_LUNCH} 제외</span>
         </p>
       </div>
     </div>
