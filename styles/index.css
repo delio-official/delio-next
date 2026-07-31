@@ -1122,10 +1122,10 @@
     /* 모바일: 홈 라운지 섹션만 온브릭스 스토리식 가로 스크롤 (/lounge 전체보기는 review.css 세로 그리드 유지)
        ※ 데스크톱 규칙보다 아래에 두어야 같은 특이도에서 모바일 값이 적용됨 */
     @media(max-width:768px) {
-      /* 세로 나열(2열 그리드) — 가로 스와이프 아님 */
+      /* 세로 나열(1열) — 한 줄에 1개씩 아래로 */
       .lounge-section .lounge-grid {
-        display: grid; grid-template-columns: repeat(2, 1fr);
-        gap: 12px; margin-bottom: 24px;
+        display: grid; grid-template-columns: 1fr;
+        gap: 16px; margin-bottom: 24px;
       }
       /* 카드형: 상·하 모두 둥근 모서리 (홈 라운지 섹션 전용) */
       .lounge-section .lounge-card {
