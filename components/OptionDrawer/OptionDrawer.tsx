@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { addToCart, getCart, showCartToast } from '@/lib/cart';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
-import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import { useBodyScrollLock, skipNextScrollRestore } from '@/hooks/useBodyScrollLock';
 
 interface Product {
   id: string; name: string; price: number; discounted_price: number | null;
@@ -165,6 +165,7 @@ export default function OptionDrawer() {
     if (!requireLogin()) { close(); return; }
     if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
     if (!addAll()) return;   // 재고 초과면 이동하지 않음
+    skipNextScrollRestore();   // 이동 시 이전 스크롤 복원 생략 → 장바구니 최상단
     close(); router.push('/cart');
   }
 
