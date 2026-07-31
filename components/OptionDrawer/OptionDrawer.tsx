@@ -165,8 +165,11 @@ export default function OptionDrawer() {
     if (!requireLogin()) { close(); return; }
     if (!canAdd) { alert('옵션을 선택해 주세요.'); return; }
     if (!addAll()) return;   // 재고 초과면 이동하지 않음
-    skipNextScrollRestore();   // 이동 시 이전 스크롤 복원 생략 → 장바구니 최상단
-    close(); router.push('/cart');
+    /* 이동 시엔 닫힘 애니메이션(280ms) 없이 즉시 잠금해제 + 스크롤 복원 생략
+       → 장바구니가 처음부터 최상단으로 뜸(중간 걸림/튐 방지) */
+    skipNextScrollRestore();
+    setClosing(false); setOpen(false);
+    router.push('/cart');
   }
 
   return (
