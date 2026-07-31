@@ -42,34 +42,16 @@ export default function FarmsClient() {
   return (
     <main style={{ background: '#fff', minHeight: '100vh', paddingBottom: 80 }}>
 
-      {/* 히어로 — nav(카테고리~취향진단)와 동일 너비 박스 */}
-      <div className="container" style={{ paddingTop: 24 }}>
-        <div style={{
-          background: 'linear-gradient(135deg,#F4EFE6 0%,#EDE8DC 100%)',
-          padding: '40px 28px 32px', borderRadius: 16, border: '1px solid #E8E2D8',
-        }}>
-          <p style={{ fontSize: 11, color: '#A08060', fontWeight: 700, letterSpacing: 2, marginBottom: 8 }}>
-            PARTNER FARM
-          </p>
-          <h1 style={{ fontSize: 'clamp(24px,4vw,34px)', fontWeight: 800, marginBottom: 10 }}>
-            파트너 농가
-          </h1>
-          <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7 }}>
-            델리오가 직접 찾고 선택한 농가입니다.<br />
-            농산물에 담긴 농부들의 이야기와 재배 과정을 만나보세요.
-          </p>
-          <div style={{ fontSize: 12, color: '#aaa', marginTop: 16 }}>
-            <Link href="/" style={{ color: '#aaa', textDecoration: 'none' }}>홈</Link>
-            <span style={{ margin: '0 6px' }}>/</span>
-            <Link href="/brand-intro" style={{ color: '#aaa', textDecoration: 'none' }}>브랜드 소개관</Link>
-            <span style={{ margin: '0 6px' }}>/</span>
-            <span style={{ color: '#555' }}>파트너 농가</span>
-          </div>
-        </div>
+      {/* 제목 + 실선 (깔끔하게) */}
+      <div className="container" style={{ paddingTop: 28 }}>
+        <h1 style={{ fontSize: 'clamp(22px,4vw,30px)', fontWeight: 800, marginBottom: 16 }}>
+          파트너 농가
+        </h1>
+        <div style={{ borderBottom: '1px solid #E5E5E5' }} />
       </div>
 
       {/* 농가 목록 */}
-      <section style={{ paddingTop: 40 }}>
+      <section style={{ paddingTop: 28 }}>
         <div className="container">
           {loading ? (
             <div className="farms-grid">
