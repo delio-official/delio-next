@@ -17,6 +17,7 @@ import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { imgThumb } from '@/lib/img';
 import PopupOverlay from '@/components/PopupOverlay/PopupOverlay';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
+import Spinner from '@/components/Spinner/Spinner';
 
 /* ===== 배너 인터페이스 ===== */
 interface Banner {
@@ -498,16 +499,7 @@ function QuickGuide() {
         <div className="qg-products" ref={qgScrollRef}
           style={!loading && items.length === 0 ? { display:'block', gridTemplateRows:'none', gridAutoColumns:'auto' } : undefined}>
           {loading
-            ? [0,1,2,3].map(i => (
-                <div key={i} className="qg-card" style={{ opacity:0.35 }}>
-                  <div className="qg-card-img" style={{ background:'#F0F0EE' }} />
-                  <div className="qg-card-body">
-                    <div style={{ height:12, background:'#E8E8E6', borderRadius:4, marginBottom:8 }} />
-                    <div style={{ height:16, background:'#E8E8E6', borderRadius:4, marginBottom:6, width:'80%' }} />
-                    <div style={{ height:18, background:'#E8E8E6', borderRadius:4, width:'60%' }} />
-                  </div>
-                </div>
-              ))
+            ? <div style={{ gridColumn:'1 / -1', width:'100%' }}><Spinner minHeight={180} /></div>
             : items.length === 0
               ? <div style={{ gridColumn:'1 / -1', width:'100%' }}><ComingSoon compact title="상품 준비중입니다." desc={['해당 카테고리 상품을 준비하고 있어요.']} /></div>
               : (isMobile
@@ -954,17 +946,7 @@ export default function HomeClient() {
                 willChange: 'transform',
               }}>
                 {pickProds.length === 0
-                  ? /* 로딩 스켈레톤 */
-                    [0,1,2,3].map(i => (
-                      <div key={i} className="product-card" style={{ opacity:0.35 }}>
-                        <div className="product-card-img" style={{ background:'#F0F0EE' }} />
-                        <div className="product-card-body">
-                          <div style={{ height:14, background:'#E8E8E6', borderRadius:4, marginBottom:10 }} />
-                          <div style={{ height:18, background:'#E8E8E6', borderRadius:4, marginBottom:8, width:'80%' }} />
-                          <div style={{ height:20, background:'#E8E8E6', borderRadius:4, width:'60%' }} />
-                        </div>
-                      </div>
-                    ))
+                  ? <div style={{ width:'100%' }}><Spinner minHeight={180} /></div>
                   : Array.from({ length: Math.ceil(pickProds.length / 3) }, (_, pi) => (
                       <div key={pi} className="pick-page">
                         {pickProds.slice(pi * 3, pi * 3 + 3).map(p => {
@@ -1220,14 +1202,7 @@ export default function HomeClient() {
           ) : (
           <div className="lounge-grid">
             {loungePosts.length === 0
-              ? /* 로딩 스켈레톤 */
-                [0, 1, 2].map(i => (
-                  <div key={i} className="lounge-card" style={{ pointerEvents: 'none' }}>
-                    <div className="lounge-card-img" style={{ background: '#F0F0EE', opacity: 0.4 }} />
-                    <div style={{ height: 22, background: '#E8E8E6', borderRadius: 4, marginBottom: 8, opacity: 0.4 }} />
-                    <div style={{ height: 16, background: '#E8E8E6', borderRadius: 4, width: '60%', opacity: 0.4 }} />
-                  </div>
-                ))
+              ? <div style={{ width:'100%' }}><Spinner minHeight={160} /></div>
               : loungePosts.map(post => (
                   <Link key={post.id} href={`/lounge/${post.id}`} className="lounge-card">
                     <div className="lounge-card-img" style={{ background: post.bg }}>

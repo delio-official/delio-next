@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
+import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/event.css';
 
 interface Event {
@@ -129,11 +130,7 @@ export default function EventClient() {
         </div>
 
         {loading ? (
-          <div className="event-grid">
-            {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="event-card-skeleton" />
-            ))}
-          </div>
+          <Spinner />
         ) : filtered.length === 0 ? (
           <ComingSoon
             title={filter === 'ongoing' ? '이벤트 준비중입니다.' : '종료된 이벤트가 없습니다.'}

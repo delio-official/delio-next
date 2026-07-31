@@ -12,6 +12,7 @@ import { loadTabsFor, type FilterTab } from '@/lib/filterTabs';
 import { PRODUCT_PUBLIC_COLS_STOCK, withSoldout } from '@/lib/productCols';
 import '@/styles/category.css';
 import { SingleStar } from '@/components/StarRating';
+import Spinner from '@/components/Spinner/Spinner';
 
 /* ── 타입 ── */
 interface Product {
@@ -398,7 +399,7 @@ export default function CategoryClient() {
               <>
                 <div className="product-grid">
                   {products.length === 0
-                    ? (loading ? null : <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#999' }}>상품이 없습니다.</p>)
+                    ? (loading ? <div style={{ gridColumn: '1/-1' }}><Spinner minHeight={220} /></div> : <p style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 0', color: '#999' }}>상품이 없습니다.</p>)
                     : paged.map(p => <ProductCard key={p.id} p={p} />)
                   }
                 </div>

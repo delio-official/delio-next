@@ -9,6 +9,7 @@ import { PRODUCT_PUBLIC_COLS_STOCK, withSoldout } from '@/lib/productCols';
 import { openOptionDrawer } from '@/lib/cart';
 import { isWishlisted, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
+import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/category.css';
 import '@/styles/search.css';
 import { SingleStar } from '@/components/StarRating';
@@ -454,11 +455,7 @@ export default function SearchClient() {
 
           {/* 상품 그리드 */}
           {loading ? (
-            <div className="result-grid">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} style={{ aspectRatio: '0.8', background: '#F0F0EE', borderRadius: 12, animation: 'skeleton-pulse 1.2s ease-in-out infinite alternate' }} />
-              ))}
-            </div>
+            <Spinner />
           ) : products.length === 0 ? (
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'70px 0' }}>
               <div style={{ width:48, height:48, borderRadius:'50%', border:'1.5px solid #D8D8D8',

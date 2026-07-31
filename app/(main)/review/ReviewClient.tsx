@@ -8,6 +8,7 @@ import { SellerReply } from '@/components/SellerReply';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
+import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/review.css';
 
 interface Review {
@@ -137,11 +138,7 @@ export default function ReviewClient() {
             </div>
 
             {loading ? (
-              <div style={{ display: 'flex', gap: 6 }}>
-                {Array(8).fill(0).map((_, i) => (
-                  <div key={i} style={{ width: 120, height: 120, borderRadius: 8, background: '#F0F0EE', flexShrink: 0 }} />
-                ))}
-              </div>
+              <Spinner minHeight={140} />
             ) : photoReviews.length === 0 ? (
               <p style={{ color: '#bbb', fontSize: 13 }}>포토 리뷰가 없습니다.</p>
             ) : (
@@ -174,7 +171,7 @@ export default function ReviewClient() {
             </div>
 
             {loading ? (
-              <p style={{ textAlign: 'center', color: '#999', padding: '40px 0' }}>불러오는 중...</p>
+              <Spinner />
             ) : textReviews.length === 0 ? (
               <ComingSoon
                 compact

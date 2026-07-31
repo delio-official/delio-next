@@ -3,6 +3,14 @@
       background: #fff;
     }
 
+    /* 공용 로딩 스피너 (스켈레톤 대체) */
+    .delio-spinner {
+      width: 34px; height: 34px;
+      border: 3px solid #ECECEC; border-top-color: #1A1A1A;
+      border-radius: 50%; animation: delioSpin .7s linear infinite;
+    }
+    @keyframes delioSpin { to { transform: rotate(360deg); } }
+
 
     /* 그리팅 히어로 텍스트 */
     .hero-text {

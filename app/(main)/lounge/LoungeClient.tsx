@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
+import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/review.css';
 
 /* 작성일 표시: ISO datetime → "2026.05.30 14:30", 그 외(레거시 문자열)는 그대로 */
@@ -102,7 +103,7 @@ export default function LoungeClient() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: '#bbb' }}>불러오는 중...</div>
+          <Spinner />
         ) : filtered.length === 0 ? (
           <ComingSoon
             title="콘텐츠 준비중입니다."

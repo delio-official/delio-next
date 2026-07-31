@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import { FarmCard } from '@/components/FarmCard';
+import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/index.css';
 
 interface Farm {
@@ -54,17 +55,7 @@ export default function FarmsClient() {
       <section style={{ paddingTop: 28 }}>
         <div className="container">
           {loading ? (
-            <div className="farms-grid">
-              {[0,1,2,3].map(i => (
-                <div key={i} style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid #F0F0EE', opacity: 0.4 }}>
-                  <div style={{ aspectRatio: '4 / 5', background: '#E8E8E6' }} />
-                  <div style={{ padding: 20 }}>
-                    <div style={{ height: 18, background: '#E8E8E6', borderRadius: 4, marginBottom: 10, width: '60%' }} />
-                    <div style={{ height: 13, background: '#E8E8E6', borderRadius: 4 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Spinner />
           ) : farms.length === 0 ? (
             <ComingSoon
               title="파트너 농가를 준비중입니다."
