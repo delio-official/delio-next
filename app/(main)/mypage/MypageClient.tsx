@@ -4129,7 +4129,7 @@ export default function MypageClient() {
                             cursor: (csLoading||csUploading)?'default':'pointer',
                             opacity: (csLoading||csUploading)?0.7:1,
                             fontFamily:'inherit' }}>
-                          {csUploading ? '📤 파일 업로드 중...' : csLoading ? '등록 중...' : '문의 등록하기'}
+                          {csUploading ? '파일 업로드 중...' : csLoading ? '등록 중...' : '문의 등록하기'}
                         </button>
                       </form>
                     )}
@@ -4238,7 +4238,7 @@ export default function MypageClient() {
                 <div style={{ background:'#F7F7F5', borderRadius:10, padding:'14px 16px',
                   fontSize:12, color:'#888', lineHeight:2 }}>
                   평일 09:00~18:00 운영 (점심 12:00~13:00 제외)<br/>
-                  주말·공휴일 휴무 · 영업일 기준 1~2일 이내 답변
+                  주말·공휴일 휴무
                 </div>
                 </>
                 )}
