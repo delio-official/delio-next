@@ -132,7 +132,7 @@ type PanelKey = 'dashboard'|'orders'|'products'|'menu'|'farms'|'reviews'|'coupon
 
 /* 네비 그룹 접기/펼치기용 — 각 패널이 속한 섹션(활성 패널 포함 그룹 자동 펼침) */
 const PANEL_GROUP: Record<string, string> = {
-  dashboard:'운영', orders:'운영', products:'운영', menu:'운영', homesections:'운영', farms:'운영', reviews:'운영',
+  orders:'운영', products:'운영', menu:'운영', homesections:'운영', farms:'운영', reviews:'운영',
   cs:'고객지원', productinquiry:'고객지원', refund:'고객지원', inquiry:'고객지원', faq:'고객지원',
   members:'회원', referral:'회원', sms:'회원',
   coupon:'마케팅', banner:'마케팅', events:'마케팅', lounge:'마케팅', tasteprofile:'마케팅', analytics:'마케팅',
@@ -8496,8 +8496,11 @@ export default function AdminClient() {
             <div><div className="adm-logo-sub" style={{ marginTop:2 }}>Admin Console</div></div>
           </div>
           <nav className="adm-nav">
-            <NavGroup label="운영">
+            {/* 대시보드 — 그룹 밖 최상단 단독 */}
+            <div style={{ marginBottom:6 }}>
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
+            </div>
+            <NavGroup label="운영">
               <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
