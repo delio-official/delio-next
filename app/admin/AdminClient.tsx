@@ -3158,12 +3158,12 @@ export default function AdminClient() {
     /* 조회 기준(주문일/결제일) + 기간 필터 */
     if (from) query = query.gte(basis, new Date(`${from}T00:00:00`).toISOString());
     if (to)   query = query.lte(basis, new Date(`${to}T23:59:59`).toISOString());
-    /* 무통장 미입금 주문(입금대기 pending · 입금기한 만료 expired · 미입금 취소 cancelled)은 paid_at이 없어
-       위 조회에서 빠짐 → created_at 기준으로 별도 합류. (미입금 취소는 돈이 안 움직였으므로 주문관리에서 처리) */
+    /* paid_at이 비어있는 모든 주문(입금대기·만료·미입금취소 + 무통장 입금확인 시 결제일 미기록 등)은
+       결제일 기준 조회에서 빠지므로 created_at 기준으로 별도 합류(위에서 id로 중복 제거). */
     let unpaidQ = supabase
       .from('orders')
       .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
-      .or('status.in.(pending,expired),and(status.eq.cancelled,paid_at.is.null)')
+      .is('paid_at', null)
       .order('created_at', { ascending: false })
       .limit(500);
     if (from) unpaidQ = unpaidQ.gte('created_at', new Date(`${from}T00:00:00`).toISOString());
@@ -5817,7 +5817,13 @@ export default function AdminClient() {
     const supabase = createClient();
     const { error } = await supabase.from('orders').update({ status: 'preparing' }).in('id', ids);
     if (error) { alert('변경 실패: ' + error.message); return; }
-    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: 'preparing' } : o));
+    /* 무통장 미입금이었던 주문은 배송준비 = 입금확인 시점이므로 결제일(paid_at) 기록(비어있는 건만) */
+    const nowIso = new Date().toISOString();
+    const stampIds = orders.filter(o => ids.includes(o.id) && !(o as { paid_at?: string|null }).paid_at).map(o => o.id);
+    if (stampIds.length) await supabase.from('orders').update({ paid_at: nowIso }).in('id', stampIds);
+    setOrders(prev => prev.map(o => ids.includes(o.id)
+      ? { ...o, status: 'preparing', ...(!(o as { paid_at?: string|null }).paid_at ? { paid_at: nowIso } : {}) }
+      : o));
     refreshStageCounts();
     setSelOrders(new Set());
     alert(`${ids.length}건을 배송준비로 변경했습니다.`);
