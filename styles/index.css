@@ -1101,28 +1101,28 @@
     @media(max-width:900px) { .farms-grid { grid-template-columns: repeat(2, 1fr); } }
     @media(max-width:480px) { .farms-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
 
-    .lounge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 36px; }
-    @media(max-width:900px) { .lounge-grid { grid-template-columns: repeat(2, 1fr); } }
-    /* 모바일: 온브릭스 스토리식 가로 스크롤 카드 */
+    .lounge-section .lounge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 36px; }
+    @media(max-width:900px) { .lounge-section .lounge-grid { grid-template-columns: repeat(2, 1fr); } }
+    /* 모바일: 홈 라운지 섹션만 온브릭스 스토리식 가로 스크롤 (/lounge 전체보기는 review.css 세로 그리드 유지) */
     @media(max-width:768px) {
-      .lounge-grid {
+      .lounge-section .lounge-grid {
         display: flex !important; grid-template-columns: none !important;
         overflow-x: auto; scrollbar-width: none; gap: 12px;
         margin: 0 -16px 24px; padding: 0 16px;
       }
-      .lounge-grid::-webkit-scrollbar { display: none; }
-      /* 카드형: 위 각짐 + 아래 둥근 모서리 */
-      .lounge-card {
+      .lounge-section .lounge-grid::-webkit-scrollbar { display: none; }
+      /* 카드형: 상·하 모두 둥근 모서리 (홈 라운지 섹션 전용) */
+      .lounge-section .lounge-card {
         flex: 0 0 auto; width: 62vw; max-width: 280px;
         background: #fff; border: 1px solid #EEEEEC;
-        border-radius: 0 0 14px 14px; overflow: hidden;
+        border-radius: 14px; overflow: hidden;
         box-shadow: 0 2px 10px rgba(0,0,0,.05);
       }
-      .lounge-card:hover { transform: none; }
-      .lounge-card-img { aspect-ratio: 1.6/1; margin-bottom: 0; font-size: 60px; border-radius: 0 !important; }
-      .lounge-section .lounge-card-meta { gap: 7px; margin: 10px 12px 5px; }
+      .lounge-section .lounge-card:hover { transform: none; }
+      .lounge-section .lounge-card-img { aspect-ratio: 1.6/1; margin-bottom: 0; font-size: 60px; border-radius: 0 !important; }
+      .lounge-section .lounge-card-meta { gap: 7px; margin: 10px 12px 2px; }
       .lounge-section .lounge-card-cat, .lounge-section .lounge-card-sub { font-size: 12px; }
-      .lounge-section .lounge-card-title { font-size: 17px; margin: 0 12px 12px; text-align: left; }
+      .lounge-section .lounge-card-title { font-size: 15.5px; margin: 0 12px 12px; text-align: left; }
     }
     .lounge-card { cursor: pointer; text-decoration: none; color: inherit; display: block; transition: transform .18s; }
     .lounge-card:hover { transform: translateY(-3px); }

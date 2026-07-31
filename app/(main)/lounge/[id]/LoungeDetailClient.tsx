@@ -83,7 +83,7 @@ export default function LoungeDetailClient() {
         </span>
 
         {/* 제목 */}
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12, lineHeight: 1.4 }}>
+        <h1 style={{ fontSize: 'clamp(21px, 4.5vw, 26px)', fontWeight: 800, marginBottom: 12, lineHeight: 1.4 }}>
           {post.title}
         </h1>
         <div style={{ fontSize: 13, color: '#aaa', marginBottom: 32 }}>{fmtLoungeDate(post.date)}</div>
