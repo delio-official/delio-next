@@ -16,7 +16,7 @@ const SECTIONS = [
       },
       {
         label: '자사배송',
-        desc: '델리오 물류센터에서 출발하는 배송입니다. 당일 오후 2시 이전 주문 시 익일 배송됩니다.',
+        desc: '델리오 물류센터에서 출발하는 배송입니다. 오전 11시 이전 결제 완료 시 당일 배송됩니다.',
         badge: '자사배송',
         badgeColor: '#1565C0',
         badgeBg: '#E3F2FD',
@@ -36,7 +36,7 @@ const SECTIONS = [
     icon: '📅',
     title: '배송 일정',
     items: [
-      { label: '주문 마감', desc: '평일 오후 2시 이전 주문 → 당일 출발 (영업일 기준)' },
+      { label: '주문 마감', desc: '평일 오전 11시 이전 결제 완료 → 당일 출발 (영업일 기준)' },
       { label: '평균 배송일', desc: '출발 후 1~2일 이내 도착 (산지직송은 1~3일 소요)' },
       { label: '최대 배송기간', desc: '결제 완료 후 최대 5일 이내(주말·공휴일 등 비영업일 포함) 배송이 완료됩니다.' },
       { label: '주말·공휴일', desc: '주말 및 공휴일에는 출고가 불가합니다. 익일 영업일에 처리됩니다.' },
@@ -84,7 +84,7 @@ export default function ShippingClient() {
           display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 40,
         }}>
           {[
-            { icon: '⚡', label: '최단 배송', value: '익일 도착' },
+            { icon: '⚡', label: '최단 배송', value: '당일 도착' },
             { icon: '🎁', label: '무료배송', value: '5만원 이상' },
             { icon: '📞', label: '고객센터', value: '평일 09~18시 (점심 12~13시 제외)' },
           ].map(c => (
