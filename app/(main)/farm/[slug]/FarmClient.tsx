@@ -22,7 +22,6 @@ interface Farm {
   founded_year: number | null; altitude: string | null;
   annual_output: string | null;
 }
-interface Certification { id: string; name: string; issued_by: string | null; issued_date: string | null; }
 interface GalleryItem { id: string; image_url: string; caption: string | null; sort_order: number; }
 interface Product {
   id: string; name: string; price: number; discount_rate: number;
@@ -164,7 +163,6 @@ export default function FarmClient() {
   const [farm, setFarm] = useState<Farm | null>(null);
   const [farmWished, setFarmWished] = useState(false);
   const [farmWishCount, setFarmWishCount] = useState(0);
-  const [certs, setCerts] = useState<Certification[]>([]);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,13 +211,11 @@ export default function FarmClient() {
       setFarm(farmData as Farm);
       try { supabase.rpc('bump_farm_view', { p_id: farmData.id }); } catch { /* noop */ }
 
-      const [{ data: certData }, { data: gallData }, { data: prodData }] = await Promise.all([
-        supabase.from('farm_certifications').select('*').eq('farm_id', farmData.id).order('sort_order'),
+      const [{ data: gallData }, { data: prodData }] = await Promise.all([
         supabase.from('farm_gallery').select('*').eq('farm_id', farmData.id).order('sort_order'),
         supabase.from('products').select(PRODUCT_PUBLIC_COLS_STOCK + ', sort_order, created_at, sales_count, sweet_sort, sour_sort').eq('farm_id', farmData.id).eq('is_active', true).order('sort_order').limit(60),
       ]);
 
-      setCerts((certData as Certification[]) || []);
       setGallery((gallData as GalleryItem[]) || []);
       setProducts(((prodData as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as Product[]);
       setLoading(false);
@@ -324,39 +320,6 @@ export default function FarmClient() {
         </div>
       )}
 
-      {/* ── 농가 정보 요약 (표시할 값이 있을 때만 — 빈 회색 띠 방지) ── */}
-      {(farm.founded_year || farm.altitude || farm.annual_output || certs.length > 0) && (
-      <div style={{ background:'#F7F7F5', borderBottom:'1px solid #EBEBEB' }}>
-        <div className="container" style={{ padding:'20px 0' }}>
-          <div style={{ display:'flex', gap:24, flexWrap:'wrap' }}>
-            {farm.founded_year && (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:20, fontWeight:800 }}>{new Date().getFullYear() - farm.founded_year}년</div>
-                <div style={{ fontSize:12, color:'#888' }}>재배 경력</div>
-              </div>
-            )}
-            {farm.altitude && (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:20, fontWeight:800 }}>{farm.altitude}</div>
-                <div style={{ fontSize:12, color:'#888' }}>재배 고도</div>
-              </div>
-            )}
-            {farm.annual_output && (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:20, fontWeight:800 }}>{farm.annual_output}</div>
-                <div style={{ fontSize:12, color:'#888' }}>연간 생산량</div>
-              </div>
-            )}
-            {certs.length > 0 && (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ fontSize:20, fontWeight:800 }}>{certs.length}종</div>
-                <div style={{ fontSize:12, color:'#888' }}>보유 인증</div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-      )}
 
       <div className="container" style={{ paddingTop:32, paddingBottom:80 }}>
 
@@ -374,30 +337,6 @@ export default function FarmClient() {
             <p style={{ fontSize:15, lineHeight:1.9, color:'#444', whiteSpace:'pre-line' }}>
               {farm.story}
             </p>
-          </section>
-        )}
-
-        {/* ── 인증 ── */}
-        {certs.length > 0 && (
-          <section style={{ marginBottom:40 }}>
-            <h2 style={{ fontSize:20, fontWeight:700, marginBottom:16, borderLeft:'3px solid #1A1A1A', paddingLeft:12 }}>
-              품질 인증
-            </h2>
-            <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
-              {certs.map(c => (
-                <div key={c.id} style={{
-                  display:'flex', alignItems:'center', gap:10,
-                  background:'#F0FAF3', border:'1px solid #B2DFCC',
-                  borderRadius:10, padding:'10px 16px',
-                }}>
-                  <span style={{ fontSize:22 }}>✅</span>
-                  <div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'#1B5E20' }}>{c.name}</div>
-                    {c.issued_by && <div style={{ fontSize:12, color:'#555' }}>{c.issued_by}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
           </section>
         )}
 
