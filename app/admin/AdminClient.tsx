@@ -8683,7 +8683,7 @@ export default function AdminClient() {
 
               <div className="adm-card" style={{ marginBottom:24 }}>
                 <div className="adm-card-head"><span className="adm-card-title">매출 · 주문</span></div>
-                <div className="adm-kpi-grid adm-kpi-5" style={{ padding:'16px 18px' }}>
+                <div className="adm-kpi-grid adm-kpi-5 adm-kpi-grid-flat">
                 {statsLoading ? (
                   Array(5).fill(0).map((_, i) => (
                     <div key={i} className="adm-kpi-card">
@@ -8718,7 +8718,7 @@ export default function AdminClient() {
               {/* 회원 현황 (전월 대비) */}
               <div className="adm-card" style={{ marginBottom:24 }}>
                 <div className="adm-card-head"><span className="adm-card-title">회원 현황</span></div>
-                <div className="adm-kpi-grid adm-kpi-5" style={{ padding:'16px 18px' }}>
+                <div className="adm-kpi-grid adm-kpi-5 adm-kpi-grid-flat">
                 {!memberDash ? (
                   Array(5).fill(0).map((_, i) => (
                     <div key={i} className="adm-kpi-card"><div className="adm-kpi-label">-</div><div className="adm-kpi-value" style={{ color:'#CBD5E1' }}>불러오는 중...</div></div>
