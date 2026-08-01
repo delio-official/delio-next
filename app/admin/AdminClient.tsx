@@ -146,6 +146,8 @@ interface DashboardStats {
   monthOrders: number;
   todayOrders: number;
   totalMembers: number;
+  unpaidCount: number;
+  unpaidAmount: number;
 }
 
 interface OrderItem {
@@ -2965,13 +2967,17 @@ export default function AdminClient() {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
 
-    const [ordersRes, membersRes, ...stageRes] = await Promise.all([
+    const [ordersRes, membersRes, unpaidRes, ...stageRes] = await Promise.all([
       supabase.from('orders').select('final_amount, created_at').gte('created_at', monthStart).in('status', VALID_ORDER_STATUS),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('orders').select('final_amount').eq('status', 'pending'),   // 무통장 미입금(입금대기)
       ...ORDER_STAGES.map(st =>
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', st.key)
       ),
     ]);
+    const unpaidOrders = (unpaidRes.data || []) as { final_amount: number }[];
+    const unpaidCount = unpaidOrders.length;
+    const unpaidAmount = unpaidOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
 
     /* 단계별 실시간 건수 */
     const counts: Record<string, number> = {};
@@ -3020,6 +3026,8 @@ export default function AdminClient() {
       monthOrders,
       todayOrders: todayOrders.length,
       totalMembers: membersRes.count || 0,
+      unpaidCount,
+      unpaidAmount,
     });
 
     // ── 매출 추이 차트 (주간=이번주 월~일 / 월간=이번달 1~말일) ──
@@ -8727,9 +8735,9 @@ export default function AdminClient() {
                   { label:'금일 신규 주문', val: stats ? `${stats.todayOrders}건` : '-', kpiCls:'kpi-purple',
                     onClick: () => { pendingOrderDate.current = { from: today, to: today }; go('orders'); },
                     icon:<Icon.Orders /> },
-                  { label:'전체 회원수', val: stats ? `${stats.totalMembers.toLocaleString()}명` : '-', kpiCls:'kpi-green',
-                    onClick: () => go('members'),
-                    icon:<Icon.Members /> },
+                  { label:'무통장 미입금', val: stats ? `${stats.unpaidCount}건` : '-', kpiCls:'kpi-orange',
+                    onClick: () => { pendingOrderStatus.current = 'pending'; go('orders'); },
+                    icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> },
                 ].map(k => (
                   <div key={k.label} className="adm-kpi-card" style={{ cursor: 'pointer' }}
                     onClick={k.onClick}>
