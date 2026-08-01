@@ -5980,7 +5980,7 @@ export default function AdminClient() {
     for (let i = 0; i < missingNos.length; i += 300) {
       const chunk = missingNos.slice(i, i + 300);
       const { data } = await supabase.from('orders')
-        .select('id, order_no, phone, orderer_phone, recipient, status, order_items(product_name)')
+        .select('id, order_no, phone, orderer_phone, recipient, status, order_items(id, product_name)')
         .in('order_no', chunk);
       (data || []).forEach((o: Record<string, unknown>) => { fetchedByNo[o.order_no as string] = o as unknown as Order; });
     }
@@ -5989,8 +5989,20 @@ export default function AdminClient() {
       const o = loadedByNo[p.orderNo] || fetchedByNo[p.orderNo];
       if (!o) { miss++; continue; }
       if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
+      const nowIso = new Date().toISOString();
+      const itemIds = (o.order_items || []).map(i => i.id).filter((id): id is string => !!id);
+      /* 주문 단위(상세용 대표 송장·상태) + 상품 항목 단위(목록이 읽는 곳) 양쪽에 기록 */
       await supabase.from('orders').update({ courier: p.courier, tracking_number: p.tracking, status: 'shipped' }).eq('id', o.id);
-      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped' } : x));
+      if (itemIds.length) {
+        await supabase.from('order_items')
+          .update({ courier: p.courier, tracking_number: p.tracking, ship_status: 'shipped', shipped_at: nowIso })
+          .in('id', itemIds);
+      }
+      const idSet = new Set(itemIds);
+      setOrders(prev => prev.map(x => x.id === o.id ? {
+        ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped',
+        order_items: (x.order_items || []).map(i => (i.id && idSet.has(i.id)) ? { ...i, courier: p.courier, tracking_number: p.tracking, ship_status: 'shipped' } : i),
+      } : x));
       notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[p.courier] || p.courier, trackingNumber: p.tracking });
       fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: p.courier, trackingNumber: p.tracking }) }).catch(() => {});
       done++;
