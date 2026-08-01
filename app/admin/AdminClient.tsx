@@ -9070,7 +9070,7 @@ export default function AdminClient() {
                           </th>
                           <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'9%' }}>수령인</th>
                           <th style={{ width:'21%' }}><span style={{ display:'inline-block', width:180, maxWidth:'100%', textAlign:'center' }}>상품</span></th>
-                          <th style={{ width:'11%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'16%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
+                          <th style={{ width:'14%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'15%' }}>송장번호</th><th style={{ width:'8%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -9144,12 +9144,14 @@ export default function AdminClient() {
                                 </div>
                               </td>
 
-                              {/* 금액 — 총 결제액(주문 1회) + 결제수단 뱃지 */}
+                              {/* 금액 — 총 결제액(주문 1회) + 결제수단 뱃지 (좌우 배치) */}
                               {gi === 0 && (
                                 <td rowSpan={n} style={{ fontWeight:700 }}>
-                                  <div>{fmtPrice(o.final_amount)}원</div>
-                                  {(o as { payment_method?: string | null }).payment_method &&
-                                    <div style={{ marginTop:5 }}><PayBadge method={(o as { payment_method?: string }).payment_method || ''} /></div>}
+                                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                                    <span>{fmtPrice(o.final_amount)}원</span>
+                                    {(o as { payment_method?: string | null }).payment_method &&
+                                      <PayBadge method={(o as { payment_method?: string }).payment_method || ''} />}
+                                  </div>
                                 </td>
                               )}
 
