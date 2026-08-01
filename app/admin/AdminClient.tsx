@@ -8923,6 +8923,9 @@ export default function AdminClient() {
                         setOrderFrom(fromS); setOrderTo(toS); loadOrders({ from: fromS, to: toS });
                       }}>{label}</button>
                     ))}
+                    <button className="adm-seg-btn" onClick={() => {
+                      setOrderFrom(''); setOrderTo(''); loadOrders({ from: '', to: '' });
+                    }}>전체</button>
                   </div>
                   <input type="date" className="adm-select" value={orderFrom} onChange={e => setOrderFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
