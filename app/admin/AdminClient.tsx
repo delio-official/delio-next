@@ -5949,14 +5949,15 @@ export default function AdminClient() {
     const wb = XLSX.read(buf, { type: 'array' });
     const nameToCode: Record<string, string> = {};
     Object.entries(COURIER_NAMES).forEach(([code, nm]) => { nameToCode[nm] = code; });
-    type P = { orderNo: string; courier: string; tracking: string };
-    const byNo: Record<string, P> = {};
+    /* 엑셀 한 줄 = (주문번호 + 브랜드) 단위. 브랜드 열이 있으면 농가별 송장 각각, 없으면(구양식) 주문 전체 */
+    type P = { orderNo: string; brand: string; courier: string; tracking: string };
+    const byKey: Record<string, P> = {};
     wb.SheetNames.forEach(sn => {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 }) as unknown[][];
       const hi = rows.findIndex(r => (r || []).some(c => String(c).trim() === '주문번호'));
       if (hi < 0) return;
       const hdr = (rows[hi] || []).map(c => String(c || '').trim());
-      const iNo = hdr.indexOf('주문번호'), iCr = hdr.indexOf('택배사');
+      const iNo = hdr.indexOf('주문번호'), iCr = hdr.indexOf('택배사'), iBrand = hdr.indexOf('브랜드');
       const iTk = hdr.findIndex(h => h === '운송장번호' || h === '송장번호');
       if (iNo < 0 || iTk < 0) return;
       for (let r = hi + 1; r < rows.length; r++) {
@@ -5965,51 +5966,94 @@ export default function AdminClient() {
         const tracking = String(row[iTk] || '').replace(/[^0-9]/g, '').trim();
         if (!orderNo || !tracking) continue;
         const courierName = iCr >= 0 ? String(row[iCr] || '').trim() : '';
-        byNo[orderNo] = { orderNo, courier: nameToCode[courierName] || 'kr.cjlogistics', tracking };
+        const brand = iBrand >= 0 ? String(row[iBrand] || '').trim() : '';
+        byKey[`${orderNo}::${brand}`] = { orderNo, brand, courier: nameToCode[courierName] || 'kr.cjlogistics', tracking };
       }
     });
-    const list = Object.values(byNo);
+    const list = Object.values(byKey);
     if (list.length === 0) { alert('엑셀에서 주문번호·운송장번호를 찾지 못했습니다.\n주문서(배송용)를 내려받아 택배사·운송장번호를 채운 뒤 올려주세요.'); return; }
-    if (!confirm(`엑셀에서 ${list.length}건을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?`)) return;
+    if (!confirm(`엑셀에서 ${list.length}건(농가 기준)을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?`)) return;
     const supabase = createClient();
-    // 현재 조회 기간 밖 주문도 매칭되도록, 화면에 없는 주문번호는 서버에서 직접 조회
+
+    /* 주문번호별로 농가 항목 묶기 */
+    const byOrder = new Map<string, P[]>();
+    list.forEach(p => { const a = byOrder.get(p.orderNo) || []; a.push(p); byOrder.set(p.orderNo, a); });
+
+    /* 현재 조회 기간 밖 주문도 매칭되도록, 화면에 없는 주문번호는 서버에서 농가정보 포함 조회 */
     const loadedByNo: Record<string, Order> = {};
     orders.forEach(o => { if (o.order_no) loadedByNo[o.order_no] = o; });
-    const missingNos = list.map(p => p.orderNo).filter(no => !loadedByNo[no]);
+    const missingNos = Array.from(byOrder.keys()).filter(no => !loadedByNo[no]);
     const fetchedByNo: Record<string, Order> = {};
     for (let i = 0; i < missingNos.length; i += 300) {
       const chunk = missingNos.slice(i, i + 300);
       const { data } = await supabase.from('orders')
-        .select('id, order_no, phone, orderer_phone, recipient, status, order_items(id, product_name)')
+        .select('id, order_no, phone, orderer_phone, orderer_name, recipient, status, order_items(id, product_name, farm_id, products(farm_id, farms(name)))')
         .in('order_no', chunk);
-      (data || []).forEach((o: Record<string, unknown>) => { fetchedByNo[o.order_no as string] = o as unknown as Order; });
+      (data || []).forEach((o: Record<string, unknown>) => {
+        const items = ((o.order_items as Record<string, unknown>[]) || []).map(it => {
+          const prod = it.products as Record<string, unknown> | null;
+          const farm = prod?.farms as Record<string, unknown> | null;
+          return { ...it, farm_id: (it.farm_id as string) ?? prod?.farm_id ?? null, farm_name: farm?.name ?? null };
+        });
+        fetchedByNo[o.order_no as string] = { ...(o as unknown as Order), order_items: items as unknown as Order['order_items'] };
+      });
     }
-    let done = 0, miss = 0, skip = 0;
-    for (const p of list) {
-      const o = loadedByNo[p.orderNo] || fetchedByNo[p.orderNo];
+
+    const nowIso = new Date().toISOString();
+    let doneOrders = 0, doneFarms = 0, miss = 0, skip = 0;
+    for (const [orderNo, farmEntries] of Array.from(byOrder.entries())) {
+      const o = loadedByNo[orderNo] || fetchedByNo[orderNo];
       if (!o) { miss++; continue; }
       if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
-      const nowIso = new Date().toISOString();
-      const itemIds = (o.order_items || []).map(i => i.id).filter((id): id is string => !!id);
-      /* 주문 단위(상세용 대표 송장·상태) + 상품 항목 단위(목록이 읽는 곳) 양쪽에 기록 */
-      await supabase.from('orders').update({ courier: p.courier, tracking_number: p.tracking, status: 'shipped' }).eq('id', o.id);
-      if (itemIds.length) {
+      const allItems = o.order_items || [];
+      const matchFarm = (i: { farm_name?: string | null }, brand: string) => brand === '' || (i.farm_name || '농가 미지정') === brand;
+
+      /* 항목별 송장 계획 (item.id → {courier,tracking}) */
+      const plan = new Map<string, { courier: string; tracking: string }>();
+      farmEntries.forEach(fe => {
+        allItems.forEach(i => { if (i.id && matchFarm(i, fe.brand)) plan.set(i.id, { courier: fe.courier, tracking: fe.tracking }); });
+      });
+      if (plan.size === 0) { miss++; continue; }
+
+      /* 항목 단위(목록이 읽는 곳) 기록 */
+      for (const [itemId, v] of Array.from(plan.entries())) {
         await supabase.from('order_items')
-          .update({ courier: p.courier, tracking_number: p.tracking, ship_status: 'shipped', shipped_at: nowIso })
-          .in('id', itemIds);
+          .update({ courier: v.courier, tracking_number: v.tracking, ship_status: 'shipped', shipped_at: nowIso })
+          .eq('id', itemId);
       }
-      const idSet = new Set(itemIds);
-      setOrders(prev => prev.map(x => x.id === o.id ? {
-        ...x, courier: p.courier, tracking_number: p.tracking, status: 'shipped',
-        order_items: (x.order_items || []).map(i => (i.id && idSet.has(i.id)) ? { ...i, courier: p.courier, tracking_number: p.tracking, ship_status: 'shipped' } : i),
-      } : x));
-      notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[p.courier] || p.courier, trackingNumber: p.tracking });
-      fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: p.courier, trackingNumber: p.tracking }) }).catch(() => {});
-      done++;
+      const newItems = allItems.map(i => (i.id && plan.has(i.id))
+        ? { ...i, courier: plan.get(i.id)!.courier, tracking_number: plan.get(i.id)!.tracking, ship_status: 'shipped' } : i);
+
+      /* 주문 단위: 모든 상품에 송장 들어갔을 때만 배송중 / 전부 동일 송장이면 대표 송장 기록 */
+      const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
+      const newStatus = (allShipped && (o.status === 'paid' || o.status === 'preparing')) ? 'shipped' : o.status;
+      const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
+      const oneTrk = trks.length === 1 ? trks[0] as string : null;
+      const oneCourier = oneTrk ? (newItems.find(i => i.tracking_number === oneTrk)?.courier || null) : null;
+      const orderPatch: Record<string, unknown> = {};
+      if (newStatus !== o.status) orderPatch.status = newStatus;
+      if (oneTrk) { orderPatch.courier = oneCourier; orderPatch.tracking_number = oneTrk; }
+      if (Object.keys(orderPatch).length) await supabase.from('orders').update(orderPatch).eq('id', o.id);
+
+      /* 로컬 반영 */
+      setOrders(prev => prev.map(x => x.id === o.id
+        ? { ...x, ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : {}), status: newStatus, order_items: newItems }
+        : x));
+
+      /* 농가별 배송시작 알림톡 (이번에 처리된 농가마다 1회) + 추적 웹훅 */
+      farmEntries.forEach(fe => {
+        const fitems = newItems.filter(i => matchFarm(i, fe.brand));
+        const names = fitems.map(i => i.product_name).filter(Boolean) as string[];
+        const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
+        notifyOrderRoles(o, { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName, courierName: COURIER_NAMES[fe.courier] || fe.courier, trackingNumber: fe.tracking });
+        fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: fe.courier, trackingNumber: fe.tracking }) }).catch(() => {});
+        doneFarms++;
+      });
+      doneOrders++;
     }
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`엑셀 일괄 발송처리 완료: ${done}건 처리${skip ? `, ${skip}건 취소/환불건 제외` : ''}${miss ? `, ${miss}건 주문번호 매칭 실패` : ''}`);
+    alert(`엑셀 일괄 발송처리 완료: 주문 ${doneOrders}건 · 농가 송장 ${doneFarms}건 처리${skip ? `, ${skip}건 취소/환불 제외` : ''}${miss ? `, ${miss}건 매칭 실패` : ''}`);
   }
 
   /* ========== 라운지 노출 토글 ========== */
@@ -6609,9 +6653,9 @@ export default function AdminClient() {
         aoa.push([`${f.farmName} 주문서 (배송용)`, '', '', '', `지정 택배사: ${f.carrier}`]);
         aoa.push([`출력일: ${today0}`]);
         aoa.push([]);
-        aoa.push(['주문번호', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '배송메시지', '택배사', '운송장번호', '배송상태']);
-        rows.forEach(r => aoa.push([r.order_no, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.memo, r.courierName, r.tracking, r.shipStatus]));
-        cols = [{ wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 12 }];
+        aoa.push(['주문번호', '브랜드', '받는분', '연락처', '우편번호', '주소', '상품명', '옵션', '수량', '배송메시지', '택배사', '운송장번호', '배송상태']);
+        rows.forEach(r => aoa.push([r.order_no, r.farmName, r.recipient, r.phone, r.zipcode, r.address, r.product, r.option, r.qty, r.memo, r.courierName, r.tracking, r.shipStatus]));
+        cols = [{ wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 34 }, { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 12 }];
       } else {
         // 발주서(매입용) — 상품·수량·공급가만 (고객 개인정보 제외)
         aoa.push([`${f.farmName} 발주서 (매입용)`, '', '', `출력일: ${today0}`]);
