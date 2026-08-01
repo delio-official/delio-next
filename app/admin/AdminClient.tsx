@@ -9311,8 +9311,8 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         <tr>
-                          <th>상품명</th><th>브랜드</th><th>카테고리</th><th className="adm-num">정상가</th><th className="adm-num">판매가</th>
-                          <th>할인율</th><th>상태</th><th>관리</th>
+                          <th style={{ width:'23%' }}>상품명</th><th style={{ width:'12%' }}>브랜드</th><th style={{ width:'13%' }}>카테고리</th><th className="adm-num" style={{ width:'11%' }}>정상가</th><th className="adm-num" style={{ width:'11%' }}>판매가</th>
+                          <th style={{ width:'8%' }}>할인율</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'13%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
