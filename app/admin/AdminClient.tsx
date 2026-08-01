@@ -9056,9 +9056,9 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th style={{ width:'11%' }}>주문번호</th><th style={{ width:'11%' }}>주문일시</th><th style={{ width:'8%' }}>수령인</th>
-                          <th style={{ width:'27%' }}><span style={{ display:'inline-block', width:180, maxWidth:'100%', textAlign:'center' }}>상품</span></th>
-                          <th style={{ width:'10%' }}>금액</th><th style={{ width:'8%' }}>상태</th><th style={{ width:'15%' }}>송장번호</th><th style={{ width:'8%' }}>관리</th>
+                          <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'9%' }}>수령인</th>
+                          <th style={{ width:'21%' }}><span style={{ display:'inline-block', width:180, maxWidth:'100%', textAlign:'center' }}>상품</span></th>
+                          <th style={{ width:'11%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'16%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
