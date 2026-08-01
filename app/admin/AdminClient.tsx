@@ -8502,7 +8502,7 @@ export default function AdminClient() {
                           <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} style={{ minWidth:140 }} options={COURIER_OPTIONS} />
                           <input placeholder="운송장번호" value={cur.tracking_number}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
-                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:'var(--radius)', fontSize:13, fontFamily:'inherit', outline:'none' }} />
                           <button onClick={() => saveItemTracking(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
                             className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
                             {savingTracking ? '저장 중...' : '저장'}
@@ -9171,14 +9171,14 @@ export default function AdminClient() {
                                   <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                                     <select value={editing ? trackEditCourier : g.courier} disabled={saving}
                                       onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditVal(g.tracking); } setTrackEditCourier(e.target.value); }}
-                                      style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
+                                      style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
                                       {COURIER_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                                     </select>
                                     <input value={editing ? trackEditVal : ''} disabled={saving}
                                       onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditCourier(g.courier); } setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
                                       placeholder="송장번호" inputMode="numeric"
-                                      style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:12, outline:'none', fontFamily:'inherit' }} />
-                                    <button className="adm-row-btn" disabled={saving || itemIds.length === 0}
+                                      style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit' }} />
+                                    <button className="adm-row-btn" style={{ borderRadius:0, height:28 }} disabled={saving || itemIds.length === 0}
                                       onClick={() => { if (!(editing ? trackEditVal : '').trim()) { alert('송장번호를 입력하세요.'); return; } saveItemTracking(o, itemIds, editing ? trackEditCourier : g.courier, editing ? trackEditVal : ''); setTrackEditRow(null); }}>
                                       {saving ? '저장 중' : '저장'}
                                     </button>
