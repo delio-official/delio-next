@@ -19,6 +19,7 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [images,    setImages]    = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const rowDragIdx = useRef<number | null>(null);
 
   /* ── 로드 ── */
   useEffect(() => {
@@ -105,12 +106,12 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
   }
 
   /* ── 순서 이동 ── */
-  function moveImage(i: number, dir: -1 | 1) {
+  function reorderImage(from: number, to: number) {
     setImages(prev => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
       const next = [...prev];
-      const target = i + dir;
-      if (target < 0 || target >= next.length) return next;
-      [next[i], next[target]] = [next[target], next[i]];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
       return next;
     });
   }
@@ -140,8 +141,7 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', borderBottom: '1px solid #EBEBEB', flexShrink: 0 }}>
           <div>
-            <span style={{ fontSize: 15, fontWeight: 700 }}>상세설명 이미지 관리</span>
-            <span style={{ fontSize: 12, color: '#999', marginLeft: 10 }}>{productName}</span>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>상세페이지 관리</span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -215,12 +215,21 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#555', marginBottom: 4 }}>
-                    이미지 순서 ({images.length}장) — 위에서 아래 순서로 표시됩니다
+                    이미지 순서 ({images.length}장) — 드래그로 순서 변경 · 위에서 아래 순서로 표시됩니다
                   </div>
                   {images.map((url, i) => (
-                    <div key={url + i} style={{ display: 'flex', alignItems: 'center',
+                    <div key={url + i}
+                      draggable
+                      onDragStart={() => { rowDragIdx.current = i; }}
+                      onDragOver={e => { if (rowDragIdx.current !== null) e.preventDefault(); }}
+                      onDrop={e => { e.preventDefault(); const from = rowDragIdx.current; rowDragIdx.current = null; if (from !== null) reorderImage(from, i); }}
+                      onDragEnd={() => { rowDragIdx.current = null; }}
+                      style={{ display: 'flex', alignItems: 'center',
                       gap: 12, background: '#F8F8F8', borderRadius: 10,
-                      padding: '10px 14px', border: '1px solid #EBEBEB' }}>
+                      padding: '10px 14px', border: '1px solid #EBEBEB', cursor: 'grab' }}>
+
+                      {/* 드래그 핸들 */}
+                      <span style={{ flexShrink: 0, color: '#CBD5E1', fontSize: 16, lineHeight: 1 }}>⠿</span>
 
                       {/* 썸네일 */}
                       <img
@@ -235,26 +244,6 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {url.split('/').pop()}
                       </span>
-
-                      {/* 순서 버튼 */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
-                        <button
-                          onClick={() => moveImage(i, -1)}
-                          disabled={i === 0}
-                          style={{ width: 24, height: 22, border: '1px solid #DDD', borderRadius: 4,
-                            background: '#fff', cursor: i === 0 ? 'not-allowed' : 'pointer',
-                            fontSize: 11, color: '#555', opacity: i === 0 ? 0.3 : 1, lineHeight: 1 }}>
-                          ▲
-                        </button>
-                        <button
-                          onClick={() => moveImage(i, 1)}
-                          disabled={i === images.length - 1}
-                          style={{ width: 24, height: 22, border: '1px solid #DDD', borderRadius: 4,
-                            background: '#fff', cursor: i === images.length - 1 ? 'not-allowed' : 'pointer',
-                            fontSize: 11, color: '#555', opacity: i === images.length - 1 ? 0.3 : 1, lineHeight: 1 }}>
-                          ▼
-                        </button>
-                      </div>
 
                       {/* 삭제 버튼 */}
                       <button

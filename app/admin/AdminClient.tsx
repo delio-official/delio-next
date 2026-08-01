@@ -7269,7 +7269,7 @@ export default function AdminClient() {
                               <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
                             </svg>
                             <span style={{ fontSize:13, fontWeight:700, color:'#64748B' }}>
-                              <span style={{ color:'#F97316' }}>{imgs.length}</span>/6
+                              <span style={{ color:'#2563EB' }}>{imgs.length}</span>/6
                             </span>
                           </button>
                         )}
@@ -7305,7 +7305,7 @@ export default function AdminClient() {
                       </div>
                     );
                   })()}
-                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>사진을 <b>끌어서 순서 변경</b> · 첫 번째(맨 왼쪽)가 대표 이미지 · 여러 장 한 번에 선택 가능</p>
+                  <p style={{ fontSize:11, color:'#94A3B8', marginTop:6 }}>첫 번째(맨 왼쪽)가 대표 이미지 · 여러 장 한 번에 선택 가능</p>
                   {pImgUploading && <p style={{ fontSize:12, color:'#64748B', marginTop:6 }}>업로드 중...</p>}
                 </div>
               </div>
@@ -7346,13 +7346,13 @@ export default function AdminClient() {
               <div className="adm-formsec">
                 <div className="adm-formsec-title">상세페이지</div>
                 <div style={{ fontSize:12, color:'#94A3B8', marginBottom:10 }}>
-                  {editingProduct ? '상세설명(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다.'}
+                  {editingProduct ? '상세페이지(이미지)·상세정보를 작성/수정합니다.' : '지금 작성해두면 아래 「상품 등록」을 누를 때 상품과 함께 저장됩니다.'}
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#2563EB', borderColor:'#BFDBFE' }}
-                    disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세설명 작성</button>
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#1A1A1A' }}
+                    disabled={pSaving} onClick={() => saveAndEditDetail('desc')}>🖼 상세페이지 작성</button>
                   {!editingProduct && draftImages?.length ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 이미지 {draftImages.length}장 작성됨</span> : null}
-                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#7C3AED', borderColor:'#DDD6FE' }}
+                  <button type="button" className="adm-btn adm-btn-outline" style={{ color:'#1A1A1A' }}
                     disabled={pSaving} onClick={() => saveAndEditDetail('info')}>📋 상세정보 작성</button>
                   {!editingProduct && draftInfo ? <span style={{ fontSize:12, color:'#16A34A', fontWeight:600 }}>✓ 상세정보 작성됨</span> : null}
                 </div>
