@@ -1833,12 +1833,12 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
         <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
         <input className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="추가금" title="정상가에 더해지는 옵션 추가금" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="브랜드 매입가"
+        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="매입가" title="브랜드 매입가"
           value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>매입가</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0 }} type="number" placeholder="0" title="브랜드 배송비"
+        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="배송비" title="브랜드 배송비"
           value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
         <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>배송비</span>
         <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
