@@ -8856,17 +8856,19 @@ export default function AdminClient() {
                   <table className="adm-table">
                     <thead><tr><th style={{ width:44, textAlign:'center' }}>순위</th><th>상품명</th><th>옵션</th><th className="adm-num">단가</th><th className="adm-num">판매수량</th></tr></thead>
                     <tbody>
-                      {productRank[rankDays].length === 0 ? (
-                        <tr><td colSpan={5} style={{ textAlign:'center', padding:'32px 0', color:'#94A3B8' }}>해당 기간 판매 내역이 없습니다.</td></tr>
-                      ) : productRank[rankDays].map((r, i) => (
-                        <tr key={i}>
-                          <td style={{ textAlign:'center', fontWeight:700, color:'#94A3B8' }}>{i+1}</td>
-                          <td>{r.name}</td>
-                          <td className="adm-muted">{r.option}</td>
-                          <td className="adm-num">{fmtPrice(r.unit_price)}원</td>
-                          <td className="adm-num" style={{ fontWeight:600 }}>{r.qty.toLocaleString()}개</td>
-                        </tr>
-                      ))}
+                      {/* 항상 5행 고정 — 기간(이번주/이번달) 전환 시 표 높이가 바뀌지 않도록 */}
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const r = productRank[rankDays][i];
+                        return (
+                          <tr key={i}>
+                            <td style={{ textAlign:'center', fontWeight:700, color:'#94A3B8' }}>{i+1}</td>
+                            <td>{r ? r.name : <span className="adm-muted">-</span>}</td>
+                            <td className="adm-muted">{r ? r.option : ''}</td>
+                            <td className="adm-num">{r ? `${fmtPrice(r.unit_price)}원` : ''}</td>
+                            <td className="adm-num" style={{ fontWeight:600 }}>{r ? `${r.qty.toLocaleString()}개` : ''}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
