@@ -8957,7 +8957,7 @@ export default function AdminClient() {
                     const showArrow = i < ORDER_TABS.length - 1 && ORDER_TABS[i + 1].key !== 'expired';
                     return (
                       <div key={st.key} style={{ display:'flex', alignItems:'center', flex:1, minWidth:88 }}>
-                        <div onClick={() => setOrderStatusFilter(active ? '' : st.key)}
+                        <div onClick={() => { setOrderStatusFilter(active ? '' : st.key); setSelOrders(new Set()); }}
                           style={{ flex:1, cursor:'pointer', textAlign:'center', padding:'10px 6px', borderRadius:12,
                             background: active ? '#1A1A1A' : '#F8FAFC', transition:'background .15s' }}>
                           <div style={{ fontSize:12, color: active ? '#fff' : '#64748B', marginBottom:5 }}>{st.label}</div>
@@ -9005,7 +9005,7 @@ export default function AdminClient() {
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); }}
+                  <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); setSelOrders(new Set()); }}
                     options={[{ value:'', label:'전체' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
                     options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
@@ -9046,7 +9046,7 @@ export default function AdminClient() {
               </div>
               {(() => { const hasSel = selOrders.size > 0; return (
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 14px', marginBottom:12, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, flexWrap:'wrap' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color: hasSel ? '#1D4ED8' : '#94A3B8', marginRight:2 }}>{hasSel ? `${selOrders.size}건 선택` : '주문 선택'}</span>
+                  <span style={{ fontSize:14, fontWeight:800, color: hasSel ? '#1A1A1A' : '#94A3B8', marginRight:2 }}>{hasSel ? `${selOrders.size}건 선택` : '주문 선택'}</span>
                   <button className="adm-btn adm-btn-primary" style={{ height:34 }} disabled={!hasSel} onClick={bulkSetPreparing}>발주확인</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} disabled={!hasSel} onClick={bulkSetShipped}>발송처리</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={() => bulkShipFileRef.current?.click()}>엑셀 일괄 발송처리</button>
