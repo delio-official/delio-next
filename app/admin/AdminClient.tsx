@@ -523,7 +523,7 @@ const PAY_INFO: Record<string, { label: string; bg: string; color: string }> = {
 function PayBadge({ method }: { method: string }) {
   const info = PAY_INFO[method] || { label: method || '기타', bg:'#F1F5F9', color:'#475569' };
   return (
-    <span style={{ display:'inline-block', marginLeft:8, padding:'2px 9px', borderRadius:6,
+    <span style={{ display:'inline-block', padding:'2px 9px', borderRadius:6,
       background: info.bg, color: info.color, fontSize:12, fontWeight:700, verticalAlign:'middle' }}>
       {info.label}
     </span>
@@ -8387,7 +8387,7 @@ export default function AdminClient() {
                   ['배송 요청사항', selectedOrder.delivery_memo || '-'],
                 ] as [string, React.ReactNode][] },
                 { title:'결제 정보', rows: [
-                  ['결제금액', <>{fmtPrice(selectedOrder.final_amount)}원<PayBadge method={selectedOrder.payment_method} /></>],
+                  ['결제금액', <>{fmtPrice(selectedOrder.final_amount)}원<span style={{ marginLeft:8 }}><PayBadge method={selectedOrder.payment_method} /></span></>],
                   ['주문일시', fmtDate(selectedOrder.created_at)],
                 ] as [string, React.ReactNode][] },
               ].map(sec => (
@@ -9144,9 +9144,13 @@ export default function AdminClient() {
                                 </div>
                               </td>
 
-                              {/* 금액 — 총 결제액(주문 1회) */}
+                              {/* 금액 — 총 결제액(주문 1회) + 결제수단 뱃지 */}
                               {gi === 0 && (
-                                <td rowSpan={n} style={{ fontWeight:700 }}>{fmtPrice(o.final_amount)}원</td>
+                                <td rowSpan={n} style={{ fontWeight:700 }}>
+                                  <div>{fmtPrice(o.final_amount)}원</div>
+                                  {(o as { payment_method?: string | null }).payment_method &&
+                                    <div style={{ marginTop:5 }}><PayBadge method={(o as { payment_method?: string }).payment_method || ''} /></div>}
+                                </td>
                               )}
 
                               {/* 상태 — 브랜드별. 취소·환불/입금대기/만료는 주문 상태 그대로 */}
