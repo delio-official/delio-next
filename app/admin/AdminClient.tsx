@@ -283,6 +283,7 @@ interface AdminFarm {
   logo_url: string | null;
   landing_images: string[] | null;
   created_at: string;
+  is_own?: boolean;           // 자사센터(델리오) 여부
   wish_count?: number;
   product_count?: number;
   active_count?: number;
@@ -2281,6 +2282,9 @@ export default function AdminClient() {
   const [productCatFilter, setProductCatFilter] = useState('');
   const [productBrandFilter, setProductBrandFilter] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
+  const [productTypeFilter, setProductTypeFilter] = useState<''|'own'|'brand'>(''); // 자사 / 브랜드(산지직송)
+  const [productPage, setProductPage] = useState(1);
+  const PRODUCT_PAGE_SIZE = 20;
 
   /* ── 필탭 / 카테고리 ── */
   const FT_EMPTY = { tab_type: 'category' as TabType, tab_value: '', label: '', emoji: '', bg: '#F5F5F5',
@@ -3531,7 +3535,7 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at, is_own').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
       supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
     ]);
@@ -6794,11 +6798,17 @@ export default function AdminClient() {
     const matchCat = !productCatFilter || p.category === productCatFilter;
     const matchBrand = !productBrandFilter || p.farm_id === productBrandFilter;
     const q = productSearch.toLowerCase();
-    const brandName = (farms.find(f => f.id === p.farm_id)?.name || '').toLowerCase();
+    const pFarm = farms.find(f => f.id === p.farm_id);
+    const brandName = (pFarm?.name || '').toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q) || brandName.includes(q);
     const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
-    return matchCat && matchBrand && matchSearch && matchStatus;
+    const isOwn = !!pFarm?.is_own; // 자사센터 상품
+    const matchType = !productTypeFilter || (productTypeFilter === 'own' ? isOwn : !isOwn);
+    return matchCat && matchBrand && matchSearch && matchStatus && matchType;
   });
+  const productTotalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCT_PAGE_SIZE));
+  const productCurPage = Math.min(productPage, productTotalPages);
+  const pagedProducts = filteredProducts.slice((productCurPage - 1) * PRODUCT_PAGE_SIZE, productCurPage * PRODUCT_PAGE_SIZE);
 
   /* 리뷰 필터·페이지 */
   /* 리뷰 목록 농가 필터 — '' 이면 전체 */
@@ -9302,15 +9312,17 @@ export default function AdminClient() {
               </div>
               <div className="adm-toolbar">
                 <div className="adm-toolbar-left">
-                  <AdmSelect value={productCatFilter} onChange={setProductCatFilter}
+                  <AdmSelect value={productTypeFilter} onChange={v => { setProductTypeFilter(v as ''|'own'|'brand'); setProductPage(1); }}
+                    options={[{ value:'', label:'전체(자사+브랜드)' }, { value:'own', label:'자사 상품' }, { value:'brand', label:'브랜드 상품' }]} />
+                  <AdmSelect value={productCatFilter} onChange={v => { setProductCatFilter(v); setProductPage(1); }}
                     options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))]} />
-                  <AdmSelect value={productBrandFilter} onChange={setProductBrandFilter}
+                  <AdmSelect value={productBrandFilter} onChange={v => { setProductBrandFilter(v); setProductPage(1); }}
                     options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="브랜드명·상품명 검색"
-                    value={productSearch} onChange={e => setProductSearch(e.target.value)} />
+                    value={productSearch} onChange={e => { setProductSearch(e.target.value); setProductPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right">
-                  <button className="adm-btn adm-btn-outline" onClick={() => { setProductSearch(''); setProductCatFilter(''); setProductBrandFilter(''); setProductStatusFilter(''); loadProducts(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => { setProductSearch(''); setProductCatFilter(''); setProductBrandFilter(''); setProductStatusFilter(''); setProductTypeFilter(''); setProductPage(1); loadProducts(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openProductModal()}>+ 상품 등록</button>
                 </div>
               </div>
@@ -9327,7 +9339,7 @@ export default function AdminClient() {
                       <tbody>
                         {filteredProducts.length === 0 ? (
                           <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>상품 없음</td></tr>
-                        ) : filteredProducts.map(p => (
+                        ) : pagedProducts.map(p => (
                           <tr key={p.id}>
                             <td>{p.name}</td>
                             <td>{farms.find(f => f.id === p.farm_id)?.name || '-'}</td>
@@ -9355,6 +9367,14 @@ export default function AdminClient() {
                   </div>
                 )}
               </div>
+              {!productsLoading && filteredProducts.length > 0 && (
+                <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14 }}>
+                  <button className="adm-btn adm-btn-outline" disabled={productCurPage <= 1} onClick={() => setProductPage(p => Math.max(1, p - 1))}>이전</button>
+                  <span className="adm-muted" style={{ fontSize:13 }}>{productCurPage} / {productTotalPages}</span>
+                  <button className="adm-btn adm-btn-outline" disabled={productCurPage >= productTotalPages} onClick={() => setProductPage(p => Math.min(productTotalPages, p + 1))}>다음</button>
+                  <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredProducts.length}건</span>
+                </div>
+              )}
             </div>
           )}
 
