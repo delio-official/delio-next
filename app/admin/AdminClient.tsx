@@ -1830,27 +1830,27 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   const colLabel = (t: string) => <span style={{ fontSize:10, color:'#94A3B8', fontWeight:600, whiteSpace:'nowrap' }}>{t}</span>;
   const valueRow = (o: { _i:number; id:string; label:string; add_price:number; purchase_price:number; shipping_fee:number; stock:number; manage_stock:boolean }) => (
     <div key={o.id} style={{ marginBottom:10, marginLeft:16 }}>
-      <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+      <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'nowrap' }}>
         <span style={{ color:'#CBD5E1', flexShrink:0, alignSelf:'center', paddingBottom:6 }}>└</span>
-        <div style={{ display:'flex', flexDirection:'column', gap:3, flex:1, minWidth:130 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flex:1, minWidth:110 }}>
           {colLabel('옵션명')}
-          <input className="adm-input-text" style={{ width:'100%' }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
+          <input className="adm-input-text" style={{ width:'100%', minWidth:0 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
           {colLabel('추가금(원)')}
-          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="정상가에 더해지는 옵션 추가금" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+          <input className="adm-input-text" style={{ width:80, minWidth:80 }} type="number" placeholder="0" title="정상가에 더해지는 옵션 추가금" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
           {colLabel('매입가')}
-          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="브랜드 매입가" value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
+          <input className="adm-input-text" style={{ width:80, minWidth:80 }} type="number" placeholder="0" title="브랜드 매입가" value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
           {colLabel('배송비')}
-          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="브랜드 배송비" value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
+          <input className="adm-input-text" style={{ width:80, minWidth:80 }} type="number" placeholder="0" title="브랜드 배송비" value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
           {colLabel('재고')}
-          <input className="adm-input-text" style={{ width:84, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
+          <input className="adm-input-text" style={{ width:80, minWidth:80, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
             type="number" placeholder={o.manage_stock ? '0' : '무한'} disabled={!o.manage_stock}
             value={o.manage_stock ? (o.stock || '') : ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
         </div>
