@@ -2113,7 +2113,7 @@ export default function AdminClient() {
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
-  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0 });
+  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number; lowStock:number; settleDue:number; settleDuePeriod:{ month:string; half:1|2 }|null }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0, lowStock:0, settleDue:0, settleDuePeriod:null });
   /* ── 회원 현황 (대시보드, 전월 대비 비교) ── */
   const [memberDash, setMemberDash] = useState<{ total:number; netIncrease:number; newThis:number; newPrev:number; buyersThis:number; buyersPrev:number; repeatRateThis:number; repeatRatePrev:number; avgOrdersThis:number; avgOrdersPrev:number } | null>(null);
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
@@ -2227,6 +2227,7 @@ export default function AdminClient() {
   const pendingRefundStatus = useRef<string | null>(null); // 환불 패널 진입 시 적용할 상태 필터
   const pendingOrderDate = useRef<{ from: string; to: string } | null>(null); // 대시보드 바로가기 진입 시 적용할 주문 기간
   const pendingSettlePreset = useRef<'today'|'thisMonth'|null>(null); // 대시보드 바로가기 진입 시 적용할 매출 기간 프리셋
+  const pendingFarmSettle = useRef<{ month:string; half:1|2 }|null>(null); // 정산 지연 알림 클릭 시 이동할 정산 회차
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
   const [orderReqOnly, setOrderReqOnly] = useState(false);
   const [orderDateBasis, setOrderDateBasis] = useState<'paid_at'|'delivered_at'>('paid_at');
@@ -3012,7 +3013,51 @@ export default function AdminClient() {
       unansweredProdInq: prodInqRes.count || 0,
       unansweredFarmInq: farmInqRes.count || 0,
       unansweredReview:  reviewRes.count  || 0,
+      lowStock: 0, settleDue: 0, settleDuePeriod: null,
     });
+
+    /* 품절·재고 임박 상품 + 지난 회차 브랜드 정산 미완료 (알림 바용, 비동기 후 병합) */
+    void (async () => {
+      const sb = createClient();
+      /* ① 재고관리 켠 옵션 중 재고 5개 이하(품절 포함) — 판매중 상품만 */
+      const LOW_STOCK = 5;
+      const { data: lowOpts } = await sb
+        .from('product_options')
+        .select('product_id, products!inner(is_active)')
+        .eq('manage_stock', true).eq('products.is_active', true)
+        .lte('stock', LOW_STOCK).limit(1000);
+      const lowStock = (lowOpts || []).length;
+
+      /* ② 지급일이 지난 가장 최근 정산 회차에서, 매출은 있는데 정산완료(paid) 안 된 브랜드 수 */
+      const now = new Date();
+      const day = now.getDate();
+      let ty = now.getFullYear(), tm = now.getMonth() + 1;
+      let thalf: 1 | 2;
+      if (day >= 16) { thalf = 1; }                       // 이번달 1차(16일 지급) 이미 지남
+      else { thalf = 2; tm -= 1; if (tm === 0) { tm = 12; ty -= 1; } } // 지난달 2차(익월 1일 지급) 이미 지남
+      const targetMonth = `${ty}-${String(tm).padStart(2, '0')}`;
+      const info = farmPeriodInfo(targetMonth, thalf);
+      const from = info.from.toISOString(), to = info.to.toISOString();
+      const { data: settleItems } = await sb
+        .from('order_items')
+        .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id)')
+        .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
+        .eq('orders.status', 'confirmed')
+        .not('orders.order_no', 'like', 'TEST%')
+        .limit(10000);
+      const salesFarms = new Set<string>();
+      (settleItems as Record<string, unknown>[] | null || []).forEach(r => {
+        const fid = (r.products as { farm_id: string | null } | null)?.farm_id;
+        if (fid) salesFarms.add(fid);
+      });
+      const { data: paidRows } = await sb
+        .from('farm_settlements').select('farm_id').eq('period', info.key).eq('status', 'paid');
+      const paidFarms = new Set((paidRows || []).map((p: { farm_id: string }) => p.farm_id));
+      let settleDue = 0;
+      salesFarms.forEach(fid => { if (!paidFarms.has(fid)) settleDue++; });
+
+      setDashExtra(prev => ({ ...prev, lowStock, settleDue, settleDuePeriod: { month: targetMonth, half: thalf } }));
+    })();
 
     const allOrders = ordersRes.data || [];
     const monthRevenue = allOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
@@ -6432,7 +6477,12 @@ export default function AdminClient() {
       case 'settings':    loadSettings(); loadAdminEmail(); break;
       case 'analytics':   loadMarketing(); loadSearchStats(statsDays); loadSettings(); break;
       case 'settlement':  { const [f, t] = settlementRange(); loadSettlement(f, t); break; }
-      case 'farmsettle':  loadFarmSettlement(farmSettleMonth); break;
+      case 'farmsettle': {
+        const pf = pendingFarmSettle.current; pendingFarmSettle.current = null;
+        if (pf) { setFarmSettleMonth(pf.month); setFarmSettleHalf(pf.half); setFarmSettleStatus('unpaid'); loadFarmSettlement(pf.month, pf.half); }
+        else loadFarmSettlement(farmSettleMonth);
+        break;
+      }
     }
   }
 
@@ -8597,7 +8647,11 @@ export default function AdminClient() {
             <AdminAlertBar alerts={([
               stageCounts.paid > 0 && { icon:'🆕', label:'신규 주문', count: stageCounts.paid, onClick: () => { pendingOrderStatus.current='paid'; go('orders'); } },
               stageCounts.preparing > 0 && { icon:'📦', label:'금일 발송 대기', count: stageCounts.preparing, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
+              dashExtra.shipDelay > 0 && { icon:'🚨', label:'발송 지연(2일+)', count: dashExtra.shipDelay, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
               dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
+              dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
+              dashExtra.lowStock > 0 && { icon:'📉', label:'품절·재고 임박', count: dashExtra.lowStock, onClick: () => go('products') },
+              dashExtra.settleDue > 0 && { icon:'💸', label:'브랜드 정산 미완료', count: dashExtra.settleDue, onClick: () => { if (dashExtra.settleDuePeriod) pendingFarmSettle.current = dashExtra.settleDuePeriod; go('farmsettle'); } },
               dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
               dashExtra.unansweredProdInq > 0 && { icon:'❓', label:'미답변 상품문의', count: dashExtra.unansweredProdInq, onClick: () => go('productinquiry') },
               dashExtra.unansweredReview > 0 && { icon:'⭐', label:'미답변 리뷰', count: dashExtra.unansweredReview, onClick: () => { setReviewAnswered('unanswered'); go('reviews'); } },
