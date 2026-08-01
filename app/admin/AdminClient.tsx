@@ -2223,6 +2223,8 @@ export default function AdminClient() {
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
   const pendingRefundType = useRef<'' | 'cancel' | 'refund' | null>(null); // 환불 패널 진입 시 적용할 유형 필터
   const pendingRefundStatus = useRef<string | null>(null); // 환불 패널 진입 시 적용할 상태 필터
+  const pendingOrderDate = useRef<{ from: string; to: string } | null>(null); // 대시보드 바로가기 진입 시 적용할 주문 기간
+  const pendingSettlePreset = useRef<'today'|'thisMonth'|null>(null); // 대시보드 바로가기 진입 시 적용할 매출 기간 프리셋
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
   const [orderReqOnly, setOrderReqOnly] = useState(false);
   const [orderDateBasis, setOrderDateBasis] = useState<'paid_at'|'delivered_at'>('paid_at');
@@ -2884,6 +2886,21 @@ export default function AdminClient() {
     setOrderFarmFilter(''); setOrderSearch(''); setOrderPage(1);
     setRefundFilter('all');
     setOrderStatusFilter(pendingOrderStatus.current ?? '');
+    /* 대시보드 바로가기 기간 프리셋 — 이미 로드된 패널도 강제 재조회 */
+    if (pendingOrderDate.current) {
+      const { from, to } = pendingOrderDate.current;
+      setOrderFrom(from); setOrderTo(to);
+      loadOrders({ from, to });
+      pendingOrderDate.current = null;
+    }
+    if (pendingSettlePreset.current) {
+      const pv = pendingSettlePreset.current;
+      setSettlementPreset(pv);
+      const [f, t] = settlementRange(pv);
+      setSettlementCustFrom(ymd(f)); setSettlementCustTo(ymd(new Date(t.getTime() - 1)));
+      setSettlementData(null); loadSettlement(f, t);
+      pendingSettlePreset.current = null;
+    }
     setRefundTypeFilter((pendingRefundType.current as '' | 'cancel' | 'refund') || 'refund'); // 서브탭 기본 환불
     setRefundStatusFilter(pendingRefundStatus.current ?? '');
     pendingOrderStatus.current = null;
@@ -6381,6 +6398,8 @@ export default function AdminClient() {
       return p;
     });
     if (window.innerWidth <= 900) setSidebarOpen(false);
+    /* 패널 이동 시 화면 최상단으로 (대시보드 하단 카드 클릭 후에도 새 패널을 위에서 보이게) */
+    if (typeof window !== 'undefined') { window.scrollTo(0, 0); (document.querySelector('.adm-main') as HTMLElement | null)?.scrollTo(0, 0); }
     if (loadedPanels.current.has(p)) return;
     loadedPanels.current.add(p);
     switch (p) {
@@ -8691,27 +8710,37 @@ export default function AdminClient() {
                       <div className="adm-kpi-value" style={{ color:'#CBD5E1' }}>불러오는 중...</div>
                     </div>
                   ))
-                ) : [
-                  { label:'이번달 매출', val: stats ? `${fmtPrice(stats.monthRevenue)}원` : '-', kpiCls:'kpi-green', panel:'settlement',
+                ) : (() => {
+                  const now = new Date();
+                  const monthFirst = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                  const today = ymd(now);
+                  return [
+                  { label:'이번달 매출', val: stats ? `${fmtPrice(stats.monthRevenue)}원` : '-', kpiCls:'kpi-green',
+                    onClick: () => { pendingSettlePreset.current = 'thisMonth'; go('settlement'); },
                     icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg> },
-                  { label:'금일 매출', val: stats ? `${fmtPrice(stats.todayRevenue)}원` : '-', kpiCls:'kpi-blue', panel:'settlement',
+                  { label:'금일 매출', val: stats ? `${fmtPrice(stats.todayRevenue)}원` : '-', kpiCls:'kpi-blue',
+                    onClick: () => { pendingSettlePreset.current = 'today'; go('settlement'); },
                     icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><rect x="2" y="7" width="20" height="14"/><path d="M16 7V5a2 2 0 00-4 0v2"/></svg> },
-                  { label:'이번달 주문', val: stats ? `${stats.monthOrders.toLocaleString()}건` : '-', kpiCls:'kpi-blue', panel:'orders',
+                  { label:'이번달 주문', val: stats ? `${stats.monthOrders.toLocaleString()}건` : '-', kpiCls:'kpi-blue',
+                    onClick: () => { pendingOrderDate.current = { from: monthFirst, to: today }; go('orders'); },
                     icon:<Icon.Orders /> },
-                  { label:'금일 신규 주문', val: stats ? `${stats.todayOrders}건` : '-', kpiCls:'kpi-purple', panel:'orders',
+                  { label:'금일 신규 주문', val: stats ? `${stats.todayOrders}건` : '-', kpiCls:'kpi-purple',
+                    onClick: () => { pendingOrderDate.current = { from: today, to: today }; go('orders'); },
                     icon:<Icon.Orders /> },
-                  { label:'전체 회원수', val: stats ? `${stats.totalMembers.toLocaleString()}명` : '-', kpiCls:'kpi-green', panel:'members',
+                  { label:'전체 회원수', val: stats ? `${stats.totalMembers.toLocaleString()}명` : '-', kpiCls:'kpi-green',
+                    onClick: () => go('members'),
                     icon:<Icon.Members /> },
                 ].map(k => (
                   <div key={k.label} className="adm-kpi-card" style={{ cursor: 'pointer' }}
-                    onClick={() => go((k as {panel: PanelKey}).panel)}>
+                    onClick={k.onClick}>
                     <div className="adm-kpi-header">
                       <span className="adm-kpi-label">{k.label}</span>
                       <span className={`adm-kpi-icon ${k.kpiCls}`}>{k.icon}</span>
                     </div>
                     <div className="adm-kpi-value">{k.val}</div>
                   </div>
-                ))}
+                ));
+                })()}
                 </div>
               </div>
 
