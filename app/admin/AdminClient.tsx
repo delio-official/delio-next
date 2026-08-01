@@ -6480,6 +6480,10 @@ export default function AdminClient() {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) pendingReqByOrder.set(r.order_id, r);
   });
 
+  /* 주문 단계 바 카운트 — 조회된 기간(로드된 주문) 기준. 상태 필터/검색과 무관하게 기간 전체를 셈 */
+  const stageCountByPeriod: Record<string, number> = {};
+  orders.forEach(o => { stageCountByPeriod[o.status] = (stageCountByPeriod[o.status] || 0) + 1; });
+
   const filteredOrders = orders.filter(o => {
     const matchStatus = !orderStatusFilter || o.status === orderStatusFilter;
     const matchFarm   = !orderFarmFilter || (o.order_items || []).some(i => i.farm_id === orderFarmFilter);
@@ -8892,7 +8896,7 @@ export default function AdminClient() {
                             background: active ? '#1A1A1A' : '#F8FAFC', transition:'background .15s' }}>
                           <div style={{ fontSize:12, color: active ? '#fff' : '#64748B', marginBottom:5 }}>{st.label}</div>
                           <div style={{ fontSize:22, fontWeight:800, color: active ? '#fff' : '#1A1A1A', lineHeight:1 }}>
-                            {stageCounts[st.key] ?? 0}
+                            {stageCountByPeriod[st.key] ?? 0}
                             <span style={{ fontSize:12, fontWeight:600, color: active ? '#CBD5E1' : '#94A3B8', marginLeft:2 }}>건</span>
                           </div>
                         </div>
