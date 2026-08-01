@@ -1827,30 +1827,40 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
   const clearAll = () => { if (confirm('옵션을 모두 지우고 단품으로 바꿀까요?')) { lastCascade.current = null; setOptions([]); } };
 
+  const colLabel = (t: string) => <span style={{ fontSize:10, color:'#94A3B8', fontWeight:600, whiteSpace:'nowrap' }}>{t}</span>;
   const valueRow = (o: { _i:number; id:string; label:string; add_price:number; purchase_price:number; shipping_fee:number; stock:number; manage_stock:boolean }) => (
-    <div key={o.id} style={{ marginBottom:8, marginLeft:16 }}>
-      <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-        <span style={{ color:'#CBD5E1', flexShrink:0 }}>└</span>
-        <input className="adm-input-text" style={{ flex:1, minWidth:140 }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
-        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>+</span>
-        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="추가금" title="정상가에 더해지는 옵션 추가금" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
-        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>원</span>
-        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="매입가" title="브랜드 매입가"
-          value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
-        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>매입가</span>
-        <input className="adm-input-text" style={{ width:96, minWidth:96, flexShrink:0 }} type="number" placeholder="배송비" title="브랜드 배송비"
-          value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
-        <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>배송비</span>
-        <input className="adm-input-text" style={{ width:86, minWidth:86, flexShrink:0, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
-          type="number" placeholder={o.manage_stock ? '0' : '무한'} disabled={!o.manage_stock}
-          value={o.manage_stock ? (o.stock || '') : ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
-        <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, color:'#94A3B8', flexShrink:0, cursor:'pointer' }} title="끄면 재고 무한(차감·품절 없음)">
-          <input type="checkbox" checked={o.manage_stock} onChange={e => patch(o._i, { manage_stock: e.target.checked })} />
+    <div key={o.id} style={{ marginBottom:10, marginLeft:16 }}>
+      <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+        <span style={{ color:'#CBD5E1', flexShrink:0, alignSelf:'center', paddingBottom:6 }}>└</span>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flex:1, minWidth:130 }}>
+          {colLabel('옵션명')}
+          <input className="adm-input-text" style={{ width:'100%' }} placeholder="예: 1kg" value={o.label} onChange={e => patch(o._i, { label: e.target.value })} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
+          {colLabel('추가금(원)')}
+          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="정상가에 더해지는 옵션 추가금" value={o.add_price || ''} onChange={e => patch(o._i, { add_price: Number(e.target.value) })} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
+          {colLabel('매입가')}
+          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="브랜드 매입가" value={o.purchase_price || ''} onChange={e => patch(o._i, { purchase_price: Number(e.target.value) })} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
+          {colLabel('배송비')}
+          <input className="adm-input-text" style={{ width:84 }} type="number" placeholder="0" title="브랜드 배송비" value={o.shipping_fee || ''} onChange={e => patch(o._i, { shipping_fee: Number(e.target.value) })} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:3, flexShrink:0 }}>
+          {colLabel('재고')}
+          <input className="adm-input-text" style={{ width:84, background: o.manage_stock ? undefined : '#F1F5F9', color: o.manage_stock ? undefined : '#94A3B8' }}
+            type="number" placeholder={o.manage_stock ? '0' : '무한'} disabled={!o.manage_stock}
+            value={o.manage_stock ? (o.stock || '') : ''} onChange={e => patch(o._i, { stock: Number(e.target.value) })} />
+        </div>
+        <label style={{ display:'inline-flex', flexDirection:'column', alignItems:'center', gap:5, fontSize:10, color:'#94A3B8', flexShrink:0, cursor:'pointer', paddingBottom:8 }} title="끄면 재고 무한(차감·품절 없음)">
           재고관리
+          <input type="checkbox" checked={o.manage_stock} onChange={e => patch(o._i, { manage_stock: e.target.checked })} />
         </label>
-        <button type="button" onClick={() => removeAt(o._i)} style={{ width:28, height:28, border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0 }}>×</button>
+        <button type="button" onClick={() => removeAt(o._i)} style={{ height:34, padding:'0 12px', border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0, fontSize:12, fontWeight:600 }}>삭제</button>
       </div>
-      <div style={{ marginLeft:18, marginTop:3, fontSize:11, color:'#64748B' }}>
+      <div style={{ marginLeft:18, marginTop:5, fontSize:11, color:'#64748B' }}>
         판매금액 <b style={{ color:'#1A1A1A', fontSize:12 }}>{fmtPrice(basePrice + (Number(o.add_price) || 0))}원</b>
         <span style={{ marginLeft:8 }}>· 공급가 <b style={{ color:'#334155' }}>{fmtPrice((Number(o.purchase_price) || 0) + (Number(o.shipping_fee) || 0))}원</b></span>
         {!o.manage_stock && <span style={{ marginLeft:8, color:'#16A34A', fontWeight:600 }}>· 재고 무한</span>}
@@ -1881,6 +1891,8 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
 
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('indep'); };
+  // 단품(옵션 없음)에서 재고관리만 켜기 — 기본 단품 항목 1개 생성
+  const startSingleStock = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'기본', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('indep'); };
   const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'분류', required:true, label:'', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
     const hasCascade = options.some(o => (o.parent_label || '').trim());
@@ -1932,7 +1944,18 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
     </div>
   );
 
-  if (options.length === 0) return <div>{stockRadio}</div>;
+  if (options.length === 0) return (
+    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+      {stockRadio}
+      <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginLeft:2 }}>
+        <button type="button" onClick={startSingleStock}
+          style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer', fontWeight:600 }}>
+          + 이 상품 재고관리(수량) 설정
+        </button>
+        <span style={{ fontSize:11, color:'#94A3B8' }}>옵션이 없는 단품이어도 재고 수량을 관리하려면 눌러주세요.</span>
+      </div>
+    </div>
+  );
 
   const modeBar = stockRadio;
 
