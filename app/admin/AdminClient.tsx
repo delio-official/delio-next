@@ -8435,7 +8435,15 @@ export default function AdminClient() {
                             : <span style={{ fontSize:18 }}>🍑</span>}
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{item.product_name}</div>
+                          {(() => {
+                            const io = item.option_label || '';
+                            let inm = item.product_name || '상품';
+                            if (io && inm.endsWith(`(${io})`)) inm = inm.slice(0, -(`(${io})`.length)).trim();
+                            return (<>
+                              <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{inm}</div>
+                              {io && <div style={{ fontSize:12, color:'#64748B', marginBottom:2 }}>ㄴ {io}</div>}
+                            </>);
+                          })()}
                           <div style={{ fontSize:12, color:'#64748B' }}>
                             {item.quantity}개 · {fmtPrice(item.unit_price)}원
                           </div>
@@ -9053,7 +9061,7 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'9%' }}>수령인</th>
+                          <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'9%' }}>주문자</th>
                           <th style={{ width:'21%' }}><span style={{ display:'inline-block', width:180, maxWidth:'100%', textAlign:'center' }}>상품</span></th>
                           <th style={{ width:'14%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'15%' }}>송장번호</th><th style={{ width:'8%' }}>관리</th>
                         </tr>
@@ -9117,15 +9125,13 @@ export default function AdminClient() {
                               )}
                               {gi === 0 && <td rowSpan={n} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>}
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
-                              {gi === 0 && <td rowSpan={n}>{o.recipient}</td>}
+                              {gi === 0 && <td rowSpan={n}>{o.orderer_name || o.recipient}</td>}
 
-                              {/* 상품 — 내용은 220px 블록에 좌측정렬(칸 왼쪽). 헤더 '상품'은 같은 폭 블록 가운데라 상품명 중앙 위에 옴 */}
+                              {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
                               <td style={{ textAlign:'left' }}>
-                                <div style={{ lineHeight:1.35, width:220, maxWidth:'100%' }}>
-                                  <div style={{ fontWeight:600 }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
-                                  <div className="adm-muted" style={{ fontSize:11 }}>
-                                    {g.farmName}{opt ? ` · ${opt}` : ''} · {fmtPrice(g.sub)}원
-                                  </div>
+                                <div style={{ lineHeight:1.4, width:220, maxWidth:'100%' }}>
+                                  <div style={{ fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
+                                  {opt && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>ㄴ {opt}</div>}
                                 </div>
                               </td>
 
