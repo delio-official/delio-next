@@ -7025,7 +7025,7 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%', background:'#F1F5F9', color:'#64748B', cursor:'default' }}
                     value={pForm.sku} readOnly tabIndex={-1} placeholder="저장 시 자동 생성됩니다" />
                 </div>
-                <div style={{ gridColumn:'1 / -1' }}>
+                <div>
                   <label className="adm-label">카테고리 * <span style={{ fontWeight:400, color:'#94A3B8' }}>(대분류 → 소분류)</span></label>
                   {(() => {
                     const curTab = catTabsAll.find(t => t.tab_value === pForm.category);
