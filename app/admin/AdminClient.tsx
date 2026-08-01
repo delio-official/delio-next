@@ -8773,15 +8773,18 @@ export default function AdminClient() {
                     return <span style={{ color: col(d > 0, flat) }}>{d > 0 ? '▲' : d < 0 ? '▼' : '·'} {Math.abs(d).toFixed(1)}%p</span>;
                   };
                   const netTag = (() => { const n = m.netIncrease; return <span style={{ color: col(n > 0, n === 0) }}>{n > 0 ? '+' : ''}{n.toLocaleString()}명</span>; })();
+                  const now = new Date();
+                  const monthFirst = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                  const today = ymd(now);
                   const cards = [
-                    { label:'전체 회원',      val:`${m.total.toLocaleString()}명`,     cls:'kpi-green',  icon:<Icon.Members />, sub:<>이번달 {netTag}</>,                       panel:'members' as PanelKey },
-                    { label:'이번달 신규',     val:`${m.newThis.toLocaleString()}명`,   cls:'kpi-blue',   icon:<Icon.Members />, sub:<>전월 대비 {pctTag(m.newThis, m.newPrev)}</>, panel:'members' as PanelKey },
-                    { label:'이번달 구매 회원', val:`${m.buyersThis.toLocaleString()}명`, cls:'kpi-purple', icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.buyersThis, m.buyersPrev)}</>, panel:'orders' as PanelKey },
-                    { label:'재구매율',       val:`${m.repeatRateThis.toFixed(0)}%`,   cls:'kpi-green',  icon:<Icon.Members />, sub:<>전월 대비 {ppTag(m.repeatRateThis, m.repeatRatePrev)}</>, panel:'members' as PanelKey },
-                    { label:'평균 구매 횟수',  val:`${m.avgOrdersThis.toFixed(1)}회`,    cls:'kpi-blue',   icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.avgOrdersThis, m.avgOrdersPrev)}</>, panel:'orders' as PanelKey },
+                    { label:'전체 회원',      val:`${m.total.toLocaleString()}명`,     cls:'kpi-green',  icon:<Icon.Members />, sub:<>이번달 {netTag}</>,                       onClick:() => go('members') },
+                    { label:'이번달 신규',     val:`${m.newThis.toLocaleString()}명`,   cls:'kpi-blue',   icon:<Icon.Members />, sub:<>전월 대비 {pctTag(m.newThis, m.newPrev)}</>, onClick:() => go('members') },
+                    { label:'이번달 구매 회원', val:`${m.buyersThis.toLocaleString()}명`, cls:'kpi-purple', icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.buyersThis, m.buyersPrev)}</>, onClick:() => { pendingOrderDate.current = { from: monthFirst, to: today }; go('orders'); } },
+                    { label:'재구매율',       val:`${m.repeatRateThis.toFixed(0)}%`,   cls:'kpi-green',  icon:<Icon.Members />, sub:<>전월 대비 {ppTag(m.repeatRateThis, m.repeatRatePrev)}</>, onClick:() => go('analytics') },
+                    { label:'평균 구매 횟수',  val:`${m.avgOrdersThis.toFixed(1)}회`,    cls:'kpi-blue',   icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.avgOrdersThis, m.avgOrdersPrev)}</>, onClick:() => go('members') },
                   ];
                   return cards.map(k => (
-                    <div key={k.label} className="adm-kpi-card" style={{ cursor:'pointer' }} onClick={() => go(k.panel)}>
+                    <div key={k.label} className="adm-kpi-card" style={{ cursor:'pointer' }} onClick={k.onClick}>
                       <div className="adm-kpi-header">
                         <span className="adm-kpi-label">{k.label}</span>
                         <span className={`adm-kpi-icon ${k.cls}`}>{k.icon}</span>
