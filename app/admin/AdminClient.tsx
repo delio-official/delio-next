@@ -9472,7 +9472,7 @@ export default function AdminClient() {
                         </div>
                         {/* 소분류 행 */}
                         {filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                          <div key={s.id} style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
+                          <div key={s.id} style={{ ...rowSt, marginLeft:28 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {ftText(s)}
@@ -9495,7 +9495,7 @@ export default function AdminClient() {
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
                         {menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
-                          <div key={s.id} style={{ ...rowSt, opacity: s.is_active ? 1 : 0.5 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', s.id); dragRow.current = null; }}>
+                          <div key={s.id} style={{ ...rowSt, marginLeft:28, opacity: s.is_active ? 1 : 0.5 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', s.id); dragRow.current = null; }}>
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {mText(s)}
