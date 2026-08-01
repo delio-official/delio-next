@@ -2037,8 +2037,12 @@ export default function AdminClient() {
     window.history.pushState({ adminPForm: true }, '');
     const onPop = () => setProductModal(false);
     window.addEventListener('popstate', onPop);
+    // 폼(고정 오버레이) 열릴 때 뒤 배경 스크롤 잠금 — 스크롤바 2개 방지
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
       window.removeEventListener('popstate', onPop);
+      document.body.style.overflow = prevOverflow;
       // 버튼/저장으로 닫힌 경우(뒤로가기 아님) 쌓아둔 히스토리 항목 정리
       if (window.history.state?.adminPForm) window.history.back();
     };
