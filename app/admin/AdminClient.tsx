@@ -3920,15 +3920,16 @@ export default function AdminClient() {
     await supabase.from('products').update({ is_active: !p.is_active }).eq('id', p.id);
     setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !x.is_active } : x));
   }
-  async function deleteProduct(p: AdminProduct) {
-    if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n옵션·상세정보도 함께 삭제되며 되돌릴 수 없습니다.\n(주문 내역이 있는 상품은 '비활성'을 권장)`)) return;
+  async function deleteProduct(p: { id: string; name: string }): Promise<boolean> {
+    if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n옵션·상세정보도 함께 삭제되며 되돌릴 수 없습니다.\n(주문 내역이 있는 상품은 '판매중지'를 권장)`)) return false;
     const supabase = createClient();
     // 자식 데이터 먼저 정리 후 상품 삭제
     await supabase.from('product_options').delete().eq('product_id', p.id);
     await supabase.from('product_detail_sections').delete().eq('product_id', p.id);
     const { error } = await supabase.from('products').delete().eq('id', p.id);
-    if (error) { alert('삭제 실패: ' + error.message + '\n(이 상품을 참조하는 주문 등이 있으면 비활성 처리하세요.)'); return; }
+    if (error) { alert('삭제 실패: ' + error.message + '\n(이 상품을 참조하는 주문 등이 있으면 판매중지 처리하세요.)'); return false; }
     setProducts(prev => prev.filter(x => x.id !== p.id));
+    return true;
   }
 
   async function loadMembers() {
@@ -7487,7 +7488,13 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
+              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4, alignItems:'center' }}>
+                {editingProduct && (
+                  <button className="adm-btn adm-btn-outline" style={{ marginRight:'auto', color:'#DC2626', borderColor:'#FECACA' }} disabled={pSaving}
+                    onClick={async () => { const ok = await deleteProduct(editingProduct); if (ok) closeProductForm(); }}>
+                    상품 삭제
+                  </button>
+                )}
                 <button className="adm-btn adm-btn-outline" onClick={closeProductForm}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveProduct} disabled={pSaving}>
                   {pSaving ? '저장 중...' : editingProduct ? '수정 완료' : '상품 등록'}
