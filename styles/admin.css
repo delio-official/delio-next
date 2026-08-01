@@ -260,6 +260,7 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
   transition: border-color .12s, box-shadow .12s;
 }
 .adm-cs-btn:hover { border-color: #CBD5E1; }
+.adm-cs-round .adm-cs-btn { border-radius: 8px; }
 .adm-cs-btn.open { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(22,163,74,0.12); }
 .adm-cs-btn:disabled { background: #F1F5F9; color: #94A3B8; cursor: not-allowed; }
 .adm-cs-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

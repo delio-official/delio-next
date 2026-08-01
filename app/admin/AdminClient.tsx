@@ -8351,7 +8351,7 @@ export default function AdminClient() {
                   };
                   return (
                     <button className="adm-btn adm-btn-outline" onClick={doSend} title={sentAt ? `${fmtDate(sentAt)} 발송됨 — 다시 보내기` : '고객에게 배송 지연 안내 발송'}
-                      style={{ height:32, padding:'0 14px', fontSize:13, display:'inline-flex', alignItems:'center', gap:6,
+                      style={{ height:32, padding:'0 14px', fontSize:13, display:'inline-flex', alignItems:'center', gap:6, borderRadius:8,
                         ...(sentAt ? { color:'#15803D', borderColor:'#86EFAC', background:'#F0FDF4' } : {}) }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={sentAt ? '#16A34A' : '#F97316'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                       {sentAt ? '지연안내 재발송' : '배송지연 안내'}
@@ -8499,17 +8499,17 @@ export default function AdminClient() {
                         </div>
                         <div style={{ fontSize:12, color:'#64748B', marginBottom:8 }}>{fItems.map(i => i.product_name).join(', ')}</div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-                          <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} style={{ minWidth:140 }} options={COURIER_OPTIONS} />
+                          <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} className="adm-cs-round" style={{ minWidth:140 }} options={COURIER_OPTIONS} />
                           <input placeholder="운송장번호" value={cur.tracking_number}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
-                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:'var(--radius)', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
                           <button onClick={() => saveItemTracking(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
-                            className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13 }}>
+                            className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13, borderRadius:8 }}>
                             {savingTracking ? '저장 중...' : '저장'}
                           </button>
                           {first?.tracking_number && (
                             <button onClick={() => { setTrackingInput({ courier: first.courier || '', tracking_number: first.tracking_number || '' }); setShowTrackingModal(true); }}
-                              className="adm-btn adm-btn-outline" style={{ height:36, padding:'0 14px', fontSize:13 }}>🚚 배송추적</button>
+                              className="adm-btn adm-btn-outline" style={{ height:36, padding:'0 14px', fontSize:13, borderRadius:8 }}>🚚 배송추적</button>
                           )}
                         </div>
                       </div>
@@ -8559,9 +8559,9 @@ export default function AdminClient() {
             {/* 하단 sticky 푸터 — 취소/저장 (전체 통일) */}
             <div style={{ position:'sticky', bottom:0, display:'flex', justifyContent:'flex-end', gap:8,
               padding:'14px 20px', borderTop:'1px solid #EEF1F5', background:'var(--surface)' }}>
-              <button className="adm-btn adm-btn-outline" style={{ height:34, padding:'0 16px', fontSize:13 }}
+              <button className="adm-btn adm-btn-outline" style={{ height:34, padding:'0 16px', fontSize:13, borderRadius:8 }}
                 onClick={() => setSelectedOrder(null)}>취소</button>
-              <button className="adm-btn adm-btn-primary" style={{ height:34, padding:'0 16px', fontSize:13 }}
+              <button className="adm-btn adm-btn-primary" style={{ height:34, padding:'0 16px', fontSize:13, borderRadius:8 }}
                 disabled={updatingStatus === selectedOrder.id}
                 onClick={async () => {
                   if (detailStatus && detailStatus !== selectedOrder.status) {
