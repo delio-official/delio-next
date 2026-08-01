@@ -7033,12 +7033,12 @@ export default function AdminClient() {
                       if (!editingProduct) generateSku(v).then(sku => setPForm(f => ({ ...f, sku })));
                     };
                     return (
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <AdmSelect style={{ flex:'1 1 160px' }} value={majorVal}
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                        <AdmSelect style={{ width:'100%' }} value={majorVal}
                           onChange={v => setCat(v)}
                           options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
                         {majorVal && subs.length > 0 && (
-                          <AdmSelect style={{ flex:'1 1 160px' }} value={subVal}
+                          <AdmSelect style={{ width:'100%' }} value={subVal}
                             onChange={v => setCat(v || majorVal)}
                             options={[{ value:'', label:'전체 (대분류 직속)' }, ...subs.map(s => ({ value:s.tab_value, label:s.label }))]} />
                         )}
@@ -7049,29 +7049,10 @@ export default function AdminClient() {
                 {pForm.is_dawn && (
                 <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">연결 브랜드 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 검색)</span></label>
-                  <div style={{ position:'relative' }}>
-                    <input className="adm-input-text" style={{ width:'100%' }} placeholder="브랜드 없음 — 이름으로 검색"
-                      value={farmPickOpen ? farmSearch : (farmList.find(fm => fm.id === pForm.farm_id)?.name || '')}
-                      onFocus={() => { setFarmPickOpen(true); setFarmSearch(''); }}
-                      onBlur={() => setTimeout(() => setFarmPickOpen(false), 150)}
-                      onChange={e => setFarmSearch(e.target.value)} />
-                    {farmPickOpen && (() => {
-                      const matched = farmList.filter(fm => fm.name.toLowerCase().includes(farmSearch.toLowerCase()));
-                      return (
-                        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:30, maxHeight:220,
-                          overflowY:'auto', background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 6px 18px rgba(0,0,0,0.1)' }}>
-                          <div onMouseDown={() => { setPForm(f => ({ ...f, farm_id: null })); setFarmPickOpen(false); }}
-                            style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, color:'#94A3B8', borderBottom:'1px solid #F1F5F9' }}>브랜드 없음</div>
-                          {matched.map(fm => (
-                            <div key={fm.id} onMouseDown={() => { setPForm(f => ({ ...f, farm_id: fm.id })); setFarmPickOpen(false); }}
-                              style={{ padding:'9px 12px', cursor:'pointer', fontSize:13, fontWeight: pForm.farm_id===fm.id ? 700 : 400,
-                                background: pForm.farm_id===fm.id ? '#F1F5F9' : '#fff' }}>{fm.name}</div>
-                          ))}
-                          {matched.length === 0 && <div style={{ padding:'9px 12px', fontSize:12, color:'#94A3B8' }}>검색 결과 없음</div>}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                  <AdmSelect style={{ width:'100%' }} value={pForm.farm_id || ''}
+                    placeholder="브랜드 없음 — 선택"
+                    onChange={v => setPForm(f => ({ ...f, farm_id: v || null }))}
+                    options={[{ value:'', label:'브랜드 없음' }, ...farmList.map(fm => ({ value: fm.id, label: fm.name }))]} />
                 </div>
                 )}
                 <div style={{ gridColumn:'1 / -1' }}>
