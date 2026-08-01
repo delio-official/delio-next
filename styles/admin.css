@@ -154,8 +154,8 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
 /* 대시보드 매출·주문/회원현황 — 판매 성과처럼 납작한 셀 + 얇은 구분선(개별 테두리 제거) */
 .adm-kpi-grid-flat { gap: 1px !important; background: #EEF2F6 !important; border-top: 1px solid #EEF2F6; margin-bottom: 0 !important; }
 .adm-kpi-grid-flat .adm-kpi-card { border: none !important; box-shadow: none !important; border-radius: 0 !important; background: #fff !important; }
-/* 제목↔숫자 간격을 판매 성과(10px)와 동일하게 */
-.adm-kpi-grid-flat .adm-kpi-header { margin-bottom: 10px; }
+/* 제목↔숫자 간격을 판매 성과와 동일하게 — 아이콘 줄 하단에 라벨을 맞춰 여백 최소화 */
+.adm-kpi-grid-flat .adm-kpi-header { align-items: flex-end; margin-bottom: 8px; }
 .adm-kpi-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .adm-kpi-label { font-size: 12px; font-weight: 600; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.4px; }
 .adm-kpi-icon {
