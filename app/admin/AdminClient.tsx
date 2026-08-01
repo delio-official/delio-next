@@ -7112,15 +7112,30 @@ export default function AdminClient() {
               <div className="adm-formsec">
                 <div className="adm-formsec-title">가격 · 옵션</div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#475569', marginBottom:12 }}>판매금액 · 정산</div>
-                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                  {/* 정상가 */}
+                {/* 정상가 | 브랜드 공급가 — 2열 반반 */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                   <div>
                     <label className="adm-label">정상가 (원) *</label>
-                    <input className="adm-input-text" style={{ width:'100%', maxWidth:'calc(50% - 6px)' }} type="number" value={pForm.price || ''}
+                    <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
                       onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
                   </div>
-                  {/* 할인 — 체크 시 펼쳐지는 영역 */}
                   <div>
+                    <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 정산 단가</span></label>
+                    <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pForm.supply_price || ''}
+                      onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
+                    {pForm.supply_price > 0 && pForm.price > 0 && (() => {
+                      const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
+                      const margin = sellPrice - Number(pForm.supply_price);
+                      return (
+                        <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
+                          마진: <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+                {/* 할인 — 체크 시 펼쳐지는 영역 (전체 폭) */}
+                <div style={{ marginTop:12 }}>
                     <label style={{ display:'inline-flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
                       <input type="checkbox" checked={pDiscOn}
                         onChange={e => {
@@ -7131,7 +7146,7 @@ export default function AdminClient() {
                       할인 판매하기
                     </label>
                     {pDiscOn && (
-                      <div style={{ marginTop:10, padding:14, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10, maxWidth:'calc(50% - 6px)' }}>
+                      <div style={{ marginTop:10, padding:14, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10 }}>
                         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                           <span style={{ fontSize:13, color:'#64748B', flexShrink:0 }}>정상가에서</span>
                           {pDiscMode === 'rate' ? (
@@ -7171,22 +7186,6 @@ export default function AdminClient() {
                       </div>
                     )}
                   </div>
-                </div>
-                {/* 농가 공급가 (농가 정산 기준) */}
-                <div style={{ marginTop:12 }}>
-                  <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 브랜드에 줄 정산 단가</span></label>
-                  <input className="adm-input-text" style={{ width:'100%', maxWidth:'calc(50% - 6px)' }} type="number" min="0" value={pForm.supply_price || ''}
-                    onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
-                  {pForm.supply_price > 0 && pForm.price > 0 && (() => {
-                    const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
-                    const margin = sellPrice - Number(pForm.supply_price);
-                    return (
-                      <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
-                        마진(판매가−공급가): <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong>
-                      </div>
-                    );
-                  })()}
-                </div>
                 {/* 판매가 미리보기 (할인액으로 넣어도 소비자엔 % 자동 표기) */}
                 {pForm.price > 0 && (
                   <div style={{ marginTop:10, fontSize:13, color:'#475569' }}>
