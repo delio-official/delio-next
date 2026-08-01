@@ -2068,7 +2068,7 @@ export default function AdminClient() {
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
   const [pSaving, setPSaving] = useState(false);
-  const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('rate');
+  const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('amount');
   const [pDiscOn, setPDiscOn] = useState(false); // '할인 판매하기' 체크 → 할인영역 펼침
   const [pDiscAmount, setPDiscAmount] = useState(''); // '원 할인' 모드 입력값(원)
   // 금액 입력 → 가격 기준으로 할인율(%) 환산 (가격 입력 순서 무관)
@@ -3720,6 +3720,8 @@ export default function AdminClient() {
             rawUrls[3] ?? null, rawUrls[4] ?? null,
           ];
           setPDiscOn((data.discount_rate || 0) > 0); // 기존 할인 있으면 펼친 상태로
+          setPDiscMode('amount'); // 기본 단위 = 원 할인
+          setPDiscAmount((data.discount_rate || 0) > 0 ? String(Math.round(data.price * data.discount_rate / 100)) : '');
           setPForm({
             sku: data.sku || '', name: data.name, category: data.category,
             origin: data.origin || '', origin_region: data.origin_region || '', supply_price: data.supply_price ?? 0, price: data.price, discount_rate: data.discount_rate,
@@ -3757,7 +3759,7 @@ export default function AdminClient() {
     } else {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
-      setPDiscOn(false); setPDiscAmount('');      // 신규는 할인 접힘
+      setPDiscOn(false); setPDiscAmount(''); setPDiscMode('amount');  // 신규는 할인 접힘, 기본 단위 = 원
       setPForm({ ...PRODUCT_EMPTY });
       setPOptions([{ id: newOptId(), group: '옵션', required: true, label: '기본', add_price: 0, purchase_price: 0, shipping_fee: 0, stock: 999, manage_stock: true, parent_label: '' }]);  // 단품 기본 옵션
       setProductModal(true);
@@ -7114,7 +7116,7 @@ export default function AdminClient() {
                   {/* 정상가 */}
                   <div>
                     <label className="adm-label">정상가 (원) *</label>
-                    <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.price || ''}
+                    <input className="adm-input-text" style={{ width:'100%', maxWidth:'calc(50% - 6px)' }} type="number" value={pForm.price || ''}
                       onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
                   </div>
                   {/* 할인 — 체크 시 펼쳐지는 영역 */}
@@ -7129,7 +7131,7 @@ export default function AdminClient() {
                       할인 판매하기
                     </label>
                     {pDiscOn && (
-                      <div style={{ marginTop:10, padding:14, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10 }}>
+                      <div style={{ marginTop:10, padding:14, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10, maxWidth:'calc(50% - 6px)' }}>
                         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
                           <span style={{ fontSize:13, color:'#64748B', flexShrink:0 }}>정상가에서</span>
                           {pDiscMode === 'rate' ? (
@@ -7159,8 +7161,8 @@ export default function AdminClient() {
                             <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid #E2E8F0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                               <span style={{ fontSize:13, fontWeight:700, color:'#334155' }}>할인가</span>
                               <span>
-                                <b style={{ fontSize:18, color:'#2563EB' }}>{fmtPrice(sell)}</b>
-                                <span style={{ fontSize:13, color:'#2563EB' }}>원</span>
+                                <b style={{ fontSize:18, color:'#1A1A1A' }}>{fmtPrice(sell)}</b>
+                                <span style={{ fontSize:13, color:'#1A1A1A' }}>원</span>
                                 <span style={{ fontSize:12, color:'#64748B', marginLeft:6 }}>({fmtPrice(off)}원 할인)</span>
                               </span>
                             </div>
@@ -7173,7 +7175,7 @@ export default function AdminClient() {
                 {/* 농가 공급가 (농가 정산 기준) */}
                 <div style={{ marginTop:12 }}>
                   <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 브랜드에 줄 정산 단가</span></label>
-                  <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pForm.supply_price || ''}
+                  <input className="adm-input-text" style={{ width:'100%', maxWidth:'calc(50% - 6px)' }} type="number" min="0" value={pForm.supply_price || ''}
                     onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
                   {pForm.supply_price > 0 && pForm.price > 0 && (() => {
                     const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
