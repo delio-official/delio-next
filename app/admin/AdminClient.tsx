@@ -3921,7 +3921,7 @@ export default function AdminClient() {
     setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !x.is_active } : x));
   }
   async function deleteProduct(p: { id: string; name: string }): Promise<boolean> {
-    if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n· 옵션·상세정보·리뷰·찜·상품문의가 함께 삭제됩니다.\n· 주문 내역은 그대로 보존됩니다(상품명·금액 기록 유지 → 매출·정산 영향 없음).\n\n되돌릴 수 없습니다.`)) return false;
+    if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n· 옵션·상세정보·리뷰·찜·상품문의가 함께 삭제됩니다.\n· 주문 내역은 그대로 보존됩니다(상품명·금액 기록 유지 → 매출·정산 영향 없음).`)) return false;
     const supabase = createClient();
     // 자식 데이터 먼저 정리(참조 차단 방지) 후 상품 삭제.
     // 주문(order_items)은 FK가 ON DELETE SET NULL 이라 자동으로 링크만 끊기고 기록은 남음.
