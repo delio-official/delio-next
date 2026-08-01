@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
   · 진행 중인 환불신청(pending/processing/hold)이 걸린 주문은 제외 (환불 진행 보호)
   보안: Authorization: Bearer <CRON_SECRET>. ?force=1 이면 경과일수 무관(테스트용).
 */
-const CONFIRM_DAYS = 8;
+const CONFIRM_DAYS = 7;
 
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;

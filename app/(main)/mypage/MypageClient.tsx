@@ -497,6 +497,17 @@ export default function MypageClient() {
   }
 
   /* 주문 카드 버튼에서 호출 — 상품 1개면 바로, 2개 이상이면 선택 모달 */
+  /* 구매확정 — 배송완료 주문을 고객이 직접 확정 (자동확정 7일 전 조기 확정) */
+  async function confirmPurchase(o: Order) {
+    if (!confirm('구매를 확정하시겠어요?\n확정 후에는 환불 신청이 불가합니다.')) return;
+    const res = await fetch('/api/orders/confirm', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: o.id }),
+    }).then(r => r.json()).catch(() => null);
+    if (!res?.ok) { alert(res?.error || '구매확정에 실패했습니다. 다시 시도해주세요.'); return; }
+    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: 'confirmed' } : x));
+  }
+
   function startItemAction(mode: 'review' | 'repurchase' | 'cart', o: Order) {
     const items: PickItem[] = (o.order_items || [])
       .filter(it => it.product_id)
@@ -2598,7 +2609,10 @@ export default function MypageClient() {
                               if (trackBtn) btns.push(trackBtn);
                               btns.push(askBtn);
                               if (active) btns.push({ key:'reqst', label:`환불 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
-                              else if (withinReturnWindow(o.delivered_at)) btns.push({ key:'refund', label:'환불신청', onClick: () => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); } });
+                              else {
+                                if (withinReturnWindow(o.delivered_at)) btns.push({ key:'refund', label:'환불신청', onClick: () => { setReqModal({ order:o, type:'refund' }); setReqReason(''); setReqDetail(''); } });
+                                btns.push({ key:'confirm', label:'구매확정', onClick: () => confirmPurchase(o) });
+                              }
                               btns.push(cartBtn);
                             } else if (o.status === 'confirmed') {
                               if (withinReviewWindow(o.delivered_at)) btns.push({ key:'review', label:'리뷰 쓰기', onClick: () => startItemAction('review', o) });
