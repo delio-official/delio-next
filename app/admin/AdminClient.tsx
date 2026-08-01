@@ -8333,16 +8333,31 @@ export default function AdminClient() {
             <div className="adm-modal-head">
               <span className="adm-modal-title">주문 상세 — {selectedOrder.order_no}</span>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 14px', fontSize:13 }}
-                  onClick={() => setSelectedOrder(null)}>취소</button>
-                <button className="adm-btn adm-btn-primary" style={{ height:32, padding:'0 14px', fontSize:13 }}
-                  disabled={updatingStatus === selectedOrder.id}
-                  onClick={async () => {
-                    if (detailStatus && detailStatus !== selectedOrder.status) {
-                      await updateOrderStatus(selectedOrder.id, detailStatus);
-                    }
-                    setSelectedOrder(null);
-                  }}>저장</button>
+                {/* 배송 지연 안내 발송 (기존 취소/저장 자리) */}
+                {(() => {
+                  const sentAt = selectedOrder.delay_notified_at;
+                  const doSend = async () => {
+                    if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
+                    const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
+                    if (!reason || !reason.trim()) return;
+                    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
+                    if (!eta || !eta.trim()) return;
+                    notifyOrderRoles(selectedOrder, { type:'delivery_delayed', recipient: selectedOrder.recipient,
+                      orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
+                    const iso = new Date().toISOString();
+                    await createClient().from('orders').update({ delay_notified_at: iso }).eq('id', selectedOrder.id);
+                    setSelectedOrder(prev => prev ? { ...prev, delay_notified_at: iso } : prev);
+                    setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, delay_notified_at: iso } : o));
+                  };
+                  return (
+                    <button className="adm-btn adm-btn-outline" onClick={doSend} title={sentAt ? `${fmtDate(sentAt)} 발송됨 — 다시 보내기` : '고객에게 배송 지연 안내 발송'}
+                      style={{ height:32, padding:'0 14px', fontSize:13, display:'inline-flex', alignItems:'center', gap:6,
+                        ...(sentAt ? { color:'#15803D', borderColor:'#86EFAC', background:'#F0FDF4' } : {}) }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={sentAt ? '#16A34A' : '#F97316'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      {sentAt ? '지연안내 재발송' : '배송지연 안내'}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
             {/* 상태 변경 바 (상단, 전체 폭) */}
@@ -8408,7 +8423,7 @@ export default function AdminClient() {
               {/* 주문 상품 목록 */}
               {(selectedOrder.order_items?.length ?? 0) > 0 && (
                 <div className="adm-detail-group">
-                  <div className="adm-detail-label" style={{ marginBottom:10 }}>주문 상품</div>
+                  <div className="adm-detail-card-title">주문 상품</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {selectedOrder.order_items!.map((item, i) => (
                       <div key={i} style={{ display:'flex', alignItems:'center', gap:12,
@@ -8457,7 +8472,7 @@ export default function AdminClient() {
               )}
               {/* 배송 추적 정보 입력 — 농가(상품)별 송장 */}
               <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 추적 (브랜드별 송장)</div>
+                <div className="adm-detail-card-title">배송 추적 (브랜드별 송장)</div>
                 {(() => {
                   const items = selectedOrder.order_items || [];
                   const farmIds = [...new Set(items.map(i => i.farm_id || '__none'))];
@@ -8492,50 +8507,6 @@ export default function AdminClient() {
                       </div>
                     );
                   });
-                })()}
-              </div>
-
-              {/* 배송 지연 안내 발송 */}
-              <div className="adm-detail-group adm-detail-mt16">
-                <div className="adm-detail-label" style={{ marginBottom:8 }}>배송 지연 안내</div>
-                {(() => {
-                  const sentAt = selectedOrder.delay_notified_at;
-                  const doSend = async () => {
-                    if (!selectedOrder.phone) { alert('수령인 연락처가 없습니다.'); return; }
-                    const reason = prompt('지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)');
-                    if (!reason || !reason.trim()) return;
-                    const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
-                    if (!eta || !eta.trim()) return;
-                    /* 배송 관련 → 수령인 + 주문자 양쪽 */
-                    notifyOrderRoles(selectedOrder, { type:'delivery_delayed', recipient: selectedOrder.recipient,
-                      orderNo: selectedOrder.order_no, reason: reason.trim(), eta: eta.trim() });
-                    const iso = new Date().toISOString();
-                    await createClient().from('orders').update({ delay_notified_at: iso }).eq('id', selectedOrder.id);
-                    setSelectedOrder(prev => prev ? { ...prev, delay_notified_at: iso } : prev);
-                    setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, delay_notified_at: iso } : o));
-                  };
-                  return sentAt ? (
-                    <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:320, padding:'10px 14px',
-                      border:'1px solid #BBF7D0', background:'#F0FDF4', borderRadius:8 }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      <span style={{ fontSize:13, fontWeight:700, color:'#15803D' }}>배송 지연 안내 발송 완료</span>
-                      <span style={{ marginLeft:'auto', fontSize:12, color:'#64748B' }}>{fmtDate(sentAt)} 발송</span>
-                      <button onClick={doSend} title="예상 도착일이 바뀌면 다시 발송"
-                        style={{ display:'inline-flex', alignItems:'center', gap:4, height:26, padding:'0 9px', fontSize:12, fontWeight:600,
-                          border:'1px solid #86EFAC', background:'#fff', color:'#15803D', borderRadius:6, cursor:'pointer' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                        다시 보내기
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      style={{ display:'inline-flex', alignItems:'center', gap:7, width:'fit-content', height:38, padding:'0 16px',
-                        border:'1px solid #E2E8F0', background:'#fff', borderRadius:8, fontSize:13, fontWeight:600, color:'#334155', cursor:'pointer' }}
-                      onClick={doSend}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                      고객에게 배송 지연 안내 발송
-                    </button>
-                  );
                 })()}
               </div>
 
@@ -8576,6 +8547,20 @@ export default function AdminClient() {
 
               </div>
               </div>
+            </div>
+            {/* 하단 sticky 푸터 — 취소/저장 (전체 통일) */}
+            <div style={{ position:'sticky', bottom:0, display:'flex', justifyContent:'flex-end', gap:8,
+              padding:'14px 20px', borderTop:'1px solid #EEF1F5', background:'var(--surface)' }}>
+              <button className="adm-btn adm-btn-outline" style={{ height:34, padding:'0 16px', fontSize:13 }}
+                onClick={() => setSelectedOrder(null)}>취소</button>
+              <button className="adm-btn adm-btn-primary" style={{ height:34, padding:'0 16px', fontSize:13 }}
+                disabled={updatingStatus === selectedOrder.id}
+                onClick={async () => {
+                  if (detailStatus && detailStatus !== selectedOrder.status) {
+                    await updateOrderStatus(selectedOrder.id, detailStatus);
+                  }
+                  setSelectedOrder(null);
+                }}>저장</button>
             </div>
           </div>
         </div>
