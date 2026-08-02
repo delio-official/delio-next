@@ -9430,7 +9430,7 @@ export default function AdminClient() {
                               <div style={{ display:'flex', gap:0, padding:'26px 24px 18px', alignItems:'flex-start' }}>
                                 {cols.map((c, i) => (
                                   <div key={c.key} style={{ flex:1, padding: i===0 ? '0 32px 0 0' : '0 32px', textAlign:'center', minWidth:0 }}>
-                                    <div style={{ position:'relative', fontSize:19, fontWeight:700, color:'#1A1A1A', paddingBottom:10, marginBottom:12, whiteSpace:'nowrap' }}>
+                                    <div style={{ position:'relative', fontSize:17, fontWeight:700, color:'#1A1A1A', paddingBottom:10, marginBottom:12, whiteSpace:'nowrap' }}>
                                       {c.title}
                                       <span style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', width:64, height:2, background:'#1A1A1A' }} />
                                     </div>
