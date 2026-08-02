@@ -143,23 +143,6 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
           <div>
             <span style={{ fontSize: 15, fontWeight: 700 }}>상세페이지 관리</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={handleSave}
-              disabled={saving || loading}
-              style={{ padding: '8px 22px', background: '#1A1A1A', color: '#fff',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                cursor: (saving || loading) ? 'not-allowed' : 'pointer',
-                opacity: (saving || loading) ? 0.5 : 1 }}>
-              {saving ? '저장 중...' : '저장'}
-            </button>
-            <button
-              onClick={onClose}
-              style={{ padding: '8px 16px', background: '#F0F0F0', color: '#555',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              닫기
-            </button>
-          </div>
         </div>
 
         {/* 본문 */}
@@ -264,6 +247,25 @@ export default function ImageDetailEditor({ productId, productName, onClose, dra
         <div style={{ padding: '8px 20px', borderTop: '1px solid #EBEBEB',
           fontSize: 11, color: '#BBB', flexShrink: 0, background: '#FAFAFA' }}>
           💡 이미지는 상품 상세페이지에서 전체 너비로 세로로 쭉 표시됩니다
+        </div>
+
+        {/* 하단 액션 바 */}
+        <div className="adm-modal-foot">
+          <button
+            onClick={onClose}
+            style={{ padding: '8px 16px', background: '#F0F0F0', color: '#555',
+              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            닫기
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || loading}
+            style={{ padding: '8px 22px', background: '#1A1A1A', color: '#fff',
+              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+              cursor: (saving || loading) ? 'not-allowed' : 'pointer',
+              opacity: (saving || loading) ? 0.5 : 1 }}>
+            {saving ? '저장 중...' : '저장'}
+          </button>
         </div>
       </div>
     </div>

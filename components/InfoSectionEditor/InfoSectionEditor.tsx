@@ -230,20 +230,6 @@ export default function InfoSectionEditor({ productId, productName, onClose, dra
             <span style={{ fontSize: 15, fontWeight: 700 }}>상세정보 편집</span>
             <span style={{ fontSize: 12, color: '#999', marginLeft: 10 }}>{productName}</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSave} disabled={saving || loading}
-              style={{ padding: '8px 22px', background: '#1A1A1A', color: '#fff',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                cursor: (saving || loading) ? 'not-allowed' : 'pointer',
-                opacity: (saving || loading) ? 0.5 : 1 }}>
-              {saving ? '저장 중...' : '저장'}
-            </button>
-            <button onClick={onClose}
-              style={{ padding: '8px 16px', background: '#F0F0F0', color: '#555',
-                border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-              닫기
-            </button>
-          </div>
         </div>
 
         {/* 본문 */}
@@ -316,6 +302,22 @@ export default function InfoSectionEditor({ productId, productName, onClose, dra
         <div style={{ padding: '8px 20px', borderTop: '1px solid #EBEBEB',
           fontSize: 11, color: '#BBB', flexShrink: 0, background: '#FAFAFA' }}>
           💡 모든 행·항목을 자유롭게 수정·추가·삭제할 수 있습니다
+        </div>
+
+        {/* 하단 액션 바 */}
+        <div className="adm-modal-foot">
+          <button onClick={onClose}
+            style={{ padding: '8px 16px', background: '#F0F0F0', color: '#555',
+              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            닫기
+          </button>
+          <button onClick={handleSave} disabled={saving || loading}
+            style={{ padding: '8px 22px', background: '#1A1A1A', color: '#fff',
+              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+              cursor: (saving || loading) ? 'not-allowed' : 'pointer',
+              opacity: (saving || loading) ? 0.5 : 1 }}>
+            {saving ? '저장 중...' : '저장'}
+          </button>
         </div>
       </div>
     </div>

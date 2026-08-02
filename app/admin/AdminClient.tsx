@@ -7626,7 +7626,7 @@ export default function AdminClient() {
               </div>
 
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+            <div className="adm-modal-foot">
               <button className="adm-btn adm-btn-outline" onClick={() => setEventModal(false)}>취소</button>
               <button className="adm-btn adm-btn-primary" onClick={saveEvent} disabled={evSaving}>
                 {evSaving ? '저장 중...' : editingEvent ? '수정 완료' : '등록'}
@@ -7669,12 +7669,12 @@ export default function AdminClient() {
                 </div>
                 <AdmToggle on={faqForm.is_active} onChange={v => setFaqForm(f => ({ ...f, is_active: v }))} />
               </div>
-              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setFaqModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={saveFaq} disabled={faqSaving}>
-                  {faqSaving ? '저장 중...' : '저장'}
-                </button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setFaqModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveFaq} disabled={faqSaving}>
+                {faqSaving ? '저장 중...' : '저장'}
+              </button>
             </div>
           </div>
         </div>
@@ -7715,9 +7715,9 @@ export default function AdminClient() {
                   onKeyDown={e => { if (e.key === 'Enter') addFaqCat(); }} />
                 <button className="adm-btn adm-btn-primary" onClick={addFaqCat}>+ 추가</button>
               </div>
-              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setFaqCatModal(false)}>닫기</button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setFaqCatModal(false)}>닫기</button>
             </div>
           </div>
         </div>
@@ -7835,12 +7835,12 @@ export default function AdminClient() {
                   onChange={e => setFtForm(f => ({ ...f, is_active: e.target.checked }))} />
                 <strong>전체 사용</strong> (끄면 모든 위치에서 숨김)
               </label>
-              <div className="adm-flex-gap adm-flex-end" style={{ marginTop:4 }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setFtModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={saveFilterTab}>
-                  {editingFt ? '수정 완료' : '추가'}
-                </button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setFtModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveFilterTab}>
+                {editingFt ? '수정 완료' : '추가'}
+              </button>
             </div>
           </div>
         </div>
@@ -7914,14 +7914,13 @@ export default function AdminClient() {
                   placeholder="고객에게 전달할 답변을 입력하세요." />
               </div>
 
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <button className="adm-btn adm-btn-outline" onClick={deleteCs} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
-                <div style={{ flex:1 }} />
-                <button className="adm-btn adm-btn-outline" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>닫기</button>
-                <button className="adm-btn adm-btn-primary" onClick={answerCs} disabled={csAnswering}>
-                  {csAnswering ? '저장 중...' : '저장'}
-                </button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline foot-left" onClick={deleteCs} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
+              <button className="adm-btn adm-btn-outline" onClick={() => { setSelectedCs(null); setCsAnswer(''); }}>닫기</button>
+              <button className="adm-btn adm-btn-primary" onClick={answerCs} disabled={csAnswering}>
+                {csAnswering ? '저장 중...' : '저장'}
+              </button>
             </div>
           </div>
         </div>
@@ -7934,7 +7933,6 @@ export default function AdminClient() {
           <div className="adm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:880, width:'96vw', maxHeight:'92vh', overflowY:'auto' }}>
             <div className="adm-modal-head" style={{ position:'sticky', top:0, background:'#fff', zIndex:2 }}>
               <span className="adm-modal-title">{farmDetailTarget?.name} 분석</span>
-              <button className="adm-modal-close" onClick={() => setFarmDetailOpen(false)}>✕</button>
             </div>
             <div className="adm-modal-body">
               {farmDetailLoading || !farmRaw ? <PanelLoading /> : (() => {
@@ -8152,6 +8150,9 @@ export default function AdminClient() {
                   </>
                 );
               })()}
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setFarmDetailOpen(false)}>닫기</button>
             </div>
           </div>
         </div>
@@ -10750,7 +10751,7 @@ export default function AdminClient() {
                         </div>
 
                       </div>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:4, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+                      <div className="adm-modal-foot">
                         <button className="adm-btn adm-btn-outline" onClick={() => setPopupModal(false)}>취소</button>
                         <button className="adm-btn adm-btn-primary" onClick={savePopup} disabled={ppSaving || ppUploading}>
                           {ppSaving ? '저장 중...' : '저장'}
@@ -10820,7 +10821,7 @@ export default function AdminClient() {
                       </>
                     )}
                     </div>
-                    <div style={{ display:'flex', justifyContent:'flex-end', padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+                    <div className="adm-modal-foot">
                       <button className="adm-btn adm-btn-dark" onClick={() => setMediaHistoryOpen(false)}>닫기</button>
                     </div>
                   </div>
@@ -11033,7 +11034,7 @@ export default function AdminClient() {
                         </div>
 
                       </div>
-                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:4, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+                      <div className="adm-modal-foot">
                         <button className="adm-btn adm-btn-outline" onClick={() => setBannerModal(false)}>취소</button>
                         <button className="adm-btn adm-btn-primary" onClick={saveBanner} disabled={bnSaving || bnUploading}>
                           {bnSaving ? '저장 중...' : '저장'}
@@ -12490,28 +12491,28 @@ export default function AdminClient() {
                           </div>
                         </div>
 
-                        {/* 상태 변경 버튼 */}
-                        <div style={{ borderTop:'1px solid #EEF2F6', paddingTop:14, display:'flex', gap:8, flexWrap:'wrap' }}>
-                          {(r.status === 'pending' || r.status === 'rejected' || r.status === 'hold') && (
-                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'processing')}>진행중(이체대기)</button>
-                          )}
-                          {r.status !== 'completed' && r.status !== 'hold' && r.status !== 'rejected' && (
-                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
-                          )}
-                          {r.status !== 'completed' && (
-                            <button className="adm-btn adm-btn-primary" style={{ flex:1, minWidth:80 }} onClick={() => {
-                              if (hasDefect && r.refund_amount == null) { alert('부분환불은 먼저 "상품·메모 저장"을 눌러 확정한 뒤 승인해주세요.'); return; }
-                              if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. (쿠폰·포인트는 복구하지 않음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
-                            }}>환불승인</button>
-                          )}
-                          {r.status !== 'rejected' && r.status !== 'completed' && (
-                            <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
-                              const reason = prompt('환불 불가(거부) 사유를 입력하세요. 고객에게 전달됩니다.');
-                              if (reason && reason.trim()) updateRefundStatus(r, 'rejected', reason.trim());
-                            }}>환불 불가</button>
-                          )}
-                          <button className="adm-btn adm-btn-outline" style={{ flex:1, minWidth:80 }} onClick={() => setRefundDetail(null)}>닫기</button>
-                        </div>
+                      </div>
+                      {/* 상태 변경 버튼 */}
+                      <div className="adm-modal-foot">
+                        {r.status !== 'rejected' && r.status !== 'completed' && (
+                          <button className="adm-btn adm-btn-outline foot-left" style={{ color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => {
+                            const reason = prompt('환불 불가(거부) 사유를 입력하세요. 고객에게 전달됩니다.');
+                            if (reason && reason.trim()) updateRefundStatus(r, 'rejected', reason.trim());
+                          }}>환불 불가</button>
+                        )}
+                        {(r.status === 'pending' || r.status === 'rejected' || r.status === 'hold') && (
+                          <button className="adm-btn adm-btn-outline" onClick={() => updateRefundStatus(r, 'processing')}>진행중(이체대기)</button>
+                        )}
+                        {r.status !== 'completed' && r.status !== 'hold' && r.status !== 'rejected' && (
+                          <button className="adm-btn adm-btn-outline" onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
+                        )}
+                        {r.status !== 'completed' && (
+                          <button className="adm-btn adm-btn-primary" onClick={() => {
+                            if (hasDefect && r.refund_amount == null) { alert('부분환불은 먼저 "상품·메모 저장"을 눌러 확정한 뒤 승인해주세요.'); return; }
+                            if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. (쿠폰·포인트는 복구하지 않음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
+                          }}>환불승인</button>
+                        )}
+                        <button className="adm-btn adm-btn-outline" onClick={() => setRefundDetail(null)}>닫기</button>
                       </div>
                     </div>
                   </div>
@@ -12991,15 +12992,17 @@ export default function AdminClient() {
                       </div>
                     )}
 
-                    {/* 푸터 */}
-                    <div style={{ display:'flex', alignItems:'center', gap:8, borderTop:'1px solid #EEF2F6', paddingTop:14 }}>
-                      <button className="adm-btn adm-btn-outline" onClick={() => downloadFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>정산명세서(PDF)</button>
-                      <div style={{ flex:1 }} />
-                      <button className="adm-btn adm-btn-outline" onClick={() => setSelectedFarmSettle(null)}>닫기</button>
-                      {r.farmId && (meta
-                        ? <button className="adm-btn adm-btn-outline" style={{ color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { unmarkFarmSettled(r.farmId!); }}>정산 취소</button>
-                        : <button className="adm-btn adm-btn-primary" onClick={() => { markFarmSettled(r); }}>정산완료 처리</button>)}
-                    </div>
+                  </div>
+                  {/* 푸터 */}
+                  <div className="adm-modal-foot">
+                    {r.farmId && meta && (
+                      <button className="adm-btn adm-btn-outline foot-left" style={{ color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { unmarkFarmSettled(r.farmId!); }}>정산 취소</button>
+                    )}
+                    <button className="adm-btn adm-btn-outline" onClick={() => downloadFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>정산명세서(PDF)</button>
+                    <button className="adm-btn adm-btn-outline" onClick={() => setSelectedFarmSettle(null)}>닫기</button>
+                    {r.farmId && !meta && (
+                      <button className="adm-btn adm-btn-primary" onClick={() => { markFarmSettled(r); }}>정산완료 처리</button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -14045,7 +14048,7 @@ export default function AdminClient() {
             </div>
 
             {/* 푸터 — 취소 / 저장 */}
-            <div style={{ position:'sticky', bottom:0, background:'#fff', borderTop:'1px solid #F0F0F0', padding:'14px 22px', display:'flex', justifyContent:'flex-end', gap:8 }}>
+            <div className="adm-modal-foot">
               <button className="adm-btn adm-btn-outline" onClick={() => setSelectedMember(null)}>취소</button>
               <button className="adm-btn adm-btn-primary" onClick={saveMemberDetail} disabled={mDetailSaving}>{mDetailSaving ? '저장 중...' : '저장'}</button>
             </div>
@@ -14072,7 +14075,6 @@ export default function AdminClient() {
                 ) : null}
                 {selectedReview.is_best && <span className="adm-badge badge-paid">BEST</span>}
               </div>
-              <button className="adm-modal-close" onClick={() => setSelectedReview(null)}>✕</button>
             </div>
 
             <div className="adm-modal-body">
@@ -14190,23 +14192,20 @@ export default function AdminClient() {
                 </div>
               </div>
 
-              {/* 하단 — 좌: 삭제 / 우: 닫기·등록 */}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-                gap:8, marginTop:16, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
-                <button className="adm-btn" style={{ background:'#DC2626', color:'#fff', border:'none' }}
-                  onClick={async () => {
-                    if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
-                    await deleteReview(selectedReview.id);
-                    setSelectedReview(null);
-                  }}>리뷰 삭제</button>
-                <div style={{ display:'flex', gap:8 }}>
-                  <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
-                  <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
-                    onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
-                    {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
-                  </button>
-                </div>
-              </div>
+            </div>
+            {/* 하단 — 좌: 삭제 / 우: 닫기·등록 */}
+            <div className="adm-modal-foot">
+              <button className="adm-btn foot-left" style={{ background:'#DC2626', color:'#fff', border:'none' }}
+                onClick={async () => {
+                  if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
+                  await deleteReview(selectedReview.id);
+                  setSelectedReview(null);
+                }}>리뷰 삭제</button>
+              <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
+              <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
+                onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
+                {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
+              </button>
             </div>
           </div>
         </div>
@@ -14300,13 +14299,13 @@ export default function AdminClient() {
                   )}
                 </div>
 
-                {/* 취소/지급하기 — 다른 모달과 동일 규격 */}
-                <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
-                  <button className="adm-btn adm-btn-outline" onClick={() => setGiveCouponModal(false)}>취소</button>
-                  <button className="adm-btn adm-btn-primary" onClick={giveCoupon} disabled={giveCouponSaving}>
-                    {giveCouponSaving ? '지급 중...' : '지급하기'}
-                  </button>
-                </div>
+              </div>
+              {/* 취소/지급하기 — 다른 모달과 동일 규격 */}
+              <div className="adm-modal-foot">
+                <button className="adm-btn adm-btn-outline" onClick={() => setGiveCouponModal(false)}>취소</button>
+                <button className="adm-btn adm-btn-primary" onClick={giveCoupon} disabled={giveCouponSaving}>
+                  {giveCouponSaving ? '지급 중...' : '지급하기'}
+                </button>
               </div>
             </div>
           </div>
@@ -14371,12 +14370,12 @@ export default function AdminClient() {
                   <span style={{ fontSize:15, fontWeight:700, color:'#2563EB' }}>{fmtPrice(after)}P</span>
                 </div>
               </div>
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setGivePointModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={givePoints} disabled={givePointSaving}>
-                  {givePointSaving ? '처리 중...' : '지급하기'}
-                </button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setGivePointModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={givePoints} disabled={givePointSaving}>
+                {givePointSaving ? '처리 중...' : '지급하기'}
+              </button>
             </div>
           </div>
         </div>
@@ -14436,18 +14435,17 @@ export default function AdminClient() {
                   placeholder="고객에게 보여질 답변을 입력해주세요." />
               </div>
 
-              {/* 푸터: 좌측 비공개/삭제, 우측 닫기/저장 */}
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <button className="adm-btn adm-btn-outline" onClick={togglePiqPrivate}>
-                  {selectedProductInquiry.is_private ? '공개로 전환' : '비공개로 전환'}
-                </button>
-                <button className="adm-btn adm-btn-outline" onClick={deletePiq} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
-                <div style={{ flex:1 }} />
-                <button className="adm-btn adm-btn-outline" onClick={() => setSelectedProductInquiry(null)}>닫기</button>
-                <button className="adm-btn adm-btn-primary" onClick={answerProductInquiry} disabled={piqAnswering || !piqAnswer.trim()}>
-                  {piqAnswering ? '저장 중...' : '저장'}
-                </button>
-              </div>
+            </div>
+            {/* 푸터: 좌측 비공개/삭제, 우측 닫기/저장 */}
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline foot-left" onClick={deletePiq} style={{ color:'#DC2626', borderColor:'#FCA5A5' }}>삭제</button>
+              <button className="adm-btn adm-btn-outline" onClick={togglePiqPrivate}>
+                {selectedProductInquiry.is_private ? '공개로 전환' : '비공개로 전환'}
+              </button>
+              <button className="adm-btn adm-btn-outline" onClick={() => setSelectedProductInquiry(null)}>닫기</button>
+              <button className="adm-btn adm-btn-primary" onClick={answerProductInquiry} disabled={piqAnswering || !piqAnswer.trim()}>
+                {piqAnswering ? '저장 중...' : '저장'}
+              </button>
             </div>
           </div>
         </div>
@@ -14540,7 +14538,7 @@ export default function AdminClient() {
             </div>
 
             {/* 푸터 */}
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:24 }}>
+            <div className="adm-modal-foot">
               <button className="adm-btn adm-btn-outline" onClick={() => setSelectedInquiry(null)}>닫기</button>
               <button className="adm-btn adm-btn-primary" onClick={saveInquiryDetail}>저장</button>
             </div>
@@ -14621,7 +14619,7 @@ export default function AdminClient() {
               </div>
 
             </div>
-            <div style={{ display:'flex', justifyContent:'flex-end', gap:8, padding:'16px 20px 20px', borderTop:'1px solid #F0F0F0' }}>
+            <div className="adm-modal-foot">
               <button className="adm-btn adm-btn-outline" onClick={() => setLoungeModal(false)}>취소</button>
               <button className="adm-btn adm-btn-primary" onClick={saveLounge} disabled={loungeSaving}>
                 {loungeSaving ? '저장 중...' : editingLounge ? '수정 완료' : '등록'}
@@ -14763,12 +14761,12 @@ export default function AdminClient() {
                 ))}
               </div>
 
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:20, paddingTop:14, borderTop:'1px solid #F0F0F0' }}>
-                <button className="adm-btn adm-btn-outline" onClick={() => setCouponModal(false)}>취소</button>
-                <button className="adm-btn adm-btn-primary" onClick={saveCoupon} disabled={couponSaving}>
-                  {couponSaving ? '저장 중...' : '저장'}
-                </button>
-              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setCouponModal(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" onClick={saveCoupon} disabled={couponSaving}>
+                {couponSaving ? '저장 중...' : '저장'}
+              </button>
             </div>
           </div>
         </div>

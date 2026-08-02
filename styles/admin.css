@@ -682,6 +682,16 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 .adm-statusbar-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .adm-statusbar-sep { width: 1px; height: 20px; background: #E2E8F0; margin: 0 4px; }
 
+/* 공통 모달 하단 바 — 모든 모달 표준: sticky, 우측 정렬(닫기/저장), 파괴적 액션은 .foot-left(빨강)로 좌측 */
+.adm-modal-foot {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 14px 20px; border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.adm-modal-foot > .foot-left { margin-right: auto; }
+
 /* 주문 상세: 넓은 모달 + 2단 배치(스크롤 최소화) */
 .adm-modal-wide { max-width: 920px; max-height: 94vh; }
 /* 스크롤바 숨김(휠 스크롤은 유지) */

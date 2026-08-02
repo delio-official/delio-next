@@ -141,17 +141,6 @@ export default function ProductDetailEditor({ productId, productName, onClose }:
             <span style={{ fontSize: 15, fontWeight: 700 }}>상세설명 편집</span>
             <span style={{ fontSize: 12, color: '#999', marginLeft: 10 }}>{productName}</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleSave} disabled={saving} style={{
-              padding: '8px 22px', background: '#1A1A1A', color: '#fff',
-              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
-              cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.5 : 1,
-            }}>{saving ? '저장 중...' : '저장'}</button>
-            <button onClick={onClose} style={{
-              padding: '8px 16px', background: '#F0F0F0', color: '#555',
-              border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            }}>닫기</button>
-          </div>
         </div>
 
         {/* ── 툴바 ── */}
@@ -246,6 +235,19 @@ export default function ProductDetailEditor({ productId, productName, onClose }:
           fontSize: 11, color: '#BBB', flexShrink: 0, background: '#FAFAFA',
         }}>
           💡 이미지를 직접 붙여넣기(Ctrl+V)하거나 툴바의 이미지 버튼으로 삽입할 수 있습니다
+        </div>
+
+        {/* ── 하단 액션 바 ── */}
+        <div className="adm-modal-foot">
+          <button onClick={onClose} style={{
+            padding: '8px 16px', background: '#F0F0F0', color: '#555',
+            border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          }}>닫기</button>
+          <button onClick={handleSave} disabled={saving} style={{
+            padding: '8px 22px', background: '#1A1A1A', color: '#fff',
+            border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
+            cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.5 : 1,
+          }}>{saving ? '저장 중...' : '저장'}</button>
         </div>
       </div>
     </div>
