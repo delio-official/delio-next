@@ -109,11 +109,11 @@ function ProductPreviewCard(p: PreviewProps) {
 }
 
 /* 토글 스위치 (마케팅 동의 버튼식) — 켜짐=검정 */
-function AdmToggle({ on, onChange, title }: { on: boolean; onChange: (v: boolean) => void; title?: string }) {
+function AdmToggle({ on, onChange, title, color = '#1A1A1A' }: { on: boolean; onChange: (v: boolean) => void; title?: string; color?: string }) {
   return (
     <button type="button" role="switch" aria-checked={on} title={title} onClick={() => onChange(!on)}
       style={{ width: 38, height: 22, borderRadius: 999, border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0,
-        background: on ? '#1A1A1A' : '#D1D5DB', position: 'relative', transition: 'background .15s' }}>
+        background: on ? color : '#D1D5DB', position: 'relative', transition: 'background .15s' }}>
       <span style={{ position: 'absolute', top: 2, left: on ? 18 : 2, width: 18, height: 18, borderRadius: '50%',
         background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.25)' }} />
     </button>
@@ -2308,6 +2308,8 @@ export default function AdminClient() {
   const [menus, setMenus] = useState<MenuRow[]>([]);
   const [menusLoading, setMenusLoading] = useState(false);
   const [menuTab, setMenuTab] = useState<'mega'|'header'|'productlist'|'shortcut'>('mega');
+  const [openMegaCat, setOpenMegaCat] = useState<Set<string>>(new Set()); // 메가메뉴 대분류 아코디언 펼침 상태
+  const toggleMegaCat = (id: string) => setOpenMegaCat(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   /* ── 회원 ── */
   const [members, setMembers] = useState<AdminProfile[]>([]);
@@ -3516,19 +3518,21 @@ export default function AdminClient() {
   }
   async function addCategory(parent: string | null) {
     const maxOrder = filterTabs.reduce((m, t) => Math.max(m, t.sort_order), 0);
-    const { error } = await createClient().from('filter_tabs').insert({
+    const { data, error } = await createClient().from('filter_tabs').insert({
       tab_type: 'category', tab_value: genCatSlug(), label: parent ? '새 소분류' : '새 대분류',
       emoji: '', bg: '#F5F5F5', sort_order: maxOrder + 10, is_active: true,
       show_in_home: false, show_in_category: true, show_in_shortcut: false, parent,
-    });
+    }).select().single();
     if (error) { alert('추가 실패: ' + error.message); return; }
-    loadFilterTabs();
+    /* 리로드 없이 화면 state에만 추가 → 깜빡임 없음. 소분류면 상위 아코디언 펼친 채 유지 */
+    if (data) setFilterTabs(prev => [...prev, data as FilterTab]);
   }
   async function deleteCategory(t: FilterTab) {
     const subCount = filterTabs.filter(x => x.parent === t.tab_value).length;
     if (!confirm(`'${t.label}' 삭제할까요?${subCount ? ` (소분류 ${subCount}개도 함께 정리하세요)` : ''}`)) return;
     await createClient().from('filter_tabs').delete().eq('id', t.id);
-    loadFilterTabs();
+    /* 리로드 없이 화면 state에서만 제거 → 깜빡임 없음 */
+    setFilterTabs(prev => prev.filter(x => x.id !== t.id));
   }
 
   async function loadFarms() {
@@ -9460,30 +9464,38 @@ export default function AdminClient() {
                       <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={{ ...addSt, marginTop:0 }}>+ 메뉴 그룹</button>
                     </div>
                     {/* 카테고리 대분류 컬럼 */}
-                    {majors.map(m => (
+                    {majors.map(m => {
+                      const subs = filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order);
+                      const open = openMegaCat.has(m.id);
+                      const caretSt: React.CSSProperties = { width:20, height:20, flexShrink:0, border:'none', background:'transparent', cursor:'pointer', color:'#64748B', fontSize:11, lineHeight:1, padding:0 };
+                      return (
                       <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>카테고리</div>
+                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>대분류</div>
                         {/* 대분류 행 */}
                         <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', m.id); dragRow.current = null; }}>
-                          <span style={leadSt} />
+                          <button type="button" onClick={() => toggleMegaCat(m.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {ftText(m)}
-                          <AdmToggle on={m.is_active} onChange={v => updateFt(m.id, { is_active: v })} title="노출" />
+                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>소분류 {subs.length}</span>
+                          <AdmToggle on={m.is_active} color="#2563EB" onChange={v => updateFt(m.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteCategory(m)} style={delSt}>삭제</button>
                         </div>
-                        {/* 소분류 행 */}
-                        {filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
+                        {/* 소분류 — 아코디언(펼쳤을 때만) */}
+                        {open && (<>
+                        {subs.map(s => (
                           <div key={s.id} style={{ ...rowSt, marginLeft:28 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', s.id); dragRow.current = null; }}>
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {ftText(s)}
-                            <AdmToggle on={s.is_active} onChange={v => updateFt(s.id, { is_active: v })} title="노출" />
+                            <AdmToggle on={s.is_active} color="#2563EB" onChange={v => updateFt(s.id, { is_active: v }, false)} title="노출" />
                             <button type="button" onClick={() => deleteCategory(s)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addCategory(m.tab_value)} style={addSt}>+ 소분류 추가</button>
+                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ ...addSt, marginLeft:28, width:'auto' }}>+ 소분류 추가</button>
+                        </>)}
                       </div>
-                    ))}
+                      );
+                    })}
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => (
                       <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: g.is_active ? 1 : 0.55 }}>
