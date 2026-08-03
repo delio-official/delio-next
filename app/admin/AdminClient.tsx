@@ -9461,13 +9461,9 @@ export default function AdminClient() {
                       const handleSt: React.CSSProperties = { cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' };
                       const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' };
                       const addSt: React.CSSProperties = { width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 };
+                      const addBtnSm: React.CSSProperties = { ...addSt, marginTop:0, width:'auto', padding:'9px 18px' };
                       return (
                     <>
-                    {/* 컬럼 추가 — 소분류 추가와 동일 스타일(검정 점선·상단 카드 폭에 맞춤) */}
-                    <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-                      <button type="button" onClick={() => addCategory(null)} style={{ ...addSt, marginTop:0 }}>+ 카테고리</button>
-                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={{ ...addSt, marginTop:0 }}>+ 메뉴 그룹</button>
-                    </div>
                     {/* 카테고리 대분류 컬럼 */}
                     {majors.map(m => {
                       const subs = filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order);
@@ -9501,6 +9497,7 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
+                    <button type="button" onClick={() => addCategory(null)} style={{ ...addBtnSm, marginBottom:14 }}>+ 카테고리 추가</button>
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => {
                       const subs = menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order);
@@ -9532,6 +9529,7 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
+                    <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addBtnSm}>+ 메뉴 그룹 추가</button>
                     </>
                       );
                     })()}
