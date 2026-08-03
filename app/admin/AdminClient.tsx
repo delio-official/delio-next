@@ -8597,7 +8597,7 @@ export default function AdminClient() {
                     const fItems = items.filter(i => (i.farm_id || '__none') === fid);
                     const first = fItems[0];
                     const carrier = first?.carrier || '';
-                    const cur = farmTracking[fid] ?? { courier: first?.courier || carrier || '', tracking_number: first?.tracking_number || '' };
+                    const cur = farmTracking[fid] ?? { courier: first?.courier || resolveCourierCode(carrier) || '', tracking_number: first?.tracking_number || '' };
                     const shipped = fItems.every(i => !!i.tracking_number);
                     return (
                       <div key={fid} style={{ marginBottom:10, padding:'10px 12px', border:'1px solid #E2E8F0', borderRadius:8 }}>
@@ -9195,7 +9195,7 @@ export default function AdminClient() {
                             const shipped = g.items.length > 0 && g.items.every(x => !!x.tracking_number);
                             const first = g.items[0];
                             return { key, farmName: g.farmName, items: g.items, sub, shipped,
-                              tracking: first?.tracking_number || '', courier: first?.courier || '' };
+                              tracking: first?.tracking_number || '', courier: first?.courier || resolveCourierCode((first as { carrier?: string | null } | undefined)?.carrier) || '' };
                           });
                           if (groups.length === 0) groups.push({ key:'__none', farmName:'-', items:[], sub:o.final_amount||0, shipped:false, tracking:'', courier:'' });
                           const n = groups.length;
