@@ -2051,6 +2051,8 @@ export default function AdminClient() {
   const [farmImgUploading, setFarmImgUploading] = useState(false);
   const [farmTypeFilter, setFarmTypeFilter] = useState('');   // 농가 목록 품목 탭 필터
   const [farmListSearch, setFarmListSearch] = useState('');    // 브랜드 목록 검색(품목·브랜드명·대표자명)
+  const [farmPage, setFarmPage] = useState(1);
+  const FARM_PAGE_SIZE = 20;
 
 
   /* ── 상품 등록/수정 모달 ── */
@@ -9675,15 +9677,21 @@ export default function AdminClient() {
               return [f.name, f.farmer_name || '', ...(f.items || [])]
                 .some(v => v.toLowerCase().includes(kw));
             });
+            const farmTotalPages = Math.max(1, Math.ceil(filteredFarms.length / FARM_PAGE_SIZE));
+            const farmCurPage = Math.min(farmPage, farmTotalPages);
+            const pagedFarms = filteredFarms.slice((farmCurPage - 1) * FARM_PAGE_SIZE, farmCurPage * FARM_PAGE_SIZE);
             return (
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
                   {/* 품목 필터 — 드롭다운(품목 많아져도 안 길어짐) + 검색 */}
-                  <AdmSelect value={farmTypeFilter} onChange={setFarmTypeFilter}
+                  <AdmSelect value={farmTypeFilter} onChange={v => { setFarmTypeFilter(v); setFarmPage(1); }}
                     options={[{ value:'', label:'전체 품목' }, ...farmItems.map(t => ({ value:t, label:t }))]} />
                   <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·브랜드명·대표자명 검색"
-                    value={farmListSearch} onChange={e => setFarmListSearch(e.target.value)} />
+                    value={farmListSearch} onChange={e => { setFarmListSearch(e.target.value); setFarmPage(1); }} />
+                  <span className="adm-muted" style={{ fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}>
+                    {farmTypeFilter ? `${farmTypeFilter} ` : '전체 '}<strong style={{ color:'#1A1A1A' }}>{filteredFarms.length}</strong>개
+                  </span>
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => { setFarmSearch(''); loadFarms(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
@@ -9698,7 +9706,7 @@ export default function AdminClient() {
                       <tbody>
                         {filteredFarms.length === 0 ? (
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 브랜드 없음' : '조건에 맞는 브랜드 없음'}</td></tr>
-                        ) : filteredFarms.map(f => (
+                        ) : pagedFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
                             <td>{f.farmer_name || '-'}</td>
@@ -9720,6 +9728,14 @@ export default function AdminClient() {
                   </div>
                 )}
               </div>
+              {!farmsLoading && filteredFarms.length > 0 && (
+                <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14 }}>
+                  <button className="adm-btn adm-btn-outline" disabled={farmCurPage <= 1} onClick={() => setFarmPage(p => Math.max(1, p - 1))}>이전</button>
+                  <span className="adm-muted" style={{ fontSize:13 }}>{farmCurPage} / {farmTotalPages}</span>
+                  <button className="adm-btn adm-btn-outline" disabled={farmCurPage >= farmTotalPages} onClick={() => setFarmPage(p => Math.min(farmTotalPages, p + 1))}>다음</button>
+                  <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {filteredFarms.length}개</span>
+                </div>
+              )}
             </div>
             );
           })()}
