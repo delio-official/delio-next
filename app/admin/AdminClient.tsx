@@ -8380,8 +8380,8 @@ export default function AdminClient() {
                       </div>
                     ))}
                     <label style={{ alignSelf:'flex-start', fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer' }}>
-                      {farmImgUploading ? '업로드 중...' : '+ 브랜드 소개 이미지 추가'}
-                      <input type="file" accept="image/*" multiple hidden onChange={async e => { const files = Array.from(e.target.files || []); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); e.target.value=''; }} />
+                      {farmImgUploading ? '업로드 중...' : '+ 브랜드 소개 이미지 추가 (여러 장 선택 가능)'}
+                      <input type="file" accept="image/*" multiple hidden onChange={async e => { const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/')); e.target.value=''; if (!files.length) return; setFarmImgUploading(true); const urls = (await Promise.all(files.map(f => uploadProductImage(f)))).filter(Boolean) as string[]; if (urls.length) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, ...urls] })); setFarmImgUploading(false); }} />
                     </label>
                   </div>
                 </div>
