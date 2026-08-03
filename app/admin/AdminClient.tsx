@@ -9652,13 +9652,13 @@ export default function AdminClient() {
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
-                  {/* 품목 필터 — 드롭다운(품목 많아져도 안 길어짐) */}
+                  {/* 품목 필터 — 드롭다운(품목 많아져도 안 길어짐) + 검색 */}
                   <AdmSelect value={farmTypeFilter} onChange={setFarmTypeFilter}
                     options={[{ value:'', label:'전체 품목' }, ...farmItems.map(t => ({ value:t, label:t }))]} />
-                </div>
-                <div className="adm-toolbar-right">
                   <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·브랜드명·대표자명 검색"
                     value={farmListSearch} onChange={e => setFarmListSearch(e.target.value)} />
+                </div>
+                <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => { setFarmSearch(''); loadFarms(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 브랜드 등록</button>
                 </div>
