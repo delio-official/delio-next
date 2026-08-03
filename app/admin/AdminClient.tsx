@@ -9459,7 +9459,7 @@ export default function AdminClient() {
                       const rowSt: React.CSSProperties = { display:'flex', gap:8, alignItems:'center', marginBottom:8 };
                       const leadSt: React.CSSProperties = { width:16, flexShrink:0, textAlign:'center', color:'#CBD5E1', fontSize:14 };
                       const handleSt: React.CSSProperties = { cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' };
-                      const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' };
+                      const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' };
                       const addSt: React.CSSProperties = { width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 };
                       const addBtnSm: React.CSSProperties = { ...addSt, marginTop:0, width:'auto', padding:'9px 18px' };
                       return (
