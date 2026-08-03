@@ -8295,7 +8295,7 @@ export default function AdminClient() {
 
                 {/* 브랜드 썸네일 */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진 · 권장 800×600(4:3) · 드래그 가능)</span></label>
+                  <label className="adm-label">브랜드 썸네일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단 우측 사진 · 세로형 권장 900×1200(3:4) · 드래그 가능)</span></label>
                   <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); }}>
@@ -8318,7 +8318,7 @@ export default function AdminClient() {
 
                 {/* 브랜드 로고 (원형 — 메인 브랜드 직송관 카드 농가명 좌측 동그라미) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(동그라미 · 정사각 400×400 · 드래그 가능)</span></label>
+                  <label className="adm-label">브랜드 로고 <span style={{ fontWeight:400, color:'#94A3B8' }}>(동그라미 · 정사각 권장 1200×1200 · 드래그 가능)</span></label>
                   <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); }}>
@@ -8341,7 +8341,7 @@ export default function AdminClient() {
 
                 {/* 브랜드 소개 이미지 (여러 장) */}
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 소개 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 위→아래 순서 · 드래그 가능)</span></label>
+                  <label className="adm-label">브랜드 소개 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 하단 · 세로 긴 이미지 · 권장 폭 900px · 위→아래 순서 · 드래그 가능)</span></label>
                   <div style={{ display:'flex', flexDirection:'column', gap:8, flex:1 }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/')); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); }}>
