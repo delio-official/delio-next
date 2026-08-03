@@ -3,6 +3,7 @@
 import Script from 'next/script';
 import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { useTrackingBlocked } from '@/lib/useTrackingBlocked';
 
 /* Meta(Facebook) 픽셀.
    픽셀 ID는 브라우저에 어차피 노출되는 공개값이라 코드에 직접 둔다.
@@ -21,8 +22,8 @@ function PageviewTracker() {
 }
 
 export default function MetaPixel() {
-  const pathname = usePathname();
-  if (pathname?.startsWith('/admin')) return null;  // 관리자 페이지 → 추적 제외
+  const blocked = useTrackingBlocked();
+  if (blocked) return null;  // 관리자 페이지/계정 → 추적 제외
   return (
     <>
       <Script id="meta-pixel" strategy="afterInteractive">

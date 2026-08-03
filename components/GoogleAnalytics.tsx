@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { GA_ID, pageview } from '@/lib/gtag';
+import { useTrackingBlocked } from '@/lib/useTrackingBlocked';
 
 /* 라우트 변경 시 page_view 전송 (App Router는 수동) */
 function PageviewTracker() {
@@ -18,8 +19,8 @@ function PageviewTracker() {
 }
 
 export default function GoogleAnalytics() {
-  const pathname = usePathname();
-  if (!GA_ID || pathname?.startsWith('/admin')) return null;  // 측정 ID 미설정 or 관리자 페이지 → 추적 제외
+  const blocked = useTrackingBlocked();
+  if (!GA_ID || blocked) return null;  // 측정 ID 미설정 or 관리자 페이지/계정 → 추적 제외
   return (
     <>
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
