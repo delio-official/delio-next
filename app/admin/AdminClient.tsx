@@ -3491,12 +3491,12 @@ export default function AdminClient() {
   }
   async function addMenu(row: Partial<MenuRow>) {
     const maxOrder = menus.reduce((m, x) => Math.max(m, x.sort_order), 0);
-    const { error } = await createClient().from('menu_items').insert({
+    const { data, error } = await createClient().from('menu_items').insert({
       label: '새 메뉴', href: '/', emoji: '', sort_order: maxOrder + 10,
       is_active: true, show_in_mega: false, show_in_header: false, show_in_shortcut: false, parent: null, ...row,
-    });
+    }).select().single();
     if (error) { alert('추가 실패: ' + error.message); return; }
-    loadMenus();
+    if (data) setMenus(prev => [...prev, data as MenuRow]); // 리로드 없이 반영(깜빡임 없음)
   }
   async function updateMenu(id: string, patch: Partial<MenuRow>, reload = true) {
     await createClient().from('menu_items').update(patch).eq('id', id);
@@ -3505,8 +3505,11 @@ export default function AdminClient() {
   }
   async function deleteMenu(id: string) {
     if (!confirm('이 메뉴를 삭제할까요? (하위 링크도 함께 삭제됩니다)')) return;
-    await createClient().from('menu_items').delete().eq('id', id);
-    loadMenus();
+    const sb = createClient();
+    await sb.from('menu_items').delete().eq('parent', id); // 하위 링크 먼저
+    await sb.from('menu_items').delete().eq('id', id);
+    /* 리로드 없이 제거 → 깜빡임 없음 */
+    setMenus(prev => prev.filter(x => x.id !== id && x.parent !== id));
   }
 
   /* ── 카테고리(filter_tabs) 인라인 CRUD (메뉴 관리 패널용) ── */
@@ -9497,28 +9500,36 @@ export default function AdminClient() {
                       );
                     })}
                     {/* 메뉴 그룹 컬럼 */}
-                    {megaGroups.map(g => (
+                    {megaGroups.map(g => {
+                      const subs = menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order);
+                      const open = openMegaCat.has(g.id);
+                      const caretSt: React.CSSProperties = { width:20, height:20, flexShrink:0, border:'none', background:'transparent', cursor:'pointer', color:'#64748B', fontSize:11, lineHeight:1, padding:0 };
+                      return (
                       <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: g.is_active ? 1 : 0.55 }}>
                         <div style={{ fontSize:11, fontWeight:800, color:'#2563EB', marginBottom:8 }}>메뉴 그룹</div>
                         <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', g.id); dragRow.current = null; }}>
-                          <span style={leadSt} />
+                          <button type="button" onClick={() => toggleMegaCat(g.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
-                          <AdmToggle on={g.is_active} onChange={v => updateMenu(g.id, { is_active: v })} title="노출" />
+                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>하위 {subs.length}</span>
+                          <AdmToggle on={g.is_active} color="#2563EB" onChange={v => updateMenu(g.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
-                        {menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order).map(s => (
+                        {open && (<>
+                        {subs.map(s => (
                           <div key={s.id} style={{ ...rowSt, marginLeft:28, opacity: s.is_active ? 1 : 0.5 }} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', s.id); dragRow.current = null; }}>
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {mText(s)}
-                            <AdmToggle on={s.is_active} onChange={v => updateMenu(s.id, { is_active: v })} title="노출" />
+                            <AdmToggle on={s.is_active} color="#2563EB" onChange={v => updateMenu(s.id, { is_active: v }, false)} title="노출" />
                             <button type="button" onClick={() => deleteMenu(s.id)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={addSt}>+ 소분류 추가</button>
+                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={{ ...addSt, marginLeft:28, width:'auto' }}>+ 소분류 추가</button>
+                        </>)}
                       </div>
-                    ))}
+                      );
+                    })}
                     </>
                       );
                     })()}
