@@ -18,7 +18,8 @@ function PageviewTracker() {
 }
 
 export default function GoogleAnalytics() {
-  if (!GA_ID) return null;  // 측정 ID 미설정 시 비활성
+  const pathname = usePathname();
+  if (!GA_ID || pathname?.startsWith('/admin')) return null;  // 측정 ID 미설정 or 관리자 페이지 → 추적 제외
   return (
     <>
       <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />

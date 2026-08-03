@@ -21,6 +21,8 @@ function PageviewTracker() {
 }
 
 export default function MetaPixel() {
+  const pathname = usePathname();
+  if (pathname?.startsWith('/admin')) return null;  // 관리자 페이지 → 추적 제외
   return (
     <>
       <Script id="meta-pixel" strategy="afterInteractive">
