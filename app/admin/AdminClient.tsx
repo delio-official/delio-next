@@ -5751,6 +5751,25 @@ export default function AdminClient() {
     { value:'kr.cupost', label:'CU편의점택배' },
   ];
 
+  /* 택배사 이름/코드/표기 흔들림을 코드로 관대하게 변환 (엑셀 입력 매칭용). 못 알아보면 '' */
+  function resolveCourierCode(input?: string | null): string {
+    const t = (input || '').trim();
+    if (!t) return '';
+    if (COURIER_NAMES[t]) return t;                                   // 이미 코드(kr.xxx)
+    const byName = Object.entries(COURIER_NAMES).find(([, nm]) => nm === t);
+    if (byName) return byName[0];                                     // 정확한 이름
+    const s = t.replace(/[\s()·]/g, '');
+    if (/우체국|epost/i.test(s)) return 'kr.epost';
+    if (/롯데글로벌|글로벌로지스|lotteglogis/i.test(s)) return 'kr.lotteglogis';
+    if (/롯데|lotte/i.test(s)) return 'kr.lotte';
+    if (/한진|hanjin/i.test(s)) return 'kr.hanjin';
+    if (/로젠|logen/i.test(s)) return 'kr.logen';
+    if (/쿠팡|로켓|coupang/i.test(s)) return 'kr.coupang';
+    if (/cu|편의점|cupost/i.test(s)) return 'kr.cupost';
+    if (/cj|대한통운|cjlogistics/i.test(s)) return 'kr.cjlogistics';
+    return '';
+  }
+
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
      + 해당 농가 배송시작 알림톡 발송 + 추적 웹훅 구독 등록(송장별 각각) */
   /* 브랜드(상품) 단위 송장 저장 — 목록·상세 공용.
@@ -5990,8 +6009,6 @@ export default function AdminClient() {
     const XLSX = xlsxMod.default ?? xlsxMod;
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
-    const nameToCode: Record<string, string> = {};
-    Object.entries(COURIER_NAMES).forEach(([code, nm]) => { nameToCode[nm] = code; });
     /* 엑셀 한 줄 = (주문번호 + 브랜드) 단위. 브랜드 열이 있으면 농가별 송장 각각, 없으면(구양식) 주문 전체 */
     type P = { orderNo: string; brand: string; courier: string; tracking: string };
     const byKey: Record<string, P> = {};
@@ -6010,7 +6027,7 @@ export default function AdminClient() {
         if (!orderNo || !tracking) continue;
         const courierName = iCr >= 0 ? String(row[iCr] || '').trim() : '';
         const brand = iBrand >= 0 ? String(row[iBrand] || '').trim() : '';
-        byKey[`${orderNo}::${brand}`] = { orderNo, brand, courier: nameToCode[courierName] || 'kr.cjlogistics', tracking };
+        byKey[`${orderNo}::${brand}`] = { orderNo, brand, courier: resolveCourierCode(courierName), tracking }; // 빈칸/미인식이면 '' → 적용 시 농가 지정택배사로 폴백
       }
     });
     const list = Object.values(byKey);
@@ -6030,7 +6047,7 @@ export default function AdminClient() {
     for (let i = 0; i < missingNos.length; i += 300) {
       const chunk = missingNos.slice(i, i + 300);
       const { data } = await supabase.from('orders')
-        .select('id, order_no, phone, orderer_phone, orderer_name, recipient, status, order_items(id, product_name, farm_id, products(farm_id, farms(name)))')
+        .select('id, order_no, phone, orderer_phone, orderer_name, recipient, status, order_items(id, product_name, farm_id, products(farm_id, farms(name, carrier)))')
         .in('order_no', chunk);
       (data || []).forEach((o: Record<string, unknown>) => {
         const items = ((o.order_items as Record<string, unknown>[]) || []).map(it => {
@@ -6051,9 +6068,13 @@ export default function AdminClient() {
       const allItems = o.order_items || [];
       const matchFarm = (i: { farm_name?: string | null }, brand: string) => brand === '' || (i.farm_name || '농가 미지정') === brand;
 
-      /* 항목별 송장 계획 (item.id → {courier,tracking}) */
+      /* 항목별 송장 계획 (item.id → {courier,tracking}).
+         택배사 = 브랜드 지정 택배사(carrier) 우선. 지정이 없으면 엑셀 택배사칸, 그것도 없으면 CJ */
       const plan = new Map<string, { courier: string; tracking: string }>();
       farmEntries.forEach(fe => {
+        const fitem = allItems.find(i => matchFarm(i, fe.brand)) as ({ carrier?: string | null } | undefined);
+        const brandCarrier = resolveCourierCode(fitem?.carrier);
+        fe.courier = brandCarrier || fe.courier || 'kr.cjlogistics';
         allItems.forEach(i => { if (i.id && matchFarm(i, fe.brand)) plan.set(i.id, { courier: fe.courier, tracking: fe.tracking }); });
       });
       if (plan.size === 0) { miss++; continue; }
