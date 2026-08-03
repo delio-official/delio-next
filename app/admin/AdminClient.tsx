@@ -1859,7 +1859,7 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
           재고관리
           <input type="checkbox" checked={o.manage_stock} onChange={e => patch(o._i, { manage_stock: e.target.checked })} />
         </label>
-        <button type="button" onClick={() => removeAt(o._i)} style={{ height:34, padding:'0 12px', border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:6, cursor:'pointer', flexShrink:0, fontSize:12, fontWeight:600 }}>삭제</button>
+        <button type="button" onClick={() => removeAt(o._i)} style={{ height:34, padding:'0 12px', border:'1px solid #FECACA', background:'#fff', color:'#DC2626', borderRadius:0, cursor:'pointer', flexShrink:0, fontSize:12, fontWeight:600 }}>삭제</button>
       </div>
       <div style={{ marginLeft:18, marginTop:5, fontSize:11, color:'#64748B' }}>
         판매금액 <b style={{ color:'#1A1A1A', fontSize:12 }}>{fmtPrice(basePrice + (Number(o.add_price) || 0))}원</b>
@@ -1982,7 +1982,7 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
               <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
                 <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
                 <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 무농약 방울토마토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
-                <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
+                <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:0, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
               </div>
               {subOpts.filter(s => s.parent_id === sup.id).map(s => valueRow(s))}
               {addBtn(`+ ${sup.label || '이 분류'}의 옵션 추가`, () => addSubUnder(sup.id))}
@@ -8347,7 +8347,7 @@ export default function AdminClient() {
                           <button type="button" disabled={i===0} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i-1],a[i]]=[a[i],a[i-1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor: i===0?'default':'pointer', color: i===0?'#CBD5E1':'#64748B' }}>▲</button>
                           <button type="button" disabled={i===farmForm.landing_images.length-1} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i+1],a[i]]=[a[i],a[i+1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor:'pointer', color:'#64748B' }}>▼</button>
                         </div>
-                        <button type="button" onClick={() => setFarmForm(p => ({ ...p, landing_images: p.landing_images.filter((_, j) => j !== i) }))} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:6, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
+                        <button type="button" onClick={() => setFarmForm(p => ({ ...p, landing_images: p.landing_images.filter((_, j) => j !== i) }))} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:0, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
                     <label style={{ alignSelf:'flex-start', fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer' }}>
@@ -9564,7 +9564,7 @@ export default function AdminClient() {
                         {mIn(m,'label','메뉴명','1 1 120px')}
                         {mIn(m,'href','/경로','1 1 130px')}
                         <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>상단바 노출 <AdmToggle on={m.show_in_header} onChange={v => updateMenu(m.id, { show_in_header: v })} title="상단바 노출" /></span>
-                        <button type="button" onClick={() => deleteMenu(m.id)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
+                        <button type="button" onClick={() => deleteMenu(m.id)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
                   </>
@@ -9614,7 +9614,7 @@ export default function AdminClient() {
                     <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':t.tab_type==='link'?'링크':'카테고리'}</span>
                     <AdmToggle on={!!t.show_in_shortcut} onChange={v => updateFt(t.id, { show_in_shortcut: v })} title="노출" />
                     <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
-                    <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:6, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
+                    <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                   </div>
                 );
                 return (
