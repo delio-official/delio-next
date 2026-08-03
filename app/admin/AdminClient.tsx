@@ -6649,12 +6649,14 @@ export default function AdminClient() {
   const pagedOrders = filteredOrders.slice((orderCurPage - 1) * orderPageSize, orderCurPage * orderPageSize);
 
   /* 엑셀 다운로드 — kind='ship'(주문서·배송용, 공급가 제외) / 'purchase'(발주서·매입용, 고객 개인정보 제외) */
+  /* 발송/발주 문서에 넣지 않는 주문 상태 — 취소·환불·환불중·입금기한만료·무통장 미입금 */
+  const NON_SHIPPABLE = ['cancelled', 'refunded', 'refunding', 'expired', 'pending'];
   async function downloadOrderExcel(farmId?: string, kind: 'ship' | 'purchase' = 'ship') {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
-    const targetOrders = farmId
+    const targetOrders = (farmId
       ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
-      : filteredOrders;
+      : filteredOrders).filter(o => !NON_SHIPPABLE.includes(o.status));
 
     // 주문항목을 농가별로 평탄화
     type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number; courierName: string; tracking: string; shipStatus: string };
@@ -6742,9 +6744,9 @@ export default function AdminClient() {
   async function downloadCJExcel(farmId?: string) {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
-    const targetOrders = farmId
+    const targetOrders = (farmId
       ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
-      : filteredOrders;
+      : filteredOrders).filter(o => !NON_SHIPPABLE.includes(o.status));
     // (주문 × 농가) 단위로 묶어 파셀 1행 — 같은 주문 내 같은 농가 상품은 한 박스로 합침
     type Pcl = { order_no: string; recipient: string; phone: string; address: string; memo: string; products: string[]; qty: number; tracking: string };
     const parcels: Record<string, Pcl> = {};
