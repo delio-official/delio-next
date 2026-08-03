@@ -9581,27 +9581,14 @@ export default function AdminClient() {
                 const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
                 return (
                   <>
-                    {/* 미리보기 — 실제 상품목록 상단(대분류 탭 + 소분류 필터)처럼 */}
+                    {/* 미리보기 — 실제 상품목록 페이지를 그대로 임베드(클릭 동작) */}
                     <div style={{ marginBottom:16 }}>
-                      <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>상품목록 상단 미리보기</div>
-                      <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'18px 22px' }}>
-                        {/* 대분류 탭 — 실제처럼 글씨 + 선택(전체) 하단 검정바 */}
-                        <div style={{ display:'flex', gap:26, alignItems:'center', flexWrap:'wrap', borderBottom:'1px solid #EEE', paddingBottom:2 }}>
-                          <span style={{ fontSize:15, fontWeight:700, color:'#1A1A1A', paddingBottom:10, borderBottom:'2px solid #1A1A1A', marginBottom:'-1px' }}>전체</span>
-                          {shownMajors.map(m => <span key={m.id} style={{ fontSize:15, fontWeight:500, color:'#8A8A8A', paddingBottom:10 }}>{m.label}</span>)}
-                          {shownMajors.length===0 && <span className="adm-muted" style={{ fontSize:12 }}>노출된 대분류 없음</span>}
-                        </div>
-                        {/* 소분류 필터 필 */}
-                        {shownMajors.map(m => {
-                          const ss = subsOf(m.tab_value).filter(s => s.show_in_category && s.is_active);
-                          if (!ss.length) return null;
-                          return (
-                            <div key={m.id} style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginTop:12 }}>
-                              <span style={{ fontSize:12, color:'#94A3B8', minWidth:72 }}>{m.label}</span>
-                              {ss.map(s => <span key={s.id} style={{ fontSize:13, color:'#555', background:'#F4F4F2', border:'1px solid #E5E5E1', borderRadius:999, padding:'6px 14px' }}>{s.label}</span>)}
-                            </div>
-                          );
-                        })}
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                        <span style={{ fontSize:12, color:'#94A3B8' }}>실제 상품목록 미리보기 (클릭·스크롤 됩니다)</span>
+                        <a href="/category" target="_blank" rel="noreferrer" style={{ fontSize:12, color:'#2563EB', textDecoration:'none' }}>새 탭에서 열기 ↗</a>
+                      </div>
+                      <div style={{ border:'1px solid #EBEBEB', borderRadius:8, overflow:'hidden', background:'#fff' }}>
+                        <iframe src="/category" title="상품목록 미리보기" style={{ width:'100%', height:560, border:'none', display:'block' }} />
                       </div>
                     </div>
                     {/* 대분류·소분류는 메가메뉴 탭에서 일원 관리 (여기선 미리보기만) */}
