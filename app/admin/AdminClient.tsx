@@ -9652,13 +9652,9 @@ export default function AdminClient() {
             <div className="adm-content">
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left">
-                  {/* 품목 탭 — 글씨만 + 선택 시 하단 검정바 */}
-                  <div className="adm-tabs" style={{ marginBottom:0 }}>
-                    <button className={`adm-tab${farmTypeFilter===''?' active':''}`} onClick={() => setFarmTypeFilter('')}>전체</button>
-                    {farmItems.map(t => (
-                      <button key={t} className={`adm-tab${farmTypeFilter===t?' active':''}`} onClick={() => setFarmTypeFilter(t)}>{t}</button>
-                    ))}
-                  </div>
+                  {/* 품목 필터 — 드롭다운(품목 많아져도 안 길어짐) */}
+                  <AdmSelect value={farmTypeFilter} onChange={setFarmTypeFilter}
+                    options={[{ value:'', label:'전체 품목' }, ...farmItems.map(t => ({ value:t, label:t }))]} />
                 </div>
                 <div className="adm-toolbar-right">
                   <input type="text" className="adm-input-text" style={{ width:230 }} placeholder="품목·브랜드명·대표자명 검색"
