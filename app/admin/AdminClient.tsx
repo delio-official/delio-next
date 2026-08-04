@@ -2755,44 +2755,32 @@ export default function AdminClient() {
       if (orderNo) map[key].orderNos.add(orderNo);
       map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal });
     };
+    /* 부분환불(승인완료) 하자수량 맵 — 주문은 confirmed로 남아 메인 집계에 전량 잡히므로,
+       하자분만큼 매출·공급가를 차감한다(하자분 공급가 = 농가 부담). order_no 기준 매칭. */
+    const { data: partialReqs } = await supabase
+      .from('refund_requests')
+      .select('refund_items, orders!inner(order_no)')
+      .not('refund_items', 'is', null).eq('status', 'completed');
+    const defectiveByOrderNo: Record<string, Record<string, number>> = {};
+    (partialReqs as { refund_items: { name: string; defective: number }[] | null; orders: { order_no: string } | null }[] | null || []).forEach(pr => {
+      const ono = pr.orders?.order_no;
+      if (!ono) return;
+      const m = defectiveByOrderNo[ono] || (defectiveByOrderNo[ono] = {});
+      (pr.refund_items || []).forEach(it => { m[it.name] = (m[it.name] || 0) + (Number(it.defective) || 0); });
+    });
+
     (data as Record<string, unknown>[] | null || []).forEach(row => {
       const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
       const ord = row.orders as { order_no: string } | null;
-      const qty = Number(row.quantity) || 0;
+      const totalQty = Number(row.quantity) || 0;
+      // 부분환불된 하자분 차감 후 정상분만 정산 반영
+      const defect = defectiveByOrderNo[ord?.order_no || '']?.[(row.product_name as string) || ''] || 0;
+      const qty = Math.max(0, totalQty - defect);
+      if (qty <= 0) return;
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
-      addRow(prod, qty, Number(row.subtotal) || 0, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품');
+      const sales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * qty / totalQty) : 0;
+      addRow(prod, qty, sales, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품');
     });
-
-    /* 부분환불(승인완료) 정상분 — 배송완료일 반차 범위 · 하자분 공급가는 농가 부담(차감) */
-    const { data: partialReqs } = await supabase
-      .from('refund_requests')
-      .select('order_id, refund_items, orders!inner(order_no, delivered_at)')
-      .not('refund_amount', 'is', null).gt('resend_amount', 0).eq('status', 'completed')
-      .gte('orders.delivered_at', from).lt('orders.delivered_at', to);
-    const defectiveByOrder: Record<string, Record<string, number>> = {};
-    (partialReqs as { order_id: string; refund_items: { name: string; defective: number }[] | null }[] | null || []).forEach(pr => {
-      if (!pr.order_id) return;
-      const m: Record<string, number> = {};
-      (pr.refund_items || []).forEach(it => { m[it.name] = (m[it.name] || 0) + (Number(it.defective) || 0); });
-      defectiveByOrder[pr.order_id] = m;
-    });
-    const partialOrderIds = Object.keys(defectiveByOrder);
-    if (partialOrderIds.length) {
-      const { data: pItems } = await supabase.from('order_items')
-        .select('order_id, product_name, quantity, subtotal, supply_price, orders!inner(order_no), products!inner(farm_id, supply_price, farms(id, name))')
-        .in('order_id', partialOrderIds);
-      (pItems as Record<string, unknown>[] | null || []).forEach(row => {
-        const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
-        const ord = row.orders as { order_no: string } | null;
-        const totalQty = Number(row.quantity) || 0;
-        const defect = defectiveByOrder[row.order_id as string]?.[row.product_name as string] || 0;
-        const keptQty = Math.max(0, totalQty - defect);
-        if (keptQty <= 0) return;
-        const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
-        const keptSales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * keptQty / totalQty) : 0;
-        addRow(prod, keptQty, keptSales, unitSupply * keptQty, ord?.order_no || '', (row.product_name as string) || '상품');
-      });
-    }
     const rows = Object.values(map)
       .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
       .sort((a, b) => b.payout - a.payout);
@@ -4272,14 +4260,23 @@ export default function AdminClient() {
   async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected'|'hold', rejectReason?: string) {
     const supabase = createClient();
 
-    /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API */
+    /* 부분환불 여부 — 실결제액보다 적은 하자분(refund_amount)만 취소 = 진짜 부분취소.
+       주문은 confirmed 유지, 쿠폰·포인트 복구 안 함, partial_refund_amount에 누적한다. */
+    const orderTotal = req.orders?.final_amount || 0;
+    const isPartial = newStatus === 'completed' && (req.refund_amount != null) && req.refund_amount > 0 && req.refund_amount < orderTotal;
+
+    /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API (부분환불은 amount로 하자분만 부분취소) */
     if (newStatus === 'completed') {
       const pid = req.orders?.portone_payment_id;
       if (pid) {
         const res = await fetch('/api/payment/cancel', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: pid, reason: '관리자 환불 승인' }),
+          body: JSON.stringify({
+            paymentId: pid,
+            reason: isPartial ? '부분환불(하자분) 승인' : '관리자 환불 승인',
+            ...(isPartial ? { amount: req.refund_amount } : {}),
+          }),
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -4287,7 +4284,7 @@ export default function AdminClient() {
           return;
         }
       } else {
-        if (!confirm('이 주문은 결제 ID가 없어(0원/무통장 등) 실제 카드 취소 없이 상태만 "환불완료"로 바꿉니다. 계속할까요?')) return;
+        if (!confirm('이 주문은 결제 ID가 없어(0원/무통장 등) 실제 카드 취소 없이 상태만 변경합니다. 계속할까요?')) return;
       }
     }
 
@@ -4295,30 +4292,35 @@ export default function AdminClient() {
     if (newStatus === 'rejected') updatePayload.reject_reason = rejectReason || null;
     const { error } = await supabase.from('refund_requests').update(updatePayload).eq('id', req.id);
     if (error) { alert('상태 변경 실패: ' + error.message); return; }
-    // 주문 상태 연동 (취소/환불 구분). 거절·보류는 주문 상태 변경 안 함
+    // 주문 상태 연동. 부분환불은 주문을 confirmed로 유지(변경 안 함). 거절·보류도 변경 안 함
     const isCancel = req.type === 'cancel';
     let nextOrderStatus: string | null = null;
-    if (newStatus === 'completed') nextOrderStatus = isCancel ? 'cancelled' : 'refunded';
+    if (newStatus === 'completed' && !isPartial) nextOrderStatus = isCancel ? 'cancelled' : 'refunded';
     else if (newStatus === 'processing' && !isCancel) nextOrderStatus = 'refunding';
     if (req.order_id && nextOrderStatus) {
       await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
-    /* 승인(완료) 시 취소/환불 알림톡 */
+    /* 부분환불 승인 시 — 하자분 실환불액을 주문에 누적(순매출·브랜드정산 차감용) */
+    if (isPartial && req.order_id && req.refund_amount) {
+      const { data: ordRow } = await supabase.from('orders').select('partial_refund_amount').eq('id', req.order_id).single();
+      const cur = (ordRow as { partial_refund_amount: number | null } | null)?.partial_refund_amount || 0;
+      await supabase.from('orders').update({ partial_refund_amount: cur + req.refund_amount }).eq('id', req.order_id);
+    }
+    /* 승인(완료) 시 취소/환불 알림톡 (부분환불은 하자분 금액으로 안내) */
     if (newStatus === 'completed' && req.order_id) {
       const ord = orders.find(o => o.id === req.order_id);
       if (ord) {
+        const refundedAmt = isPartial ? (req.refund_amount || 0) : (ord.final_amount || 0);
         /* 취소·환불 = 결제 관련 → 주문자(계정)에게만 발송 */
         notifyOrderPhones([ord.orderer_phone || ord.phone], {
           type: 'order_cancelled', name: ord.orderer_name || ord.recipient, recipient: ord.orderer_name || ord.recipient,
           orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
-          refundAmount: `${(ord.final_amount || 0).toLocaleString()}원`,
+          refundAmount: `${refundedAmt.toLocaleString()}원`,
         });
       }
     }
     /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리)
-       단, 부분환불(전액취소+정상분 재송금)은 쿠폰·포인트를 복구하지 않음 —
-       할인이 이미 실결제액에 녹아있어, 정상분 재입금으로 정산되므로 복구 시 이중혜택이 됨. */
-    const isPartial = (req.refund_amount != null) && ((req.resend_amount || 0) > 0);
+       단, 부분환불은 쿠폰·포인트를 복구하지 않음 — 주문 대부분이 유지되므로 복구 시 이중혜택. */
     if (newStatus === 'completed' && req.order_id && !isPartial) {
       try {
         const rr = await fetch('/api/admin/refund-restore', {
@@ -4361,7 +4363,8 @@ export default function AdminClient() {
     setRefundOrderItems(items);
   }
 
-  /* 부분환불 계산 + 저장 (하자수량 비율로 순환불액·재송금액 산출) */
+  /* 부분환불 계산 (하자수량 비율로 실환불액 산출 — 진짜 부분취소).
+     하자분 금액만 실제로 카드 부분취소한다. 정상분은 그대로 결제 유지(재송금 없음). */
   function calcRefund(items: { name: string; subtotal: number; total: string | number; defective: string | number; checked?: boolean }[], orderTotal: number) {
     // 실결제액(orderTotal) 기준으로 안분 — 쿠폰·포인트 할인이 이미 반영된 금액이라 정가가 아닌 결제액으로 계산
     const grossTotal = items.reduce((s, it) => s + it.subtotal, 0);
@@ -4370,25 +4373,24 @@ export default function AdminClient() {
       const on = it.checked !== false; // 체크된 상품만 환불 대상
       const t = Number(it.total) || 0, d = Number(it.defective) || 0;
       const grossRefund = (on && t > 0) ? it.subtotal * Math.min(d, t) / t : 0;
+      // 원 단위 반올림(0.5 미만 버림 / 0.5 이상 올림)
       return { name: it.name, total: t, defective: on ? d : 0, refund: Math.round(grossRefund * ratio) };
     });
     const refundAmount = Math.min(orderTotal, refundItems.reduce((s, it) => s + it.refund, 0));
-    const resendAmount = Math.max(0, orderTotal - refundAmount);
-    return { refundItems, refundAmount, resendAmount };
+    return { refundItems, refundAmount };
   }
   async function saveRefundPartial() {
     if (!refundDetail) return;
     setRefundSaving(true);
     const orderTotal = refundDetail.orders?.final_amount || 0;
     const anyDefect = refundOrderItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
-    const { refundItems, refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
-    const partial = anyDefect && resendAmount > 0;
+    const { refundItems, refundAmount } = calcRefund(refundOrderItems, orderTotal);
     const payload = {
       memo: refundMemoInput || null,
       refund_items: anyDefect ? refundItems : null,
       refund_amount: anyDefect ? refundAmount : null,
-      resend_amount: anyDefect ? resendAmount : null,
-      resend_status: partial ? (refundDetail.resend_status && refundDetail.resend_status !== 'none' ? refundDetail.resend_status : 'waiting') : 'none',
+      resend_amount: null,     // 재송금 방식 폐지 (진짜 부분취소로 전환)
+      resend_status: 'none',
     };
     const supabase = createClient();
     const { error } = await supabase.from('refund_requests').update(payload).eq('id', refundDetail.id);
@@ -4397,15 +4399,6 @@ export default function AdminClient() {
     setRefundReqs(prev => prev.map(r => r.id === refundDetail.id ? { ...r, ...payload } : r));
     setRefundDetail(prev => prev ? { ...prev, ...payload } : prev);
     alert('저장했습니다.');
-  }
-  /* 재송금 상태 변경 (대기 → 입금확인) */
-  async function setResendStatus(next: 'waiting' | 'received') {
-    if (!refundDetail) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('refund_requests').update({ resend_status: next }).eq('id', refundDetail.id);
-    if (error) { alert('처리 실패: ' + error.message); return; }
-    setRefundReqs(prev => prev.map(r => r.id === refundDetail.id ? { ...r, resend_status: next } : r));
-    setRefundDetail(prev => prev ? { ...prev, resend_status: next } : prev);
   }
 
   async function loadReviews() {
@@ -5471,10 +5464,14 @@ export default function AdminClient() {
 
     const { data } = await supabase
       .from('orders')
-      .select('id, user_id, status, buyer_grade, final_amount, coupon_discount, point_used, payment_method, created_at')
+      .select('id, user_id, status, buyer_grade, final_amount, partial_refund_amount, coupon_discount, point_used, payment_method, created_at')
       .gte('created_at', fromISO).lt('created_at', toISO)
       .not('order_no', 'like', 'TEST%').limit(5000);
     if (!data) { setSettlementLoading(false); return; }
+
+    /* 순매출 = 결제액 - 부분환불액(하자분). 부분환불된 주문도 confirmed로 남으므로 여기서 차감해야 실매출과 일치 */
+    const netAmt = (o: { final_amount?: number | null; partial_refund_amount?: number | null }) =>
+      (o.final_amount || 0) - (o.partial_refund_amount || 0);
 
     /* 무통장 미입금·만료는 실결제가 아니므로 총주문금액에서 제외하고 별도 집계 */
     const paidData = data.filter(o => !isUnpaid(o.status));
@@ -5482,24 +5479,24 @@ export default function AdminClient() {
     const unpaidAmount = unpaidData.reduce((s, o) => s + (o.final_amount || 0), 0);
     const unpaidCount = unpaidData.length;
 
-    const confirmed = paidData.filter(o => isConfirmed(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const pending   = paidData.filter(o => isPending(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
+    const confirmed = paidData.filter(o => isConfirmed(o.status)).reduce((s, o) => s + netAmt(o), 0);
+    const pending   = paidData.filter(o => isPending(o.status)).reduce((s, o) => s + netAmt(o), 0);
     const cancelled = paidData.filter(o => isCancel(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const total     = paidData.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const total     = paidData.reduce((s, o) => s + netAmt(o), 0);
     const couponTotal = paidData.reduce((s, o) => s + (o.coupon_discount || 0), 0);
     const pointTotal  = paidData.reduce((s, o) => s + (o.point_used || 0), 0);
     const validOrders = paidData.filter(o => !isCancel(o.status));
-    const validTotal  = validOrders.reduce((s, o) => s + (o.final_amount || 0), 0);
+    const validTotal  = validOrders.reduce((s, o) => s + netAmt(o), 0);
     const aov = validOrders.length ? Math.round(validTotal / validOrders.length) : 0;
     const refundCount = paidData.filter(o => isCancel(o.status)).length;
     const refundRate = paidData.length ? (refundCount / paidData.length * 100) : 0;
 
     const statusMap: Record<string, { count: number; amount: number }> = {};
-    paidData.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += o.final_amount || 0; });
+    paidData.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += isCancel(o.status) ? (o.final_amount || 0) : netAmt(o); });
     const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.amount - a.amount);
 
     const methodMap: Record<string, { count: number; amount: number }> = {};
-    paidData.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += o.final_amount || 0; });
+    paidData.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += netAmt(o); });
     const byMethod = Object.entries(methodMap).map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount);
 
     /* 멤버십 등급별 매출 (유효주문 기준, buyer_grade 우선·없으면 현재 프로필 등급) */
@@ -5513,7 +5510,7 @@ export default function AdminClient() {
     validOrders.forEach(o => {
       const g = (o.buyer_grade as string) || gradeByUser[o.user_id as string] || 'beginner';
       if (!gradeMap[g]) gradeMap[g] = { count: 0, amount: 0 };
-      gradeMap[g].count++; gradeMap[g].amount += o.final_amount || 0;
+      gradeMap[g].count++; gradeMap[g].amount += netAmt(o);
     });
     const GRADE_ORDER = ['master','buyer','taster','beginner'];
     const byGrade = Object.entries(gradeMap).map(([grade, v]) => ({ grade, ...v }))
@@ -5529,8 +5526,8 @@ export default function AdminClient() {
       validOrders.forEach(o => {
         const first = firstAt[o.user_id as string];
         const isNew = first && new Date(o.created_at).getTime() <= new Date(first).getTime() + 1000; // 첫 유효주문
-        if (isNew) { newCount++; newAmount += o.final_amount || 0; }
-        else { repeatCount++; repeatAmount += o.final_amount || 0; }
+        if (isNew) { newCount++; newAmount += netAmt(o); }
+        else { repeatCount++; repeatAmount += netAmt(o); }
       });
     }
 
@@ -5541,7 +5538,7 @@ export default function AdminClient() {
     if (rangeDays <= 92) {
       const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
       for (let t = start.getTime(); t < to.getTime(); t += dayMs) { const d = new Date(t); dailyMap[`${d.getMonth()+1}/${d.getDate()}`] = 0; }
-      data.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += o.final_amount || 0; });
+      data.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += netAmt(o); });
     }
     const daily = Object.entries(dailyMap).map(([date, amount]) => ({ date, amount }));
 
@@ -12436,7 +12433,8 @@ export default function AdminClient() {
                 const stCls: Record<string,string> = { pending:'badge-wait', hold:'badge-ready', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
                 const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
                 const orderTotal = r.orders?.final_amount || 0;
-                const { refundAmount, resendAmount } = calcRefund(refundOrderItems, orderTotal);
+                const { refundAmount } = calcRefund(refundOrderItems, orderTotal);
+                const keptAmount = Math.max(0, orderTotal - refundAmount);
                 const hasDefect = refundOrderItems.some(it => (Number(it.defective) || 0) > 0);
                 const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
                 const setItem = (id: string, key: 'total'|'defective', val: string) =>
@@ -12509,28 +12507,13 @@ export default function AdminClient() {
                           )}
                           {hasDefect && (
                             <div style={{ marginTop:10, background:'#FFF7ED', border:'1px solid #FED7AA', borderRadius:10, padding:'12px 14px', fontSize:13 }}>
-                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">카드 전액취소</span><span style={{ fontWeight:600 }}>{fmtPrice(orderTotal)}원</span></div>
-                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">하자 순환불액</span><span style={{ fontWeight:700, color:'#DC2626' }}>{fmtPrice(refundAmount)}원</span></div>
-                              <div style={{ display:'flex', justifyContent:'space-between' }}><span className="adm-muted">소비자 재송금액(정상분)</span><span style={{ fontWeight:800, color:'#2563EB' }}>{fmtPrice(resendAmount)}원</span></div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">결제금액</span><span style={{ fontWeight:600 }}>{fmtPrice(orderTotal)}원</span></div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}><span className="adm-muted">부분환불액(하자분)</span><span style={{ fontWeight:800, color:'#DC2626' }}>{fmtPrice(refundAmount)}원</span></div>
+                              <div style={{ display:'flex', justifyContent:'space-between' }}><span className="adm-muted">정상 유지 결제액</span><span style={{ fontWeight:700, color:'#2563EB' }}>{fmtPrice(keptAmount)}원</span></div>
+                              <div className="adm-muted" style={{ fontSize:11, marginTop:6 }}>승인 시 하자분 {fmtPrice(refundAmount)}원만 카드 부분취소됩니다. (나머지 결제 유지 · 재송금 없음)</div>
                             </div>
                           )}
                         </div>
-
-                        {/* 재송금 상태 (부분환불 저장된 경우) */}
-                        {r.refund_amount != null && (r.resend_amount || 0) > 0 && (
-                          <div>
-                            <div style={secTitle}>재송금 (정상분 재입금)</div>
-                            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-                              <span style={{ fontSize:13 }}>받을 금액 <strong style={{ color:'#2563EB' }}>{fmtPrice(r.resend_amount || 0)}원</strong></span>
-                              {r.resend_status === 'received'
-                                ? <span className="adm-badge badge-paid">입금확인 완료</span>
-                                : <>
-                                    <span className="adm-badge badge-wait">재송금 대기</span>
-                                    <button className="adm-btn adm-btn-primary" style={{ fontSize:12 }} onClick={() => setResendStatus('received')}>재송금 입금확인</button>
-                                  </>}
-                            </div>
-                          </div>
-                        )}
 
                         {/* 메모 */}
                         <div>
@@ -12560,7 +12543,7 @@ export default function AdminClient() {
                         {r.status !== 'completed' && (
                           <button className="adm-btn adm-btn-primary" onClick={() => {
                             if (hasDefect && r.refund_amount == null) { alert('부분환불은 먼저 "상품·메모 저장"을 눌러 확정한 뒤 승인해주세요.'); return; }
-                            if (confirm(hasDefect ? `부분환불 승인: 카드 전액취소 후 정상분 ${fmtPrice(resendAmount)}원은 재송금으로 회수합니다. (쿠폰·포인트는 복구하지 않음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
+                            if (confirm(hasDefect ? `부분환불 승인: 하자분 ${fmtPrice(refundAmount)}원만 카드 부분취소합니다. 나머지 ${fmtPrice(keptAmount)}원은 결제 유지되고 주문은 그대로입니다. (쿠폰·포인트 복구 없음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
                           }}>환불승인</button>
                         )}
                         <button className="adm-btn adm-btn-outline" onClick={() => setRefundDetail(null)}>닫기</button>
