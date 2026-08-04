@@ -16,8 +16,8 @@ const TABS = {
   dawn: {
     img: '/delio_delivery2.png',
     order: '/category?cat=domestic',
-    tabTop: 23,      // 상단 탭 행(델리오 프레쉬센터 | 산지직송)
-    orderTop: 84.8,  // '지금 주문하기' 버튼 (내용 길어져 하단으로 이동)
+    tabTop: 22.6,    // 상단 탭 행(델리오 프레쉬센터 | 산지직송)
+    orderTop: 80.9,  // '지금 주문하기' 버튼 (이미지 높이 9480 기준, 바닥거리 역산)
   },
 } as const;
 
