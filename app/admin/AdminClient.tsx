@@ -919,6 +919,7 @@ function Toggle({ defaultOn = false, onChange, disabled = false }: { defaultOn?:
   }
   return (
     <div onClick={handleClick} style={{
+      display: 'inline-block', verticalAlign: 'middle',
       width: 38, height: 22, borderRadius: 999, cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0,
       opacity: disabled ? 0.55 : 1,
       background: on ? 'var(--accent, #2563EB)' : '#CBD5E1',
