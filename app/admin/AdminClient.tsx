@@ -14166,35 +14166,47 @@ export default function AdminClient() {
 
                 {/* ── 우: 맛 프로파일 · 신고 · 답변 ── */}
                 <div className="adm-detail-col" style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                  {/* 맛 프로파일 — 판매자(관리자) 설정 vs 구매자 응답 비교 */}
+                  {/* 맛 프로파일 — 구매자 행 / 판매자 행으로 나눠 비교 */}
                   {selectedReview.taste && Object.keys(selectedReview.taste).length > 0 && (() => {
                     const sscore = selectedReview.products?.seller_score || null;
+                    const gridSt: React.CSSProperties = { display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:5 };
+                    const cellSt: React.CSSProperties = { background:'#F8FAFC', border:'1px solid #F0F0EE', borderRadius:8, padding:'7px 4px', textAlign:'center' };
+                    const axisSt: React.CSSProperties = { fontSize:10, color:'#94A3B8', fontWeight:600 };
+                    const roleSt: React.CSSProperties = { fontSize:11, fontWeight:700, color:'#334155', margin:'2px 0 4px' };
                     return (
                     <div style={{ textAlign:'left' }}>
                       <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>
-                        맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(판매자 설정 vs 구매자 응답)</span>
+                        맛 프로파일 <span style={{ fontWeight:400, color:'#94A3B8' }}>(구매자 응답 vs 판매자 설정)</span>
                       </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:5 }}>
+                      {/* 구매자 응답 행 */}
+                      <div style={roleSt}>구매자</div>
+                      <div style={gridSt}>
                         {TASTE_AXES.map(axis => {
-                          const bLv = selectedReview.taste?.[axis.key];                       // 구매자
-                          const sRaw = axis.sellerSet ? sscore?.[axis.key] : undefined;        // 판매자(신선도는 설정 없음)
+                          const bLv = selectedReview.taste?.[axis.key];
+                          const sRaw = axis.sellerSet ? sscore?.[axis.key] : undefined;
                           const sLv = sRaw != null ? toLevel(sRaw) : null;
                           const match = sLv != null && bLv != null ? Math.abs(sLv - bLv) <= 1 : null;
                           return (
-                            <div key={axis.key} style={{ background:'#F8FAFC', border:'1px solid #F0F0EE',
-                              borderRadius:8, padding:'8px 4px', textAlign:'center' }}>
-                              <div style={{ fontSize:10.5, color:'#94A3B8', fontWeight:600 }}>
-                                {axis.label}{match === false && <span style={{ color:'#DC2626', marginLeft:2 }}>≠</span>}{match === true && <span style={{ color:'#16A34A', marginLeft:2 }}>✓</span>}
-                              </div>
-                              {/* 판매자 설정 */}
-                              <div style={{ fontSize:9.5, color:'#94A3B8', marginTop:5 }}>판매자</div>
-                              <div style={{ fontSize:10.5, fontWeight:600, lineHeight:1.25, color: sLv != null ? '#64748B' : '#CBD5E1', wordBreak:'keep-all' }}>
-                                {sLv != null ? axisLevelLabel(axis, sLv) : '—'}
-                              </div>
-                              {/* 구매자 응답 */}
-                              <div style={{ fontSize:9.5, color:'#94A3B8', marginTop:5 }}>구매자</div>
-                              <div style={{ fontSize:11, fontWeight:800, lineHeight:1.25, color: bLv != null ? axis.hex : '#CBD5E1', wordBreak:'keep-all' }}>
+                            <div key={axis.key} style={cellSt}>
+                              <div style={axisSt}>{axis.label}{match === false && <span style={{ color:'#DC2626', marginLeft:2 }}>≠</span>}{match === true && <span style={{ color:'#16A34A', marginLeft:2 }}>✓</span>}</div>
+                              <div style={{ fontSize:11, fontWeight:800, lineHeight:1.25, marginTop:4, color: bLv != null ? axis.hex : '#CBD5E1', wordBreak:'keep-all' }}>
                                 {bLv != null ? axisLevelLabel(axis, bLv) : '미평가'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* 판매자 설정 행 */}
+                      <div style={{ ...roleSt, marginTop:8 }}>판매자</div>
+                      <div style={gridSt}>
+                        {TASTE_AXES.map(axis => {
+                          const sRaw = axis.sellerSet ? sscore?.[axis.key] : undefined;
+                          const sLv = sRaw != null ? toLevel(sRaw) : null;
+                          return (
+                            <div key={axis.key} style={cellSt}>
+                              <div style={axisSt}>{axis.label}</div>
+                              <div style={{ fontSize:11, fontWeight:600, lineHeight:1.25, marginTop:4, color: sLv != null ? '#64748B' : '#CBD5E1', wordBreak:'keep-all' }}>
+                                {sLv != null ? axisLevelLabel(axis, sLv) : '—'}
                               </div>
                             </div>
                           );
