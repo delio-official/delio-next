@@ -2345,6 +2345,7 @@ export default function AdminClient() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
+  const [reviewZoom, setReviewZoom] = useState<string | null>(null); // 리뷰 사진 확대
   const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
   const [reviewFarm, setReviewFarm] = useState('');            // '' = 전체 농가, 아니면 farm_id
   /* 리뷰 상태 필터 — 베스트 / 신고됨. 서로 배타적이지 않아 '보는 관점'으로 하나만 고름 */
@@ -14141,7 +14142,7 @@ export default function AdminClient() {
                     <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ color:'#64748B' }}>별점</span>
                       <StarRating rating={selectedReview.rating} size={12} />
-                      <span>{selectedReview.rating}.0</span>
+                      <span>({selectedReview.rating.toFixed(1)})</span>
                     </div>
                   </div>
 
@@ -14156,7 +14157,8 @@ export default function AdminClient() {
                   {selectedReview.image_urls && selectedReview.image_urls.length > 0 && (
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                       {selectedReview.image_urls.map((url, i) => (
-                        <img key={i} src={url} alt="" style={{ width:72, height:72, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
+                        <img key={i} src={url} alt="" onClick={() => setReviewZoom(url)}
+                          style={{ width:72, height:72, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0', cursor:'zoom-in' }} />
                       ))}
                     </div>
                   )}
@@ -14258,6 +14260,15 @@ export default function AdminClient() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 리뷰 사진 확대 (라이트박스) */}
+      {reviewZoom && (
+        <div onClick={() => setReviewZoom(null)}
+          style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', padding:24, cursor:'zoom-out' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={reviewZoom} alt="" style={{ maxWidth:'92vw', maxHeight:'92vh', objectFit:'contain', borderRadius:8, boxShadow:'0 12px 48px rgba(0,0,0,0.5)' }} />
         </div>
       )}
 
