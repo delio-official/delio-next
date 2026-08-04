@@ -9941,18 +9941,20 @@ export default function AdminClient() {
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 신규회원 쿠폰이 없습니다. 우측 “+ 신규회원 쿠폰 추가”로 만드세요.</div>
                         ) : (
                           <div className="adm-table-wrap">
-                            <table className="adm-table">
-                              <thead><tr><th>쿠폰명</th><th>할인값</th><th>유효기간</th><th>발급 / 사용 (사용률)</th><th>상태</th><th>관리</th></tr></thead>
+                            <table className="adm-table" style={{ tableLayout:'fixed' }}>
+                              <colgroup><col style={{ width:'22%' }} /><col style={{ width:'9%' }} /><col style={{ width:'11%' }} /><col style={{ width:'15%' }} /><col style={{ width:'18%' }} /><col style={{ width:'12%' }} /><col style={{ width:'13%' }} /></colgroup>
+                              <thead><tr><th>쿠폰명</th><th>할인 유형</th><th>할인값</th><th>유효기간</th><th>발급 / 사용 (사용률)</th><th>상태</th><th>관리</th></tr></thead>
                               <tbody>
                                 {pack.map(c => {
                                   const relative = c.valid_days != null;
                                   const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
                                   return (
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
-                                      <td style={{ fontWeight:700 }}>{c.name}</td>
-                                      <td style={{ fontWeight:700 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
+                                      <td>{c.name}</td>
+                                      <td>{c.discount_type === 'percent' ? '정률' : '정액'}</td>
+                                      <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
                                       <td className="adm-muted">
-                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {relative ? <span style={{ color:'#475569' }}>발급일 +{c.valid_days}일</span> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
@@ -9989,8 +9991,10 @@ export default function AdminClient() {
                   <div className="adm-card">
                     {couponsLoading ? <PanelLoading /> : (
                       <div className="adm-table-wrap">
-                        <table className="adm-table">
-                          {/* 코드 칸은 뺐음 — 수정(상세)에서 확인. 대신 발급/사용 현황 추가 */}
+                        <table className="adm-table" style={{ tableLayout:'fixed' }}>
+                          {/* 코드 칸은 뺐음 — 수정(상세)에서 확인. 대신 발급/사용 현황 추가.
+                             colgroup 너비는 위 '신규 회원가입 쿠폰팩' 표와 동일하게 맞춰 두 표의 열을 정렬 */}
+                          <colgroup><col style={{ width:'22%' }} /><col style={{ width:'9%' }} /><col style={{ width:'11%' }} /><col style={{ width:'15%' }} /><col style={{ width:'18%' }} /><col style={{ width:'12%' }} /><col style={{ width:'13%' }} /></colgroup>
                           <thead><tr><th>쿠폰명</th><th>할인 유형</th><th>할인값</th><th>만료일</th><th>발급 / 사용 (사용률)</th><th>활성</th><th>관리</th></tr></thead>
                           <tbody>
                             {generalCoupons.length === 0 ? (
