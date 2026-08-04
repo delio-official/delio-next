@@ -692,6 +692,10 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 }
 .adm-modal-foot > .foot-left { margin-right: auto; }
 
+/* 스크롤바 숨김(스크롤은 유지) */
+.hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
 /* 행 구분선 없는 표 (예: 브랜드 분석 인기상품 TOP5) */
 .adm-table-clean td { border-bottom: none; }
 

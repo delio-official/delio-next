@@ -14148,7 +14148,7 @@ export default function AdminClient() {
 
                   <div style={{ textAlign:'left' }}>
                     <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>리뷰 내용</div>
-                    <div style={{ fontSize:13.5, lineHeight:1.75, color:'#1A1A1A', whiteSpace:'pre-wrap',
+                    <div className="hide-scrollbar" style={{ fontSize:13.5, lineHeight:1.75, color:'#1A1A1A', whiteSpace:'pre-wrap',
                       maxHeight:190, overflowY:'auto' }}>
                       {selectedReview.content}
                     </div>
