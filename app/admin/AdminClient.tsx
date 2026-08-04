@@ -14318,7 +14318,7 @@ export default function AdminClient() {
                     const on = giveCouponMode === v;
                     return (
                       <button key={v} onClick={() => setGiveCouponMode(v)}
-                        style={{ flex:1, padding:'9px 0', borderRadius:8, fontSize:13, fontWeight:700, cursor:'pointer', background:'#fff',
+                        style={{ flex:1, padding:'9px 0', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer', background:'#fff',
                           border: on ? '2px solid #1A1A1A' : '1px solid #E2E8F0',
                           color: on ? '#1A1A1A' : '#64748B' }}>
                         {l}{v === 'all' ? ` (${members.length})` : ''}
@@ -14368,7 +14368,6 @@ export default function AdminClient() {
                   ) : (
                     /* 전체 회원 모드 — 목록 자리를 안내로 채워 회원선택 모드와 같은 높이 유지 */
                     <div style={{ height:288, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, color:'#64748B', padding:'0 20px', textAlign:'center' }}>
-                      <div style={{ fontSize:34 }}>🎟️</div>
                       <div style={{ fontSize:14, fontWeight:700, color:'#1A1A1A' }}>전체 회원 {members.length.toLocaleString()}명에게 지급</div>
                       <div style={{ fontSize:12, lineHeight:1.6 }}>가입한 모든 회원에게 이 쿠폰이 발급됩니다.<br/>특정 회원에게만 주려면 ‘회원 선택’을 누르세요.</div>
                     </div>
