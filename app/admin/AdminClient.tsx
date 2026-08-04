@@ -10051,7 +10051,7 @@ export default function AdminClient() {
                   <div className="adm-card">
                     {couponLogsLoading ? <PanelLoading /> : (
                       <div className="adm-table-wrap">
-                        <table className="adm-table">
+                        <table className="adm-table adm-table-clean">
                           <thead><tr><th>회원</th><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>만료일</th><th>사용일</th><th>상태</th></tr></thead>
                           <tbody>
                             {pagedCouponLogs.length === 0 ? (
