@@ -692,6 +692,9 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 }
 .adm-modal-foot > .foot-left { margin-right: auto; }
 
+/* 행 구분선 없는 표 (예: 브랜드 분석 인기상품 TOP5) */
+.adm-table-clean td { border-bottom: none; }
+
 /* 주문 상세: 넓은 모달 + 2단 배치(스크롤 최소화) */
 .adm-modal-wide { max-width: 920px; max-height: 94vh; }
 /* 스크롤바 숨김(휠 스크롤은 유지) */

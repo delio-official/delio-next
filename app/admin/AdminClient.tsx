@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import '@/styles/admin.css';
 import '@/styles/login.css';
-import { StarRating } from '@/components/StarRating';
+import { StarRating, SingleStar } from '@/components/StarRating';
 import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
@@ -640,7 +640,7 @@ function FaDelta({ cur, prev, kind, unit }: { cur: number; prev: number; kind: D
 
   return (
     <div style={{ fontSize:11, color, marginTop:3, fontWeight:600 }}>
-      {up ? '↑' : '↓'} {text} <span style={{ fontWeight:400 }}>전월대비</span>
+      {up ? '▲' : '▼'} {text} <span style={{ fontWeight:400 }}>전월대비</span>
     </div>
   );
 }
@@ -7981,9 +7981,9 @@ export default function AdminClient() {
                 const hasSales = d.monthly.some(m => m.amount > 0);
 
                 /* 요청 색: 매출=파랑 / 정산액=빨강 / 총이익=초록 / 누적=검정 */
-                const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind; unit?: string }[] = [
+                const topCards: { label: string; value: string; color: string; cur: number; prev: number; kind: DeltaKind; unit?: string; hint?: string }[] = [
                   { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money', unit:'원' },
-                  { label:'브랜드 정산액', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
+                  { label:'브랜드 정산액', hint:'(공급가+배송비)', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
                   { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money', unit:'원' },
                   { label:'누적 매출액', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
                 ];
@@ -8007,7 +8007,7 @@ export default function AdminClient() {
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:12 }}>
                       {topCards.map(c => (
                         <div key={c.label} style={cardBox}>
-                          <div style={cardLabel}>{c.label}</div>
+                          <div style={cardLabel}>{c.label}{c.hint && <span style={{ fontWeight:400, color:'#94A3B8', fontSize:10 }}> {c.hint}</span>}</div>
                           <div style={{ fontSize:19, fontWeight:800, color:c.color, marginTop:5, letterSpacing:'-0.4px' }}>{c.value}</div>
                           {c.label === '누적 매출액'
                             ? <div style={{ fontSize:11, color:'#94A3B8', marginTop:3 }}>등록일~현재</div>
@@ -8120,7 +8120,7 @@ export default function AdminClient() {
                         <div key={c.label} style={cardBox}>
                           <div style={cardLabel}>{c.label}</div>
                           <div style={{ fontSize:19, fontWeight:800, color:'#1A1A1A', marginTop:5 }}>
-                            {c.label === '평균 평점' && c.value !== '-' && <span style={{ color:'#C8841C', marginRight:4 }}>★</span>}
+                            {c.label === '평균 평점' && c.value !== '-' && <span style={{ marginRight:4, verticalAlign:'middle' }}><SingleStar size={16} /></span>}
                             {c.value}
                           </div>
                           <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} />
@@ -8142,7 +8142,7 @@ export default function AdminClient() {
                     {/* 5) 인기 상품 TOP 5 */}
                     <div className="adm-card" style={{ marginBottom:12 }}>
                       <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
-                      <table className="adm-table" style={{ marginTop:4 }}>
+                      <table className="adm-table adm-table-clean" style={{ marginTop:4 }}>
                         <thead><tr><th>상품명</th><th>옵션</th><th>주문 건수</th><th>매출액</th><th>마진액</th></tr></thead>
                         <tbody>
                           {d.topProducts.length === 0
@@ -8169,9 +8169,9 @@ export default function AdminClient() {
                         {d.recentReviews.length === 0 ? <div className="adm-muted" style={{ fontSize:12 }}>리뷰 없음</div>
                           : d.recentReviews.map(rv => (
                             <div key={rv.id} style={{ borderBottom:'1px solid #F1F5F9', paddingBottom:8, textAlign:'left' }}>
-                              <div style={{ fontSize:11, color:'#C8841C', fontWeight:700 }}>
-                                {'★'.repeat(rv.rating)}<span style={{ color:'#E2E8F0' }}>{'★'.repeat(5 - rv.rating)}</span>
-                                <span style={{ color:'#94A3B8', fontWeight:400 }}> · {rv.product_name} · {fmtDateShort(rv.created_at)}</span>
+                              <div style={{ fontSize:11, color:'#94A3B8', fontWeight:400, display:'flex', alignItems:'center', gap:4 }}>
+                                <StarRating rating={rv.rating} size={13} />
+                                <span> · {rv.product_name} · {fmtDateShort(rv.created_at)}</span>
                               </div>
                               <div style={{ fontSize:12.5, color:'#475569', marginTop:3, lineHeight:1.5, overflow:'hidden',
                                 textOverflow:'ellipsis', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' }}>{rv.content}</div>
