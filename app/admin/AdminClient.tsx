@@ -2581,9 +2581,11 @@ export default function AdminClient() {
   const [refCpFrom, setRefCpFrom] = useState(''); const [refCpTo, setRefCpTo] = useState('');     // 쿠폰내역 기간
 
   /* 쿠폰 지급 내역 (회원별) */
-  interface CouponLog { id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; expires_at: string | null; used_at: string | null; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
+  interface CouponLog { id: string; user_id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; expires_at: string | null; used_at: string | null; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
   const [couponLogs, setCouponLogs] = useState<CouponLog[]>([]);
   const [couponLogsLoading, setCouponLogsLoading] = useState(false);
+  /* 지급 내역에서 회원 클릭 → 그 회원의 전체 쿠폰 지급 내역 모달 */
+  const [couponLogMember, setCouponLogMember] = useState<{ user_id: string; name: string; email: string } | null>(null);
   const [clSearch, setClSearch] = useState('');
   const [clStatus, setClStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
   const [clCategory, setClCategory] = useState<'all'|'signup'|'membership'|'general'>('all');
@@ -4223,6 +4225,7 @@ export default function AdminClient() {
       const expired = !u.is_used && !!u.expires_at && new Date(u.expires_at).getTime() < now;
       return {
         id: u.id,
+        user_id: u.user_id,
         name: p?.name || '(탈퇴)',
         email: p?.email || '',
         couponName: c?.name || '(삭제된 쿠폰)',
@@ -10127,7 +10130,13 @@ export default function AdminClient() {
                               <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 지급 내역이 없습니다.</td></tr>
                             ) : pagedCouponLogs.map(l => (
                               <tr key={l.id}>
-                                <td>{l.name} <span className="adm-muted" style={{ fontSize:12 }}>{l.email}</span></td>
+                                <td>
+                                  {l.user_id
+                                    ? <button type="button" onClick={() => setCouponLogMember({ user_id: l.user_id, name: l.name, email: l.email })}
+                                        style={{ background:'none', border:'none', padding:0, cursor:'pointer', font:'inherit', color:'#2563EB', fontWeight:600 }}>{l.name}</button>
+                                    : l.name}
+                                  <span className="adm-muted" style={{ fontSize:12, marginLeft:6 }}>{l.email}</span>
+                                </td>
                                 <td style={{ fontWeight:400 }}>{l.couponName}</td>
                                 <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                                 <td className="adm-muted">{l.source}</td>
@@ -14361,6 +14370,65 @@ export default function AdminClient() {
           <img src={reviewZoom} alt="" style={{ maxWidth:'92vw', maxHeight:'92vh', objectFit:'contain', borderRadius:8, boxShadow:'0 12px 48px rgba(0,0,0,0.5)' }} />
         </div>
       )}
+
+      {/* ===== 회원별 쿠폰 지급 내역 모달 (지급 내역에서 회원 클릭) ===== */}
+      {couponLogMember && (() => {
+        const m = couponLogMember;
+        const list = couponLogs.filter(l => l.user_id === m.user_id)
+          .sort((a, b) => (b.issued_at || '').localeCompare(a.issued_at || ''));
+        const used = list.filter(l => l.status === '사용완료').length;
+        const unused = list.filter(l => l.status === '미사용').length;
+        const expired = list.filter(l => l.status === '만료').length;
+        const badge = (s: string) => (
+          <span className="adm-badge" style={{
+            background: s === '사용완료' ? '#DCFCE7' : s === '만료' ? '#FEE2E2' : '#F1F5F9',
+            color: s === '사용완료' ? '#16A34A' : s === '만료' ? '#DC2626' : '#64748B',
+          }}>{s}</span>
+        );
+        return (
+          <div className="adm-modal-bg open" onClick={() => setCouponLogMember(null)}>
+            <div className="adm-modal" style={{ maxWidth:760, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+              <div className="adm-modal-head"><span className="adm-modal-title">회원 쿠폰 지급 내역</span></div>
+              <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 16px' }}>
+                  <div style={{ fontSize:14, fontWeight:700 }}>{m.name}</div>
+                  <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>{m.email}</div>
+                  <div style={{ fontSize:12, marginTop:8, display:'flex', gap:14 }}>
+                    <span>총 <b>{list.length}</b>건</span>
+                    <span style={{ color:'#64748B' }}>미사용 <b>{unused}</b></span>
+                    <span style={{ color:'#16A34A' }}>사용완료 <b>{used}</b></span>
+                    <span style={{ color:'#DC2626' }}>만료 <b>{expired}</b></span>
+                  </div>
+                </div>
+                <div className="adm-table-wrap">
+                  <table className="adm-table adm-table-clean">
+                    <thead><tr><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>만료일</th><th>사용일</th><th>상태</th></tr></thead>
+                    <tbody>
+                      {list.length === 0 ? (
+                        <tr><td colSpan={7} style={{ textAlign:'center', padding:'30px 0', color:'#94A3B8' }}>지급 내역 없음</td></tr>
+                      ) : list.map(l => (
+                        <tr key={l.id}>
+                          <td style={{ fontWeight:400 }}>{l.couponName}</td>
+                          <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
+                          <td className="adm-muted">{l.source}</td>
+                          <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
+                          <td className="adm-muted">{l.expires_at ? l.expires_at.slice(0,10) : '-'}</td>
+                          <td className="adm-muted">{l.used_at ? l.used_at.slice(0,10) : '-'}</td>
+                          <td>{badge(l.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="adm-muted" style={{ fontSize:11 }}>· 현재 조회 기간에 로드된 지급 내역 기준입니다. 더 넓게 보려면 상단 기간을 조정해 조회하세요.</div>
+              </div>
+              <div className="adm-modal-foot" style={{ borderTop:'none' }}>
+                <button className="adm-btn adm-btn-outline" onClick={() => setCouponLogMember(null)}>닫기</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== 관리자 직접 부분환불 모달 ===== */}
       {adminPartialOrder && (() => {
