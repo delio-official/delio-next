@@ -1398,7 +1398,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               <input type="date" className="adm-select" style={{ fontSize:12 }} value={smsFrom} onChange={e => setSmsFrom(e.target.value)} />
               <span style={{ color:'#94A3B8' }}>~</span>
               <input type="date" className="adm-select" style={{ fontSize:12 }} value={smsTo} onChange={e => setSmsTo(e.target.value)} />
-              <button className="adm-btn adm-btn-primary" style={{ fontSize:12 }} onClick={() => loadSmsLogs()}>조회</button>
+              <button className="adm-btn adm-btn-dark" style={{ fontSize:12 }} onClick={() => loadSmsLogs()}>조회</button>
               <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={() => { setSmsFrom(''); setSmsTo(''); loadSmsLogs('', ''); }}>전체</button>
             </div>
           </div>
@@ -9213,7 +9213,7 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={orderFrom} onChange={e => setOrderFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={orderTo} onChange={e => setOrderTo(e.target.value)} />
-                  <button className="adm-btn adm-btn-primary" onClick={() => loadOrders()}>검색</button>
+                  <button className="adm-btn adm-btn-dark" onClick={() => loadOrders()}>검색</button>
                 </div>
                 <div className="adm-toolbar-right">
                   <AdmSelect value={String(orderPageSize)} onChange={v => { setOrderPageSize(Number(v)); setOrderPage(1); }}
@@ -13566,7 +13566,7 @@ export default function AdminClient() {
                   )}
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
-                  <button className="adm-btn adm-btn-outline" onClick={loadMarketing}><span className="adm-btn-icon"><Icon.Refresh /></span>조회</button>
+                  <button className="adm-btn adm-btn-dark" onClick={loadMarketing}>조회</button>
                   <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
                 </div>
               </div>
