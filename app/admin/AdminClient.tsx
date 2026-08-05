@@ -2584,8 +2584,10 @@ export default function AdminClient() {
   interface CouponLog { id: string; user_id: string; name: string; email: string; couponName: string; discountLabel: string; issued_at: string; expires_at: string | null; used_at: string | null; status: '미사용'|'사용완료'|'만료'; source: string; category: 'signup'|'membership'|'general'; }
   const [couponLogs, setCouponLogs] = useState<CouponLog[]>([]);
   const [couponLogsLoading, setCouponLogsLoading] = useState(false);
-  /* 지급 내역에서 회원 클릭 → 그 회원의 전체 쿠폰 지급 내역 모달 */
+  /* 지급 내역에서 회원 클릭 → 그 회원의 전체(전 기간) 쿠폰 지급 내역 모달 */
   const [couponLogMember, setCouponLogMember] = useState<{ user_id: string; name: string; email: string } | null>(null);
+  const [couponLogMemberRows, setCouponLogMemberRows] = useState<CouponLog[]>([]);
+  const [couponLogMemberLoading, setCouponLogMemberLoading] = useState(false);
   const [clSearch, setClSearch] = useState('');
   const [clStatus, setClStatus] = useState<'all'|'unused'|'used'|'expired'>('all');
   const [clCategory, setClCategory] = useState<'all'|'signup'|'membership'|'general'>('all');
@@ -4240,6 +4242,51 @@ export default function AdminClient() {
     });
     setCouponLogs(rows);
     setCouponLogsLoading(false);
+  }
+
+  /* 회원 클릭 → 그 회원의 전 기간 쿠폰 지급 내역을 별도 조회(기간 필터 무관) */
+  async function openCouponLogMember(member: { user_id: string; name: string; email: string }) {
+    setCouponLogMember(member);
+    setCouponLogMemberRows([]);
+    setCouponLogMemberLoading(true);
+    const supabase = createClient();
+    const { data: ucs } = await supabase.from('user_coupons')
+      .select('id, user_id, coupon_id, is_used, used_at, issued_at, expires_at, grant_period')
+      .eq('user_id', member.user_id)
+      .order('issued_at', { ascending: false });
+    const couponIds = [...new Set((ucs || []).map((u: { coupon_id: string }) => u.coupon_id))];
+    const { data: cps } = await supabase.from('coupons')
+      .select('id, name, discount_type, discount_value, signup_grant, is_membership, is_public')
+      .in('id', couponIds.length ? couponIds : ['_']);
+    const cpMap = new Map((cps || []).map((c: { id: string }) => [c.id, c]));
+    const now = Date.now();
+    const sourceOf = (gp: string | null, c: { signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined) => {
+      if (gp && /^\d{4}-\d{2}$/.test(gp)) return `멤버십 월발급 (${gp})`;
+      if (gp && gp.startsWith('bday')) return '생일쿠폰';
+      if (c?.signup_grant) return '신규 회원가입';
+      if (c?.is_membership) return '멤버십';
+      if (c?.is_public) return '다운로드/이벤트';
+      return '수동/기타';
+    };
+    const categoryOf = (gp: string | null, c: { signup_grant?: boolean; is_membership?: boolean } | undefined): 'signup'|'membership'|'general' => {
+      if (c?.signup_grant) return 'signup';
+      if (c?.is_membership || (gp && (/^\d{4}-\d{2}$/.test(gp) || gp.startsWith('bday')))) return 'membership';
+      return 'general';
+    };
+    const rows: CouponLog[] = (ucs || []).map((u: { id: string; user_id: string; coupon_id: string; is_used: boolean; used_at: string | null; issued_at: string; expires_at: string | null; grant_period: string | null }) => {
+      const c = cpMap.get(u.coupon_id) as { name: string; discount_type: 'percent'|'fixed'; discount_value: number; signup_grant?: boolean; is_membership?: boolean; is_public?: boolean } | undefined;
+      const expired = !u.is_used && !!u.expires_at && new Date(u.expires_at).getTime() < now;
+      return {
+        id: u.id, user_id: u.user_id, name: member.name, email: member.email,
+        couponName: c?.name || '(삭제된 쿠폰)',
+        discountLabel: c ? (c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`) : '-',
+        issued_at: u.issued_at, expires_at: u.expires_at, used_at: u.used_at,
+        status: u.is_used ? '사용완료' : expired ? '만료' : '미사용',
+        source: sourceOf(u.grant_period, c), category: categoryOf(u.grant_period, c),
+      } as CouponLog;
+    });
+    setCouponLogMemberRows(rows);
+    setCouponLogMemberLoading(false);
   }
 
   async function revokeReferralReward(r: AdminReferral) {
@@ -10132,7 +10179,7 @@ export default function AdminClient() {
                               <tr key={l.id}>
                                 <td>
                                   {l.user_id
-                                    ? <button type="button" onClick={() => setCouponLogMember({ user_id: l.user_id, name: l.name, email: l.email })}
+                                    ? <button type="button" onClick={() => openCouponLogMember({ user_id: l.user_id, name: l.name, email: l.email })}
                                         style={{ background:'none', border:'none', padding:0, cursor:'pointer', font:'inherit', color:'#2563EB', fontWeight:600 }}>{l.name}</button>
                                     : l.name}
                                   <span className="adm-muted" style={{ fontSize:12, marginLeft:6 }}>{l.email}</span>
@@ -14374,8 +14421,7 @@ export default function AdminClient() {
       {/* ===== 회원별 쿠폰 지급 내역 모달 (지급 내역에서 회원 클릭) ===== */}
       {couponLogMember && (() => {
         const m = couponLogMember;
-        const list = couponLogs.filter(l => l.user_id === m.user_id)
-          .sort((a, b) => (b.issued_at || '').localeCompare(a.issued_at || ''));
+        const list = couponLogMemberRows;
         const used = list.filter(l => l.status === '사용완료').length;
         const unused = list.filter(l => l.status === '미사용').length;
         const expired = list.filter(l => l.status === '만료').length;
@@ -14394,7 +14440,7 @@ export default function AdminClient() {
                   <div style={{ fontSize:14, fontWeight:700 }}>{m.name}</div>
                   <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>{m.email}</div>
                   <div style={{ fontSize:12, marginTop:8, display:'flex', gap:14 }}>
-                    <span>총 <b>{list.length}</b>건</span>
+                    <span>총 <b>{couponLogMemberLoading ? '…' : list.length}</b>건</span>
                     <span style={{ color:'#64748B' }}>미사용 <b>{unused}</b></span>
                     <span style={{ color:'#16A34A' }}>사용완료 <b>{used}</b></span>
                     <span style={{ color:'#DC2626' }}>만료 <b>{expired}</b></span>
@@ -14404,7 +14450,9 @@ export default function AdminClient() {
                   <table className="adm-table adm-table-clean">
                     <thead><tr><th>쿠폰명</th><th>할인값</th><th>발급경로</th><th>발급일</th><th>만료일</th><th>사용일</th><th>상태</th></tr></thead>
                     <tbody>
-                      {list.length === 0 ? (
+                      {couponLogMemberLoading ? (
+                        <tr><td colSpan={7} style={{ textAlign:'center', padding:'30px 0', color:'#94A3B8' }}>불러오는 중…</td></tr>
+                      ) : list.length === 0 ? (
                         <tr><td colSpan={7} style={{ textAlign:'center', padding:'30px 0', color:'#94A3B8' }}>지급 내역 없음</td></tr>
                       ) : list.map(l => (
                         <tr key={l.id}>
@@ -14420,7 +14468,7 @@ export default function AdminClient() {
                     </tbody>
                   </table>
                 </div>
-                <div className="adm-muted" style={{ fontSize:11 }}>· 현재 조회 기간에 로드된 지급 내역 기준입니다. 더 넓게 보려면 상단 기간을 조정해 조회하세요.</div>
+                <div className="adm-muted" style={{ fontSize:11 }}>· 이 회원의 전 기간 쿠폰 지급 내역입니다.</div>
               </div>
               <div className="adm-modal-foot" style={{ borderTop:'none' }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setCouponLogMember(null)}>닫기</button>
