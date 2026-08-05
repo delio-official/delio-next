@@ -9299,7 +9299,12 @@ export default function AdminClient() {
                               )}
                               {gi === 0 && <td rowSpan={n} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>}
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
-                              {gi === 0 && <td rowSpan={n}>{o.orderer_name || o.recipient}</td>}
+                              {gi === 0 && <td rowSpan={n}>
+                                <div>{o.orderer_name || o.recipient}</div>
+                                {o.orderer_name && o.recipient && o.recipient !== o.orderer_name && (
+                                  <div className="adm-muted" style={{ fontSize:11 }}>수령: {o.recipient}</div>
+                                )}
+                              </td>}
 
                               {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
                               <td style={{ textAlign:'left' }}>
