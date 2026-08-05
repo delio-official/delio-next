@@ -33,7 +33,7 @@ export default function RefundClient() {
       return;
     }
     await supabase.from('refund_requests').insert({
-      order_id: order.id, user_id: user.id, reason, detail,
+      order_id: order.id, user_id: user.id, reason, detail, type: 'refund',
     });
     setLoading(false);
     setDone(true);
