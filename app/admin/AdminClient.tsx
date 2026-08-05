@@ -10101,7 +10101,7 @@ export default function AdminClient() {
                     );
                   })()}
 
-                  <div className="adm-toolbar">
+                  <div className="adm-toolbar" style={{ paddingRight: 18 }}>
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
                       <button className="adm-btn adm-btn-primary" onClick={() => openCouponModal()}>+ 쿠폰 생성</button>
@@ -10363,7 +10363,7 @@ export default function AdminClient() {
                     const today = new Date().toISOString().slice(0,10);
                     return (
                       <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
-                        <div className="adm-card-head" style={{ alignItems:'flex-start', borderBottom:'none', marginBottom:16 }}>
+                        <div className="adm-card-head" style={{ alignItems:'flex-start', borderBottom:'none', marginBottom:16, padding:0 }}>
                           <div>
                             <span className="adm-card-title">멤버십 월발급 쿠폰팩</span>
                             <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>
