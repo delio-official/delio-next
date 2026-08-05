@@ -9819,13 +9819,13 @@ export default function AdminClient() {
                     { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50' },
                     { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150' },
                   ] as { label:string; sub:string; key:string; def:string }[]).map(f => (
-                    <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', alignItems:'center', gap:12 }}>
-                      <div style={{ flex:1, minWidth:0 }}>
+                    <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', flexDirection:'column', gap:10 }}>
+                      <div style={{ minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{f.label}</div>
-                        <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4 }}>{f.sub}</div>
+                        <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4, minHeight:16 }}>{f.sub}</div>
                       </div>
                       <div className="adm-flex-center-gap" style={{ flexShrink:0 }}>
-                        <input type="number" className="adm-input-text" style={{ width:64, textAlign:'right' }} min={0} step={1}
+                        <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={1}
                           value={siteSettings[f.key] ?? f.def} onChange={e => setSiteSettings(prev => ({ ...prev, [f.key]: e.target.value }))} />
                         <span className="adm-muted" style={{ width:14 }}>P</span>
                       </div>
@@ -10168,14 +10168,17 @@ export default function AdminClient() {
                     <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:0, marginBottom:0 }}>
                       {([
                         { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
+                        { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
+                        { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
                       ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
-                        <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', alignItems:'center', gap:12 }}>
-                          <div style={{ flex:1, minWidth:0 }}>
+                        /* 각 박스: 위(라벨·설명)–아래(입력) 정렬을 맞추기 위해 세로 배치 + 설명 높이 통일 */
+                        <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', flexDirection:'column', gap:10 }}>
+                          <div style={{ minWidth:0 }}>
                             <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{f.label}</div>
-                            <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4 }}>{f.sub}</div>
+                            <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4, minHeight:16 }}>{f.sub}</div>
                           </div>
                           <div className="adm-flex-center-gap" style={{ flexShrink:0 }}>
-                            <input type="number" className="adm-input-text" style={{ width:64, textAlign:'right' }} min={0} step={f.step}
+                            <input type="number" className="adm-input-text" style={{ flex:1, textAlign:'right' }} min={0} step={f.step}
                               value={siteSettings[f.key] ?? f.def} onChange={e => setSiteSettings(prev => ({ ...prev, [f.key]: e.target.value }))} />
                             <span className="adm-muted" style={{ width:14 }}>{f.unit}</span>
                           </div>
