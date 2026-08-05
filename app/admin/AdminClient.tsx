@@ -10370,7 +10370,7 @@ export default function AdminClient() {
                               여기에 등록한 쿠폰을 <strong style={{ fontWeight:600 }}>위 등급 설정</strong>의 ‘월 발급 쿠폰’에서 등급별로 골라 매월 자동 발급합니다. ({pack.filter(c=>c.is_active).length}종 활성)
                             </div>
                           </div>
-                          <button className="adm-btn adm-btn-dark" style={{ marginLeft:'auto', flexShrink:0 }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
+                          <button className="adm-btn adm-btn-primary" style={{ marginLeft:'auto', flexShrink:0 }} onClick={openMembershipCouponModal}>+ 멤버십 쿠폰 추가</button>
                         </div>
                         {pack.length === 0 ? (
                           <div className="adm-muted" style={{ fontSize:13, padding:'6px 0' }}>등록된 멤버십 쿠폰이 없습니다. 우측 “+ 멤버십 쿠폰 추가”로 만드세요.</div>
