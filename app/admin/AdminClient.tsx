@@ -10583,7 +10583,7 @@ export default function AdminClient() {
                       {list.length > 1 && <span className="adm-muted" style={{ fontSize:12 }}>💡 카드를 드래그해서 노출 순서를 바꿀 수 있습니다.</span>}
                     </div>
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-dark" onClick={() => {
+                      <button className="adm-btn adm-btn-primary" onClick={() => {
                         setBnForm({ ...BANNER_EMPTY, type: bannerType });
                         openBannerModal();
                       }}>+ 배너 등록</button>
