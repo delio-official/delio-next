@@ -4487,7 +4487,7 @@ export default function AdminClient() {
     const { refundItems, refundAmount } = calcRefund(adminPartialItems, orderTotal);
     if (!anyDefect || refundAmount <= 0) { alert('하자 수량을 입력해주세요.'); return; }
     const already = adminPartialOrder.partial_refund_amount || 0;
-    if (refundAmount > orderTotal - already) { alert(`부분환불 가능액(${fmtPrice(orderTotal - already)}원)을 초과했습니다.`); return; }
+    if (refundAmount >= orderTotal - already) { alert(`남은 전액(${fmtPrice(orderTotal - already)}원)에 해당합니다.\n부분환불이 아니라 '환불'(전액환불) 버튼을 사용하세요.`); return; }
     if (!confirm(`부분환불: 하자분 ${fmtPrice(refundAmount)}원을 카드로 부분취소합니다.\n주문은 유지되고 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
     setAdminPartialSaving(true);
     const res = await fetch('/api/admin/partial-refund', {
