@@ -10992,7 +10992,7 @@ export default function AdminClient() {
                     )}
                     </div>
                     <div className="adm-modal-foot">
-                      <button className="adm-btn adm-btn-dark" onClick={() => setMediaHistoryOpen(false)}>닫기</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => setMediaHistoryOpen(false)}>닫기</button>
                     </div>
                   </div>
                 </div>
