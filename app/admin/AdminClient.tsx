@@ -174,10 +174,14 @@ interface Order {
   total_amount?: number | null;
   coupon_discount?: number | null;
   point_used?: number | null;
+  partial_refund_amount?: number | null;  // 부분환불(하자분) 누적액
   recipient: string;
   phone: string;
   orderer_name?: string | null;
   orderer_phone?: string | null;
+  email?: string | null;
+  account_name?: string | null;   // 로그인 계정명 (profiles.name)
+  account_email?: string | null;  // 로그인 계정 이메일 (profiles.email)
   zipcode: string | null;
   address1: string;
   address2: string | null;
@@ -2602,6 +2606,10 @@ export default function AdminClient() {
   const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
   const [refundMemoInput, setRefundMemoInput] = useState('');
   const [refundSaving, setRefundSaving] = useState(false);
+  /* 관리자 직접 부분환불 (주문관리 → 상세 → 부분환불): 고객 신청 없이 하자분만 부분취소 */
+  const [adminPartialOrder, setAdminPartialOrder] = useState<Order | null>(null);
+  const [adminPartialItems, setAdminPartialItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
+  const [adminPartialSaving, setAdminPartialSaving] = useState(false);
 
   /* ── 탭 ── */
   const [couponTab, setCouponTab] = useState('tab-coupon');
@@ -3248,7 +3256,7 @@ export default function AdminClient() {
     const supabase = createClient();
     let query = supabase
       .from('orders')
-      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
+      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier))),profiles:user_id(name,email)')
       .order(basis, { ascending: false })
       .limit(1000);
     /* 조회 기준(주문일/결제일) + 기간 필터 */
@@ -3258,7 +3266,7 @@ export default function AdminClient() {
        결제일 기준 조회에서 빠지므로 created_at 기준으로 별도 합류(위에서 id로 중복 제거). */
     let unpaidQ = supabase
       .from('orders')
-      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier)))')
+      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier))),profiles:user_id(name,email)')
       .is('paid_at', null)
       .order('created_at', { ascending: false })
       .limit(500);
@@ -3269,9 +3277,11 @@ export default function AdminClient() {
     const data = [...(mainData || []), ...(unpaidData || [])].filter((o: Record<string, unknown>) => {
       const id = o.id as string; if (seen.has(id)) return false; seen.add(id); return true;
     });
-    // farm_id, farm_name 평탄화
+    // farm_id, farm_name 평탄화 + 계정명/이메일(profiles) 평탄화
     const orders = (data || []).map((o: Record<string, unknown>) => ({
       ...o,
+      account_name: (o.profiles as { name?: string } | null)?.name ?? null,
+      account_email: (o.profiles as { email?: string } | null)?.email ?? null,
       order_items: ((o.order_items as Record<string, unknown>[]) || []).map((item: Record<string, unknown>) => {
         const prod = item.products as Record<string, unknown> | null;
         const farm = prod?.farms as Record<string, unknown> | null;
@@ -4341,7 +4351,10 @@ export default function AdminClient() {
       ? { ...r, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : r.reject_reason,
           orders: r.orders && nextOrderStatus ? { ...r.orders, status: nextOrderStatus } : r.orders }
       : r));
-    setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: newStatus === 'rejected' ? (rejectReason || null) : prev.reject_reason } : prev);
+    /* 처리 완료(승인/거절)면 상세 모달을 자동으로 닫음 — 창이 내려가며 목록 상태가 갱신됨.
+       진행중/보류는 계속 볼 수 있게 열어둠 */
+    if (newStatus === 'completed' || newStatus === 'rejected') setRefundDetail(null);
+    else setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: prev.reject_reason } : prev);
     if (req.order_id && nextOrderStatus) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: nextOrderStatus as string } : o));
     refreshStageCounts(); // 환불 처리로 바뀐 주문상태를 현황판에 반영
   }
@@ -4379,8 +4392,10 @@ export default function AdminClient() {
     const refundAmount = Math.min(orderTotal, refundItems.reduce((s, it) => s + it.refund, 0));
     return { refundItems, refundAmount };
   }
-  async function saveRefundPartial() {
-    if (!refundDetail) return;
+  /* 부분환불 상품·메모 저장. silent=true면 승인 직전 자동저장용(알림 없이 결과만 반환).
+     성공 시 갱신된 요청 객체를 반환(승인에 바로 넘겨쓰기 위함), 실패 시 null */
+  async function saveRefundPartial(silent = false): Promise<AdminRefundReq | null> {
+    if (!refundDetail) return null;
     setRefundSaving(true);
     const orderTotal = refundDetail.orders?.final_amount || 0;
     const anyDefect = refundOrderItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
@@ -4395,10 +4410,48 @@ export default function AdminClient() {
     const supabase = createClient();
     const { error } = await supabase.from('refund_requests').update(payload).eq('id', refundDetail.id);
     setRefundSaving(false);
-    if (error) { alert('저장 실패: ' + error.message); return; }
+    if (error) { alert('저장 실패: ' + error.message); return null; }
     setRefundReqs(prev => prev.map(r => r.id === refundDetail.id ? { ...r, ...payload } : r));
     setRefundDetail(prev => prev ? { ...prev, ...payload } : prev);
-    alert('저장했습니다.');
+    if (!silent) alert('저장했습니다.');
+    return { ...refundDetail, ...payload } as AdminRefundReq;
+  }
+
+  /* 관리자 직접 부분환불 — 주문관리 상세에서 고객 신청 없이 열기 */
+  async function openAdminPartial(order: Order) {
+    setAdminPartialOrder(order);
+    setAdminPartialItems([]);
+    const supabase = createClient();
+    const { data } = await supabase.from('order_items')
+      .select('id, product_name, quantity, subtotal').eq('order_id', order.id);
+    const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => ({
+      id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(it.quantity || 1), defective: '0', checked: false,
+    }));
+    setAdminPartialItems(items);
+  }
+  /* 관리자 직접 부분환불 실행 — 서버 라우트로 포트원 부분취소 + 기록 */
+  async function executeAdminPartial() {
+    if (!adminPartialOrder) return;
+    const orderTotal = adminPartialOrder.final_amount || 0;
+    const anyDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
+    const { refundItems, refundAmount } = calcRefund(adminPartialItems, orderTotal);
+    if (!anyDefect || refundAmount <= 0) { alert('하자 수량을 입력해주세요.'); return; }
+    const already = adminPartialOrder.partial_refund_amount || 0;
+    if (refundAmount > orderTotal - already) { alert(`부분환불 가능액(${fmtPrice(orderTotal - already)}원)을 초과했습니다.`); return; }
+    if (!confirm(`부분환불: 하자분 ${fmtPrice(refundAmount)}원을 카드로 부분취소합니다.\n주문은 유지되고 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
+    setAdminPartialSaving(true);
+    const res = await fetch('/api/admin/partial-refund', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount, reason: '관리자 부분환불' }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setAdminPartialSaving(false);
+    if (!res.ok) { alert('부분환불 실패\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '')); return; }
+    alert(`부분환불 완료: ${fmtPrice(refundAmount)}원`);
+    setAdminPartialOrder(null);
+    setAdminPartialItems([]);
+    loadRefundRequests();
+    loadOrders();
   }
 
   async function loadReviews() {
@@ -6659,8 +6712,13 @@ export default function AdminClient() {
     const matchStatus = !orderStatusFilter || o.status === orderStatusFilter;
     const matchFarm   = !orderFarmFilter || (o.order_items || []).some(i => i.farm_id === orderFarmFilter);
     const q = orderSearch.toLowerCase();
+    /* 이름은 결제자·수령인·계정명·이메일 모두, 번호는 수령인·주문자 연락처 모두 매칭 (선물/대리결제로 이름이 달라도 검색되게) */
     const matchSearch = !q || o.order_no.toLowerCase().includes(q) ||
-      o.recipient.toLowerCase().includes(q) || o.phone.includes(q);
+      o.recipient.toLowerCase().includes(q) ||
+      (o.orderer_name || '').toLowerCase().includes(q) ||
+      (o.account_name || '').toLowerCase().includes(q) ||
+      (o.account_email || '').toLowerCase().includes(q) ||
+      o.phone.includes(q) || (o.orderer_phone || '').includes(q);
     const matchReq = !orderReqOnly || pendingReqByOrder.has(o.id);
     return matchStatus && matchFarm && matchSearch && matchReq;
   });
@@ -8497,6 +8555,10 @@ export default function AdminClient() {
                 <button disabled={updatingStatus === selectedOrder.id}
                   onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>환불</button>
+                {['paid','preparing','shipped','delivered','confirmed'].includes(selectedOrder.status) && (
+                  <button onClick={() => openAdminPartial(selectedOrder)}
+                    style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #93C5FD', background:'#fff', color:'#2563EB' }}>부분환불</button>
+                )}
               </div>
             </div>
             <div className="adm-modal-body">
@@ -8504,7 +8566,9 @@ export default function AdminClient() {
               <div className="adm-detail-col">
               {[
                 { title:'고객 정보', rows: [
-                  ['주문자', selectedOrder.recipient],
+                  ['주문자(결제자)', selectedOrder.orderer_name || selectedOrder.recipient],
+                  ['수령인', selectedOrder.recipient],
+                  ['로그인 계정', selectedOrder.account_name ? `${selectedOrder.account_name}${selectedOrder.account_email ? ` · ${selectedOrder.account_email}` : ''}` : '비회원'],
                   ['연락처', selectedOrder.phone],
                 ] as [string, React.ReactNode][] },
                 { title:'배송 정보', rows: [
@@ -9112,7 +9176,7 @@ export default function AdminClient() {
                     options={[{ value:'', label:'전체' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
                     options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
-                  <input type="text" className="adm-input-text" placeholder="주문번호 · 수령인 · 연락처 검색"
+                  <input type="text" className="adm-input-text" placeholder="주문번호 · 주문자 · 수령인 · 계정 · 연락처 검색"
                     value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
                   <button
                     className={`adm-seg-btn${orderReqOnly ? ' active' : ''}`}
@@ -12525,7 +12589,7 @@ export default function AdminClient() {
                           <textarea className="adm-textarea" rows={3} style={{ width:'100%' }} value={refundMemoInput}
                             onChange={e => setRefundMemoInput(e.target.value)} placeholder="예) 계좌이체 환불 예정 / 고객 재송금 안내 완료 등" />
                           <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
-                            <button className="adm-btn adm-btn-outline" onClick={saveRefundPartial} disabled={refundSaving}>{refundSaving ? '저장 중…' : '상품·메모 저장'}</button>
+                            <button className="adm-btn adm-btn-outline" onClick={() => saveRefundPartial()} disabled={refundSaving}>{refundSaving ? '저장 중…' : '상품·메모 저장'}</button>
                           </div>
                         </div>
 
@@ -12545,9 +12609,12 @@ export default function AdminClient() {
                           <button className="adm-btn adm-btn-outline" onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
                         )}
                         {r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-primary" onClick={() => {
-                            if (hasDefect && r.refund_amount == null) { alert('부분환불은 먼저 "상품·메모 저장"을 눌러 확정한 뒤 승인해주세요.'); return; }
-                            if (confirm(hasDefect ? `부분환불 승인: 하자분 ${fmtPrice(refundAmount)}원만 카드 부분취소합니다. 나머지 ${fmtPrice(keptAmount)}원은 결제 유지되고 주문은 그대로입니다. (쿠폰·포인트 복구 없음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) updateRefundStatus(r, 'completed');
+                          <button className="adm-btn adm-btn-primary" onClick={async () => {
+                            if (!confirm(hasDefect ? `부분환불 승인: 하자분 ${fmtPrice(refundAmount)}원만 카드 부분취소합니다. 나머지 ${fmtPrice(keptAmount)}원은 결제 유지되고 주문은 그대로입니다. (쿠폰·포인트 복구 없음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) return;
+                            /* 부분환불이면 하자수량을 자동저장(refund_amount 확정) 후 그 값으로 바로 승인 — 별도 '저장' 클릭 불필요 */
+                            let target = r;
+                            if (hasDefect) { const saved = await saveRefundPartial(true); if (!saved) return; target = saved; }
+                            updateRefundStatus(target, 'completed');
                           }}>환불승인</button>
                         )}
                         <button className="adm-btn adm-btn-outline" onClick={() => setRefundDetail(null)}>닫기</button>
@@ -14286,6 +14353,71 @@ export default function AdminClient() {
           <img src={reviewZoom} alt="" style={{ maxWidth:'92vw', maxHeight:'92vh', objectFit:'contain', borderRadius:8, boxShadow:'0 12px 48px rgba(0,0,0,0.5)' }} />
         </div>
       )}
+
+      {/* ===== 관리자 직접 부분환불 모달 ===== */}
+      {adminPartialOrder && (() => {
+        const o = adminPartialOrder;
+        const orderTotal = o.final_amount || 0;
+        const gt = adminPartialItems.reduce((s, x) => s + x.subtotal, 0);
+        const ratio = gt > 0 ? orderTotal / gt : 0;
+        const { refundAmount } = calcRefund(adminPartialItems, orderTotal);
+        const hasDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
+        const already = o.partial_refund_amount || 0;
+        const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
+        const setItem = (id: string, key: 'total'|'defective', val: string) =>
+          setAdminPartialItems(prev => prev.map(it => it.id === id ? { ...it, [key]: val.replace(/[^0-9]/g, '') } : it));
+        const toggleItem = (id: string) =>
+          setAdminPartialItems(prev => prev.map(it => it.id === id ? { ...it, checked: !it.checked, defective: !it.checked ? it.total : '0' } : it));
+        return (
+          <div className="adm-modal-bg open" onClick={() => setAdminPartialOrder(null)}>
+            <div className="adm-modal" style={{ maxWidth:620, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+              <div className="adm-modal-head"><span className="adm-modal-title">부분환불 (관리자 직접)</span></div>
+              <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
+                <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 16px', fontSize:13 }}>
+                  <div><b>{o.order_no}</b> · {o.orderer_name || o.recipient}</div>
+                  <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>결제 {fmtPrice(orderTotal)}원{already > 0 ? ` · 기 부분환불 ${fmtPrice(already)}원` : ''}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:800, marginBottom:8 }}>하자 수량 입력 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(체크 후 하자 개수 입력 · 원 단위 반올림)</span></div>
+                  <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
+                    {adminPartialItems.length === 0 ? (
+                      <div className="adm-muted" style={{ padding:'12px 14px', fontSize:13 }}>상품 정보를 불러오는 중…</div>
+                    ) : adminPartialItems.map((it, idx) => {
+                      const on = it.checked;
+                      const t = Number(it.total) || 0, d = Number(it.defective) || 0;
+                      const itRefund = (on && t > 0) ? Math.round(it.subtotal * Math.min(d, t) / t * ratio) : 0;
+                      return (
+                        <div key={it.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'11px 14px', borderTop: idx ? '1px solid #F1F5F9' : 'none', flexWrap:'wrap', opacity: on ? 1 : 0.5 }}>
+                          <input type="checkbox" checked={on} onChange={() => toggleItem(it.id)} style={{ width:16, height:16, flexShrink:0, cursor:'pointer' }} />
+                          <div style={{ flex:1, minWidth:130 }}>
+                            <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
+                            <div className="adm-muted" style={{ fontSize:11 }}>{fmtPrice(it.subtotal)}원</div>
+                          </div>
+                          <span style={{ fontSize:12, color:'#64748B' }}>전체</span>
+                          <input type="text" inputMode="numeric" value={it.total} disabled={!on} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'total', e.target.value)} style={{ ...numInput, background: on ? '#fff' : '#F1F5F9' }} />
+                          <span style={{ fontSize:12, color:'#64748B' }}>중 하자</span>
+                          <input type="text" inputMode="numeric" value={it.defective} disabled={!on} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'defective', e.target.value)} style={{ ...numInput, background: on ? '#fff' : '#F1F5F9', borderColor: (on && d > 0) ? '#FCA5A5' : '#E2E8F0' }} />
+                          <span style={{ width:78, textAlign:'right', fontWeight:700, fontSize:13, color: itRefund > 0 ? '#DC2626' : '#94A3B8' }}>{fmtPrice(itRefund)}원</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {hasDefect && (
+                    <div style={{ marginTop:10, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, padding:'12px 14px', fontSize:13, display:'flex', justifyContent:'space-between' }}>
+                      <span className="adm-muted">부분환불액(하자분)</span><span style={{ fontWeight:800, color:'#2563EB' }}>{fmtPrice(refundAmount)}원</span>
+                    </div>
+                  )}
+                  <div className="adm-muted" style={{ fontSize:11, marginTop:8 }}>실행 시 하자분만 카드 부분취소됩니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
+                </div>
+              </div>
+              <div className="adm-modal-foot">
+                <button className="adm-btn adm-btn-primary" disabled={adminPartialSaving || !hasDefect} onClick={executeAdminPartial}>{adminPartialSaving ? '처리 중…' : '부분환불 실행'}</button>
+                <button className="adm-btn adm-btn-outline" onClick={() => setAdminPartialOrder(null)}>닫기</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== 쿠폰 지급 모달 ===== */}
       {giveCouponModal && giveCouponTarget && (() => {
