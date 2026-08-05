@@ -4500,6 +4500,7 @@ export default function AdminClient() {
     alert(`부분환불 완료: ${fmtPrice(refundAmount)}원`);
     setAdminPartialOrder(null);
     setAdminPartialItems([]);
+    setSelectedOrder(null);   // 뒤에 열려있던 주문 상세 모달도 함께 닫음
     loadRefundRequests();
     loadOrders();
   }
