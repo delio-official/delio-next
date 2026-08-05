@@ -10677,7 +10677,7 @@ export default function AdminClient() {
                                 </div>
                                 {/* 표시 위치 — 개발용어 대신 PC/모바일로 설명 */}
                                 <div style={{ fontSize:11.5, color:'#2563EB', fontWeight:600, background:'#EFF6FF', borderRadius:6, padding:'5px 8px', marginBottom:8, lineHeight:1.5 }}>
-                                  📍 PC : {posLabel[p.position] || p.position} 상단<br/>&nbsp;&nbsp;&nbsp;모바일 : 화면 중앙
+                                  PC : {posLabel[p.position] || p.position} 상단<br/>모바일 : 화면 중앙
                                 </div>
                                 <div style={{ fontSize:11, color:'#64748B', marginBottom:10 }}>
                                   {p.starts_at || p.ends_at ? (
