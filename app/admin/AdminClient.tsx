@@ -11258,7 +11258,7 @@ export default function AdminClient() {
                               <td>{ev.badge ? <span className="adm-badge badge-paid">{ev.badge}</span> : '-'}</td>
                               <td className="adm-muted">{fmtDateShort(ev.starts_at)}</td>
                               <td className="adm-muted">{fmtDateShort(ev.ends_at)}</td>
-                              <td><span className={`adm-badge ${s.cls}`}>{s.label}</span></td>
+                              <td><div style={{ display:'flex', justifyContent:'center' }}><span className={`adm-badge ${s.cls}`}>{s.label}</span></div></td>
                               <td>
                                 <div style={{ display:'flex', justifyContent:'center' }}>
                                   <Toggle defaultOn={ev.is_active} onChange={(v) => toggleEventActive(ev.id, v)} />
