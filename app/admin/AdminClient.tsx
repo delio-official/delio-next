@@ -10158,12 +10158,12 @@ export default function AdminClient() {
                         options={[{ value:'all', label:'전체 종류' }, { value:'signup', label:'신규회원' }, { value:'general', label:'일반쿠폰' }, { value:'membership', label:'멤버십쿠폰' }]} />
                       <input type="text" className="adm-input-text" placeholder="회원 이름 · 이메일 · 쿠폰명 검색"
                         value={clSearch} onChange={e => { setClSearch(e.target.value); setClPage(1); }} />
-                    </div>
-                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                       <input type="date" className="adm-select" value={clFrom} onChange={e => { setClFrom(e.target.value); setClPage(1); }} />
                       <span style={{ color:'#94A3B8' }}>~</span>
                       <input type="date" className="adm-select" value={clTo} onChange={e => { setClTo(e.target.value); setClPage(1); }} />
                       <button className="adm-btn adm-btn-dark" onClick={() => loadCouponLogs()}>조회</button>
+                    </div>
+                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                       <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setClStatus('all'); setClCategory('all'); setClSearch(''); setClFrom(ymd(d)); setClTo(ymd(new Date())); setClPage(1); loadCouponLogs(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
                   </div>
