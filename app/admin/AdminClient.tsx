@@ -10627,14 +10627,6 @@ export default function AdminClient() {
                                 {b.name || <span style={{ color:'#94A3B8', fontWeight:400 }}>이름 없음</span>}
                               </div>
                               <div className="adm-muted" style={{ fontSize:12, marginBottom:10 }}>🗓 {period}</div>
-                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:10 }}>
-                                {[['조회', (b.view_count||0).toLocaleString()], ['클릭', (b.click_count||0).toLocaleString()], ['CTR', `${ctr.toFixed(1)}%`]].map(([l,v]) => (
-                                  <div key={l} style={{ background:'#F8FAFC', borderRadius:6, padding:'6px 4px', textAlign:'center' }}>
-                                    <div style={{ fontSize:10, color:'#94A3B8' }}>{l}</div>
-                                    <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>{v}</div>
-                                  </div>
-                                ))}
-                              </div>
                               <div style={{ display:'flex', gap:6 }}>
                                 <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, justifyContent:'center' }} onClick={() => openBannerModal(b)}>수정</button>
                                 <button className="adm-btn adm-btn-outline" style={{ flex:1, fontSize:12, color:'#DC2626', borderColor:'#FECACA', justifyContent:'center' }} onClick={() => deleteBanner(b.id)}>삭제</button>
