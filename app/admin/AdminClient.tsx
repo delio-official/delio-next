@@ -2448,7 +2448,7 @@ export default function AdminClient() {
   const [couponModal, setCouponModal] = useState(false);
   const [membershipLocked, setMembershipLocked] = useState(false); // 멤버십 추가창: '멤버십 월 발급' 고정
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -6407,7 +6407,7 @@ export default function AdminClient() {
     } else {
       setEditingCoupon(null);
       /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'fixed', discount_value: 10, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true });
     }
     setCouponModal(true);
   }
@@ -6455,7 +6455,7 @@ export default function AdminClient() {
       discount_type: couponForm.discount_type,
       discount_value: Number(couponForm.discount_value),
       min_order_amount: Number(couponForm.min_order_amount) || 0,
-      max_discount_amount: couponForm.max_discount_amount ? Number(couponForm.max_discount_amount) : null,
+      max_discount_amount: couponForm.discount_type === 'percent' && couponForm.max_discount_amount ? Number(couponForm.max_discount_amount) : null,
       starts_at: couponForm.starts_at || new Date().toISOString(),
       expires_at: couponForm.expires_at || null,
       valid_days: couponForm.valid_days.trim() ? Number(couponForm.valid_days) : null,
@@ -10128,7 +10128,7 @@ export default function AdminClient() {
                             ) : pagedCouponLogs.map(l => (
                               <tr key={l.id}>
                                 <td>{l.name} <span className="adm-muted" style={{ fontSize:12 }}>{l.email}</span></td>
-                                <td style={{ fontWeight:700 }}>{l.couponName}</td>
+                                <td style={{ fontWeight:400 }}>{l.couponName}</td>
                                 <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                                 <td className="adm-muted">{l.source}</td>
                                 <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
@@ -14903,8 +14903,11 @@ export default function AdminClient() {
                 <div className="adm-form-row">
                   <label className="adm-label">최대 할인금액 <span style={{ fontWeight:400, color:'#94A3B8' }}>· 정률 쿠폰만 해당</span></label>
                   <div className="adm-flex-center-gap">
-                    <input type="number" className="adm-input-text adm-input-w100" min={0} placeholder="제한없음"
-                      value={couponForm.max_discount_amount} onChange={e => setCouponForm(p => ({ ...p, max_discount_amount: e.target.value }))} />
+                    <input type="number" className="adm-input-text adm-input-w100" min={0}
+                      disabled={couponForm.discount_type === 'fixed'}
+                      placeholder={couponForm.discount_type === 'fixed' ? '정액은 해당없음' : '제한없음'}
+                      style={couponForm.discount_type === 'fixed' ? { background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' } : undefined}
+                      value={couponForm.discount_type === 'fixed' ? '' : couponForm.max_discount_amount} onChange={e => setCouponForm(p => ({ ...p, max_discount_amount: e.target.value }))} />
                     <span className="adm-muted">원</span>
                   </div>
                 </div>
