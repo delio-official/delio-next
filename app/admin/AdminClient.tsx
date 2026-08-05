@@ -14586,10 +14586,10 @@ export default function AdminClient() {
                 </div>
               </div>
             </div>
-            <div className="adm-modal-foot">
+            <div className="adm-modal-foot" style={{ borderTop:'none' }}>
               <button className="adm-btn adm-btn-outline" onClick={() => setGivePointModal(false)}>취소</button>
               <button className="adm-btn adm-btn-primary" onClick={givePoints} disabled={givePointSaving}>
-                {givePointSaving ? '처리 중...' : '지급하기'}
+                {givePointSaving ? '처리 중...' : '저장'}
               </button>
             </div>
           </div>
