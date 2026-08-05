@@ -10612,7 +10612,7 @@ export default function AdminClient() {
                             style={{ padding:0, overflow:'hidden', cursor: bannerReordering ? 'wait' : 'grab', opacity: bannerReordering ? 0.6 : 1 }}>
                             <div style={{ position:'relative', background:'#F0F0EE' }}>
                               {b.image_url
-                                ? <img src={b.image_url} alt="" style={{ width:'100%', aspectRatio:'4/3', objectFit:'contain', display:'block', background:'#F0F0EE', pointerEvents:'none' }} />
+                                ? <img src={b.image_url} alt="" style={{ width:'100%', height:'auto', display:'block', pointerEvents:'none' }} />
                                 : <div style={{ width:'100%', aspectRatio:'4/3', background:'#F0F0EE' }} />}
                               <span style={{ position:'absolute', top:6, left:6, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, fontWeight:700, borderRadius:5, padding:'1px 7px' }}>{list.findIndex(x => x.id === b.id) + 1}</span>
                             </div>
