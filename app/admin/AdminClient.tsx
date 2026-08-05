@@ -2521,7 +2521,7 @@ export default function AdminClient() {
   const [bannerReordering, setBannerReordering] = useState(false);   // 배너 순서 저장 중 연타 방지
   const [bannerModal, setBannerModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<AdminBanner | null>(null);
-  const BANNER_EMPTY = { type: 'main', name: '', link_url: '/', is_active: true, starts_at: '', ends_at: '' };
+  const BANNER_EMPTY = { type: 'main', name: '', link_url: '', is_active: true, starts_at: '', ends_at: '' };  // link_url 빈 값 = '직접 입력' 모드로 시작
   const [bnForm, setBnForm] = useState<{ type: string; name: string; link_url: string; is_active: boolean; starts_at: string; ends_at: string }>({ ...BANNER_EMPTY });
   const [bnImgUrl, setBnImgUrl] = useState<string>('');
   const [bnImgUrlMobile, setBnImgUrlMobile] = useState<string>('');
@@ -10598,7 +10598,6 @@ export default function AdminClient() {
                     : (
                       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:16 }}>
                         {list.map(b => {
-                          const ctr = (b.view_count || 0) > 0 ? ((b.click_count || 0) / (b.view_count || 1) * 100) : 0;
                           const period = (!b.starts_at && !b.ends_at)
                             ? '상시 노출'
                             : `${b.starts_at ? b.starts_at.slice(0,10) : '즉시'} ~ ${b.ends_at ? b.ends_at.slice(0,10) : '상시'}`;
