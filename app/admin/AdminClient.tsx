@@ -10176,12 +10176,10 @@ export default function AdminClient() {
                             {pagedCouponLogs.length === 0 ? (
                               <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 지급 내역이 없습니다.</td></tr>
                             ) : pagedCouponLogs.map(l => (
-                              <tr key={l.id}>
+                              <tr key={l.id} onClick={() => l.user_id && openCouponLogMember({ user_id: l.user_id, name: l.name, email: l.email })}
+                                style={{ cursor: l.user_id ? 'pointer' : 'default' }}>
                                 <td>
-                                  {l.user_id
-                                    ? <button type="button" onClick={() => openCouponLogMember({ user_id: l.user_id, name: l.name, email: l.email })}
-                                        style={{ background:'none', border:'none', padding:0, cursor:'pointer', font:'inherit', color:'#2563EB', fontWeight:600 }}>{l.name}</button>
-                                    : l.name}
+                                  {l.name}
                                   <span className="adm-muted" style={{ fontSize:12, marginLeft:6 }}>{l.email}</span>
                                 </td>
                                 <td style={{ fontWeight:400 }}>{l.couponName}</td>
@@ -14468,7 +14466,7 @@ export default function AdminClient() {
                     </tbody>
                   </table>
                 </div>
-                <div className="adm-muted" style={{ fontSize:11 }}>· 이 회원의 전 기간 쿠폰 지급 내역입니다.</div>
+                <div className="adm-muted" style={{ fontSize:11 }}>· 쿠폰 지급 내역</div>
               </div>
               <div className="adm-modal-foot" style={{ borderTop:'none' }}>
                 <button className="adm-btn adm-btn-outline" onClick={() => setCouponLogMember(null)}>닫기</button>
