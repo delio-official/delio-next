@@ -11300,7 +11300,7 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
                   <button className="adm-btn adm-btn-outline" onClick={() => { setLoungeFilter(''); setLoungeStatusFilter('all'); setLoungeSearch(''); loadLounge(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-dark" onClick={() => openLoungeModal()}>+ 글 등록</button>
+                  <button className="adm-btn adm-btn-primary" onClick={() => openLoungeModal()}>+ 글 등록</button>
                 </div>
               </div>
               {loungeLoading ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
@@ -11348,7 +11348,7 @@ export default function AdminClient() {
                     </div>
                   </div>
                   {/* 추가/수정 폼 */}
-                  <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap', marginBottom:16, paddingBottom:16, borderBottom:'1px solid #F0F0F0' }}>
+                  <div style={{ display:'flex', gap:16, alignItems:'flex-end', flexWrap:'wrap', marginBottom:16, paddingBottom:16, borderBottom:'1px solid #F0F0F0' }}>
                     <div>
                       <label className="adm-label">카테고리명</label>
                       <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: 레시피"
@@ -11359,7 +11359,7 @@ export default function AdminClient() {
                       <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: recipe" disabled={!!loungeCatForm.id}
                         value={loungeCatForm.slug} onChange={e => setLoungeCatForm(f => ({ ...f, slug: e.target.value }))} />
                     </div>
-                    <button className="adm-btn adm-btn-dark" onClick={saveLoungeCat}>{loungeCatForm.id ? '수정' : '추가'}</button>
+                    <button className="adm-btn adm-btn-primary" onClick={saveLoungeCat}>{loungeCatForm.id ? '수정' : '추가'}</button>
                     {loungeCatForm.id && <button className="adm-btn adm-btn-outline" onClick={() => setLoungeCatForm({ id: null, slug: '', label: '' })}>취소</button>}
                   </div>
                   {/* 목록 (드래그 정렬) */}
