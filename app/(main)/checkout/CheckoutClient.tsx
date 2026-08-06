@@ -572,9 +572,11 @@ export default function CheckoutClient() {
             easyPay: { easyPayProvider: selectedMethod.easyPay as any },
           }),
           customer: {
-            ...(recipient.trim() ? { fullName: recipient.trim() } : {}),
-            ...(phone.trim()     ? { phoneNumber: phone.trim() } : {}),
-            ...(user.email       ? { email: user.email } : {}),
+            /* PG(이니시스·카카오)에는 결제자(주문자) 이름·연락처를 넘김 — 없으면 수령인으로 폴백.
+               이렇게 해야 PG 결제내역이 사이트의 '주문자'와 일치해 조회가 편함 */
+            ...((ordererName.trim() || recipient.trim()) ? { fullName: ordererName.trim() || recipient.trim() } : {}),
+            ...((ordererPhone.trim() || phone.trim()) ? { phoneNumber: ordererPhone.trim() || phone.trim() } : {}),
+            ...((ordererEmail.trim() || user.email) ? { email: ordererEmail.trim() || user.email } : {}),
           },
           windowType: { pc: 'IFRAME', mobile: 'REDIRECTION' },
           // 모바일 REDIRECTION: 결제 후 이 URL로 복귀 → 핸들러가 주문 확정
