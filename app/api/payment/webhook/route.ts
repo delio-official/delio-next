@@ -46,10 +46,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, orderNo: r.orderNo });
   }
 
-  /* 취소/부분취소 → 주문 상태 동기화 (콘솔 취소 등 대비) */
+  /* 취소/부분취소 → 주문 상태 동기화 (콘솔 취소 등 대비).
+     ⚠️ 부분취소(PARTIAL_CANCELLED)를 환불완료로 처리하면 안 된다 — 그러면 부분환불한 주문이 배송완료에서
+     사라지고 추가환불도 막힌다. 카드 '실제 취소 누계'가 결제 총액에 도달했을 때만 refunded로 전환하고,
+     부분취소는 partial_refund_amount(누적 실환불액)만 카드 실제값과 동기화한다. */
   if (status === 'CANCELLED' || status === 'PARTIAL_CANCELLED') {
-    await supabase.from('orders').update({ status: 'refunded' }).eq('portone_payment_id', paymentId);
-    return NextResponse.json({ ok: true });
+    const cancelled = Number(payment?.amount?.cancelled) || 0;
+    const total = Number(payment?.amount?.total) || 0;
+    const fully = status === 'CANCELLED' || (total > 0 && cancelled >= total);
+    if (fully) {
+      await supabase.from('orders').update({ status: 'refunded', partial_refund_amount: cancelled })
+        .eq('portone_payment_id', paymentId);
+    } else {
+      /* 부분취소: 상태는 건드리지 않고(배송완료/구매확정 유지), 부분환불 누적액만 카드 실제값으로 반영.
+         단, 이미 취소/환불/미결제 상태인 주문은 제외(오작동 방지). */
+      await supabase.from('orders').update({ partial_refund_amount: cancelled })
+        .eq('portone_payment_id', paymentId)
+        .not('status', 'in', '(cancelled,refunded,refunding,pending,expired)');
+    }
+    return NextResponse.json({ ok: true, mode: fully ? 'refunded' : 'partial', cancelled, total });
   }
 
   return NextResponse.json({ ok: true, status });
