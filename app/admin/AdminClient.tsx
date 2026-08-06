@@ -2789,8 +2789,13 @@ export default function AdminClient() {
       const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
       const ord = row.orders as { order_no: string } | null;
       const totalQty = Number(row.quantity) || 0;
-      // 부분환불된 하자분 차감 후 정상분만 정산 반영
-      const defect = defectiveByOrderNo[ord?.order_no || '']?.[(row.product_name as string) || ''] || 0;
+      /* 부분환불 하자분 차감 — 같은 주문에 동일 상품명 라인이 여러 개면 하자수량을 '소진'해서
+         이중차감 방지(한 행에서 뺀 만큼 남은 하자수량을 줄임). */
+      const ono = ord?.order_no || '';
+      const name = (row.product_name as string) || '';
+      const avail = defectiveByOrderNo[ono]?.[name] || 0;
+      const defect = Math.min(avail, totalQty);
+      if (defectiveByOrderNo[ono]) defectiveByOrderNo[ono][name] = avail - defect;
       const qty = Math.max(0, totalQty - defect);
       if (qty <= 0) return;
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
@@ -4389,11 +4394,15 @@ export default function AdminClient() {
     if (req.order_id && nextOrderStatus) {
       await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
-    /* 부분환불 승인 시 — 하자분 실환불액을 주문에 누적(순매출·브랜드정산 차감용) */
+    /* 부분환불 승인 시 — 하자분 실환불액을 주문에 누적(순매출·브랜드정산 차감용).
+       누적이 결제액 전액에 도달하면 관리자 직접경로와 동일하게 refunded로 전환(활성/유효주문에서 제외). */
     if (isPartial && req.order_id && req.refund_amount) {
       const { data: ordRow } = await supabase.from('orders').select('partial_refund_amount').eq('id', req.order_id).single();
       const cur = (ordRow as { partial_refund_amount: number | null } | null)?.partial_refund_amount || 0;
-      await supabase.from('orders').update({ partial_refund_amount: cur + req.refund_amount }).eq('id', req.order_id);
+      const newTotal = cur + req.refund_amount;
+      const fullyRefunded = newTotal >= orderTotal;
+      await supabase.from('orders').update({ partial_refund_amount: newTotal, ...(fullyRefunded ? { status: 'refunded' } : {}) }).eq('id', req.order_id);
+      if (fullyRefunded && req.order_id) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: 'refunded' } : o));
     }
     /* 승인(완료) 시 취소/환불 알림톡 (부분환불은 하자분 금액으로 안내) */
     if (newStatus === 'completed' && req.order_id) {
