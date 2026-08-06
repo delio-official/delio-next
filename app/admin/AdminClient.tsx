@@ -4318,7 +4318,7 @@ export default function AdminClient() {
     /* 관리자 직접 취소/환불된 주문(취소환불관리 목록의 '판매자 직접취소' 행)을 주문관리 기간필터와 무관하게 별도로 로드 */
     const { data: dc } = await supabase
       .from('orders')
-      .select('id, order_no, status, recipient, orderer_name, final_amount, partial_refund_amount, payment_method, paid_at, created_at, order_items ( product_name, quantity )')
+      .select('id, order_no, status, recipient, orderer_name, phone, orderer_phone, zipcode, address1, address2, delivery_memo, final_amount, partial_refund_amount, coupon_discount, point_used, payment_method, courier, tracking_number, paid_at, created_at, order_items ( id, product_name, option_label, quantity, unit_price, subtotal )')
       .in('status', ['cancelled', 'refunded', 'refunding'])
       .not('order_no', 'like', 'TEST%')
       .order('created_at', { ascending: false })
@@ -5682,11 +5682,12 @@ export default function AdminClient() {
 
     // 전기간 대비 (직전 동일 길이) — 실결제 기준(미입금 제외), 환불취소율 증감 계산
     const lenMs = to.getTime() - from.getTime();
-    const { data: prev } = await supabase.from('orders').select('final_amount, status')
+    const { data: prev } = await supabase.from('orders').select('final_amount, partial_refund_amount, status')
       .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO)
       .not('order_no', 'like', 'TEST%').limit(5000);
     const prevPaid = (prev || []).filter(o => !isUnpaid(o.status));
-    const prevTotal = prevPaid.reduce((s, o) => s + (o.final_amount || 0), 0);
+    /* 현재 total(=확정+진행 순매출, 취소 제외)과 같은 기준으로 계산해야 추세% 왜곡이 없다 */
+    const prevTotal = prevPaid.filter(o => !isCancel(o.status)).reduce((s, o) => s + netAmt(o), 0);
     const prevOrderCount = prevPaid.length;
     const prevRefundRate = prevPaid.length ? (prevPaid.filter(o => isCancel(o.status)).length / prevPaid.length * 100) : 0;
 
@@ -5797,7 +5798,9 @@ export default function AdminClient() {
     if (isVoid) {
       const ord = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
       const pid = (ord as unknown as { portone_payment_id?: string | null })?.portone_payment_id;
-      const alreadyVoid = ord && ['cancelled', 'refunded', 'refunding'].includes(ord.status);
+      /* refunding(환불 진행중)은 아직 카드취소 전이므로 '이미 취소됨'에서 제외 → 실제 카드취소를 시도한다.
+         (이미 취소된 결제면 route가 already-cancelled로 성공 처리하므로 이중취소 걱정 없음) */
+      const alreadyVoid = ord && ['cancelled', 'refunded'].includes(ord.status);
       if (pid && !alreadyVoid) {
         const res = await fetch('/api/payment/cancel', {
           method: 'POST',
@@ -12822,7 +12825,7 @@ export default function AdminClient() {
                   {/* KPI 윗줄 5 */}
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                     {[
-                      ['총 주문금액', `${fmtPrice(settlementData.total)}원`, '#1A1A1A', '미입금 제외 실주문'],
+                      ['총 순매출', `${fmtPrice(settlementData.total)}원`, '#1A1A1A', '취소·환불·미입금 제외'],
                       ['확정 매출', `${fmtPrice(settlementData.confirmed)}원`, '#16A34A', '배송완료·구매확정'],
                       ['처리 중', `${fmtPrice(settlementData.pending)}원`, '#2563EB', '결제완료·배송준비·배송중'],
                       ['취소·환불', `${fmtPrice(settlementData.cancelled)}원`, '#DC2626', `${settlementData.refundCount}건`],
