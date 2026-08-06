@@ -20,6 +20,7 @@ interface LoungePost {
   emoji: string | null;
   title: string;
   badge: string | null;
+  badge_color: string | null;
   date: string | null;
   thumbnail_url: string | null;
   image_url: string | null;
@@ -74,13 +75,13 @@ export default function LoungeDetailClient() {
         </div>
 
         {/* 뱃지 */}
-        <span style={{
+        {post.badge && <span style={{
           display: 'inline-block', marginBottom: 12,
-          background: 'var(--color-accent-bg)', color: 'var(--color-accent)',
+          background: post.badge_color || 'var(--color-accent-bg)', color: post.badge_color ? '#fff' : 'var(--color-accent)',
           fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
         }}>
           {post.badge}
-        </span>
+        </span>}
 
         {/* 제목 */}
         <h1 style={{ fontSize: 'clamp(21px, 4.5vw, 26px)', fontWeight: 800, marginBottom: 12, lineHeight: 1.4 }}>

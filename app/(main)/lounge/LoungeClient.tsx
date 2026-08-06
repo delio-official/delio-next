@@ -21,6 +21,7 @@ interface LoungePost {
   emoji: string | null;
   title: string;
   badge: string | null;
+  badge_color: string | null;
   date: string | null;
   thumbnail_url: string | null;
   content: string | null;
@@ -129,7 +130,7 @@ export default function LoungeClient() {
                   <div className="lounge-card-info">
                     <div className="lounge-card-title">{p.title}</div>
                     <div className="lounge-card-meta">
-                      <span className="lounge-badge">{p.badge}</span>
+                      {p.badge && <span className="lounge-badge" style={p.badge_color ? { background:p.badge_color, color:'#fff' } : undefined}>{p.badge}</span>}
                       <span className="lounge-card-date">{fmtLoungeDate(p.date)}</span>
                     </div>
                   </div>

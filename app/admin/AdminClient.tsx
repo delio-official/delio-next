@@ -2399,7 +2399,7 @@ export default function AdminClient() {
   const [loungeTab, setLoungeTab] = useState<'posts'|'cats'>('posts');
   const [loungeModal, setLoungeModal] = useState(false);
   const [editingLounge, setEditingLounge] = useState<AdminLoungePost | null>(null);
-  const [loungeForm, setLoungeForm] = useState({ filter: 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
+  const [loungeForm, setLoungeForm] = useState({ filter: 'recipe', title: '', badge: '', badge_color: BADGE_DEFAULT_COLOR, date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
   /* 라운지 카테고리 (동적) */
   interface LoungeCat { id: number; slug: string; label: string; sort_order: number }
   const [loungeCats, setLoungeCats] = useState<LoungeCat[]>([]);
@@ -6345,10 +6345,10 @@ export default function AdminClient() {
   function openLoungeModal(post?: AdminLoungePost) {
     if (post) {
       setEditingLounge(post);
-      setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', date: toDateTimeLocal(post.date || ''), thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
+      setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', badge_color: (post as { badge_color?: string | null }).badge_color || BADGE_DEFAULT_COLOR, date: toDateTimeLocal(post.date || ''), thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
     } else {
       setEditingLounge(null);
-      setLoungeForm({ filter: loungeCats[0]?.slug || 'recipe', title: '', badge: '', date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
+      setLoungeForm({ filter: loungeCats[0]?.slug || 'recipe', title: '', badge: '', badge_color: BADGE_DEFAULT_COLOR, date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
     }
     setLoungeModal(true);
   }
@@ -6370,15 +6370,18 @@ export default function AdminClient() {
     if (!loungeForm.title.trim()) { alert('제목을 입력해주세요.'); return; }
     setLoungeSaving(true);
     const supabase = createClient();
+    /* 뱃지 텍스트 없으면 색상도 null */
+    const badgeColor = loungeForm.badge.trim() ? (loungeForm.badge_color || BADGE_DEFAULT_COLOR) : null;
     if (editingLounge) {
       /* 작성일(date)은 등록 시점 고정 — 수정 시 건드리지 않음 */
-      const { date: _d, ...rest } = loungeForm; void _d;
+      const { date: _d, ...rest0 } = loungeForm; void _d;
+      const rest = { ...rest0, badge_color: badgeColor };
       const { error } = await supabase.from('lounge_posts').update(rest).eq('id', editingLounge.id);
       if (!error) setLoungePosts(prev => prev.map(p => p.id === editingLounge.id ? { ...p, ...rest } : p));
       else alert('수정 실패: ' + error.message);
     } else {
       /* 등록 시점을 작성일로 자동 설정 */
-      const payload = { ...loungeForm, date: new Date().toISOString() };
+      const payload = { ...loungeForm, badge_color: badgeColor, date: new Date().toISOString() };
       const { data, error } = await supabase.from('lounge_posts').insert(payload).select().single();
       if (!error && data) setLoungePosts(prev => [data, ...prev]);
       else alert('등록 실패: ' + (error?.message || ''));
@@ -11390,7 +11393,7 @@ export default function AdminClient() {
                           <tr key={p.id}>
                             <td>{p.title}</td>
                             <td>{loungeCatLabel(p.filter)}</td>
-                            <td>{p.badge ? <span className="adm-badge badge-paid">{p.badge}</span> : '-'}</td>
+                            <td>{p.badge ? <span className="adm-badge" style={{ background: (p as { badge_color?: string | null }).badge_color || BADGE_DEFAULT_COLOR, color:'#fff' }}>{p.badge}</span> : '-'}</td>
                             <td style={{ fontWeight:700 }}>{(p.view_count || 0).toLocaleString()}</td>
                             <td className="adm-muted">{fmtDateShort(p.date || p.created_at)}</td>
                             <td>
@@ -14970,9 +14973,17 @@ export default function AdminClient() {
 
               {/* 뱃지 */}
               <div>
-                <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택)</span></label>
+                <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
                 <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="예: NEW, HOT"
                   value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
+                  <BadgeColorRow value={loungeForm.badge_color || BADGE_DEFAULT_COLOR} presets={BADGE_COLORS.map(c => c.value)}
+                    onPick={v => setLoungeForm(p => ({ ...p, badge_color: v }))} />
+                  <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
+                  {loungeForm.badge && (
+                    <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff', background: loungeForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>{loungeForm.badge}</span>
+                  )}
+                </div>
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>작성일은 등록 시점으로 자동 기록됩니다.</div>
               </div>
 
