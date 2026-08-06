@@ -11349,14 +11349,14 @@ export default function AdminClient() {
                   </div>
                   {/* 추가/수정 폼 */}
                   <div style={{ display:'flex', gap:16, alignItems:'flex-end', flexWrap:'wrap', marginBottom:16, paddingBottom:16, borderBottom:'1px solid #F0F0F0' }}>
-                    <div>
+                    <div style={{ flex:1, minWidth:140 }}>
                       <label className="adm-label">카테고리명</label>
-                      <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: 레시피"
+                      <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="예: 레시피"
                         value={loungeCatForm.label} onChange={e => setLoungeCatForm(f => ({ ...f, label: e.target.value }))} />
                     </div>
-                    <div>
+                    <div style={{ flex:1, minWidth:140 }}>
                       <label className="adm-label">슬러그 <span style={{ fontWeight:400, color:'#94A3B8' }}>(영문)</span></label>
-                      <input type="text" className="adm-input-text" style={{ width:150 }} placeholder="예: recipe" disabled={!!loungeCatForm.id}
+                      <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="예: recipe" disabled={!!loungeCatForm.id}
                         value={loungeCatForm.slug} onChange={e => setLoungeCatForm(f => ({ ...f, slug: e.target.value }))} />
                     </div>
                     <button className="adm-btn adm-btn-primary" onClick={saveLoungeCat}>{loungeCatForm.id ? '수정' : '추가'}</button>
