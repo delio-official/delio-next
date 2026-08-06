@@ -11513,7 +11513,7 @@ export default function AdminClient() {
                         : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 링크 {filterTabs.filter(t => t.tab_type==='link').length}개</span>}
                     </div>
                   </div>
-                  {secOpen.links && <button className="adm-btn adm-btn-dark" style={{ flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
+                  {secOpen.links && <button className="adm-btn adm-btn-primary" style={{ flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
                 </div>
                 {secOpen.links && (() => {
                   const links = filterTabs.filter(t => t.tab_type==='link').sort((a,b)=>a.sort_order-b.sort_order);
