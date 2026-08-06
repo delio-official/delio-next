@@ -63,7 +63,7 @@ const CAT_LABEL: Record<string, string> = {
 };
 interface Order {
   id: string; order_no: string; status: string;
-  final_amount: number; created_at: string; delivered_at?: string | null; paid_at?: string | null; shipped_at?: string | null;
+  final_amount: number; partial_refund_amount?: number | null; created_at: string; delivered_at?: string | null; paid_at?: string | null; shipped_at?: string | null;
   courier: string | null; tracking_number: string | null;
   recipient?: string | null; phone?: string | null; zipcode?: string | null;
   address1?: string | null; address2?: string | null; delivery_memo?: string | null;
@@ -667,7 +667,7 @@ export default function MypageClient() {
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
         supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
-          .select('id,order_no,status,final_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,option_id,farm_name,courier,tracking_number,ship_status,products(origin,category))')
+          .select('id,order_no,status,final_amount,partial_refund_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,option_id,farm_name,courier,tracking_number,ship_status,products(origin,category))')
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -1691,6 +1691,9 @@ export default function MypageClient() {
         if (o.status==='shipped' && (o.shipped_at || o.created_at)) statusSuffix = ` · ${wd(o.shipped_at || o.created_at)} 배송 시작`;
         else if (o.status==='delivered' && o.delivered_at) statusSuffix = ` · ${wd(o.delivered_at)} 도착`;
         else if (o.status==='cancelled' || o.status==='refunded') statusSuffix = ' · 7영업일 이내 환불';
+        /* 부분환불(일부만 환불)된 주문 — 전액환불(refunded)이 아니므로 배송완료로 남는다. 고객이 헷갈리지 않게 부분환불 금액을 표기 */
+        const partialRefunded = (o.status === 'delivered' || o.status === 'confirmed') ? (o.partial_refund_amount || 0) : 0;
+        if (partialRefunded > 0) statusSuffix += ` · 부분환불 ${fmtPrice(partialRefunded)}원`;
         const statusColor = o.status==='delivered'?'#1A1A1A': (o.status==='cancelled'||o.status==='refunded')?'#e00':'var(--color-accent)';
         const sellers = [...new Set((o.order_items || []).map(it => it.farm_name).filter(Boolean))].join(', ');
         // 라벨|값 (배송지)
@@ -1779,6 +1782,7 @@ export default function MypageClient() {
                       <div style={{ marginTop:8 }}>
                         {rowR(`${PM[o.payment_method||'']||o.payment_method||'결제'}`, `${fmtPrice(o.final_amount)}원`)}
                       </div>
+                      {partialRefunded > 0 && <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:13, color:'#e00', fontWeight:600 }}><span>부분환불 완료</span><span>−{fmtPrice(partialRefunded)}원</span></div>}
                       {(o.earned_point ?? 0) > 0 && <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:6 }}>적립 {fmtPrice(o.earned_point!)}P</div>}
                     </section>
                     <section style={pcSec}>
@@ -1873,6 +1877,7 @@ export default function MypageClient() {
                   <div style={{ marginTop:8 }}>
                     {rowR(`${PM[o.payment_method || ''] || o.payment_method || '결제'}`, `${fmtPrice(o.final_amount)}원`)}
                   </div>
+                  {partialRefunded > 0 && <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, fontSize:13, color:'#e00', fontWeight:600 }}><span>부분환불 완료</span><span>−{fmtPrice(partialRefunded)}원</span></div>}
                   {(o.earned_point ?? 0) > 0 && (
                     <div style={{ fontSize:12, color:'var(--color-accent)', textAlign:'right', marginTop:6 }}>적립 {fmtPrice(o.earned_point!)}P</div>
                   )}
