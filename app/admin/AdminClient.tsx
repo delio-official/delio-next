@@ -9481,8 +9481,15 @@ export default function AdminClient() {
                                   </span>
                                 ) : noFulfill ? (
                                   <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{oStatusLabel}</span>
+                                ) : g.shipped ? (
+                                  /* 브랜드 송장 입력됨 → 배송중(배송완료/구매확정이면 그대로) */
+                                  o.status === 'delivered' ? <span className="adm-badge badge-done">배송완료</span>
+                                    : o.status === 'confirmed' ? <span className="adm-badge badge-done">구매확정</span>
+                                    : <span className="adm-badge badge-shipping">배송중</span>
                                 ) : (
-                                  <span className={`adm-badge ${g.shipped ? 'badge-shipping' : 'badge-ready'}`}>{g.shipped ? '배송중' : '배송준비중'}</span>
+                                  /* 미배송 → 아직 발주확인 전(paid)이면 신규주문, 발주확인(preparing)이면 배송준비중 */
+                                  o.status === 'paid' ? <span className="adm-badge badge-paid">신규주문</span>
+                                    : <span className="adm-badge badge-ready">배송준비중</span>
                                 )}
                                 {gi === 0 && (() => {
                                   const rq = pendingReqByOrder.get(o.id);
