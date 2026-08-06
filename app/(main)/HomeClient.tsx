@@ -322,7 +322,7 @@ function ShortcutStrip() {
               style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '9px 16px', borderRadius: 999,
                 border: '1px solid #E5E5E1', background: '#fff', color: '#333', fontSize: 14, fontWeight: 600,
                 textDecoration: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              {l.icon && <span>{l.icon}</span>}<span>{l.label}</span>
+              <span>{l.label}</span>
             </a>
           ))}
         </div>

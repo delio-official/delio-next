@@ -11526,7 +11526,7 @@ export default function AdminClient() {
                           onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}
                           style={{ display:'flex', alignItems:'center', gap:10, border:'1px solid #E2E8F0', borderRadius:8, padding:'10px 12px', background:'#fff', cursor:'grab', opacity:t.is_active?1:0.55 }}>
                           <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
-                          <span style={{ fontSize:13, fontWeight:700 }}>{t.emoji ? `${t.emoji} ` : ''}{t.label}</span>
+                          <span style={{ fontSize:13, fontWeight:700 }}>{t.label}</span>
                           <span className="adm-muted" style={{ fontSize:12 }}>· {t.tab_value || '/'}</span>
                           <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
                             <AdmToggle on={!!t.show_in_home} onChange={v => updateFt(t.id, { show_in_home: v })} title="노출" />
