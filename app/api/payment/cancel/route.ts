@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-/* 포트원 V2 결제 취소(환불) — 관리자 환불 승인 시 호출 */
+/* 포트원 V2 결제 취소(환불) — 관리자 환불 승인 시 호출.
+   중요: '취소 실패'를 응답 문구로 추측해서 성공 처리하지 않는다(카드 미취소인데 DB만 환불완료되는 사고 방지).
+   실패 시 PortOne에서 결제를 '조회'해 실제 취소 상태/금액을 확인한 뒤에만 성공으로 처리한다. */
 export async function POST(req: NextRequest) {
   const apiSecret = process.env.PORTONE_API_SECRET;
   if (!apiSecret) {
@@ -17,38 +19,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'paymentId 누락' }, { status: 400 });
   }
 
+  const auth = { Authorization: `PortOne ${apiSecret}` };
+
   const res = await fetch(
     `https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`,
     {
       method: 'POST',
-      headers: {
-        Authorization: `PortOne ${apiSecret}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        reason,
-        ...(amount != null ? { amount } : {}),
-      }),
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, ...(amount != null ? { amount } : {}) }),
     }
   );
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    /* 이미 취소된 결제 = 목표(취소) 이미 달성 → 성공으로 처리해 DB 동기화 진행.
-       PG마다 '이미 취소' 응답 형태가 달라 모두 잡아야 함:
-       - 포트원 표준: type === 'PAYMENT_ALREADY_CANCELLED' (예: 카카오페이)
-       - 이니시스: pgCode 500626 / '기 취소 거래'
-       - 기타: pgCode -784 / 'can not request cancel (status: CANCEL_PAYMENT)' 등 이미 취소상태 */
-    const pgMsg = typeof data?.pgMessage === 'string' ? data.pgMessage : '';
-    const pgCode = String(data?.pgCode ?? '');
-    const alreadyCancelled =
-      data?.type === 'PAYMENT_ALREADY_CANCELLED' ||
-      pgCode === '500626' || pgCode === '-784' ||
-      /기\s*취소|이미\s*취소|이미\s*환불|CANCEL_?PAYMENT|can\s*not\s*request\s*cancel|already\s*cancel/i.test(pgMsg);
-    if (alreadyCancelled) {
-      return NextResponse.json({ ok: true, alreadyCancelled: true });
-    }
-    return NextResponse.json({ error: '포트원 취소 실패', detail: data }, { status: 502 });
+  if (res.ok) {
+    return NextResponse.json({ ok: true, cancellation: data.cancellation ?? data });
   }
-  return NextResponse.json({ ok: true, cancellation: data.cancellation ?? data });
+
+  /* 취소 요청 실패 → PortOne 결제 조회로 '실제 취소 여부'를 검증한다(문구 추측 금지).
+     - 전액취소 요청: 결제가 실제로 완전 취소(CANCELLED / 취소누계≥결제총액) 상태여야 성공.
+     - 부분취소 요청: 취소누계가 요청액 이상이면 이미 반영된 것으로 보고 성공(멱등). */
+  let verified: { status?: string; amount?: { total?: number; cancelled?: number } } | null = null;
+  try {
+    const vRes = await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}`, { headers: auth });
+    verified = await vRes.json().catch(() => null);
+  } catch { /* 조회 실패 시 verified=null → 아래에서 실패 처리 */ }
+
+  const total = Number(verified?.amount?.total) || 0;
+  const cancelled = Number(verified?.amount?.cancelled) || 0;
+  const st = String(verified?.status || '');
+
+  if (amount == null) {
+    // 전액취소 요청: 정말로 완전 취소된 상태일 때만 성공
+    const fully = st === 'CANCELLED' || (total > 0 && cancelled >= total);
+    if (fully) return NextResponse.json({ ok: true, alreadyCancelled: true, cancelled, total });
+    return NextResponse.json({
+      error: '카드 취소가 실제로 완료되지 않았습니다. (PG 상태 확인 필요)',
+      detail: data, verified: { status: st, cancelled, total },
+    }, { status: 502 });
+  }
+  // 부분취소 요청: 취소누계가 요청액 이상이면 성공으로 인정
+  if (cancelled >= amount) return NextResponse.json({ ok: true, alreadyCancelled: true, cancelled, total });
+  return NextResponse.json({
+    error: '카드 부분취소가 실제로 완료되지 않았습니다. (PG 상태 확인 필요)',
+    detail: data, verified: { status: st, cancelled, total },
+  }, { status: 502 });
 }

@@ -50,7 +50,8 @@ export async function POST(req: Request) {
   }
 
   /* 1) 포트원 부분취소 (결제ID 있을 때만; 무통장 등은 카드취소 없이 기록만) */
-  let pgCancelled = false;
+  let pgOk = false;                                             // 카드취소 요청이 성공(res.ok)했는가
+  let pgErr: unknown = null;
   if (order.portone_payment_id) {
     const apiSecret = process.env.PORTONE_API_SECRET;
     if (!apiSecret) return NextResponse.json({ ok: false, error: '포트원 시크릿 미설정' }, { status: 503 });
@@ -60,22 +61,14 @@ export async function POST(req: Request) {
       body: JSON.stringify({ reason, amount: refundAmount }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      /* 이미 PG에서 취소된 건도 성공 처리(카카오페이=PAYMENT_ALREADY_CANCELLED / 이니시스=기 취소 거래 500626) */
-      const pgMsg = typeof (data as { pgMessage?: string })?.pgMessage === 'string' ? (data as { pgMessage: string }).pgMessage : '';
-      const pgCode = String((data as { pgCode?: string })?.pgCode ?? '');
-      const alreadyCancelled =
-        (data as { type?: string })?.type === 'PAYMENT_ALREADY_CANCELLED' ||
-        pgCode === '500626' || pgCode === '-784' ||
-        /기\s*취소|이미\s*취소|이미\s*환불|CANCEL_?PAYMENT|can\s*not\s*request\s*cancel|already\s*cancel/i.test(pgMsg);
-      if (!alreadyCancelled) return NextResponse.json({ ok: false, error: '포트원 취소 실패', detail: data }, { status: 502 });
-    }
-    pgCancelled = true;
+    pgOk = res.ok;
+    if (!res.ok) pgErr = data;   // 실패해도 곧바로 리턴하지 않고, 아래에서 '실제 취소 누계' 조회로 검증
   }
 
-  /* 반영 금액은 PortOne의 '실제 취소 총액'을 진실로 삼는다 — 요청액과 실제 취소액이 어긋나도(레이스·중복호출·부분실패)
-     DB의 partial_refund_amount가 항상 카드 실제 취소와 일치하게. (결제ID 없는 무통장 등은 요청액 기준) */
-  let newTotal = already + refundAmount;
+  /* 반영 금액은 PortOne의 '실제 취소 총액'을 진실로 삼는다(문구 추측 금지). 취소 요청이 실패해도
+     조회한 취소누계가 실제로 늘지 않았으면 카드 미취소이므로 절대 기록/반영하지 않는다.
+     (부분취소된 결제에 재취소 실패 → DB만 환불완료 되는 사고 방지) */
+  let cancelledTotal: number | null = null;
   if (order.portone_payment_id && process.env.PORTONE_API_SECRET) {
     try {
       const pRes = await fetch(`https://api.portone.io/payments/${encodeURIComponent(order.portone_payment_id)}`, {
@@ -83,9 +76,27 @@ export async function POST(req: Request) {
       });
       const pData = await pRes.json().catch(() => ({}));
       const c = (pData as { amount?: { cancelled?: number } })?.amount?.cancelled;
-      if (typeof c === 'number' && c > 0) newTotal = c;
-    } catch { /* 조회 실패 시 요청액 기준 유지 */ }
+      if (typeof c === 'number') cancelledTotal = c;
+    } catch { /* 조회 실패 → cancelledTotal=null */ }
   }
+
+  let newTotal: number;
+  if (order.portone_payment_id) {
+    if (cancelledTotal == null) {
+      // 실제 취소누계 조회 실패: 취소 요청이 확실히 성공했을 때만 낙관적 반영, 아니면 실패
+      if (!pgOk) return NextResponse.json({ ok: false, error: '카드 취소 결과를 확인하지 못했습니다. 잠시 후 다시 시도하거나 PG 상태를 확인하세요.', detail: pgErr }, { status: 502 });
+      newTotal = already + refundAmount;
+    } else {
+      newTotal = cancelledTotal;   // 카드 실제 취소 누계를 진실로 사용
+    }
+    // 이번 호출로 취소가 실제로 늘지 않았으면(카드 미취소) → 기록/반영 금지
+    if (newTotal <= already) {
+      return NextResponse.json({ ok: false, error: '카드가 실제로 취소되지 않았습니다. (PG 상태 확인 필요)', detail: { already, requested: refundAmount, portoneCancelled: cancelledTotal, pgError: pgErr } }, { status: 502 });
+    }
+  } else {
+    newTotal = already + refundAmount;   // 무통장 등 카드 없음: 요청액 기준
+  }
+  const pgCancelled = !!order.portone_payment_id;
   const fullyRefunded = newTotal >= (order.final_amount || 0);
   const actualThis = Math.max(0, newTotal - already);   // 이번에 실제로 취소된 금액
 
