@@ -14556,6 +14556,8 @@ export default function AdminClient() {
         const { refundAmount } = calcRefund(adminPartialItems, orderTotal);
         const hasDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
         const already = o.partial_refund_amount || 0;
+        const remaining = Math.max(0, orderTotal - already);   // 남은 환불 가능액
+        const exceed = refundAmount > remaining;               // 이번 환불이 잔액 초과?
         const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
         const setItem = (id: string, key: 'total'|'defective', val: string) =>
           setAdminPartialItems(prev => prev.map(it => it.id === id ? { ...it, [key]: val.replace(/[^0-9]/g, '') } : it));
@@ -14596,15 +14598,26 @@ export default function AdminClient() {
                     })}
                   </div>
                   {hasDefect && (
-                    <div style={{ marginTop:10, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:10, padding:'12px 14px', fontSize:13, display:'flex', justifyContent:'space-between' }}>
-                      <span className="adm-muted">부분환불액(하자분)</span><span style={{ fontWeight:800, color:'#2563EB' }}>{fmtPrice(refundAmount)}원</span>
+                    <div style={{ marginTop:10, background: exceed ? '#FEF2F2' : '#EFF6FF', border:`1px solid ${exceed ? '#FECACA' : '#BFDBFE'}`, borderRadius:10, padding:'12px 14px', fontSize:13 }}>
+                      {already > 0 && (
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                          <span className="adm-muted">이미 환불함</span><span style={{ fontWeight:600 }}>{fmtPrice(already)}원</span>
+                        </div>
+                      )}
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                        <span className="adm-muted">이번에 환불할 금액</span><span style={{ fontWeight:800, color: exceed ? '#DC2626' : '#2563EB' }}>{fmtPrice(refundAmount)}원</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', paddingTop:5, borderTop:'1px dashed #E2E8F0' }}>
+                        <span className="adm-muted">환불 가능 잔액</span><span style={{ fontWeight:700 }}>{fmtPrice(remaining)}원</span>
+                      </div>
+                      {exceed && <div style={{ color:'#DC2626', fontSize:12, marginTop:8, fontWeight:600 }}>잔액({fmtPrice(remaining)}원)을 초과했습니다. 하자 수량을 줄여주세요.</div>}
                     </div>
                   )}
-                  <div className="adm-muted" style={{ fontSize:11, marginTop:8 }}>실행 시 하자분만 카드 부분취소됩니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
+                  <div className="adm-muted" style={{ fontSize:11, marginTop:8, lineHeight:1.6 }}>· 하자 수량은 <b>이번에 추가로</b> 환불할 개수입니다(누적 총량 아님). 예: 5개 중 2개 환불 후 2개 더 → <b>2</b> 입력.<br/>· 실행 시 하자분만 카드 부분취소됩니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
                 </div>
               </div>
               <div className="adm-modal-foot">
-                <button className="adm-btn adm-btn-primary" disabled={adminPartialSaving || !hasDefect} onClick={executeAdminPartial}>{adminPartialSaving ? '처리 중…' : '부분환불 실행'}</button>
+                <button className="adm-btn adm-btn-primary" disabled={adminPartialSaving || !hasDefect || exceed} onClick={executeAdminPartial}>{adminPartialSaving ? '처리 중…' : '부분환불 실행'}</button>
                 <button className="adm-btn adm-btn-outline" onClick={() => setAdminPartialOrder(null)}>닫기</button>
               </div>
             </div>
