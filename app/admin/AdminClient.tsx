@@ -4530,16 +4530,24 @@ export default function AdminClient() {
       /* 이미 완료된 부분환불의 하자 수량을 상품명별로 합산 → 누적 입력칸에 미리 채움 */
       supabase.from('refund_requests').select('refund_items').eq('order_id', order.id).eq('status', 'completed'),
     ]);
-    const priorMap: Record<string, number> = {};
-    ((priorReqs as { refund_items: { name?: string; defective?: number }[] | null }[]) || []).forEach(r => {
+    /* 이전 부분환불의 '전체(알 개수)'와 하자수량을 상품명별로 복원.
+       - def: 누적 하자수량(증분 기록을 합산)
+       - total: 관리자가 이전에 입력한 전체 알 개수(가장 큰 값 사용) → 재환불 시 이 값이 리셋되지 않게 */
+    const priorMap: Record<string, { def: number; total: number }> = {};
+    ((priorReqs as { refund_items: { name?: string; defective?: number; total?: number }[] | null }[]) || []).forEach(r => {
       (Array.isArray(r.refund_items) ? r.refund_items : []).forEach(ri => {
-        const n = ri?.name; const d = Number(ri?.defective) || 0;
-        if (n && d > 0) priorMap[n] = (priorMap[n] || 0) + d;
+        const n = ri?.name; if (!n) return;
+        const d = Number(ri?.defective) || 0; const t = Number(ri?.total) || 0;
+        const e = priorMap[n] || (priorMap[n] = { def: 0, total: 0 });
+        e.def += d; e.total = Math.max(e.total, t);
       });
     });
     const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => {
-      const prior = priorMap[it.product_name] || 0;
-      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(it.quantity || 1), defective: String(prior), prior, checked: prior > 0 };
+      const pm = priorMap[it.product_name];
+      const prior = pm?.def || 0;
+      /* 전체(알 개수)는 이전 입력값을 복원, 없으면 주문수량으로 시작. 하자 누적이 전체보다 크면 전체를 하자에 맞춤(하한 보정) */
+      const total = Math.max(pm?.total || 0, it.quantity || 1, prior);
+      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(total), defective: String(prior), prior, checked: prior > 0 };
     });
     setAdminPartialItems(items);
   }
@@ -4562,11 +4570,17 @@ export default function AdminClient() {
     if (cumTarget > orderTotal) { alert(`누적 환불액이 결제액(${fmtPrice(orderTotal)}원)을 초과했습니다.`); return; }
     if (deltaAmount > remaining) { alert(`부분환불 가능액(${fmtPrice(remaining)}원)을 초과했습니다.`); return; }
     if (already === 0 && deltaAmount >= orderTotal) { alert(`전액에 해당합니다.\n부분환불이 아니라 '환불'(전액환불) 버튼을 사용하세요.`); return; }
-    if (!confirm(`부분환불: 이번에 ${fmtPrice(deltaAmount)}원을 카드로 부분취소합니다. (누적 ${fmtPrice(already + deltaAmount)}원)\n주문은 유지되고 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
+    /* 이번 액션으로 누적이 결제액에 도달하면 = 전액환불 완료 → 기록 사유도 '전액환불'로 남긴다. */
+    const willBeFull = (already + deltaAmount) >= orderTotal;
+    const reason = willBeFull ? '관리자 전액환불(부분 누적 완료)' : '관리자 부분환불';
+    if (!confirm((willBeFull
+        ? `전액환불 완료: 마지막 ${fmtPrice(deltaAmount)}원을 취소해 누적 ${fmtPrice(already + deltaAmount)}원(전액)이 됩니다.\n주문이 '환불완료'로 전환됩니다.`
+        : `부분환불: 이번에 ${fmtPrice(deltaAmount)}원을 카드로 부분취소합니다. (누적 ${fmtPrice(already + deltaAmount)}원)\n주문은 유지되고`)
+      + ` 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
     setAdminPartialSaving(true);
     const res = await fetch('/api/admin/partial-refund', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount: deltaAmount, reason: '관리자 부분환불' }),
+      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount: deltaAmount, reason }),
     });
     const j = await res.json().catch(() => ({}));
     setAdminPartialSaving(false);
