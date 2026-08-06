@@ -2260,6 +2260,8 @@ export default function AdminClient() {
   const pendingOrderStatus = useRef<string | null>(null); // 대시보드 바로가기로 진입 시 적용할 주문상태 필터
   const pendingRefundType = useRef<'' | 'cancel' | 'refund' | null>(null); // 환불 패널 진입 시 적용할 유형 필터
   const pendingRefundStatus = useRef<string | null>(null); // 환불 패널 진입 시 적용할 상태 필터
+  /* 환불/취소 처리 중복 실행 방지 빗장 — 더블클릭해도 딱 1회만 처리(즉시 잠기고 끝나면 해제) */
+  const refundBusyRef = useRef(false);
   const pendingOrderDate = useRef<{ from: string; to: string } | null>(null); // 대시보드 바로가기 진입 시 적용할 주문 기간
   const pendingSettlePreset = useRef<'today'|'thisMonth'|null>(null); // 대시보드 바로가기 진입 시 적용할 매출 기간 프리셋
   const pendingFarmSettle = useRef<{ month:string; half:1|2 }|null>(null); // 정산 지연 알림 클릭 시 이동할 정산 회차
@@ -4329,6 +4331,9 @@ export default function AdminClient() {
 
   /* 환불 신청 상태 변경 + 주문 상태 연동 */
   async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected'|'hold', rejectReason?: string) {
+    if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭(더블클릭) 무시
+    refundBusyRef.current = true;
+    try {
     const supabase = createClient();
 
     /* 이미 완료된 요청을 또 완료 처리하면 카드 재취소·partial_refund_amount 이중누적 위험 → 재진입 차단 */
@@ -4431,6 +4436,7 @@ export default function AdminClient() {
     else setRefundDetail(prev => prev && prev.id === req.id ? { ...prev, status: newStatus, reject_reason: prev.reject_reason } : prev);
     if (req.order_id && nextOrderStatus) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: nextOrderStatus as string } : o));
     refreshStageCounts(); // 환불 처리로 바뀐 주문상태를 현황판에 반영
+    } finally { refundBusyRef.current = false; }   // 처리 끝(성공·실패·중단 모두) → 빗장 해제
   }
 
   /* 환불 상세 열기 — 주문 상품 로드 + 부분환불 입력·메모 초기화 */
@@ -4506,6 +4512,9 @@ export default function AdminClient() {
   /* 관리자 직접 부분환불 실행 — 서버 라우트로 포트원 부분취소 + 기록 */
   async function executeAdminPartial() {
     if (!adminPartialOrder) return;
+    if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭 무시
+    refundBusyRef.current = true;
+    try {
     const orderTotal = adminPartialOrder.final_amount || 0;
     const anyDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
     const { refundItems, refundAmount } = calcRefund(adminPartialItems, orderTotal);
@@ -4536,6 +4545,7 @@ export default function AdminClient() {
     setSelectedOrder(null);   // 뒤에 열려있던 주문 상세 모달도 함께 닫음
     loadRefundRequests();
     loadOrders();
+    } finally { refundBusyRef.current = false; }   // 처리 끝 → 빗장 해제
   }
 
   async function loadReviews() {
@@ -5791,7 +5801,10 @@ export default function AdminClient() {
 
   /* ========== 주문 상태 변경 ========== */
   async function updateOrderStatus(orderId: string, newStatus: string) {
+    if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭 무시(일괄취소는 await 순차라 영향 없음)
+    refundBusyRef.current = true;
     setUpdatingStatus(orderId);
+    try {
 
     /* 취소(cancelled)·환불(refunded)이면 결제된 카드도 실제 취소(포트원) 먼저 수행 */
     const isVoid = newStatus === 'cancelled' || newStatus === 'refunded';
@@ -5885,6 +5898,7 @@ export default function AdminClient() {
       }
     }
     setUpdatingStatus(null);
+    } finally { refundBusyRef.current = false; }   // 처리 끝 → 빗장 해제
   }
 
   /* ========== 배송 추적 정보 저장 ========== */
