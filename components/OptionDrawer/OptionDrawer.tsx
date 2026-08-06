@@ -128,6 +128,7 @@ export default function OptionDrawer() {
     for (const p of list) {
       const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
       if (!leaf) continue;
+      if (leaf.manage_stock === false) continue; // 재고 무한 옵션(재고관리 안 함) = 수량 제한 없음 (PC와 동일)
       const already = cart.filter(c => c.stockOptionId === leaf.id).reduce((s, c) => s + (c.quantity || 0), 0);
       if (already + p.qty > leaf.stock) {
         alert(leaf.stock > 0
@@ -308,7 +309,7 @@ export default function OptionDrawer() {
                             <button onClick={() => {
                               const childParentLabels = new Set(options.filter(o => o.parent_label).map(o => o.parent_label));
                               const leaf = p.opts.find(o => !childParentLabels.has(o.label)) ?? p.opts[p.opts.length - 1];
-                              if (leaf && p.qty >= leaf.stock) {
+                              if (leaf && leaf.manage_stock !== false && p.qty >= leaf.stock) {
                                 alert(`현재 구매 가능한 수량은 ${leaf.stock}개까지입니다.`);
                                 return;
                               }
