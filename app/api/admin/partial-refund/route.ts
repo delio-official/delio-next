@@ -73,8 +73,21 @@ export async function POST(req: Request) {
     pgCancelled = true;
   }
 
-  const newTotal = already + refundAmount;
+  /* 반영 금액은 PortOne의 '실제 취소 총액'을 진실로 삼는다 — 요청액과 실제 취소액이 어긋나도(레이스·중복호출·부분실패)
+     DB의 partial_refund_amount가 항상 카드 실제 취소와 일치하게. (결제ID 없는 무통장 등은 요청액 기준) */
+  let newTotal = already + refundAmount;
+  if (order.portone_payment_id && process.env.PORTONE_API_SECRET) {
+    try {
+      const pRes = await fetch(`https://api.portone.io/payments/${encodeURIComponent(order.portone_payment_id)}`, {
+        headers: { Authorization: `PortOne ${process.env.PORTONE_API_SECRET}` },
+      });
+      const pData = await pRes.json().catch(() => ({}));
+      const c = (pData as { amount?: { cancelled?: number } })?.amount?.cancelled;
+      if (typeof c === 'number' && c > 0) newTotal = c;
+    } catch { /* 조회 실패 시 요청액 기준 유지 */ }
+  }
   const fullyRefunded = newTotal >= (order.final_amount || 0);
+  const actualThis = Math.max(0, newTotal - already);   // 이번에 실제로 취소된 금액
 
   /* 2) 부분환불액 누적을 '먼저' 반영 — PG는 이미 취소됨이라 한도 보호가 최우선(이중환불 방지).
      누적이 전액에 도달하면 주문을 refunded로 전환(활성/유효주문에서 제외). */
@@ -92,13 +105,13 @@ export async function POST(req: Request) {
     status: 'completed',
     reason,
     refund_items: refundItems,
-    refund_amount: refundAmount,
+    refund_amount: actualThis,   // 실제 취소된 금액으로 기록(요청액과 어긋나도 카드와 일치)
     resend_amount: null,
     resend_status: 'none',
   });
   if (insErr) {
-    return NextResponse.json({ ok: true, pgCancelled, refundAmount, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 환불 이력 기록에 실패했습니다: ' + insErr.message });
+    return NextResponse.json({ ok: true, pgCancelled, refundAmount: actualThis, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 환불 이력 기록에 실패했습니다: ' + insErr.message });
   }
 
-  return NextResponse.json({ ok: true, pgCancelled, refundAmount, fullyRefunded });
+  return NextResponse.json({ ok: true, pgCancelled, refundAmount: actualThis, fullyRefunded });
 }
