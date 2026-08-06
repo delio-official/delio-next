@@ -73,7 +73,18 @@ export async function POST(req: Request) {
     pgCancelled = true;
   }
 
-  /* 2) 환불 요청을 '완료'로 기록 (정산 하자분 차감·이력 노출용) */
+  const newTotal = already + refundAmount;
+  const fullyRefunded = newTotal >= (order.final_amount || 0);
+
+  /* 2) 부분환불액 누적을 '먼저' 반영 — PG는 이미 취소됨이라 한도 보호가 최우선(이중환불 방지).
+     누적이 전액에 도달하면 주문을 refunded로 전환(활성/유효주문에서 제외). */
+  await admin.from('orders').update({
+    partial_refund_amount: newTotal,
+    ...(fullyRefunded ? { status: 'refunded' } : {}),
+  }).eq('id', orderId);
+
+  /* 3) 환불 요청을 '완료'로 기록 (정산 하자분 차감·이력 노출용).
+     여기서 실패해도 위 금액은 이미 반영됐으므로 카드 이중취소는 발생하지 않음 → 경고만 반환. */
   const { error: insErr } = await admin.from('refund_requests').insert({
     order_id: orderId,
     user_id: order.user_id,
@@ -85,10 +96,9 @@ export async function POST(req: Request) {
     resend_amount: null,
     resend_status: 'none',
   });
-  if (insErr) return NextResponse.json({ ok: false, error: '환불 기록 실패: ' + insErr.message }, { status: 500 });
+  if (insErr) {
+    return NextResponse.json({ ok: true, pgCancelled, refundAmount, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 환불 이력 기록에 실패했습니다: ' + insErr.message });
+  }
 
-  /* 3) 부분환불액 누적 (주문 상태는 그대로 유지) */
-  await admin.from('orders').update({ partial_refund_amount: already + refundAmount }).eq('id', orderId);
-
-  return NextResponse.json({ ok: true, pgCancelled, refundAmount });
+  return NextResponse.json({ ok: true, pgCancelled, refundAmount, fullyRefunded });
 }

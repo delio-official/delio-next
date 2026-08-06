@@ -2598,6 +2598,8 @@ export default function AdminClient() {
 
   /* ── 환불 관리 ── */
   const [refundReqs, setRefundReqs] = useState<AdminRefundReq[]>([]);
+  /* 관리자 직접취소/환불(취소환불관리 '판매자 직접취소' 행) — 주문관리 기간필터와 무관하게 별도 로드 */
+  const [directCancelOrders, setDirectCancelOrders] = useState<Order[]>([]);
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundDetail, setRefundDetail] = useState<AdminRefundReq | null>(null);
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
@@ -4313,12 +4315,27 @@ export default function AdminClient() {
       .order('created_at', { ascending: false })
       .limit(200);
     setRefundReqs((data as unknown as AdminRefundReq[]) || []);
+    /* 관리자 직접 취소/환불된 주문(취소환불관리 목록의 '판매자 직접취소' 행)을 주문관리 기간필터와 무관하게 별도로 로드 */
+    const { data: dc } = await supabase
+      .from('orders')
+      .select('id, order_no, status, recipient, orderer_name, final_amount, partial_refund_amount, payment_method, paid_at, created_at, order_items ( product_name, quantity )')
+      .in('status', ['cancelled', 'refunded', 'refunding'])
+      .not('order_no', 'like', 'TEST%')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    setDirectCancelOrders((dc as unknown as Order[]) || []);
     setRefundLoading(false);
   }
 
   /* 환불 신청 상태 변경 + 주문 상태 연동 */
   async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected'|'hold', rejectReason?: string) {
     const supabase = createClient();
+
+    /* 이미 완료된 요청을 또 완료 처리하면 카드 재취소·partial_refund_amount 이중누적 위험 → 재진입 차단 */
+    if (newStatus === 'completed' && req.status === 'completed') {
+      alert('이미 환불완료 처리된 요청입니다.');
+      return;
+    }
 
     /* 부분환불 여부 — 실결제액보다 적은 하자분(refund_amount)만 취소 = 진짜 부분취소.
        주문은 confirmed 유지, 쿠폰·포인트 복구 안 함, partial_refund_amount에 누적한다. */
@@ -4506,7 +4523,14 @@ export default function AdminClient() {
     const j = await res.json().catch(() => ({}));
     setAdminPartialSaving(false);
     if (!res.ok) { alert('부분환불 실패\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '')); return; }
-    alert(`부분환불 완료: ${fmtPrice(refundAmount)}원`);
+    alert(`부분환불 완료: ${fmtPrice(refundAmount)}원` + (j.warning ? `\n\n⚠️ ${j.warning}` : '') + (j.fullyRefunded ? '\n(누적 전액 도달 → 주문 환불완료로 전환)' : ''));
+    /* 부분환불 안내 알림톡 (하자분 금액) */
+    const ord = adminPartialOrder;
+    notifyOrderPhones([ord.orderer_phone || ord.phone], {
+      type: 'order_cancelled', name: ord.orderer_name || ord.recipient, recipient: ord.orderer_name || ord.recipient,
+      orderNo: ord.order_no, cancelledAt: new Date().toLocaleString('ko-KR'),
+      refundAmount: `${refundAmount.toLocaleString()}원`,
+    });
     setAdminPartialOrder(null);
     setAdminPartialItems([]);
     setSelectedOrder(null);   // 뒤에 열려있던 주문 상세 모달도 함께 닫음
@@ -5595,7 +5619,8 @@ export default function AdminClient() {
     const confirmed = paidData.filter(o => isConfirmed(o.status)).reduce((s, o) => s + netAmt(o), 0);
     const pending   = paidData.filter(o => isPending(o.status)).reduce((s, o) => s + netAmt(o), 0);
     const cancelled = paidData.filter(o => isCancel(o.status)).reduce((s, o) => s + (o.final_amount || 0), 0);
-    const total     = paidData.reduce((s, o) => s + netAmt(o), 0);
+    /* 총 순매출 = 유효주문(확정+진행) 순매출. 취소·환불은 별도(cancelled)로 빼서 카드끼리 정합 */
+    const total     = confirmed + pending;
     const couponTotal = paidData.reduce((s, o) => s + (o.coupon_discount || 0), 0);
     const pointTotal  = paidData.reduce((s, o) => s + (o.point_used || 0), 0);
     const validOrders = paidData.filter(o => !isCancel(o.status));
@@ -5609,7 +5634,7 @@ export default function AdminClient() {
     const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.amount - a.amount);
 
     const methodMap: Record<string, { count: number; amount: number }> = {};
-    paidData.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += netAmt(o); });
+    validOrders.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += netAmt(o); });
     const byMethod = Object.entries(methodMap).map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount);
 
     /* 멤버십 등급별 매출 (유효주문 기준, buyer_grade 우선·없으면 현재 프로필 등급) */
@@ -5651,7 +5676,7 @@ export default function AdminClient() {
     if (rangeDays <= 92) {
       const start = new Date(from.getFullYear(), from.getMonth(), from.getDate());
       for (let t = start.getTime(); t < to.getTime(); t += dayMs) { const d = new Date(t); dailyMap[`${d.getMonth()+1}/${d.getDate()}`] = 0; }
-      data.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += netAmt(o); });
+      validOrders.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += netAmt(o); });
     }
     const daily = Object.entries(dailyMap).map(([date, amount]) => ({ date, amount }));
 
@@ -5832,6 +5857,12 @@ export default function AdminClient() {
             refundAmount: `${(vo.final_amount || 0).toLocaleString()}원`,
           });
         }
+        /* 이 주문에 걸린 고객 환불/취소 신청(pending·processing)도 함께 완료 처리 — '유령 미처리' 방지 */
+        await supabase.from('refund_requests').update({ status: 'completed' })
+          .eq('order_id', orderId).in('status', ['pending', 'processing']);
+        setRefundReqs(prev => prev.map(r => (r.order_id === orderId && (r.status === 'pending' || r.status === 'processing')) ? { ...r, status: 'completed' } : r));
+        /* 취소/환불 처리 완료 → 주문 상세 모달 자동으로 닫음(버튼도 함께 사라짐) */
+        setSelectedOrder(null);
       }
 
       /* 추천 리워드는 첫 구매 배송완료(delivered) 시 DB 트리거가 자동 지급 (5,000원 쿠폰) */
@@ -8613,6 +8644,8 @@ export default function AdminClient() {
                   );
                 })}
                 <span className="adm-statusbar-sep" />
+                {/* 이미 취소/환불된 주문이면 취소·환불·부분환불 버튼 숨김 */}
+                {!['cancelled','refunded','refunding'].includes(selectedOrder.status) && (<>
                 {!(selectedOrder.tracking_number || (selectedOrder.order_items || []).some(i => i.tracking_number)) && (
                   <button disabled={updatingStatus === selectedOrder.id}
                     onClick={() => { if (confirm('이 주문을 취소(취소됨) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'cancelled'); }}
@@ -8621,6 +8654,7 @@ export default function AdminClient() {
                 <button disabled={updatingStatus === selectedOrder.id}
                   onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>환불</button>
+                </>)}
                 {['paid','preparing','shipped','delivered','confirmed'].includes(selectedOrder.status) && (
                   <button onClick={() => openAdminPartial(selectedOrder)}
                     style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #93C5FD', background:'#fff', color:'#2563EB' }}>부분환불</button>
@@ -12476,7 +12510,7 @@ export default function AdminClient() {
                           /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김. 취소탭 사유필터 있으면 판매자취소 숨김(사유없음) */
                           const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
                           /* 관리자 직접취소: 주문상태 cancelled=취소, refunded/refunding=환불 */
-                          const directCancels = (refundFilter === 'customer' || !adminStatusOk || (isCancelTab && cancelReasonFilter) ? [] : orders).filter(o =>
+                          const directCancels = (refundFilter === 'customer' || !adminStatusOk || (isCancelTab && cancelReasonFilter) ? [] : directCancelOrders).filter(o =>
                             ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
                             && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
                             /* 무통장 미입금(결제 안 됨) 취소는 환불관리에서 제외 — 돌려줄 돈이 없음 */
