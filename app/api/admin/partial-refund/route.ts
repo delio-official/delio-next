@@ -40,9 +40,13 @@ export async function POST(req: Request) {
   }
   const already = order.partial_refund_amount || 0;
   const remaining = (order.final_amount || 0) - already;
-  /* 남은 전액과 같거나 크면 = 부분이 아니라 전액환불. 전액환불은 쿠폰·포인트 복원 로직이 다르므로 이 경로 차단 */
-  if (refundAmount >= remaining) {
-    return NextResponse.json({ ok: false, error: `남은 전액(${remaining.toLocaleString()}원)에 해당합니다. 부분환불이 아니라 '전액환불'(주문 상세 → 환불)을 사용하세요.` }, { status: 400 });
+  if (refundAmount > remaining) {
+    return NextResponse.json({ ok: false, error: `부분환불 가능액(${remaining.toLocaleString()}원)을 초과했습니다.` }, { status: 400 });
+  }
+  /* 처음부터 전액을 부분환불로 넣는 건 차단 — 그건 쿠폰·포인트 복원이 되는 '전액환불'을 써야 함.
+     단, 이미 부분환불한 내역이 있으면(already>0) 나머지를 마저 환불하는 건 허용(2→6→나머지 식). */
+  if (already === 0 && refundAmount >= (order.final_amount || 0)) {
+    return NextResponse.json({ ok: false, error: `전액에 해당합니다. 부분환불이 아니라 '전액환불'(주문 상세 → 환불)을 사용하세요.` }, { status: 400 });
   }
 
   /* 1) 포트원 부분취소 (결제ID 있을 때만; 무통장 등은 카드취소 없이 기록만) */
