@@ -11559,7 +11559,7 @@ export default function AdminClient() {
                 <div style={{ display:'flex', gap:8, marginBottom:14, paddingBottom:14, borderBottom:'1px solid #F0F0F0' }}>
                   <input type="text" className="adm-input-text" style={{ flex:1, maxWidth:320 }} placeholder="가이드 제목 (예: 부모님 선물 BEST)"
                     value={qgNewTitle} onChange={e => setQgNewTitle(e.target.value)} onKeyDown={e => { if (e.key==='Enter') addQgGroup(); }} />
-                  <button className="adm-btn adm-btn-dark" onClick={addQgGroup}>+ 가이드 추가</button>
+                  <button className="adm-btn adm-btn-primary" onClick={addQgGroup}>+ 가이드 추가</button>
                 </div>
                 {qgGroups.length===0 ? <div className="adm-muted" style={{ fontSize:12, padding:'6px 0' }}>등록된 가이드가 없습니다. 위에서 제목을 입력해 추가하세요.</div> : (
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
