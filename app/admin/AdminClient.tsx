@@ -7714,8 +7714,7 @@ export default function AdminClient() {
 
               {/* 썸네일 이미지 */}
               <div>
-                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 카드)</span></label>
-                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 1200 × 750px</div>
+                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이벤트 카드)</span><span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'2px 7px' }}>1200×750px</span></label>
                 <ImageDrop url={evForm.thumbnail_url} uploading={evThumbUploading} height={120}
                   placeholder="썸네일 클릭 또는 드래그"
                   onFile={async file => { const url = await uploadEventImage(file, 'thumb'); if (url) setEvForm(f => ({ ...f, thumbnail_url: url })); }}
@@ -7724,8 +7723,7 @@ export default function AdminClient() {
 
               {/* 본문 이미지 */}
               <div>
-                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 페이지 상단)</span></label>
-                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 가로 1200px · 세로 자유</div>
+                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 페이지 상단)</span><span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'2px 7px' }}>가로 1200px · 세로 자유</span></label>
                 <ImageDrop url={evForm.image_url} uploading={evImgUploading} height={120}
                   placeholder="본문 이미지 클릭 또는 드래그"
                   onFile={async file => { const url = await uploadEventImage(file, 'img'); if (url) setEvForm(f => ({ ...f, image_url: url })); }}
@@ -14905,8 +14903,7 @@ export default function AdminClient() {
 
               {/* 썸네일 이미지 */}
               <div>
-                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(목록 카드)</span></label>
-                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 1200 × 750px</div>
+                <label className="adm-label">썸네일 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(목록 카드)</span><span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'2px 7px' }}>1200×750px</span></label>
                 <ImageDrop url={loungeForm.thumbnail_url} uploading={loungeThumbUploading} height={110}
                   placeholder="썸네일 클릭 또는 드래그"
                   onFile={async file => { const url = await uploadLoungeImage(file, 'thumb'); if (url) setLoungeForm(p => ({ ...p, thumbnail_url: url })); }}
@@ -14915,8 +14912,7 @@ export default function AdminClient() {
 
               {/* 본문 이미지 */}
               <div>
-                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단)</span></label>
-                <div style={{ fontSize:11, color:'#94A3B8', margin:'-2px 0 6px' }}>권장 가로 1200px · 세로 자유</div>
+                <label className="adm-label">본문 이미지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(상세 상단)</span><span style={{ marginLeft:8, fontWeight:600, fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:5, padding:'2px 7px' }}>가로 1200px · 세로 자유</span></label>
                 <ImageDrop url={loungeForm.image_url} uploading={loungeImgUploading} height={110}
                   placeholder="본문 이미지 클릭 또는 드래그"
                   onFile={async file => { const url = await uploadLoungeImage(file, 'img'); if (url) setLoungeForm(p => ({ ...p, image_url: url })); }}
