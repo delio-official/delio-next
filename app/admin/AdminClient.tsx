@@ -4340,8 +4340,15 @@ export default function AdminClient() {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
-          alert('카드 취소 실패 — 상태 변경 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
-          return;
+          /* 카드취소 실패 — 이미 PG(카카오·이니시스) 어드민에서 직접 취소한 경우 등.
+             카드취소 없이 상태만 기록할 수 있게 선택지를 준다. */
+          const proceed = confirm(
+            '카드 취소에 실패했습니다.\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '') +
+            '\n\n[이미 PG(카카오페이·이니시스) 어드민에서 직접 취소하셨나요?]\n' +
+            '확인 = 카드취소 없이 사이트 상태만 환불완료로 기록\n취소 = 중단 (아직 실제 환불이 안 됐다면 취소하세요)'
+          );
+          if (!proceed) return;
+          /* 확인 시: 아래로 진행 → refund_requests·주문상태·복원만 수행 */
         }
       } else {
         if (!confirm('이 주문은 결제 ID가 없어(0원/무통장 등) 실제 카드 취소 없이 상태만 변경합니다. 계속할까요?')) return;
@@ -5774,9 +5781,17 @@ export default function AdminClient() {
         });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) {
-          alert((newStatus === 'cancelled' ? '주문취소' : '환불') + ' 중 카드 취소 실패 — 중단\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : ''));
-          setUpdatingStatus(null);
-          return;
+          /* 카드취소 실패 — 이미 PG(카카오·이니시스) 어드민에서 직접 취소한 경우 등.
+             이땐 카드취소 없이 사이트 상태만 기록할 수 있게 선택지를 준다. */
+          const label = newStatus === 'cancelled' ? '취소완료' : '환불완료';
+          const proceed = confirm(
+            '카드 취소에 실패했습니다.\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '') +
+            '\n\n[이미 PG(카카오페이·이니시스) 어드민에서 직접 취소하셨나요?]\n' +
+            `확인 = 카드취소 없이 사이트 상태만 "${label}"로 기록 (쿠폰·포인트 복원 포함)\n` +
+            '취소 = 중단 (아직 실제 환불이 안 됐다면 취소하세요)'
+          );
+          if (!proceed) { setUpdatingStatus(null); return; }
+          /* 확인 시: 아래로 진행 → 상태 변경 + 복원만 수행 (카드취소는 건너뜀) */
         }
       }
     }
