@@ -89,7 +89,7 @@ export default function SectionCuration({ sec, items, buckets }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
           {msg && <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 700 }}>{msg}</span>}
           {open && <button onClick={save} disabled={saving}
-            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#1A1A1A', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563EB', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? '저장 중…' : '저장'}
           </button>}
         </div>
@@ -174,7 +174,7 @@ export default function SectionCuration({ sec, items, buckets }: {
                       {added
                         ? <span style={{ fontSize: 11, fontWeight: 700, color: '#94A3B8', flexShrink: 0 }}>추가됨</span>
                         : <button onClick={() => setCurIds(p => [...p, it.id])}
-                            style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff', background: '#1A1A1A', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>추가</button>}
+                            style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff', background: '#2563EB', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>추가</button>}
                     </div>
                   );
                 })}
