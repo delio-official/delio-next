@@ -2617,7 +2617,7 @@ export default function AdminClient() {
   const [refundSaving, setRefundSaving] = useState(false);
   /* 관리자 직접 부분환불 (주문관리 → 상세 → 부분환불): 고객 신청 없이 하자분만 부분취소 */
   const [adminPartialOrder, setAdminPartialOrder] = useState<Order | null>(null);
-  const [adminPartialItems, setAdminPartialItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
+  const [adminPartialItems, setAdminPartialItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; prior: number; checked: boolean }[]>([]);
   const [adminPartialSaving, setAdminPartialSaving] = useState(false);
 
   /* ── 탭 ── */
@@ -4512,11 +4512,22 @@ export default function AdminClient() {
     setAdminPartialOrder(order);
     setAdminPartialItems([]);
     const supabase = createClient();
-    const { data } = await supabase.from('order_items')
-      .select('id, product_name, quantity, subtotal').eq('order_id', order.id);
-    const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => ({
-      id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(it.quantity || 1), defective: '0', checked: false,
-    }));
+    const [{ data }, { data: priorReqs }] = await Promise.all([
+      supabase.from('order_items').select('id, product_name, quantity, subtotal').eq('order_id', order.id),
+      /* 이미 완료된 부분환불의 하자 수량을 상품명별로 합산 → 누적 입력칸에 미리 채움 */
+      supabase.from('refund_requests').select('refund_items').eq('order_id', order.id).eq('status', 'completed'),
+    ]);
+    const priorMap: Record<string, number> = {};
+    ((priorReqs as { refund_items: { name?: string; defective?: number }[] | null }[]) || []).forEach(r => {
+      (Array.isArray(r.refund_items) ? r.refund_items : []).forEach(ri => {
+        const n = ri?.name; const d = Number(ri?.defective) || 0;
+        if (n && d > 0) priorMap[n] = (priorMap[n] || 0) + d;
+      });
+    });
+    const items = ((data as { id: string; product_name: string; quantity: number; subtotal: number }[]) || []).map(it => {
+      const prior = priorMap[it.product_name] || 0;
+      return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(it.quantity || 1), defective: String(prior), prior, checked: prior > 0 };
+    });
     setAdminPartialItems(items);
   }
   /* 관리자 직접 부분환불 실행 — 서버 라우트로 포트원 부분취소 + 기록 */
@@ -4526,22 +4537,28 @@ export default function AdminClient() {
     refundBusyRef.current = true;
     try {
     const orderTotal = adminPartialOrder.final_amount || 0;
-    const anyDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
-    const { refundItems, refundAmount } = calcRefund(adminPartialItems, orderTotal);
-    if (!anyDefect || refundAmount <= 0) { alert('하자 수량을 입력해주세요.'); return; }
+    /* 입력값은 '누적' 하자 수량. 이번에 실제로 취소할 건 (누적 - 기존)의 증분분이다.
+       기록(refund_items)·카드취소액은 증분으로 처리 → 정산 하자분 이중차감 방지. */
+    const cumTarget = calcRefund(adminPartialItems, orderTotal).refundAmount;      // 누적 목표 환불액
+    const deltaItems = adminPartialItems.map(it => ({ ...it, defective: String(Math.max(0, (Number(it.defective) || 0) - (it.prior || 0))) }));
+    const { refundItems, refundAmount: deltaAmount } = calcRefund(deltaItems, orderTotal);   // 이번 증분
+    if (cumTarget <= 0) { alert('하자 수량을 입력해주세요.'); return; }
+    if (deltaAmount <= 0) { alert('이미 환불한 수량과 같습니다.\n추가로 환불할 수량(누적)을 늘려서 입력하세요.'); return; }
     const already = adminPartialOrder.partial_refund_amount || 0;
     const remaining = orderTotal - already;
-    if (refundAmount > remaining) { alert(`부분환불 가능액(${fmtPrice(remaining)}원)을 초과했습니다.`); return; }
-    if (already === 0 && refundAmount >= orderTotal) { alert(`전액에 해당합니다.\n부분환불이 아니라 '환불'(전액환불) 버튼을 사용하세요.`); return; }
-    if (!confirm(`부분환불: 하자분 ${fmtPrice(refundAmount)}원을 카드로 부분취소합니다.\n주문은 유지되고 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
+    if (cumTarget > orderTotal) { alert(`누적 환불액이 결제액(${fmtPrice(orderTotal)}원)을 초과했습니다.`); return; }
+    if (deltaAmount > remaining) { alert(`부분환불 가능액(${fmtPrice(remaining)}원)을 초과했습니다.`); return; }
+    if (already === 0 && deltaAmount >= orderTotal) { alert(`전액에 해당합니다.\n부분환불이 아니라 '환불'(전액환불) 버튼을 사용하세요.`); return; }
+    if (!confirm(`부분환불: 이번에 ${fmtPrice(deltaAmount)}원을 카드로 부분취소합니다. (누적 ${fmtPrice(already + deltaAmount)}원)\n주문은 유지되고 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
     setAdminPartialSaving(true);
     const res = await fetch('/api/admin/partial-refund', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount, reason: '관리자 부분환불' }),
+      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount: deltaAmount, reason: '관리자 부분환불' }),
     });
     const j = await res.json().catch(() => ({}));
     setAdminPartialSaving(false);
     if (!res.ok) { alert('부분환불 실패\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '')); return; }
+    const refundAmount = typeof j.refundAmount === 'number' ? j.refundAmount : deltaAmount;
     alert(`부분환불 완료: ${fmtPrice(refundAmount)}원` + (j.warning ? `\n\n⚠️ ${j.warning}` : '') + (j.fullyRefunded ? '\n(누적 전액 도달 → 주문 환불완료로 전환)' : ''));
     /* 부분환불 안내 알림톡 (하자분 금액) */
     const ord = adminPartialOrder;
@@ -14553,11 +14570,13 @@ export default function AdminClient() {
         const orderTotal = o.final_amount || 0;
         const gt = adminPartialItems.reduce((s, x) => s + x.subtotal, 0);
         const ratio = gt > 0 ? orderTotal / gt : 0;
-        const { refundAmount } = calcRefund(adminPartialItems, orderTotal);
-        const hasDefect = adminPartialItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
+        const cumTarget = calcRefund(adminPartialItems, orderTotal).refundAmount;   // 누적 목표 환불액(입력값 기준)
+        const deltaItems = adminPartialItems.map(it => ({ ...it, defective: String(Math.max(0, (Number(it.defective) || 0) - (it.prior || 0))) }));
+        const refundAmount = calcRefund(deltaItems, orderTotal).refundAmount;       // 이번에 추가로 환불할 금액(증분)
         const already = o.partial_refund_amount || 0;
         const remaining = Math.max(0, orderTotal - already);   // 남은 환불 가능액
-        const exceed = refundAmount > remaining;               // 이번 환불이 잔액 초과?
+        const exceed = cumTarget > orderTotal || refundAmount > remaining;          // 누적이 결제액/잔액 초과?
+        const hasDefect = refundAmount > 0 && !exceed;                              // 실행 가능(추가 환불분 있고 초과 아님)
         const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
         const setItem = (id: string, key: 'total'|'defective', val: string) =>
           setAdminPartialItems(prev => prev.map(it => it.id === id ? { ...it, [key]: val.replace(/[^0-9]/g, '') } : it));
@@ -14597,7 +14616,7 @@ export default function AdminClient() {
                       );
                     })}
                   </div>
-                  {hasDefect && (
+                  {cumTarget > 0 && (
                     <div style={{ marginTop:10, background: exceed ? '#FEF2F2' : '#EFF6FF', border:`1px solid ${exceed ? '#FECACA' : '#BFDBFE'}`, borderRadius:10, padding:'12px 14px', fontSize:13 }}>
                       {already > 0 && (
                         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
@@ -14605,15 +14624,18 @@ export default function AdminClient() {
                         </div>
                       )}
                       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
-                        <span className="adm-muted">이번에 환불할 금액</span><span style={{ fontWeight:800, color: exceed ? '#DC2626' : '#2563EB' }}>{fmtPrice(refundAmount)}원</span>
+                        <span className="adm-muted">이번에 추가 환불</span><span style={{ fontWeight:800, color: exceed ? '#DC2626' : '#2563EB' }}>{fmtPrice(refundAmount)}원</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                        <span className="adm-muted">환불 후 누적</span><span style={{ fontWeight:700 }}>{fmtPrice(already + refundAmount)}원 / {fmtPrice(orderTotal)}원</span>
                       </div>
                       <div style={{ display:'flex', justifyContent:'space-between', paddingTop:5, borderTop:'1px dashed #E2E8F0' }}>
                         <span className="adm-muted">환불 가능 잔액</span><span style={{ fontWeight:700 }}>{fmtPrice(remaining)}원</span>
                       </div>
-                      {exceed && <div style={{ color:'#DC2626', fontSize:12, marginTop:8, fontWeight:600 }}>잔액({fmtPrice(remaining)}원)을 초과했습니다. 하자 수량을 줄여주세요.</div>}
+                      {exceed && <div style={{ color:'#DC2626', fontSize:12, marginTop:8, fontWeight:600 }}>누적 환불액이 잔액({fmtPrice(remaining)}원)을 초과했습니다. 하자 수량을 줄여주세요.</div>}
                     </div>
                   )}
-                  <div className="adm-muted" style={{ fontSize:11, marginTop:8, lineHeight:1.6 }}>· 하자 수량은 <b>이번에 추가로</b> 환불할 개수입니다(누적 총량 아님). 예: 5개 중 2개 환불 후 2개 더 → <b>2</b> 입력.<br/>· 실행 시 하자분만 카드 부분취소됩니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
+                  <div className="adm-muted" style={{ fontSize:11, marginTop:8, lineHeight:1.6 }}>· 하자 수량은 <b>지금까지 환불한 총 개수(누적)</b>로 입력하세요. 예: 2개 환불 후 2개 더 → <b>4</b> 입력, 나머지까지 전부 → <b>5</b>. 이미 환불한 수량은 자동으로 채워집니다.<br/>· 시스템이 <b>차액만</b> 카드 부분취소합니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
                 </div>
               </div>
               <div className="adm-modal-foot">
