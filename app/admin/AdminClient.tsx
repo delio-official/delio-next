@@ -2704,7 +2704,7 @@ export default function AdminClient() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   });
   const [farmSettleHalf, setFarmSettleHalf] = useState<1 | 2>(1); // 1차(1~15) / 2차(16~말)
-  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number };
+  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number; origQty: number; defectQty: number };
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
@@ -2764,13 +2764,13 @@ export default function AdminClient() {
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
       .limit(10000);
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
-    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string) => {
+    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, origQty: number, defectQty: number) => {
       const farmId = prod?.farm_id ?? null;
       const key = farmId ?? '__none__';
       if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0, orderNos: new Set(), orders: [] };
       map[key].qty += qty; map[key].sales += sales; map[key].payout += supplyTotal;
       if (orderNo) map[key].orderNos.add(orderNo);
-      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal });
+      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal, origQty, defectQty });
     };
     /* 부분환불(승인완료) 하자수량 맵 — 주문은 confirmed로 남아 메인 집계에 전량 잡히므로,
        하자분만큼 매출·공급가를 차감한다(하자분 공급가 = 농가 부담). order_no 기준 매칭. */
@@ -2798,10 +2798,10 @@ export default function AdminClient() {
       const defect = Math.min(avail, totalQty);
       if (defectiveByOrderNo[ono]) defectiveByOrderNo[ono][name] = avail - defect;
       const qty = Math.max(0, totalQty - defect);
-      if (qty <= 0) return;
+      if (totalQty <= 0) return;   // 원수량 0이면 스킵. 부분환불로 정산수량이 0이 돼도 '기록'은 남긴다.
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
       const sales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * qty / totalQty) : 0;
-      addRow(prod, qty, sales, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품');
+      addRow(prod, qty, sales, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품', totalQty, defect);
     });
     const rows = Object.values(map)
       .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
@@ -2858,7 +2858,19 @@ export default function AdminClient() {
   function downloadFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; orders: FarmSettleOrder[] }) {
     const info = farmPeriodInfo();
     const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
-    const rowsHtml = row.orders.map(o => `<tr><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td><td style="text-align:center">${o.qty}</td><td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`).join('');
+    const anyDefect = row.orders.some(o => (o.defectQty || 0) > 0);   // 환불 차감 있으면 환불 열 노출
+    const totalDefect = row.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+    const rowsHtml = row.orders.map(o => {
+      const dq = o.defectQty || 0;
+      const bg = dq > 0 ? ' style="background:#fff7ed"' : '';
+      const qtyCells = anyDefect
+        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.qty}</td>`
+        : `<td style="text-align:center">${o.qty}</td>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`;
+    }).join('');
+    const qtyHead = anyDefect
+      ? `<th style="text-align:center">주문</th><th style="text-align:center">환불</th><th style="text-align:center">정산</th>`
+      : `<th style="text-align:center">수량</th>`;
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>정산명세서_${esc(row.farmName)}</title>
       <style>body{font-family:'맑은 고딕','Malgun Gothic',sans-serif;color:#1a1a1a;padding:32px;}
       h1{font-size:20px;margin:0 0 4px;} .sub{color:#666;font-size:13px;margin-bottom:20px;}
@@ -2871,9 +2883,10 @@ export default function AdminClient() {
       <div class="sub">${esc(row.farmName)} · ${farmSettleMonth} ${farmSettleHalf}차 (${info.rangeLabel}) · 지급예정 ${info.payLabel}</div>
       <div class="box">
         <div class="row"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
+        ${anyDefect ? `<div class="row"><span>환불(하자) 차감</span><b style="color:#c0392b">-${totalDefect.toLocaleString()}개</b></div>` : ''}
         <div class="row"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
       </div>
-      <table><thead><tr><th>주문번호</th><th>상품</th><th style="text-align:center">수량</th><th style="text-align:right">공급가</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <table><thead><tr><th>주문번호</th><th>상품</th>${qtyHead}<th style="text-align:right">공급가</th></tr></thead><tbody>${rowsHtml}</tbody></table>
       <div class="total">정산 합계: ${row.payout.toLocaleString()}원</div>
       <script>window.onload=()=>{window.print();}</script></body></html>`;
     const w = window.open('', '_blank');
@@ -13218,29 +13231,50 @@ export default function AdminClient() {
                     </div>
 
                     {/* 주문 내역 */}
+                    {(() => {
+                      const anyDefect = r.orders.some(o => (o.defectQty || 0) > 0);   // 환불 차감이 하나라도 있으면 환불 열 노출
+                      const totalDefect = r.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+                      return (
                     <div>
-                      <div style={secTitle}>정산 대상 주문 내역</div>
+                      <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 환불(하자) {totalDefect}개 차감 반영</span>}</div>
                       <table className="adm-table" style={{ width:'100%', tableLayout:'fixed' }}>
                         <thead><tr>
-                          <th style={{ textAlign:'left', width:150 }}>주문번호</th>
+                          <th style={{ textAlign:'left', width:132 }}>주문번호</th>
                           <th style={{ textAlign:'left' }}>상품</th>
-                          <th className="adm-num" style={{ width:64 }}>수량</th>
-                          <th className="adm-num" style={{ width:96 }}>공급가</th>
+                          {anyDefect ? (<>
+                            <th className="adm-num" style={{ width:52 }}>주문</th>
+                            <th className="adm-num" style={{ width:52 }}>환불</th>
+                            <th className="adm-num" style={{ width:52 }}>정산</th>
+                          </>) : (
+                            <th className="adm-num" style={{ width:64 }}>수량</th>
+                          )}
+                          <th className="adm-num" style={{ width:92 }}>공급가</th>
                         </tr></thead>
                         <tbody>
-                          {r.orders.length === 0 ? <tr><td colSpan={4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>내역 없음</td></tr>
-                            : r.orders.map((o, i) => (
-                              <tr key={i}>
+                          {r.orders.length === 0 ? <tr><td colSpan={anyDefect ? 6 : 4} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>내역 없음</td></tr>
+                            : r.orders.map((o, i) => {
+                              const dq = o.defectQty || 0;
+                              return (
+                              <tr key={i} style={dq > 0 ? { background:'#FFF7ED' } : undefined}>
                                 <td className="adm-mono" style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.order_no}>{o.order_no}</td>
                                 <td style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
-                                <td className="adm-num">{o.qty}개</td>
+                                {anyDefect ? (<>
+                                  <td className="adm-num">{o.origQty}개</td>
+                                  <td className="adm-num" style={{ color: dq > 0 ? '#DC2626' : '#CBD5E1', fontWeight: dq > 0 ? 700 : 400 }}>{dq > 0 ? `-${dq}` : '0'}</td>
+                                  <td className="adm-num" style={{ fontWeight:700 }}>{o.qty}개</td>
+                                </>) : (
+                                  <td className="adm-num">{o.qty}개</td>
+                                )}
                                 <td className="adm-num" style={{ fontWeight:600 }}>{fmtPrice(o.supply)}원</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                         </tbody>
                       </table>
                       <div style={{ textAlign:'right', fontWeight:800, fontSize:15, marginTop:8 }}>정산 합계: {fmtPrice(r.payout)}원</div>
                     </div>
+                      );
+                    })()}
 
                     {/* 지급 계좌 */}
                     <div>
