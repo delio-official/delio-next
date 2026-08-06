@@ -4367,8 +4367,10 @@ export default function AdminClient() {
     const isPartial = newStatus === 'completed' && (req.refund_amount != null) && req.refund_amount > 0 && req.refund_amount < orderTotal;
 
     /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API (부분환불은 amount로 하자분만 부분취소) */
+    const cardPid = req.orders?.portone_payment_id;
+    let cardCancelOk = false;   // 카드 취소가 API로 실제 성공했는가(부분환불 금액반영 판단용)
     if (newStatus === 'completed') {
-      const pid = req.orders?.portone_payment_id;
+      const pid = cardPid;
       if (pid) {
         const res = await fetch('/api/payment/cancel', {
           method: 'POST',
@@ -4380,6 +4382,7 @@ export default function AdminClient() {
           }),
         });
         const j = await res.json().catch(() => ({}));
+        cardCancelOk = res.ok;
         if (!res.ok) {
           /* 카드취소 실패 — 이미 PG(카카오·이니시스) 어드민에서 직접 취소한 경우 등.
              카드취소 없이 상태만 기록할 수 있게 선택지를 준다. */
@@ -4413,10 +4416,29 @@ export default function AdminClient() {
     if (isPartial && req.order_id && req.refund_amount) {
       const { data: ordRow } = await supabase.from('orders').select('partial_refund_amount').eq('id', req.order_id).single();
       const cur = (ordRow as { partial_refund_amount: number | null } | null)?.partial_refund_amount || 0;
-      const newTotal = cur + req.refund_amount;
+      /* 반영 금액은 '카드 실제 취소 누계'를 진실로 삼는다(문구/성공 추측 금지).
+         카드결제면 PortOne 실제 취소액을 조회해 그 값으로 반영 → DB가 카드와 항상 일치.
+         (조회 실패 시엔 카드취소가 확실히 성공했을 때만 낙관적 누적) */
+      let newTotal = cur + req.refund_amount;
+      if (cardPid) {
+        let actual: number | null = null;
+        try {
+          const cr = await fetch('/api/admin/payment-cancelled', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: cardPid }),
+          });
+          const cj = await cr.json().catch(() => ({}));
+          if (cr.ok && typeof cj.cancelled === 'number') actual = cj.cancelled;
+        } catch { /* noop */ }
+        if (actual != null) newTotal = actual;                 // 카드 실제 취소 누계
+        else if (!cardCancelOk) newTotal = cur;                // 조회 실패 + 카드취소 미확인 → 반영 보류(기존 유지)
+      }
       const fullyRefunded = newTotal >= orderTotal;
       await supabase.from('orders').update({ partial_refund_amount: newTotal, ...(fullyRefunded ? { status: 'refunded' } : {}) }).eq('id', req.order_id);
       if (fullyRefunded && req.order_id) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: 'refunded' } : o));
+      /* 카드결제인데 이번 승인으로 취소가 실제로 늘지 않았으면(카드 미취소) 관리자에게 경고 — DB만 환불완료 사고 방지 */
+      if (cardPid && newTotal <= cur) {
+        alert('⚠️ 카드 실제 취소가 확인되지 않았습니다.\n환불 금액이 카드에 반영되지 않았으니 PG(이니시스/포트원) 상태를 확인하세요.');
+      }
     }
     /* 승인(완료) 시 취소/환불 알림톡 (부분환불은 하자분 금액으로 안내) */
     if (newStatus === 'completed' && req.order_id) {
