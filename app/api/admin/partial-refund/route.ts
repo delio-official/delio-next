@@ -38,9 +38,9 @@ export async function POST(req: Request) {
     .select('id, user_id, final_amount, partial_refund_amount, portone_payment_id, status')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
-  if (['refunded', 'cancelled'].includes(order.status)) {
-    return NextResponse.json({ ok: false, error: '이미 환불/취소된 주문이라 부분환불할 수 없습니다.' }, { status: 400 });
-  }
+  /* refunded/cancelled 여부는 아래에서 '카드가 실제로 전액 취소됐는지'까지 확인 후 판단한다.
+     DB가 refunded여도 카드는 부분만 취소된(잘못 표기된) 주문이면 부분환불을 계속 허용하고 상태를 바로잡는다. */
+  const wasVoid = ['refunded', 'cancelled'].includes(order.status);
 
   const final = order.final_amount || 0;
   const pid = order.portone_payment_id;
@@ -66,6 +66,12 @@ export async function POST(req: Request) {
     const actualBefore = await fetchCancelled();
     if (actualBefore == null) return NextResponse.json({ ok: false, error: 'PG 상태 조회 실패. 잠시 후 다시 시도하세요.' }, { status: 502 });
     already = actualBefore;   // 카드 실제 취소 누계를 기준으로
+  }
+
+  /* 이제 '진짜로 전액' 환불/취소된 주문만 차단. 카드 없는 주문이 refunded면 차단, 카드가 이미 전액취소면 차단.
+     그 외(카드가 부분만 취소된 상태에서 DB만 refunded)면 데이터 오표기 → 계속 진행(아래에서 delivered로 복구). */
+  if (wasVoid && (!pid || already >= final)) {
+    return NextResponse.json({ ok: false, error: '이미 전액 환불/취소된 주문이라 부분환불할 수 없습니다.' }, { status: 400 });
   }
 
   /* 목표 누적액 결정: 신버전 targetAmount 우선, 없으면 already + 증분. 결제액 상한으로 클램프. */
@@ -110,7 +116,9 @@ export async function POST(req: Request) {
 
   await admin.from('orders').update({
     partial_refund_amount: newTotal,
-    ...(fullyRefunded ? { status: 'refunded' } : {}),
+    /* 전액 도달 → refunded. 부분인데 이전에 잘못 refunded/cancelled로 표기됐던 주문은 delivered로 복구.
+       정상 주문(delivered/confirmed 등)은 status를 건드리지 않는다. */
+    ...(fullyRefunded ? { status: 'refunded' } : (wasVoid ? { status: 'delivered' } : {})),
   }).eq('id', orderId);
 
   const { error: insErr } = await admin.from('refund_requests').insert({
