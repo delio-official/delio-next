@@ -5874,6 +5874,14 @@ export default function AdminClient() {
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
       refreshStageCounts(); // 주문 처리 현황판 즉시 갱신
 
+      /* 관리자가 배송단계(배송준비/배송중/배송완료)를 수동 지정하면 상품줄(ship_status)도 함께 맞춘다.
+         → 농가별 송장 집계(applyTrackingStatusByItems)가 수동값을 덮어쓰지 못하게(수동 우선). */
+      if (['preparing', 'shipped', 'delivered'].includes(newStatus)) {
+        await supabase.from('order_items')
+          .update({ ship_status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+          .eq('order_id', orderId);
+      }
+
       /* 취소·환불이면 사용 쿠폰·포인트 복원 (서버에서 멱등 처리) */
       if (isVoid) {
         try {
