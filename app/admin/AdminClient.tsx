@@ -2311,7 +2311,8 @@ export default function AdminClient() {
   const [qgProdSearch, setQgProdSearch] = useState('');
   const qgProdDragIdx = useRef<number | null>(null); // 담긴 상품 드래그 순서변경
   /* 섹션관리 상단 카드 접기/펼치기 */
-  const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: true });
+  /* 메인페이지 섹션관리 접기/펼치기 기본값 — 메인섹션 노출·바로가기 필탭만 펼침, 나머지 닫힘 */
+  const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: false });
   /* ── 상단 메뉴 (menu_items) ── */
   type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
   const [menus, setMenus] = useState<MenuRow[]>([]);
