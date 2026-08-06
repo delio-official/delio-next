@@ -3,10 +3,13 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 /* 관리자 직접 부분환불 — 고객 환불신청 없이 주문관리에서 하자분만 부분취소.
-   1) 포트원 부분취소(amount) → 카드로 하자분만 환불
-   2) refund_requests에 완료 기록(정산/이력 반영)
-   3) orders.partial_refund_amount 누적. 주문 상태는 유지(구매확정 등).
-   쿠폰·포인트는 복구하지 않음(대부분 결제 유지되므로). */
+   설계 원칙(실결제 = 진실):
+   - 클라이언트는 '목표 누적 환불액(targetAmount)'을 보낸다(예: 10알 중 4알까지 = 13,520원).
+   - 라우트는 PortOne '실제 취소 누계'를 조회해, (목표 - 실제)만큼만 이번에 취소한다.
+     → 이전 취소 상황과 무관하게 항상 정확한 차액만 카드취소, 초과·중복취소 불가.
+   - 취소 후 PortOne을 다시 조회해 '실제로 늘었는지' 확인하고, 그 실제값을 DB에 반영한다.
+     실제 취소가 확인되지 않으면 절대 기록/반영하지 않는다(카드 미취소인데 DB만 환불완료 방지).
+   호환: 구버전 클라이언트가 refundAmount(증분)만 보내면 targetAmount = already + refundAmount 로 해석. */
 export async function POST(req: Request) {
   const supabase = await createServerSupabaseClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,15 +20,17 @@ export async function POST(req: Request) {
   let body: {
     orderId?: string;
     refundItems?: { name: string; total: number; defective: number; refund: number }[];
-    refundAmount?: number;
+    refundAmount?: number;   // (구버전) 이번 증분
+    targetAmount?: number;   // (신버전) 목표 누적 환불액
     reason?: string;
   } | null = null;
   try { body = await req.json(); } catch { /* noop */ }
   const orderId = body?.orderId || '';
   const refundItems = Array.isArray(body?.refundItems) ? body!.refundItems : [];
-  const refundAmount = Math.max(0, Math.round(Number(body?.refundAmount) || 0));
+  const reqRefundAmount = Math.max(0, Math.round(Number(body?.refundAmount) || 0));
+  const reqTargetAmount = body?.targetAmount != null ? Math.max(0, Math.round(Number(body.targetAmount))) : null;
   const reason = (body?.reason || '관리자 부분환불').slice(0, 200);
-  if (!orderId || refundAmount <= 0) return NextResponse.json({ ok: false, error: '주문/금액 누락' }, { status: 400 });
+  if (!orderId) return NextResponse.json({ ok: false, error: '주문 누락' }, { status: 400 });
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin
@@ -33,82 +38,81 @@ export async function POST(req: Request) {
     .select('id, user_id, final_amount, partial_refund_amount, portone_payment_id, status')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
-
-  /* 이미 전액 환불/취소된 주문이면 부분환불 불가 (중복·데이터 꼬임 방지) */
   if (['refunded', 'cancelled'].includes(order.status)) {
     return NextResponse.json({ ok: false, error: '이미 환불/취소된 주문이라 부분환불할 수 없습니다.' }, { status: 400 });
   }
-  const already = order.partial_refund_amount || 0;
-  const remaining = (order.final_amount || 0) - already;
-  if (refundAmount > remaining) {
-    return NextResponse.json({ ok: false, error: `부분환불 가능액(${remaining.toLocaleString()}원)을 초과했습니다.` }, { status: 400 });
+
+  const final = order.final_amount || 0;
+  const pid = order.portone_payment_id;
+  const apiSecret = process.env.PORTONE_API_SECRET;
+  const auth = { Authorization: `PortOne ${apiSecret}` };
+
+  /* 실제 취소 누계 조회 헬퍼 — PortOne을 진실로 삼는다. */
+  async function fetchCancelled(): Promise<number | null> {
+    if (!pid || !apiSecret) return null;
+    try {
+      const r = await fetch(`https://api.portone.io/payments/${encodeURIComponent(pid)}`, { headers: auth });
+      const d = await r.json().catch(() => ({}));
+      const c = (d as { amount?: { cancelled?: number } })?.amount?.cancelled;
+      return typeof c === 'number' ? c : null;
+    } catch { return null; }
   }
-  /* 처음부터 전액을 부분환불로 넣는 건 차단 — 그건 쿠폰·포인트 복원이 되는 '전액환불'을 써야 함.
-     단, 이미 부분환불한 내역이 있으면(already>0) 나머지를 마저 환불하는 건 허용(2→6→나머지 식). */
-  if (already === 0 && refundAmount >= (order.final_amount || 0)) {
+
+  /* 기준 취소누계(already): 카드결제는 PortOne 실제값, 아니면 DB값. */
+  const dbAlready = order.partial_refund_amount || 0;
+  let already = dbAlready;
+  if (pid) {
+    if (!apiSecret) return NextResponse.json({ ok: false, error: '포트원 시크릿 미설정' }, { status: 503 });
+    const actualBefore = await fetchCancelled();
+    if (actualBefore == null) return NextResponse.json({ ok: false, error: 'PG 상태 조회 실패. 잠시 후 다시 시도하세요.' }, { status: 502 });
+    already = actualBefore;   // 카드 실제 취소 누계를 기준으로
+  }
+
+  /* 목표 누적액 결정: 신버전 targetAmount 우선, 없으면 already + 증분. 결제액 상한으로 클램프. */
+  const target = Math.min(final, reqTargetAmount != null ? reqTargetAmount : already + reqRefundAmount);
+  const delta = target - already;   // 이번에 추가로 취소할 금액
+  if (target <= 0 || delta <= 0) {
+    return NextResponse.json({ ok: false, error: '추가로 환불할 금액이 없습니다. (이미 목표까지 환불됨)' }, { status: 400 });
+  }
+  /* 처음부터 전액을 부분환불로 넣는 건 차단 — 쿠폰·포인트 복원되는 '전액환불'을 쓰게. (이미 부분환불 이력 있으면 마무리 허용) */
+  if (already === 0 && target >= final) {
     return NextResponse.json({ ok: false, error: `전액에 해당합니다. 부분환불이 아니라 '전액환불'(주문 상세 → 환불)을 사용하세요.` }, { status: 400 });
   }
 
-  /* 1) 포트원 부분취소 (결제ID 있을 때만; 무통장 등은 카드취소 없이 기록만) */
-  let pgOk = false;                                             // 카드취소 요청이 성공(res.ok)했는가
+  /* 카드 부분취소 — 딱 delta 만큼만. 성공/실패는 이어지는 재조회로 '실제 반영'을 확인한다(문구 추측 금지). */
   let pgErr: unknown = null;
-  if (order.portone_payment_id) {
-    const apiSecret = process.env.PORTONE_API_SECRET;
-    if (!apiSecret) return NextResponse.json({ ok: false, error: '포트원 시크릿 미설정' }, { status: 503 });
-    const res = await fetch(`https://api.portone.io/payments/${encodeURIComponent(order.portone_payment_id)}/cancel`, {
+  if (pid) {
+    const res = await fetch(`https://api.portone.io/payments/${encodeURIComponent(pid)}/cancel`, {
       method: 'POST',
-      headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, amount: refundAmount }),
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, amount: delta }),
     });
-    const data = await res.json().catch(() => ({}));
-    pgOk = res.ok;
-    if (!res.ok) pgErr = data;   // 실패해도 곧바로 리턴하지 않고, 아래에서 '실제 취소 누계' 조회로 검증
+    if (!res.ok) pgErr = await res.json().catch(() => ({}));
   }
 
-  /* 반영 금액은 PortOne의 '실제 취소 총액'을 진실로 삼는다(문구 추측 금지). 취소 요청이 실패해도
-     조회한 취소누계가 실제로 늘지 않았으면 카드 미취소이므로 절대 기록/반영하지 않는다.
-     (부분취소된 결제에 재취소 실패 → DB만 환불완료 되는 사고 방지) */
-  let cancelledTotal: number | null = null;
-  if (order.portone_payment_id && process.env.PORTONE_API_SECRET) {
-    try {
-      const pRes = await fetch(`https://api.portone.io/payments/${encodeURIComponent(order.portone_payment_id)}`, {
-        headers: { Authorization: `PortOne ${process.env.PORTONE_API_SECRET}` },
-      });
-      const pData = await pRes.json().catch(() => ({}));
-      const c = (pData as { amount?: { cancelled?: number } })?.amount?.cancelled;
-      if (typeof c === 'number') cancelledTotal = c;
-    } catch { /* 조회 실패 → cancelledTotal=null */ }
-  }
-
+  /* 반영값 = 취소 후 PortOne 실제 취소 누계. 실제로 늘지 않았으면 카드 미취소 → 실패(기록/반영 안 함). */
   let newTotal: number;
-  if (order.portone_payment_id) {
-    if (cancelledTotal == null) {
-      // 실제 취소누계 조회 실패: 취소 요청이 확실히 성공했을 때만 낙관적 반영, 아니면 실패
-      if (!pgOk) return NextResponse.json({ ok: false, error: '카드 취소 결과를 확인하지 못했습니다. 잠시 후 다시 시도하거나 PG 상태를 확인하세요.', detail: pgErr }, { status: 502 });
-      newTotal = already + refundAmount;
-    } else {
-      newTotal = cancelledTotal;   // 카드 실제 취소 누계를 진실로 사용
+  if (pid) {
+    const actualAfter = await fetchCancelled();
+    if (actualAfter == null) {
+      return NextResponse.json({ ok: false, error: '카드 취소 결과 확인 실패. PG 상태를 확인하세요.', detail: pgErr }, { status: 502 });
     }
-    // 이번 호출로 취소가 실제로 늘지 않았으면(카드 미취소) → 기록/반영 금지
-    if (newTotal <= already) {
-      return NextResponse.json({ ok: false, error: '카드가 실제로 취소되지 않았습니다. (PG 상태 확인 필요)', detail: { already, requested: refundAmount, portoneCancelled: cancelledTotal, pgError: pgErr } }, { status: 502 });
+    if (actualAfter <= already) {
+      return NextResponse.json({ ok: false, error: '카드가 실제로 취소되지 않았습니다. (PG 상태 확인 필요)', detail: { already, target, delta, portoneAfter: actualAfter, pgError: pgErr } }, { status: 502 });
     }
+    newTotal = actualAfter;
   } else {
-    newTotal = already + refundAmount;   // 무통장 등 카드 없음: 요청액 기준
+    newTotal = target;   // 무통장 등 카드 없음
   }
-  const pgCancelled = !!order.portone_payment_id;
-  const fullyRefunded = newTotal >= (order.final_amount || 0);
-  const actualThis = Math.max(0, newTotal - already);   // 이번에 실제로 취소된 금액
 
-  /* 2) 부분환불액 누적을 '먼저' 반영 — PG는 이미 취소됨이라 한도 보호가 최우선(이중환불 방지).
-     누적이 전액에 도달하면 주문을 refunded로 전환(활성/유효주문에서 제외). */
+  const fullyRefunded = newTotal >= final;
+  const actualThis = Math.max(0, newTotal - already);
+
   await admin.from('orders').update({
     partial_refund_amount: newTotal,
     ...(fullyRefunded ? { status: 'refunded' } : {}),
   }).eq('id', orderId);
 
-  /* 3) 환불 요청을 '완료'로 기록 (정산 하자분 차감·이력 노출용).
-     여기서 실패해도 위 금액은 이미 반영됐으므로 카드 이중취소는 발생하지 않음 → 경고만 반환. */
   const { error: insErr } = await admin.from('refund_requests').insert({
     order_id: orderId,
     user_id: order.user_id,
@@ -116,13 +120,12 @@ export async function POST(req: Request) {
     status: 'completed',
     reason,
     refund_items: refundItems,
-    refund_amount: actualThis,   // 실제 취소된 금액으로 기록(요청액과 어긋나도 카드와 일치)
+    refund_amount: actualThis,   // 실제 취소된 금액
     resend_amount: null,
     resend_status: 'none',
   });
   if (insErr) {
-    return NextResponse.json({ ok: true, pgCancelled, refundAmount: actualThis, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 환불 이력 기록에 실패했습니다: ' + insErr.message });
+    return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 이력 기록 실패: ' + insErr.message });
   }
-
-  return NextResponse.json({ ok: true, pgCancelled, refundAmount: actualThis, fullyRefunded });
+  return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded });
 }

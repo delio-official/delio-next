@@ -4592,17 +4592,19 @@ export default function AdminClient() {
     if (cumTarget > orderTotal) { alert(`누적 환불액이 결제액(${fmtPrice(orderTotal)}원)을 초과했습니다.`); return; }
     if (deltaAmount > remaining) { alert(`부분환불 가능액(${fmtPrice(remaining)}원)을 초과했습니다.`); return; }
     if (already === 0 && deltaAmount >= orderTotal) { alert(`전액에 해당합니다.\n부분환불이 아니라 '환불'(전액환불) 버튼을 사용하세요.`); return; }
-    /* 이번 액션으로 누적이 결제액에 도달하면 = 전액환불 완료 → 기록 사유도 '전액환불'로 남긴다. */
-    const willBeFull = (already + deltaAmount) >= orderTotal;
+    /* 누적 목표가 결제액에 도달하면 = 전액환불 완료 → 기록 사유도 '전액환불'로 남긴다. */
+    const willBeFull = cumTarget >= orderTotal;
     const reason = willBeFull ? '관리자 전액환불(부분 누적 완료)' : '관리자 부분환불';
     if (!confirm((willBeFull
-        ? `전액환불 완료: 마지막 ${fmtPrice(deltaAmount)}원을 취소해 누적 ${fmtPrice(already + deltaAmount)}원(전액)이 됩니다.\n주문이 '환불완료'로 전환됩니다.`
-        : `부분환불: 이번에 ${fmtPrice(deltaAmount)}원을 카드로 부분취소합니다. (누적 ${fmtPrice(already + deltaAmount)}원)\n주문은 유지되고`)
+        ? `전액환불 완료: 이번에 ${fmtPrice(deltaAmount)}원을 취소해 누적 ${fmtPrice(cumTarget)}원(전액)이 됩니다.\n주문이 '환불완료'로 전환됩니다.`
+        : `부분환불: 이번에 약 ${fmtPrice(deltaAmount)}원을 카드로 부분취소합니다. (누적 목표 ${fmtPrice(cumTarget)}원)\n주문은 유지되고`)
       + ` 쿠폰·포인트는 복구되지 않습니다. 진행할까요?`)) return;
     setAdminPartialSaving(true);
+    /* 라우트에 '목표 누적액(cumTarget)'을 보낸다 — 라우트가 PortOne 실제 취소액과의 차액만 취소해
+       이전 취소 상황과 무관하게 정확히 반영(중복/누락 방지). refundItems는 이번 증분(정산 기록용). */
     const res = await fetch('/api/admin/partial-refund', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, refundAmount: deltaAmount, reason }),
+      body: JSON.stringify({ orderId: adminPartialOrder.id, refundItems, targetAmount: cumTarget, reason }),
     });
     const j = await res.json().catch(() => ({}));
     setAdminPartialSaving(false);
