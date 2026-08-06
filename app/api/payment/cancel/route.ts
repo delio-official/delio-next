@@ -37,12 +37,14 @@ export async function POST(req: NextRequest) {
     /* 이미 취소된 결제 = 목표(취소) 이미 달성 → 성공으로 처리해 DB 동기화 진행.
        PG마다 '이미 취소' 응답 형태가 달라 모두 잡아야 함:
        - 포트원 표준: type === 'PAYMENT_ALREADY_CANCELLED' (예: 카카오페이)
-       - 이니시스 등: PG 원문 그대로 (pgCode 500626 / pgMessage '기 취소 거래') */
+       - 이니시스: pgCode 500626 / '기 취소 거래'
+       - 기타: pgCode -784 / 'can not request cancel (status: CANCEL_PAYMENT)' 등 이미 취소상태 */
     const pgMsg = typeof data?.pgMessage === 'string' ? data.pgMessage : '';
+    const pgCode = String(data?.pgCode ?? '');
     const alreadyCancelled =
       data?.type === 'PAYMENT_ALREADY_CANCELLED' ||
-      data?.pgCode === '500626' ||
-      /기\s*취소|이미\s*취소/.test(pgMsg);
+      pgCode === '500626' || pgCode === '-784' ||
+      /기\s*취소|이미\s*취소|이미\s*환불|CANCEL_?PAYMENT|can\s*not\s*request\s*cancel|already\s*cancel/i.test(pgMsg);
     if (alreadyCancelled) {
       return NextResponse.json({ ok: true, alreadyCancelled: true });
     }

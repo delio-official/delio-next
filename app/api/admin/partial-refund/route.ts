@@ -63,10 +63,11 @@ export async function POST(req: Request) {
     if (!res.ok) {
       /* 이미 PG에서 취소된 건도 성공 처리(카카오페이=PAYMENT_ALREADY_CANCELLED / 이니시스=기 취소 거래 500626) */
       const pgMsg = typeof (data as { pgMessage?: string })?.pgMessage === 'string' ? (data as { pgMessage: string }).pgMessage : '';
+      const pgCode = String((data as { pgCode?: string })?.pgCode ?? '');
       const alreadyCancelled =
         (data as { type?: string })?.type === 'PAYMENT_ALREADY_CANCELLED' ||
-        (data as { pgCode?: string })?.pgCode === '500626' ||
-        /기\s*취소|이미\s*취소/.test(pgMsg);
+        pgCode === '500626' || pgCode === '-784' ||
+        /기\s*취소|이미\s*취소|이미\s*환불|CANCEL_?PAYMENT|can\s*not\s*request\s*cancel|already\s*cancel/i.test(pgMsg);
       if (!alreadyCancelled) return NextResponse.json({ ok: false, error: '포트원 취소 실패', detail: data }, { status: 502 });
     }
     pgCancelled = true;
