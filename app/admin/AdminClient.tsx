@@ -11862,17 +11862,19 @@ export default function AdminClient() {
                 });
                 return (
                   <>
-                    {/* 탈퇴 사유 집계 — 클릭 시 필터 */}
+                    {/* 탈퇴 사유 — 컴팩트 필터 칩 (사유명 + 건수, 클릭 시 필터) */}
                     {top.length > 0 && (
-                      <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:16 }}>
                         {top.map(([k, v]) => {
                           const on = wdReason === k;
                           return (
-                            <div key={k} className="adm-kpi-card" onClick={() => setWdReason(on ? '' : k)}
-                              style={{ cursor:'pointer', outline: on ? '2px solid #1A1A1A' : 'none', outlineOffset:-1 }}>
-                              <div className="adm-kpi-label">{k}{on && ' ✓'}</div>
-                              <div className="adm-kpi-value adm-kpi-value-mt">{v}건</div>
-                            </div>
+                            <button key={k} onClick={() => setWdReason(on ? '' : k)}
+                              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:'inherit',
+                                border: on ? '1.5px solid #1A1A1A' : '1px solid #E2E8F0',
+                                background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#334155', fontWeight: on ? 700 : 500 }}>
+                              <span>{k}</span>
+                              <span style={{ fontSize:12, fontWeight:800, color: on ? '#fff' : (v > 0 ? '#2563EB' : '#CBD5E1') }}>{v}</span>
+                            </button>
                           );
                         })}
                       </div>
