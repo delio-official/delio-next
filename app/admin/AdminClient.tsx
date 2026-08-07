@@ -4413,6 +4413,7 @@ export default function AdminClient() {
     }
     /* 부분환불 승인 시 — 하자분 실환불액을 주문에 누적(순매출·브랜드정산 차감용).
        누적이 결제액 전액에 도달하면 관리자 직접경로와 동일하게 refunded로 전환(활성/유효주문에서 제외). */
+    let partialReachedFull = false;   // 부분환불 누적이 이번 승인으로 전액에 도달했는가(→ 쿠폰·포인트 복원 대상)
     if (isPartial && req.order_id && req.refund_amount) {
       const { data: ordRow } = await supabase.from('orders').select('partial_refund_amount').eq('id', req.order_id).single();
       const cur = (ordRow as { partial_refund_amount: number | null } | null)?.partial_refund_amount || 0;
@@ -4433,6 +4434,7 @@ export default function AdminClient() {
         else if (!cardCancelOk) newTotal = cur;                // 조회 실패 + 카드취소 미확인 → 반영 보류(기존 유지)
       }
       const fullyRefunded = newTotal >= orderTotal;
+      partialReachedFull = fullyRefunded;   // 누적 전액 도달 → 아래에서 쿠폰·포인트·재고 복원
       await supabase.from('orders').update({ partial_refund_amount: newTotal, ...(fullyRefunded ? { status: 'refunded' } : {}) }).eq('id', req.order_id);
       if (fullyRefunded && req.order_id) setOrders(prev => prev.map(o => o.id === req.order_id ? { ...o, status: 'refunded' } : o));
       /* 카드결제인데 이번 승인으로 취소가 실제로 늘지 않았으면(카드 미취소) 관리자에게 경고 — DB만 환불완료 사고 방지 */
@@ -4453,9 +4455,9 @@ export default function AdminClient() {
         });
       }
     }
-    /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리)
-       단, 부분환불은 쿠폰·포인트를 복구하지 않음 — 주문 대부분이 유지되므로 복구 시 이중혜택. */
-    if (newStatus === 'completed' && req.order_id && !isPartial) {
+    /* 승인(완료) 시 사용 쿠폰·포인트 복원 (서버에서 멱등 처리).
+       부분환불은 원칙적으로 복구 안 함(주문 유지) — 단, 누적이 전액에 도달(partialReachedFull)하면 전액환불과 동일하게 복원. */
+    if (newStatus === 'completed' && req.order_id && (!isPartial || partialReachedFull)) {
       try {
         const rr = await fetch('/api/admin/refund-restore', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4610,7 +4612,19 @@ export default function AdminClient() {
     setAdminPartialSaving(false);
     if (!res.ok) { alert('부분환불 실패\n' + (j.error || '') + (j.detail ? '\n' + JSON.stringify(j.detail) : '')); return; }
     const refundAmount = typeof j.refundAmount === 'number' ? j.refundAmount : deltaAmount;
-    alert(`부분환불 완료: ${fmtPrice(refundAmount)}원` + (j.warning ? `\n\n⚠️ ${j.warning}` : '') + (j.fullyRefunded ? '\n(누적 전액 도달 → 주문 환불완료로 전환)' : ''));
+    /* 누적 전액 도달 시 서버가 쿠폰·포인트·재고 복원(멱등). 복원 결과 안내 */
+    let restoreMsg = '';
+    if (j.fullyRefunded) {
+      restoreMsg = '\n(누적 전액 도달 → 주문 환불완료로 전환)';
+      if (j.restore?.restored) {
+        const parts: string[] = [];
+        if (j.restore.refundedPoint > 0) parts.push(`포인트 ${Number(j.restore.refundedPoint).toLocaleString()}P 환급`);
+        if (j.restore.clawback > 0) parts.push(`적립 ${Number(j.restore.clawback).toLocaleString()}P 회수`);
+        if (j.restore.couponRestored) parts.push('쿠폰 복원');
+        if (parts.length) restoreMsg += '\n복원: ' + parts.join(' · ');
+      }
+    }
+    alert(`부분환불 완료: ${fmtPrice(refundAmount)}원` + (j.warning ? `\n\n⚠️ ${j.warning}` : '') + restoreMsg);
     /* 부분환불 안내 알림톡 (하자분 금액) */
     const ord = adminPartialOrder;
     notifyOrderPhones([ord.orderer_phone || ord.phone], {

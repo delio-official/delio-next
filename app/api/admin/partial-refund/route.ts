@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { restoreOrderCouponPoint } from '@/lib/refund-restore';
 
 /* 관리자 직접 부분환불 — 고객 환불신청 없이 주문관리에서 하자분만 부분취소.
    설계 원칙(실결제 = 진실):
@@ -121,6 +122,12 @@ export async function POST(req: Request) {
     ...(fullyRefunded ? { status: 'refunded' } : (wasVoid ? { status: 'delivered' } : {})),
   }).eq('id', orderId);
 
+  /* 누적 부분환불이 전액에 도달 → 전액환불과 동일하게 쿠폰·포인트·재고 복원(멱등). */
+  let restore: Awaited<ReturnType<typeof restoreOrderCouponPoint>> | null = null;
+  if (fullyRefunded) {
+    try { restore = await restoreOrderCouponPoint(admin, orderId); } catch { /* 복원 실패해도 환불 자체는 유지 */ }
+  }
+
   const { error: insErr } = await admin.from('refund_requests').insert({
     order_id: orderId,
     user_id: order.user_id,
@@ -133,7 +140,7 @@ export async function POST(req: Request) {
     resend_status: 'none',
   });
   if (insErr) {
-    return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded, warning: '카드 부분취소·금액반영은 완료됐으나 이력 기록 실패: ' + insErr.message });
+    return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded, restore, warning: '카드 부분취소·금액반영은 완료됐으나 이력 기록 실패: ' + insErr.message });
   }
-  return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded });
+  return NextResponse.json({ ok: true, pgCancelled: !!pid, refundAmount: actualThis, newTotal, fullyRefunded, restore });
 }
