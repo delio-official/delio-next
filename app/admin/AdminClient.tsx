@@ -12324,9 +12324,9 @@ export default function AdminClient() {
                 <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
                   <AdmSelect value={String(faqPageSize)} onChange={v => { setFaqPageSize(Number(v)); setFaqPage(1); }}
                     options={[10,30,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
-                  <button className="adm-btn adm-btn-outline" onClick={() => setFaqCatModal(true)}>카테고리 관리</button>
                   <button className="adm-btn adm-btn-outline" onClick={loadFaq}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-primary" onClick={() => openFaqModal()}>+ FAQ 등록</button>
+                  <button className="adm-btn adm-btn-outline" style={{ minWidth:120, justifyContent:'center' }} onClick={() => setFaqCatModal(true)}>카테고리 관리</button>
+                  <button className="adm-btn adm-btn-primary" style={{ minWidth:120, justifyContent:'center' }} onClick={() => openFaqModal()}>+ FAQ 등록</button>
                 </div>
               </div>
               {!faqCatFilter && !faqSearch.trim() && faqActiveFilter === 'all' && (
