@@ -11869,7 +11869,7 @@ export default function AdminClient() {
                           const on = wdReason === k;
                           return (
                             <button key={k} onClick={() => setWdReason(on ? '' : k)}
-                              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:'inherit',
+                              style={{ flex:'1 1 120px', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 12px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:'inherit', whiteSpace:'nowrap',
                                 border: on ? '1.5px solid #1A1A1A' : '1px solid #E2E8F0',
                                 background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#334155', fontWeight: on ? 700 : 500 }}>
                               <span>{k}</span>
