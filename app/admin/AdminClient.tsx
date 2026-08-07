@@ -9554,6 +9554,10 @@ export default function AdminClient() {
                                   if (!rq) return null;
                                   return <span style={{ marginLeft:6, fontSize:10, fontWeight:800, color:'#fff', background:'#DC2626', borderRadius:5, padding:'2px 6px', whiteSpace:'nowrap' }}>{rq.type === 'cancel' ? '취소요청' : '환불요청'}</span>;
                                 })()}
+                                {/* 부분환불된 주문(배송완료/구매확정 유지)이면 '부분환불' 표시 — 전액환불(refunded)과 구분 */}
+                                {gi === 0 && (o.partial_refund_amount || 0) > 0 && !['cancelled','refunded','refunding'].includes(o.status) && (
+                                  <div style={{ marginTop:3, fontSize:10, fontWeight:700, color:'#C2410C' }}>부분환불 {fmtPrice(o.partial_refund_amount || 0)}원</div>
+                                )}
                               </td>
 
                               {/* 송장 — 브랜드별 입력 */}
