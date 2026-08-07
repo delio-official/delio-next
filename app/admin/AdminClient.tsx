@@ -11772,7 +11772,7 @@ export default function AdminClient() {
                 })().map(c => (
                   <div key={c.l} className="adm-kpi-card" onClick={c.click}
                     style={{ cursor:'pointer', outline: c.on ? '2px solid #1A1A1A' : 'none', outlineOffset:-1 }}>
-                    <div className="adm-kpi-label">{c.l}{c.on && ' ✓'}</div>
+                    <div className="adm-kpi-label">{c.l}</div>
                     <div className="adm-kpi-value adm-kpi-value-mt">{c.v}</div>
                   </div>
                 ))}
