@@ -12425,16 +12425,16 @@ export default function AdminClient() {
               <div className="adm-card">
                 {csAdminLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
-                    <table className="adm-table" style={{ tableLayout:'fixed' }}>
+                    <table className="adm-table">
                       <thead>
                         <tr>
-                          <th style={{ width:'12%' }}>카테고리</th>
+                          <th style={{ width:'11%' }}>카테고리</th>
                           <th style={{ width:'18%' }}>작성자</th>
-                          <th style={{ width:'30%', textAlign:'left' }}>제목</th>
+                          <th style={{ width:'26%', textAlign:'left' }}>제목</th>
                           <th style={{ width:'8%' }}>첨부</th>
-                          <th style={{ width:'14%' }}>접수일시</th>
-                          <th style={{ width:'9%' }}>상태</th>
-                          <th style={{ width:'9%' }}>관리</th>
+                          <th style={{ width:'15%' }}>접수일시</th>
+                          <th style={{ width:'11%' }}>상태</th>
+                          <th style={{ width:'11%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
