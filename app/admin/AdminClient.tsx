@@ -12430,7 +12430,7 @@ export default function AdminClient() {
                         <tr>
                           <th style={{ width:'11%' }}>카테고리</th>
                           <th style={{ width:'18%' }}>작성자</th>
-                          <th style={{ width:'26%', textAlign:'left' }}>제목</th>
+                          <th style={{ width:'26%' }}>제목</th>
                           <th style={{ width:'8%' }}>첨부</th>
                           <th style={{ width:'15%' }}>접수일시</th>
                           <th style={{ width:'11%' }}>상태</th>
@@ -12451,7 +12451,7 @@ export default function AdminClient() {
                               <div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u?.name || '-'}</div>
                               {u?.email && <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.email}</div>}
                             </td>
-                            <td style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
+                            <td style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
                             <td>{c.attachments && c.attachments.length > 0 ? <span style={{ fontSize:13 }}>📎 {c.attachments.length}</span> : '-'}</td>
                             <td className="adm-muted">{fmtDate(c.created_at)}</td>
                             <td>
