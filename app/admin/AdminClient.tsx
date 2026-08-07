@@ -4050,7 +4050,7 @@ export default function AdminClient() {
     setMemberOrdersLoading(true);
     const supabase = createClient();
     const [{ data }, { data: memos }, { data: allOrders }] = await Promise.all([
-      supabase.from('orders').select('id, order_no, status, final_amount, created_at, order_items(product_name)')
+      supabase.from('orders').select('id, order_no, status, final_amount, created_at, order_items(product_name, option_label)')
         .eq('user_id', m.id).order('created_at', { ascending: false }).limit(10),
       supabase.from('member_memos').select('id, content, admin_name, created_at')
         .eq('user_id', m.id).order('created_at', { ascending: false }),
@@ -14445,11 +14445,19 @@ export default function AdminClient() {
                   <div style={{ border:'1px solid #F0F0F0', borderRadius:8, overflow:'hidden' }}>
                     {memberOrders.map((o, i) => {
                       const its = o.order_items || [];
-                      const prodLabel = its.length ? `${its[0].product_name}${its.length > 1 ? ` 외 ${its.length - 1}건` : ''}` : '(상품 정보 없음)';
+                      const first = its[0] as ({ product_name: string; option_label?: string | null } | undefined);
+                      /* 주문관리처럼 상품명 / ㄴ옵션 2줄 분리 (상품명 끝에 (옵션)이 붙어 있으면 떼어냄) */
+                      const opt = first?.option_label || '';
+                      let pname = first?.product_name || '(상품 정보 없음)';
+                      if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
+                      const extra = its.length > 1 ? ` 외 ${its.length - 1}건` : '';
                       return (
-                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
-                          <span style={{ fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodLabel}</span>
+                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
+                        <div style={{ display:'flex', alignItems:'flex-start', gap:6, minWidth:0 }}>
+                          <div style={{ minWidth:0, lineHeight:1.4 }}>
+                            <div style={{ fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pname}{extra}</div>
+                            {opt && <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>ㄴ {opt}</div>}
+                          </div>
                           <span className={`adm-badge ${STATUS_BADGE_CLS[o.status]||'badge-wait'}`} style={{ flexShrink:0 }}>{STATUS_LABEL[o.status]||o.status}</span>
                         </div>
                         <div style={{ fontWeight:600, flexShrink:0 }}>{fmtPrice(o.final_amount)}원</div>
