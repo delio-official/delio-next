@@ -14955,10 +14955,14 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-form-row">
                   <label className="adm-label">사유</label>
-                  <input type="text" className="adm-input-text"
-                    placeholder="예: 이벤트 당첨, 불편 보상 등"
-                    value={givePointForm.desc}
-                    onChange={e => setGivePointForm(p => ({ ...p, desc: e.target.value }))} />
+                  <div className="adm-flex-center-gap">
+                    <input type="text" className="adm-input-text" style={{ flex:1 }}
+                      placeholder="예: 이벤트 당첨, 불편 보상 등"
+                      value={givePointForm.desc}
+                      onChange={e => setGivePointForm(p => ({ ...p, desc: e.target.value }))} />
+                    {/* 포인트 칸의 'P'와 동일 폭 여백 → 두 입력칸 크기 일치 */}
+                    <span className="adm-muted" style={{ visibility:'hidden' }}>P</span>
+                  </div>
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginTop:4 }}>
                   <span style={{ fontSize:13, color:'#64748B' }}>지급 후 보유 포인트</span>
