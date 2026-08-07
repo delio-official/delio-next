@@ -15188,8 +15188,8 @@ export default function AdminClient() {
               </div>
             </div>
 
-            {/* 푸터 */}
-            <div className="adm-modal-foot">
+            {/* 푸터 — 상단 실선 제거 */}
+            <div className="adm-modal-foot" style={{ borderTop:'none' }}>
               <button className="adm-btn adm-btn-outline" onClick={() => setSelectedInquiry(null)}>닫기</button>
               <button className="adm-btn adm-btn-primary" onClick={saveInquiryDetail}>저장</button>
             </div>
