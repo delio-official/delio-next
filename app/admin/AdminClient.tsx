@@ -1345,7 +1345,10 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                 <span className="adm-muted" style={{ fontSize:12 }}>
                   {smsText.length.toLocaleString()}자 · <span style={{ color: byteCount > 2000 ? '#DC2626' : 'inherit' }}>{byteCount.toLocaleString()}</span> / {msgType === 'LMS' ? '2,000' : '90'} byte
                 </span>
-                <span style={{ background: msgType==='LMS'?'#FEF3C7':'#EFF6FF', color: msgType==='LMS'?'#92400E':'#1D4ED8', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700 }}>{msgType}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span className="adm-muted" style={{ fontSize:11 }}>건당 {unitCost}원{targetCount > 0 ? ` · 예상 ${estCost.toLocaleString()}원` : ''}</span>
+                  <span style={{ background: msgType==='LMS'?'#FEF3C7':'#EFF6FF', color: msgType==='LMS'?'#92400E':'#1D4ED8', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:700 }}>{msgType}</span>
+                </span>
               </div>
             </div>
 
