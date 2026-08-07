@@ -9441,9 +9441,9 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th style={{ width:'11%' }}>주문번호</th><th style={{ width:'11%' }}>주문일시</th><th style={{ width:'8%' }}>주문자</th>
-                          <th style={{ width:'19%', textAlign:'left', paddingLeft:64 }}>상품</th>
-                          <th style={{ width:'12%' }}>금액</th><th style={{ width:'8%' }}>상태</th><th style={{ width:'22%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
+                          <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'13%' }}>주문일시</th><th style={{ width:'8%' }}>주문자</th>
+                          <th style={{ width:'14%', textAlign:'left', paddingLeft:20 }}>상품</th>
+                          <th style={{ width:'13%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'22%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
