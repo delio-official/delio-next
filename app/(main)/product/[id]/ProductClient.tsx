@@ -1196,6 +1196,8 @@ export default function ProductClient() {
     ? reviews.filter(r => r.image_urls && r.image_urls.length > 0)
     : reviews;
   const sortedReviews = [...filteredReviews].sort((a, b) => {
+    /* 베스트 리뷰는 정렬 기준과 무관하게 항상 맨 앞으로 */
+    if (!!a.is_best !== !!b.is_best) return a.is_best ? -1 : 1;
     if (reviewSort === 'rating')  return b.rating - a.rating;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
