@@ -12289,9 +12289,14 @@ export default function AdminClient() {
                               <td className="adm-muted">{inq.email}</td>
                               <td className="adm-muted">{fmtDate(inq.created_at)}</td>
                               <td>
-                                <span className={`adm-badge ${inq.status === 'answered' || inq.status === 'done' ? 'badge-done' : inq.status === 'rejected' ? 'badge-off' : 'badge-wait'}`}>
-                                  {inq.status === 'answered' || inq.status === 'done' ? '수락' : inq.status === 'rejected' ? '거절' : '대기중'}
-                                </span>
+                                {(() => {
+                                  /* 상세 처리상태 버튼 색상과 동일하게: 수락=초록 / 거절=빨강 / 대기=회색 */
+                                  const done = inq.status === 'answered' || inq.status === 'done';
+                                  const rej = inq.status === 'rejected';
+                                  const bg = done ? '#DCFCE7' : rej ? '#FEF2F2' : '#F1F5F9';
+                                  const color = done ? '#16A34A' : rej ? '#DC2626' : '#64748B';
+                                  return <span className="adm-badge" style={{ background:bg, color }}>{done ? '수락' : rej ? '거절' : '대기중'}</span>;
+                                })()}
                               </td>
                             </tr>
                           ))}
