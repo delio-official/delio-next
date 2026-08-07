@@ -11847,7 +11847,12 @@ export default function AdminClient() {
                 const reasonKey = (w: typeof withdrawnList[number]) => (w.reason || '기타').split(/[—:]/)[0].trim() || '기타';
                 const counts: Record<string, number> = {};
                 withdrawnList.forEach(w => { const k = reasonKey(w); counts[k] = (counts[k] || 0) + 1; });
-                const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4);
+                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+                const etc = counts['기타'] || 0;
+                /* 기타는 건수가 있으면 상위4위 밖이어도 항상 카드로 노출(필터 가능하게) — 상위3 + 기타 */
+                const top: [string, number][] = (etc > 0 && !sorted.slice(0, 4).some(([k]) => k === '기타'))
+                  ? [...sorted.filter(([k]) => k !== '기타').slice(0, 3), ['기타', etc]]
+                  : sorted.slice(0, 4);
                 const q = wdSearch.trim().toLowerCase();
                 const digits = q.replace(/[^0-9]/g, '');
                 const filtered = withdrawnList.filter(w => {
