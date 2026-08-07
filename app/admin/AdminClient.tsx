@@ -9433,7 +9433,7 @@ export default function AdminClient() {
               <div className="adm-card">
                 {ordersLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
-                    <table className="adm-table adm-table-center">
+                    <table className="adm-table adm-table-center" style={{ tableLayout:'fixed' }}>
                       <thead>
                         <tr>
                           <th style={{ width:34 }}>
@@ -9441,9 +9441,9 @@ export default function AdminClient() {
                               checked={pagedOrders.length > 0 && pagedOrders.every(o => selOrders.has(o.id))}
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
-                          <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'9%' }}>주문자</th>
-                          <th style={{ width:'21%' }}><span style={{ display:'inline-block', width:180, maxWidth:'100%', textAlign:'center' }}>상품</span></th>
-                          <th style={{ width:'14%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'15%' }}>송장번호</th><th style={{ width:'8%' }}>관리</th>
+                          <th style={{ width:'11%' }}>주문번호</th><th style={{ width:'11%' }}>주문일시</th><th style={{ width:'8%' }}>주문자</th>
+                          <th style={{ width:'19%', textAlign:'left' }}>상품</th>
+                          <th style={{ width:'12%' }}>금액</th><th style={{ width:'8%' }}>상태</th><th style={{ width:'22%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -9514,7 +9514,7 @@ export default function AdminClient() {
 
                               {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
                               <td style={{ textAlign:'left' }}>
-                                <div style={{ lineHeight:1.4, width:220, maxWidth:'100%' }}>
+                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0 }}>
                                   <div style={{ fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
                                   {opt && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>ㄴ {opt}</div>}
                                 </div>
@@ -9559,16 +9559,16 @@ export default function AdminClient() {
                               {/* 송장 — 브랜드별 입력 */}
                               <td onClick={e => e.stopPropagation()}>
                                 {noFulfill ? <span className="adm-muted">—</span> : (editing || !g.tracking) ? (
-                                  <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                                  <div style={{ display:'flex', gap:4, alignItems:'center', minWidth:0 }}>
                                     <select value={editing ? trackEditCourier : g.courier} disabled={saving}
                                       onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditVal(g.tracking); } setTrackEditCourier(e.target.value); }}
-                                      style={{ height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
+                                      style={{ flexShrink:0, width:96, height:28, padding:'0 6px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit', background:'#fff' }}>
                                       {COURIER_OPTIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                                     </select>
                                     <input value={editing ? trackEditVal : ''} disabled={saving}
                                       onChange={e => { if (!editing) { setTrackEditRow(editKey); setTrackEditCourier(g.courier); } setTrackEditVal(e.target.value.replace(/[^0-9]/g,'')); }}
                                       placeholder="송장번호" inputMode="numeric"
-                                      style={{ width:120, height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit' }} />
+                                      style={{ flex:1, minWidth:0, width:'100%', height:28, padding:'0 8px', border:'1.5px solid #E2E8F0', borderRadius:0, fontSize:12, outline:'none', fontFamily:'inherit' }} />
                                     <button className="adm-row-btn" style={{ borderRadius:0, height:28 }} disabled={saving || itemIds.length === 0}
                                       onClick={() => { if (!(editing ? trackEditVal : '').trim()) { alert('송장번호를 입력하세요.'); return; } saveItemTracking(o, itemIds, editing ? trackEditCourier : g.courier, editing ? trackEditVal : ''); setTrackEditRow(null); }}>
                                       {saving ? '저장 중' : '저장'}
