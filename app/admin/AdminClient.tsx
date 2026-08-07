@@ -12667,33 +12667,52 @@ export default function AdminClient() {
                           /* ── 환불 탭: 처리·관리용 (기존) ── */
                           return (
                             <>
-                              {customerReqs.map(r => {
-                                const amt = r.refund_amount != null ? r.refund_amount : (r.orders?.final_amount ?? null);
-                                return (
-                                <tr key={r.id}>
-                                  <td>
-                                    <div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div>
-                                    <div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div>
-                                  </td>
-                                  <td className="adm-mono">{r.orders?.order_no || '-'}</td>
-                                  <td>
-                                    {amt != null ? `${fmtPrice(amt)}원` : '-'}
-                                    {r.refund_amount != null && r.orders && r.refund_amount !== r.orders.final_amount && <div className="adm-muted" style={{ fontSize:10 }}>부분환불</div>}
-                                  </td>
-                                  <td>{payLabel(r.orders?.payment_method)}</td>
-                                  <td style={{ textAlign:'left', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
-                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{
-                                    /* 완료 + 부분환불(결제액 미만)이면 '부분환불 완료'로 구분 표기 — 주문은 배송완료 유지라 헷갈리지 않게 */
-                                    (r.status === 'completed' && r.type !== 'cancel' && r.refund_amount != null && r.orders && r.refund_amount < r.orders.final_amount)
-                                      ? '부분환불 완료'
-                                      : (stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')
-                                  }</span></td>
-                                  <td>
-                                    <button className="adm-row-btn" onClick={() => openRefundDetail(r)}>상세</button>
-                                  </td>
-                                </tr>
-                                );
-                              })}
+                              {(() => {
+                                /* 한 주문에서 부분환불이 여러 번이면 주문번호로 묶어 1행만 표시(내역은 상세에서 리스트로).
+                                   customerReqs는 최신순 정렬이므로 각 그룹의 첫 항목이 최신(대표). */
+                                const groups = new Map<string, AdminRefundReq[]>();
+                                customerReqs.forEach(r => {
+                                  const key = r.order_id || r.id;
+                                  (groups.get(key) || groups.set(key, []).get(key)!).push(r);
+                                });
+                                return [...groups.values()].map(group => {
+                                  const rep = group[0];                               // 대표(최신)
+                                  const isCancel = rep.type === 'cancel';
+                                  const final = rep.orders?.final_amount ?? 0;
+                                  const totalRefund = group.reduce((s, x) => s + (x.refund_amount ?? (x.orders?.final_amount ?? 0)), 0);
+                                  const allCompleted = group.every(x => x.status === 'completed');
+                                  const fully = final > 0 && totalRefund >= final;
+                                  const active = group.find(x => x.status === 'pending' || x.status === 'processing' || x.status === 'hold'); // 미완 우선 표기
+                                  let badgeLabel: string, badgeCls: string;
+                                  if (active) { badgeLabel = (stLabel[active.status] || active.status).replace('환불', isCancel ? '취소' : '환불'); badgeCls = stCls[active.status] || 'badge-wait'; }
+                                  else if (allCompleted) { badgeLabel = (!isCancel && !fully) ? '부분환불 완료' : (isCancel ? '취소완료' : '환불완료'); badgeCls = 'badge-paid'; }
+                                  else { badgeLabel = (stLabel[rep.status] || rep.status).replace('환불', isCancel ? '취소' : '환불'); badgeCls = stCls[rep.status] || 'badge-wait'; }
+                                  const partialCount = group.filter(x => x.status === 'completed').length;
+                                  return (
+                                    <tr key={rep.order_id || rep.id}>
+                                      <td>
+                                        <div style={{ fontWeight:500 }}>{rep.profiles?.name || '(탈퇴)'}</div>
+                                        <div className="adm-muted" style={{ fontSize:11 }}>{rep.profiles?.email || ''}</div>
+                                      </td>
+                                      <td className="adm-mono">{rep.orders?.order_no || '-'}</td>
+                                      <td>
+                                        {`${fmtPrice(totalRefund)}원`}
+                                        {group.length > 1
+                                          ? <div className="adm-muted" style={{ fontSize:10 }}>부분환불 {partialCount}건 합계</div>
+                                          : (rep.refund_amount != null && rep.orders && rep.refund_amount < rep.orders.final_amount && <div className="adm-muted" style={{ fontSize:10 }}>부분환불</div>)}
+                                      </td>
+                                      <td>{payLabel(rep.orders?.payment_method)}</td>
+                                      <td style={{ textAlign:'left', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                        {rep.reason}{group.length > 1 ? ` 외 ${group.length - 1}건` : ''}
+                                      </td>
+                                      <td><span className={`adm-badge ${badgeCls}`}>{badgeLabel}</span></td>
+                                      <td>
+                                        <button className="adm-row-btn" onClick={() => openRefundDetail(rep)}>상세</button>
+                                      </td>
+                                    </tr>
+                                  );
+                                });
+                              })()}
                               {directCancels.map(o => (
                                 <tr key={o.id}>
                                   <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
@@ -12766,6 +12785,34 @@ export default function AdminClient() {
                             )}
                           </div>
                         </div>
+
+                        {/* 이 주문의 부분환불 내역 — 여러 번이면 목록으로(주문당 1행 + 상세 리스트) */}
+                        {(() => {
+                          const history = refundReqs
+                            .filter(x => x.order_id === r.order_id && x.status === 'completed' && (x.type || 'refund') !== 'cancel')
+                            .sort((a, b) => a.created_at.localeCompare(b.created_at));
+                          if (history.length <= 1) return null;   // 1건이면 아래 상품 섹션으로 충분
+                          const final = r.orders?.final_amount ?? 0;
+                          const totalRefunded = history.reduce((s, x) => s + (x.refund_amount ?? 0), 0);
+                          const remaining = Math.max(0, final - totalRefunded);
+                          return (
+                            <div>
+                              <div style={secTitle}>부분환불 내역 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>({history.length}건)</span></div>
+                              <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
+                                {history.map((h, i) => (
+                                  <div key={h.id} style={{ display:'flex', justifyContent:'space-between', gap:8, padding:'10px 14px', borderTop: i ? '1px solid #F1F5F9' : 'none', fontSize:13 }}>
+                                    <span className="adm-muted">{i + 1}. {fmtDateShort(h.created_at)} · {h.reason}</span>
+                                    <span style={{ fontWeight:700, color:'#DC2626', whiteSpace:'nowrap' }}>−{fmtPrice(h.refund_amount || 0)}원</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, fontSize:13 }}>
+                                <span className="adm-muted">누적 환불 / 결제액</span>
+                                <span style={{ fontWeight:800 }}>{fmtPrice(totalRefunded)}원 / {fmtPrice(final)}원 <span className="adm-muted" style={{ fontWeight:400 }}>(남은 {fmtPrice(remaining)}원)</span></span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* 환불 대상 상품 (부분환불 — 박스/kg 비율 계산) */}
                         <div>
