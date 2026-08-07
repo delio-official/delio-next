@@ -9442,7 +9442,7 @@ export default function AdminClient() {
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
                           <th style={{ width:'12%' }}>주문번호</th><th style={{ width:'13%' }}>주문일시</th><th style={{ width:'8%' }}>주문자</th>
-                          <th style={{ width:'14%', textAlign:'left', paddingLeft:20 }}>상품</th>
+                          <th style={{ width:'14%' }}>상품</th>
                           <th style={{ width:'13%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'22%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
                         </tr>
                       </thead>
@@ -9513,8 +9513,8 @@ export default function AdminClient() {
                               </td>}
 
                               {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
-                              <td style={{ textAlign:'left' }}>
-                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0 }}>
+                              <td>
+                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'center' }}>
                                   <div style={{ fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
                                   {opt && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>ㄴ {opt}</div>}
                                 </div>
