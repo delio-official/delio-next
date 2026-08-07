@@ -9513,10 +9513,10 @@ export default function AdminClient() {
                               </td>}
 
                               {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
-                              <td>
-                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'center' }}>
-                                  <div style={{ fontWeight:600, wordBreak:'break-word' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
-                                  {opt && <div className="adm-muted" style={{ fontSize:11, wordBreak:'break-word' }}>ㄴ {opt}</div>}
+                              <td style={{ whiteSpace:'normal' }}>
+                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'center', whiteSpace:'normal' }}>
+                                  <div style={{ fontWeight:600, whiteSpace:'normal', wordBreak:'break-word' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
+                                  {opt && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'normal', wordBreak:'break-word' }}>ㄴ {opt}</div>}
                                 </div>
                               </td>
 
