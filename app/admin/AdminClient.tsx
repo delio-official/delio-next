@@ -9428,6 +9428,9 @@ export default function AdminClient() {
                     </span>
                     자사상품 주문서
                   </button>
+                  {(orderFrom || orderTo || orderSearch || orderStatusFilter || orderFarmFilter || orderReqOnly) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderReqOnly(false); setOrderFrom(''); setOrderTo(''); setOrderPage(1); loadOrders({ from:'', to:'' }); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderReqOnly(false); setOrderPage(1); loadOrders(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
@@ -9659,6 +9662,9 @@ export default function AdminClient() {
                     value={productSearch} onChange={e => { setProductSearch(e.target.value); setProductPage(1); }} />
                 </div>
                 <div className="adm-toolbar-right">
+                  {(productSearch || productCatFilter || productBrandFilter || productStatusFilter || productTypeFilter) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setProductSearch(''); setProductCatFilter(''); setProductBrandFilter(''); setProductStatusFilter(''); setProductTypeFilter(''); setProductPage(1); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setProductSearch(''); setProductCatFilter(''); setProductBrandFilter(''); setProductStatusFilter(''); setProductTypeFilter(''); setProductPage(1); loadProducts(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openProductModal()}>+ 상품 등록</button>
                 </div>
@@ -9992,6 +9998,9 @@ export default function AdminClient() {
                   </span>
                 </div>
                 <div className="adm-toolbar-right">
+                  {farmSearch && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setFarmSearch(''); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setFarmSearch(''); loadFarms(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openFarmModal()}>+ 브랜드 등록</button>
                 </div>
@@ -10132,6 +10141,9 @@ export default function AdminClient() {
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
                   <AdmSelect value={String(reviewPageSize)} onChange={v => { setReviewPageSize(Number(v)); setReviewPage(1); }}
                     options={[10,30,50,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
+                  {(reviewRating || reviewFarm || reviewFlag || reviewAnswered !== 'all' || reviewSearch || reviewFrom || reviewTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setReviewRating(''); setReviewFarm(''); setReviewFlag(''); setReviewAnswered('all'); setReviewSearch(''); setReviewFrom(''); setReviewTo(''); setReviewPage(1); loadReviews(); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setReviewRating(''); setReviewFarm(''); setReviewFlag(''); setReviewAnswered('all'); setReviewSearch(''); setReviewFrom(''); setReviewTo(''); setReviewPage(1); loadReviews(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
@@ -10344,6 +10356,9 @@ export default function AdminClient() {
                       <button className="adm-btn adm-btn-dark" onClick={() => loadCouponLogs()}>조회</button>
                     </div>
                     <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
+                      {(clStatus !== 'all' || clCategory !== 'all' || clSearch) && (
+                        <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setClStatus('all'); setClCategory('all'); setClSearch(''); setClFrom(ymd(d)); setClTo(ymd(new Date())); setClPage(1); loadCouponLogs(); }}>초기화</button>
+                      )}
                       <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setClStatus('all'); setClCategory('all'); setClSearch(''); setClFrom(ymd(d)); setClTo(ymd(new Date())); setClPage(1); loadCouponLogs(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
                   </div>
@@ -10625,6 +10640,9 @@ export default function AdminClient() {
                         value={pointSearch} onChange={e => setPointSearch(e.target.value)} />
                     </div>
                     <div className="adm-toolbar-right">
+                      {(pointSearch || pointFilter !== 'all') && (
+                        <button className="adm-btn adm-btn-outline" onClick={() => { setPointSearch(''); setPointFilter('all'); }}>초기화</button>
+                      )}
                       <button className="adm-btn adm-btn-outline" onClick={loadPointData}>
                         <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                       </button>
@@ -10686,6 +10704,9 @@ export default function AdminClient() {
                       <span style={{ color:'#94A3B8' }}>~</span>
                       <input type="date" className="adm-select" value={pointLogTo} onChange={e => setPointLogTo(e.target.value)} />
                       <button className="adm-btn adm-btn-dark" onClick={() => loadPointLogs()}>조회</button>
+                      {(plType !== 'all' || plGrade || plSearch) && (
+                        <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setPlType('all'); setPlGrade(''); setPlSearch(''); setPlPage(1); const f = ymd(d), t = ymd(new Date()); setPointLogFrom(f); setPointLogTo(t); loadPointLogs(f, t); }}>초기화</button>
+                      )}
                       <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setPlType('all'); setPlGrade(''); setPlSearch(''); setPlPage(1); const f = ymd(d), t = ymd(new Date()); setPointLogFrom(f); setPointLogTo(t); loadPointLogs(f, t); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
                   </div>
@@ -11410,6 +11431,9 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={evTo} onChange={e => setEvTo(e.target.value)} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  {(evStatusFilter !== 'all' || evSearch || evFrom || evTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setEvStatusFilter('all'); setEvSearch(''); setEvFrom(''); setEvTo(''); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setEvStatusFilter('all'); setEvSearch(''); setEvFrom(''); setEvTo(''); loadEvents(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-dark" onClick={() => openEventModal()}>+ 이벤트 등록</button>
                 </div>
@@ -11478,6 +11502,9 @@ export default function AdminClient() {
                     value={loungeSearch} onChange={e => setLoungeSearch(e.target.value)} />
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
+                  {(loungeFilter || loungeStatusFilter !== 'all' || loungeSearch) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setLoungeFilter(''); setLoungeStatusFilter('all'); setLoungeSearch(''); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setLoungeFilter(''); setLoungeStatusFilter('all'); setLoungeSearch(''); loadLounge(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                   <button className="adm-btn adm-btn-primary" onClick={() => openLoungeModal()}>+ 글 등록</button>
                 </div>
@@ -11792,6 +11819,9 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-toolbar-right">
                   <button className="adm-btn adm-btn-outline" onClick={() => go('sms')}><span className="adm-btn-icon"><Icon.SMS2 /></span>SMS 발송</button>
+                  {(memberSearch || memberGradeFilter || memberBlockFilter !== 'all' || memberProviderFilter || memberMktFilter !== 'all' || memberNewOnly) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setMemberSearch(''); setMemberGradeFilter(''); setMemberBlockFilter('all'); setMemberProviderFilter(''); setMemberMktFilter('all'); setMemberNewOnly(false); setMemPage(1); }}>초기화</button>
+                  )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setMemberSearch(''); setMemberGradeFilter(''); setMemberBlockFilter('all'); setMemberProviderFilter(''); setMemberMktFilter('all'); setMemberNewOnly(false); loadMembers(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
               </div>
