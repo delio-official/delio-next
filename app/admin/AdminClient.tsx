@@ -12425,9 +12425,17 @@ export default function AdminClient() {
               <div className="adm-card">
                 {csAdminLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
-                    <table className="adm-table">
+                    <table className="adm-table" style={{ tableLayout:'fixed' }}>
                       <thead>
-                        <tr><th>카테고리</th><th>작성자</th><th style={{ textAlign:'left' }}>제목</th><th>첨부</th><th>접수일시</th><th>상태</th><th>관리</th></tr>
+                        <tr>
+                          <th style={{ width:'12%' }}>카테고리</th>
+                          <th style={{ width:'18%' }}>작성자</th>
+                          <th style={{ width:'30%', textAlign:'left' }}>제목</th>
+                          <th style={{ width:'8%' }}>첨부</th>
+                          <th style={{ width:'14%' }}>접수일시</th>
+                          <th style={{ width:'9%' }}>상태</th>
+                          <th style={{ width:'9%' }}>관리</th>
+                        </tr>
                       </thead>
                       <tbody>
                         {csTabList.length === 0 ? (
@@ -12439,11 +12447,11 @@ export default function AdminClient() {
                           return (
                           <tr key={c.id}>
                             <td><span className="adm-badge badge-paid">{CS_CAT_LABEL[c.category] || c.category}</span></td>
-                            <td>
-                              <div style={{ fontWeight:500 }}>{u?.name || '-'}</div>
-                              {u?.email && <div className="adm-muted" style={{ fontSize:11 }}>{u.email}</div>}
+                            <td style={{ overflow:'hidden' }}>
+                              <div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u?.name || '-'}</div>
+                              {u?.email && <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.email}</div>}
                             </td>
-                            <td style={{ textAlign:'left', maxWidth:280, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
+                            <td style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.title}</td>
                             <td>{c.attachments && c.attachments.length > 0 ? <span style={{ fontSize:13 }}>📎 {c.attachments.length}</span> : '-'}</td>
                             <td className="adm-muted">{fmtDate(c.created_at)}</td>
                             <td>
