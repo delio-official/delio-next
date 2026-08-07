@@ -12682,7 +12682,12 @@ export default function AdminClient() {
                                   </td>
                                   <td>{payLabel(r.orders?.payment_method)}</td>
                                   <td style={{ textAlign:'left', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
-                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')}</span></td>
+                                  <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{
+                                    /* 완료 + 부분환불(결제액 미만)이면 '부분환불 완료'로 구분 표기 — 주문은 배송완료 유지라 헷갈리지 않게 */
+                                    (r.status === 'completed' && r.type !== 'cancel' && r.refund_amount != null && r.orders && r.refund_amount < r.orders.final_amount)
+                                      ? '부분환불 완료'
+                                      : (stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')
+                                  }</span></td>
                                   <td>
                                     <button className="adm-row-btn" onClick={() => openRefundDetail(r)}>상세</button>
                                   </td>
@@ -12741,7 +12746,11 @@ export default function AdminClient() {
 
                         {/* 신청 정보 */}
                         <div>
-                          <div style={secTitle}>신청 정보 <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`} style={{ marginLeft:6 }}>{(stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')}</span></div>
+                          <div style={secTitle}>신청 정보 <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`} style={{ marginLeft:6 }}>{
+                            (r.status === 'completed' && r.type !== 'cancel' && r.refund_amount != null && r.orders && r.refund_amount < r.orders.final_amount)
+                              ? '부분환불 완료'
+                              : (stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')
+                          }</span></div>
                           <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 16px' }}>
                             {info.map(([l, v], i) => (
                               <div key={l} style={i >= 4 ? { gridColumn:'1 / -1' } : undefined}>
