@@ -11847,12 +11847,10 @@ export default function AdminClient() {
                 const reasonKey = (w: typeof withdrawnList[number]) => (w.reason || '기타').split(/[—:]/)[0].trim() || '기타';
                 const counts: Record<string, number> = {};
                 withdrawnList.forEach(w => { const k = reasonKey(w); counts[k] = (counts[k] || 0) + 1; });
-                const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-                const etc = counts['기타'] || 0;
-                /* 기타는 건수가 있으면 상위4위 밖이어도 항상 카드로 노출(필터 가능하게) — 상위3 + 기타 */
-                const top: [string, number][] = (etc > 0 && !sorted.slice(0, 4).some(([k]) => k === '기타'))
-                  ? [...sorted.filter(([k]) => k !== '기타').slice(0, 3), ['기타', etc]]
-                  : sorted.slice(0, 4);
+                /* 탈퇴 사유 9종을 전부 카드로 노출(0건 포함). 목록에 없는 레거시 사유는 뒤에 덧붙임 */
+                const REASON_LIST = ['앱 사용이 불편해요','상품 탐색이 어려워요','상품 배송이 느려요','구매할 만한 상품이 없어요','광고성 알림이 너무 많이 와요','상품의 질이 좋지 않아요','쓰지 않는 앱이에요','재가입할 거예요','기타'];
+                const extra = Object.keys(counts).filter(k => !REASON_LIST.includes(k));
+                const top: [string, number][] = [...REASON_LIST, ...extra].map(r => [r, counts[r] || 0]);
                 const q = wdSearch.trim().toLowerCase();
                 const digits = q.replace(/[^0-9]/g, '');
                 const filtered = withdrawnList.filter(w => {
