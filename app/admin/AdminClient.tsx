@@ -11913,16 +11913,16 @@ export default function AdminClient() {
                       </div>
                     )}
                     <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                      {/* 좌측: 달력(기간) + 건수 / 우측: 검색 · 초기화 · 새로고침 */}
+                      {/* 좌측: 검색 → 달력(기간) → 건수 / 우측: 초기화 · 새로고침 */}
                       <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
+                          value={wdSearch} onChange={e => setWdSearch(e.target.value)} />
                         <input type="date" className="adm-select" value={wdFrom} onChange={e => setWdFrom(e.target.value)} />
                         <span style={{ color:'#94A3B8' }}>~</span>
                         <input type="date" className="adm-select" value={wdTo} onChange={e => setWdTo(e.target.value)} />
                         <span style={{ fontSize:13, color:'#64748B', marginLeft:4 }}>총 <strong>{filtered.length}</strong>건</span>
                       </div>
                       <div className="adm-toolbar-right" style={{ alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                        <input type="text" className="adm-input-text" placeholder="이름 · 이메일 · 연락처 검색"
-                          value={wdSearch} onChange={e => setWdSearch(e.target.value)} />
                         {(wdReason || wdSearch || wdFrom || wdTo) && (
                           <button className="adm-btn adm-btn-outline" style={{ height:34, fontSize:12 }} onClick={() => { setWdReason(''); setWdSearch(''); setWdFrom(''); setWdTo(''); }}>초기화</button>
                         )}
