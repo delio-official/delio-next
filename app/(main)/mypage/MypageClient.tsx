@@ -326,7 +326,23 @@ export default function MypageClient() {
   const [reqModal, setReqModal] = useState<{ order: Order; type: 'cancel' | 'refund'; instant?: boolean } | null>(null);
   const [reqReason, setReqReason] = useState('');
   const [reqDetail, setReqDetail] = useState('');
+  const [reqFiles, setReqFiles] = useState<File[]>([]);   // 환불/취소 증빙 사진
   const [reqSubmitting, setReqSubmitting] = useState(false);
+  /* 증빙 사진 업로드 → cs-attachments 버킷, URL 배열 반환 */
+  async function uploadReqFiles(): Promise<string[]> {
+    if (!user || reqFiles.length === 0) return [];
+    const supabase = createClient();
+    const urls: string[] = []; const ts = Date.now();
+    for (let i = 0; i < reqFiles.length; i++) {
+      const file = reqFiles[i];
+      const ext = file.name.split('.').pop()?.toLowerCase() ?? 'bin';
+      const path = `${user.id}/refund_${ts}_${i}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('cs-attachments').upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) { alert('사진 업로드 실패: ' + file.name); continue; }
+      urls.push(supabase.storage.from('cs-attachments').getPublicUrl(path).data.publicUrl);
+    }
+    return urls;
+  }
   const CANCEL_REASONS = ['단순 변심', '상품 정보와 다름', '배송 지연', '중복 주문', '기타'];
   const REFUND_REASONS = ['상품 불량/파손', '오배송', '상품 누락', '품질 불만족', '기타'];
 
@@ -368,13 +384,15 @@ export default function MypageClient() {
         }
         if (j?.needsRequest) {
           // 이미 준비 시작 → 즉시취소 불가, 취소 신청으로 접수
+          const atts = await uploadReqFiles();
           const { error } = await createClient().from('refund_requests').insert({
             order_id: reqModal.order.id, user_id: user.id,
             reason: reqReason, detail: reqDetail.trim(), type: 'cancel',
+            ...(atts.length ? { attachments: atts } : {}),
           });
           setReqSubmitting(false);
           if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
-          setReqModal(null); setReqReason(''); setReqDetail('');
+          setReqModal(null); setReqReason(''); setReqDetail(''); setReqFiles([]);
           await loadMyRefundReqs();
           alert('이미 상품 준비가 시작돼 즉시취소가 어려워, 취소 신청으로 접수했습니다. 관리자 확인 후 처리됩니다.');
           return;
@@ -389,13 +407,15 @@ export default function MypageClient() {
     }
 
     // 신청형 (배송 준비 이후)
+    const atts = await uploadReqFiles();
     const { error } = await createClient().from('refund_requests').insert({
       order_id: reqModal.order.id, user_id: user.id,
       reason: reqReason, detail: reqDetail.trim(), type: reqModal.type,
+      ...(atts.length ? { attachments: atts } : {}),
     });
     setReqSubmitting(false);
     if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
-    setReqModal(null); setReqReason(''); setReqDetail('');
+    setReqModal(null); setReqReason(''); setReqDetail(''); setReqFiles([]);
     await loadMyRefundReqs();
     alert(reqModal.type === 'cancel' ? '주문취소 신청이 접수됐습니다.' : '환불 신청이 접수됐습니다.');
   }
@@ -4513,13 +4533,13 @@ export default function MypageClient() {
 
       {/* ── 주문취소 / 환불 신청 모달 ── */}
       {reqModal && (
-        <div onClick={() => setReqModal(null)}
+        <div onClick={() => { setReqModal(null); setReqFiles([]); }}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3400, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div onClick={e => e.stopPropagation()}
             className="hide-scrollbar" style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:'100%', maxWidth:460, maxHeight:'88vh', overflowY:'auto' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
               <span style={{ fontSize:17, fontWeight:800 }}>{reqModal.instant ? '주문 취소' : reqModal.type === 'cancel' ? '주문취소 신청' : '환불 신청'}</span>
-              <button onClick={() => setReqModal(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#999', lineHeight:1 }}>✕</button>
+              <button onClick={() => { setReqModal(null); setReqFiles([]); }} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#999', lineHeight:1 }}>✕</button>
             </div>
             <p style={{ fontSize:13, color:'#888', marginBottom:18 }}>주문 {reqModal.order.order_no} · {fmtPrice(reqModal.order.final_amount)}원</p>
 
@@ -4542,6 +4562,25 @@ export default function MypageClient() {
             <textarea value={reqDetail} onChange={e => setReqDetail(e.target.value)} rows={3}
               placeholder={reqReason === '기타' ? '기타 사유를 직접 작성해주세요.' : '자세한 사유를 적어주시면 처리에 도움이 됩니다.'}
               style={{ width:'100%', border:'1px solid #DDD', borderRadius:8, padding:'10px 12px', fontSize:14, fontFamily:'inherit', resize:'vertical', boxSizing:'border-box', marginBottom:18 }} />
+
+            {/* 증빙 사진 (선택) */}
+            <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>증빙 사진 <span style={{ color:'#aaa', fontWeight:400 }}>(선택 · 최대 5장)</span></div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:18 }}>
+              {reqFiles.map((f, i) => (
+                <div key={i} style={{ position:'relative', width:64, height:64, borderRadius:8, overflow:'hidden', border:'1px solid #DDD' }}>
+                  <img src={URL.createObjectURL(f)} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  <button type="button" onClick={() => setReqFiles(prev => prev.filter((_, x) => x !== i))}
+                    style={{ position:'absolute', top:2, right:2, width:18, height:18, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:11, cursor:'pointer', lineHeight:1 }}>×</button>
+                </div>
+              ))}
+              {reqFiles.length < 5 && (
+                <label style={{ width:64, height:64, borderRadius:8, border:'1.5px dashed #CBD5E1', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:24 }}>
+                  +
+                  <input type="file" accept="image/*" multiple style={{ display:'none' }}
+                    onChange={e => { const fs = Array.from(e.target.files || []); setReqFiles(prev => [...prev, ...fs].slice(0, 5)); e.target.value=''; }} />
+                </label>
+              )}
+            </div>
 
             <p style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
               {reqModal.instant

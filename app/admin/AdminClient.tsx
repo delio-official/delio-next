@@ -429,6 +429,7 @@ interface AdminRefundReq {
   resend_amount?: number | null;   // 소비자 재송금액
   resend_status?: string | null;   // none | waiting | received
   refund_items?: { name: string; total: number; defective: number; refund: number }[] | null;
+  attachments?: string[] | null;   // 고객 증빙 사진
   memo?: string | null;
   orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null; payment_method: string | null; order_items?: { product_name: string; quantity: number }[] } | null;
   profiles: { name: string | null; email: string | null } | null;
@@ -4333,7 +4334,7 @@ export default function AdminClient() {
       .from('refund_requests')
       .select(`
         id, order_id, reason, detail, status, reject_reason, created_at, type,
-        refund_amount, resend_amount, resend_status, refund_items, memo,
+        refund_amount, resend_amount, resend_status, refund_items, attachments, memo,
         orders ( order_no, final_amount, status, portone_payment_id, payment_method, order_items ( product_name, quantity ) ),
         profiles:user_id ( name, email )
       `)
@@ -12856,6 +12857,19 @@ export default function AdminClient() {
                             )}
                           </div>
                         </div>
+
+                        {/* 고객 증빙 사진 */}
+                        {r.attachments && r.attachments.length > 0 && (
+                          <div>
+                            <div style={secTitle}>증빙 사진 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>({r.attachments.length}장 · 클릭하면 크게 보기)</span></div>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                              {r.attachments.map((url, i) => (
+                                <img key={i} src={url} alt={`증빙 ${i + 1}`} onClick={() => window.open(url, '_blank')}
+                                  style={{ width:88, height:88, objectFit:'cover', borderRadius:8, border:'1px solid #EEF2F6', cursor:'pointer' }} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* 이 주문의 부분환불 내역 — 여러 번이면 목록으로(주문당 1행 + 상세 리스트) */}
                         {(() => {
