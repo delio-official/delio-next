@@ -12576,14 +12576,14 @@ export default function AdminClient() {
           {/* ===== 취소·환불 관리 ===== */}
           {panel === 'refund' && (
             <div className="adm-content">
-              {/* 환불 / 취소 서브탭 (환불 먼저) */}
-              <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+              {/* 환불 / 취소 서브탭 (환불 먼저) — 회원관리와 동일한 밑줄 탭 스타일 */}
+              <div style={{ display:'flex', gap:4, marginBottom:18, borderBottom:'1px solid #E2E8F0' }}>
                 {([['refund','환불'],['cancel','취소']] as const).map(([v, l]) => (
                   <button key={v} onClick={() => { setRefundTypeFilter(v); setRefundStatusFilter(''); }}
-                    style={{ padding:'8px 20px', borderRadius:99, border:'1.5px solid', fontSize:13, fontWeight:700, cursor:'pointer',
-                      borderColor: refundTypeFilter === v ? '#1A1A1A' : '#E2E8F0', background: refundTypeFilter === v ? '#1A1A1A' : '#fff', color: refundTypeFilter === v ? '#fff' : '#64748B' }}>
-                    {l}
-                  </button>
+                    style={{ padding:'10px 18px', background:'none', border:'none',
+                      borderBottom:`2px solid ${refundTypeFilter===v?'#1A1A1A':'transparent'}`,
+                      fontWeight:refundTypeFilter===v?700:500, color:refundTypeFilter===v?'#1A1A1A':'#94A3B8',
+                      cursor:'pointer', fontFamily:'inherit', fontSize:14, marginBottom:-1 }}>{l}</button>
                 ))}
               </div>
               <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
