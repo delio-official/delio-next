@@ -12713,7 +12713,7 @@ export default function AdminClient() {
                                     <td><div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div></td>
                                     <td className="adm-mono">{r.orders?.order_no || '-'}</td>
                                     <td style={{ textAlign:'left', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(r.orders?.order_items)}</td>
-                                    <td style={{ textAlign:'left', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
+                                    <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                     <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                                     <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
                                     <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrder(r.orders?.order_no, r); }}>보기</button></td>
@@ -12773,7 +12773,7 @@ export default function AdminClient() {
                                           : (rep.refund_amount != null && rep.orders && rep.refund_amount < rep.orders.final_amount && <div className="adm-muted" style={{ fontSize:10 }}>부분환불</div>)}
                                       </td>
                                       <td>{payLabel(rep.orders?.payment_method)}</td>
-                                      <td style={{ textAlign:'left', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                      <td style={{ textAlign:'center', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                         {rep.reason}{group.length > 1 ? ` 외 ${group.length - 1}건` : ''}
                                       </td>
                                       <td><span className={`adm-badge ${badgeCls}`}>{badgeLabel}</span></td>
