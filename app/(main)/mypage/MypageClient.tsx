@@ -4574,8 +4574,9 @@ export default function MypageClient() {
                 </div>
               ))}
               {reqFiles.length < 5 && (
-                <label style={{ width:64, height:64, borderRadius:8, border:'1.5px dashed #CBD5E1', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:24 }}>
-                  +
+                <label style={{ width:64, height:64, flexShrink:0, borderRadius:8, border:'1px solid #DDD', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', gap:3 }}>
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                  <span style={{ fontSize:11, color:'#999', fontWeight:600 }}>{reqFiles.length}/5</span>
                   <input type="file" accept="image/*" multiple style={{ display:'none' }}
                     onChange={e => { const fs = Array.from(e.target.files || []); setReqFiles(prev => [...prev, ...fs].slice(0, 5)); e.target.value=''; }} />
                 </label>
