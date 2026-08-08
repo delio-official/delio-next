@@ -12660,9 +12660,9 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         {refundTypeFilter === 'cancel' ? (
-                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th style={{ textAlign:'left' }}>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
+                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
                         ) : (
-                          <tr><th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th style={{ textAlign:'left' }}>사유</th><th>상태</th><th>관리</th></tr>
+                          <tr><th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th>사유</th><th>상태</th><th>관리</th></tr>
                         )}
                       </thead>
                       <tbody>
