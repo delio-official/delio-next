@@ -813,6 +813,7 @@ const ORDER_TABS: { key: string; label: string }[] = [
   { key:'pending', label:'입금대기' },
   ...ORDER_STAGES,
   { key:'expired', label:'입금기한 만료' },
+  { key:'cancelled', label:'취소' },
 ];
 
 const GRADE_LABEL: Record<string, string> = {
