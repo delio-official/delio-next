@@ -1413,7 +1413,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   <tr>
                     <th>종류</th>
                     <th>유형</th>
-                    <th style={{ textAlign:'left' }}>내용</th>
+                    <th>내용</th>
                     <th>대상</th>
                     <th>금액</th>
                     <th>상태</th>
@@ -1429,7 +1429,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                       <tr key={log.id}>
                         <td>{kindLabel(log.msg_kind)}</td>
                         <td>{log.msg_type}</td>
-                        <td style={{ textAlign:'left', maxWidth:320, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</td>
+                        <td style={{ textAlign:'center', maxWidth:320, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</td>
                         <td>{(log.target_count || 0).toLocaleString()}명</td>
                         <td>{(log.cost || 0).toLocaleString()}원</td>
                         <td><span style={{ fontWeight:600, color: st.color }}>{st.label}</span></td>
@@ -12338,7 +12338,7 @@ export default function AdminClient() {
                   <div className="adm-table-wrap">
                     <table className="adm-table">
                       <thead>
-                        <tr>{canDragFaq && <th style={{ width:34 }}></th>}<th>카테고리</th><th style={{ textAlign:'left' }}>질문</th><th>노출</th><th>관리</th></tr>
+                        <tr>{canDragFaq && <th style={{ width:34 }}></th>}<th>카테고리</th><th>질문</th><th>노출</th><th>관리</th></tr>
                       </thead>
                       <tbody>
                         {filteredFaq.length === 0 ? (
@@ -12354,7 +12354,7 @@ export default function AdminClient() {
                             style={canDragFaq ? { cursor:'move', background: dragFaqId===f.id ? '#EFF6FF' : undefined } : undefined}>
                             {canDragFaq && <td style={{ color:'#CBD5E1', textAlign:'center', cursor:'grab', fontSize:15 }}>⠿</td>}
                             <td>{f.category}</td>
-                            <td style={{ textAlign:'left', maxWidth:420, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
+                            <td style={{ textAlign:'center', maxWidth:420, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.question}</td>
                             <td>
                               <div style={{ display:'flex', justifyContent:'center' }}>
                                 <Toggle defaultOn={f.is_active} onChange={() => toggleFaqActive(f)} />
@@ -12533,7 +12533,7 @@ export default function AdminClient() {
                     <div className="adm-table-wrap">
                       <table className="adm-table">
                         <thead>
-                          <tr><th>상품</th><th>작성자</th><th>카테고리</th><th style={{ textAlign:'left' }}>문의 내용</th><th>비밀</th><th>상태</th><th>접수일</th><th>관리</th></tr>
+                          <tr><th>상품</th><th>작성자</th><th>카테고리</th><th>문의 내용</th><th>비밀</th><th>상태</th><th>접수일</th><th>관리</th></tr>
                         </thead>
                         <tbody>
                           {filtered.length === 0 ? (
@@ -12548,7 +12548,7 @@ export default function AdminClient() {
                                 {u?.email && <div className="adm-muted" style={{ fontSize:11 }}>{u.email}</div>}
                               </td>
                               <td><span className="adm-badge badge-paid">{q.category}</span></td>
-                              <td style={{ textAlign:'left', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</td>
+                              <td style={{ textAlign:'center', maxWidth:240, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.content}</td>
                               <td>{q.is_private ? '🔒' : '-'}</td>
                               <td>
                                 <span className={`adm-badge ${q.answer ? 'badge-done' : 'badge-off'}`}>
@@ -12660,7 +12660,7 @@ export default function AdminClient() {
                     <table className="adm-table">
                       <thead>
                         {refundTypeFilter === 'cancel' ? (
-                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th style={{ textAlign:'left' }}>상품</th><th>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
+                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th>상품</th><th>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
                         ) : (
                           <tr><th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th>사유</th><th>상태</th><th>관리</th></tr>
                         )}
@@ -12712,7 +12712,7 @@ export default function AdminClient() {
                                     <td><span className="adm-badge badge-normal">고객 직접취소</span></td>
                                     <td><div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div></td>
                                     <td className="adm-mono">{r.orders?.order_no || '-'}</td>
-                                    <td style={{ textAlign:'left', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(r.orders?.order_items)}</td>
+                                    <td style={{ textAlign:'center', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(r.orders?.order_items)}</td>
                                     <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                     <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                                     <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
@@ -12724,8 +12724,8 @@ export default function AdminClient() {
                                     <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
                                     <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
                                     <td className="adm-mono">{o.order_no}</td>
-                                    <td style={{ textAlign:'left', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(o.order_items)}</td>
-                                    <td style={{ textAlign:'left' }} className="adm-muted">—</td>
+                                    <td style={{ textAlign:'center', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(o.order_items)}</td>
+                                    <td className="adm-muted">—</td>
                                     <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
                                     <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
                                     <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrderModal(o); }}>보기</button></td>
@@ -12790,7 +12790,7 @@ export default function AdminClient() {
                                   <td className="adm-mono">{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
                                   <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
-                                  <td style={{ textAlign:'left' }} className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
+                                  <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
                                   <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
                                   <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
                                 </tr>
@@ -13333,7 +13333,7 @@ export default function AdminClient() {
                       <thead><tr>
                         <th style={{ width:34 }}><input type="checkbox" checked={selectable.length > 0 && selectable.every(r => selFarmSettle.has(r.farmId!))}
                           onChange={e => setSelFarmSettle(e.target.checked ? new Set(selectable.map(r => r.farmId!)) : new Set())} /></th>
-                        <th style={{ textAlign:'left' }}>브랜드명</th><th className="adm-num">판매건수</th><th className="adm-num">정산액 <span style={{ fontWeight:400, color:'#94A3B8' }}>(공급가·배송비 포함)</span></th><th>상태</th><th>계산서</th><th>관리</th>
+                        <th>브랜드명</th><th className="adm-num">판매건수</th><th className="adm-num">정산액 <span style={{ fontWeight:400, color:'#94A3B8' }}>(공급가·배송비 포함)</span></th><th>상태</th><th>계산서</th><th>관리</th>
                       </tr></thead>
                       <tbody>
                         {filtered.length === 0 ? (
@@ -13344,7 +13344,7 @@ export default function AdminClient() {
                           <tr key={r.farmId ?? 'none'}>
                             <td>{r.farmId && !meta ? <input type="checkbox" checked={selFarmSettle.has(r.farmId)}
                               onChange={e => setSelFarmSettle(prev => { const n = new Set(prev); if (e.target.checked) n.add(r.farmId!); else n.delete(r.farmId!); return n; })} /> : null}</td>
-                            <td style={{ textAlign:'left', fontWeight:500 }}>{r.farmName}</td>
+                            <td style={{ fontWeight:500 }}>{r.farmName}</td>
                             <td className="adm-num">{r.orderCount.toLocaleString()}건</td>
                             <td className="adm-num"><strong>{fmtPrice(r.payout)}원</strong></td>
                             <td>{meta ? <span className="adm-badge badge-on" title={new Date(meta.paidAt).toLocaleString('ko-KR')}>정산완료</span> : <span className="adm-badge badge-off">미정산</span>}</td>
@@ -13403,8 +13403,8 @@ export default function AdminClient() {
                       <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 환불(하자) {totalDefect}개 차감 반영</span>}</div>
                       <table className="adm-table" style={{ width:'100%', tableLayout:'fixed' }}>
                         <thead><tr>
-                          <th style={{ textAlign:'left', width:132 }}>주문번호</th>
-                          <th style={{ textAlign:'left' }}>상품</th>
+                          <th style={{ width:132 }}>주문번호</th>
+                          <th>상품</th>
                           {anyDefect ? (<>
                             <th className="adm-num" style={{ width:52 }}>주문</th>
                             <th className="adm-num" style={{ width:52 }}>환불</th>
@@ -13420,8 +13420,8 @@ export default function AdminClient() {
                               const dq = o.defectQty || 0;
                               return (
                               <tr key={i} style={dq > 0 ? { background:'#FFF7ED' } : undefined}>
-                                <td className="adm-mono" style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.order_no}>{o.order_no}</td>
-                                <td style={{ textAlign:'left', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
+                                <td className="adm-mono" style={{ textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.order_no}>{o.order_no}</td>
+                                <td style={{ textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
                                 {anyDefect ? (<>
                                   <td className="adm-num">{o.origQty}개</td>
                                   <td className="adm-num" style={{ color: dq > 0 ? '#DC2626' : '#CBD5E1', fontWeight: dq > 0 ? 700 : 400 }}>{dq > 0 ? `-${dq}` : '0'}</td>
@@ -14077,12 +14077,12 @@ export default function AdminClient() {
                         ) : (
                           <div className="adm-table-wrap">
                             <table className="adm-table">
-                              <thead><tr><th style={{ width:56 }}>순위</th><th style={{ textAlign:'left' }}>검색어</th><th>검색 횟수</th><th>증감</th><th>관리</th></tr></thead>
+                              <thead><tr><th style={{ width:56 }}>순위</th><th>검색어</th><th>검색 횟수</th><th>증감</th><th>관리</th></tr></thead>
                               <tbody>
                                 {searchStats.map((s, i) => (
                                   <tr key={s.keyword}>
                                     <td style={{ color:'#94A3B8', fontWeight:700 }}>{i + 1}</td>
-                                    <td style={{ fontWeight:600, textAlign:'left' }}>{s.keyword}</td>
+                                    <td style={{ fontWeight:600, textAlign:'center' }}>{s.keyword}</td>
                                     <td><strong style={{ fontSize:15 }}>{s.count.toLocaleString()}</strong><span style={{ color:'#94A3B8', fontSize:12 }}> 회</span></td>
                                     <td>
                                       {s.isNew ? <span style={{ fontSize:11, background:'#EFF6FF', color:'#2563EB', borderRadius:99, padding:'2px 8px', fontWeight:700 }}>NEW</span>
@@ -14112,12 +14112,12 @@ export default function AdminClient() {
                             <div style={{ padding:'10px 16px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', fontSize:12, color:'#92400E' }}>💡 아래 키워드는 검색 결과가 0건이었습니다. 상품 추가 또는 상품명 수정을 검토하세요.</div>
                             <div className="adm-table-wrap">
                               <table className="adm-table">
-                                <thead><tr><th style={{ width:56 }}>순위</th><th style={{ textAlign:'left' }}>검색어</th><th>검색 횟수</th><th>처리</th></tr></thead>
+                                <thead><tr><th style={{ width:56 }}>순위</th><th>검색어</th><th>검색 횟수</th><th>처리</th></tr></thead>
                                 <tbody>
                                   {noResultStats.map((s, i) => (
                                     <tr key={s.keyword}>
                                       <td style={{ color:'#94A3B8', fontWeight:700 }}>{i + 1}</td>
-                                      <td style={{ fontWeight:600, textAlign:'left' }}>{s.keyword}</td>
+                                      <td style={{ fontWeight:600, textAlign:'center' }}>{s.keyword}</td>
                                       <td><strong style={{ fontSize:15 }}>{s.count.toLocaleString()}</strong><span style={{ color:'#94A3B8', fontSize:12 }}> 회</span></td>
                                       <td>
                                         <div style={{ display:'inline-flex', gap:6 }}>
