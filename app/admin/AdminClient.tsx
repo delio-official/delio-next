@@ -9495,9 +9495,9 @@ export default function AdminClient() {
                           const isPending = o.status === 'pending';
                           const isExpired = o.status === 'expired';
                           const noFulfill = cancelledLike || isPending || isExpired; // 배송/송장 없음
-                          // 미입금 취소는 '결제취소'로 구분 표기
+                          // 무통장 입금 전 취소는 '미입금취소', 결제 후 취소는 '취소'로 구분 표기
                           const oPaidAt = (o as { paid_at?: string | null }).paid_at;
-                          const oStatusLabel = (o.status === 'cancelled' && !oPaidAt) ? '결제취소' : (STATUS_LABEL[o.status] || o.status);
+                          const oStatusLabel = (o.status === 'cancelled' && !oPaidAt) ? '미입금취소' : (STATUS_LABEL[o.status] || o.status);
                           // 입금대기 카운트다운 (주문일 + 3일)
                           const expireMs = new Date(o.created_at).getTime() + 3 * 86400000 - Date.now();
                           const expireText = expireMs <= 0 ? '만료 임박'
