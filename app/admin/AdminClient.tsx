@@ -13508,7 +13508,7 @@ export default function AdminClient() {
                         <span style={{ flex:1, fontSize:14, fontWeight:600 }}>{acctStr || '등록된 계좌 없음 — 브랜드 관리에서 등록하세요'}</span>
                         {acctStr && <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={() => { navigator.clipboard?.writeText(acctStr); alert('계좌 정보를 복사했습니다.'); }}>복사</button>}
                       </div>
-                      <button className="adm-row-btn" style={{ marginTop:8 }} onClick={() => { const f = farms.find(x => x.id === r.farmId); setSelectedFarmSettle(null); go('farms'); if (f) setTimeout(() => openFarmModal(f), 100); }}>브랜드 정보 보기/수정 →</button>
+                      <button className="adm-btn adm-btn-outline" style={{ marginTop:8, fontSize:12 }} disabled={!r.farmId} onClick={() => { const f = farms.find(x => x.id === r.farmId); setSelectedFarmSettle(null); go('farms'); if (f) setTimeout(() => openFarmModal(f), 100); }}>브랜드 관리에서 정보·계좌 수정 →</button>
                     </div>
 
                     {/* 계산서 수령 */}
