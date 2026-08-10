@@ -26,9 +26,17 @@ export async function restoreOrderCouponPoint(
   const earned = order.earned_point || 0;
   let couponRestored = false;
 
-  /* 쿠폰 복원 */
+  /* 쿠폰 복원 — 이미 만료된 쿠폰이면 복원일+7일로 되살림, 아직 유효하면 원래 만료일 유지.
+     (환불했더니 그새 쿠폰이 만료돼 못 쓰는 상황 방지) */
   if (order.used_coupon_id) {
-    await admin.from('user_coupons').update({ is_used: false, used_at: null }).eq('id', order.used_coupon_id);
+    const { data: uc } = await admin.from('user_coupons').select('expires_at').eq('id', order.used_coupon_id).maybeSingle();
+    const patch: Record<string, unknown> = { is_used: false, used_at: null };
+    const exp = uc?.expires_at ? new Date(uc.expires_at as string) : null;
+    if (exp && exp.getTime() < Date.now()) {
+      patch.expires_at = new Date(Date.now() + 7 * 86400000).toISOString();
+      patch.expiry_notified = false;   // 만료 재연장 → 만료 임박 알림 다시 받도록 리셋
+    }
+    await admin.from('user_coupons').update(patch).eq('id', order.used_coupon_id);
     couponRestored = true;
   }
 

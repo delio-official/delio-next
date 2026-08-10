@@ -58,7 +58,12 @@ export async function POST(req: Request) {
       .update({ refund_restored: true }).eq('id', orderId).eq('refund_restored', false).select('id').maybeSingle();
     if (marked) {
       if (order.used_coupon_id) {
-        await admin.from('user_coupons').update({ is_used: false, used_at: null }).eq('id', order.used_coupon_id);
+        /* 쿠폰 복원 — 이미 만료됐으면 복원일+7일로 되살림, 유효하면 원래 만료일 유지 */
+        const { data: uc } = await admin.from('user_coupons').select('expires_at').eq('id', order.used_coupon_id).maybeSingle();
+        const patch: Record<string, unknown> = { is_used: false, used_at: null };
+        const exp = uc?.expires_at ? new Date(uc.expires_at as string) : null;
+        if (exp && exp.getTime() < Date.now()) { patch.expires_at = new Date(Date.now() + 7 * 86400000).toISOString(); patch.expiry_notified = false; }
+        await admin.from('user_coupons').update(patch).eq('id', order.used_coupon_id);
       }
       const pointUsed = order.point_used || 0;
       const earned = order.earned_point || 0;
