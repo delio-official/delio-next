@@ -12658,12 +12658,12 @@ export default function AdminClient() {
               <div className="adm-card">
                 {refundLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
-                    <table className="adm-table">
+                    <table className="adm-table" style={{ tableLayout:'fixed' }}>
                       <thead>
                         {refundTypeFilter === 'cancel' ? (
-                          <tr><th>유형</th><th>신청자</th><th>주문번호</th><th>상품</th><th>사유</th><th>일자</th><th>상태</th><th>보기</th></tr>
+                          <tr><th style={{ width:'11%' }}>유형</th><th style={{ width:'16%' }}>신청자</th><th style={{ width:'15%' }}>주문번호</th><th style={{ width:'20%' }}>상품</th><th style={{ width:'14%' }}>사유</th><th style={{ width:'10%' }}>일자</th><th style={{ width:'8%' }}>상태</th><th style={{ width:'6%' }}>보기</th></tr>
                         ) : (
-                          <tr><th>신청자</th><th>주문번호</th><th>환불금액</th><th>방법</th><th>사유</th><th>상태</th><th>관리</th></tr>
+                          <tr><th style={{ width:'20%' }}>신청자</th><th style={{ width:'16%' }}>주문번호</th><th style={{ width:'14%' }}>환불금액</th><th style={{ width:'10%' }}>방법</th><th style={{ width:'18%' }}>사유</th><th style={{ width:'12%' }}>상태</th><th style={{ width:'10%' }}>관리</th></tr>
                         )}
                       </thead>
                       <tbody>
@@ -12675,10 +12675,21 @@ export default function AdminClient() {
                             (!refundTo   || ts <= new Date(`${refundTo}T23:59:59`).toISOString());
                           const isCancelTab = refundTypeFilter === 'cancel';
                           const payLabel = (pm?: string | null) => PAYMENT_LABEL[pm || ''] || (pm || '-');
-                          const prodSummary = (items?: { product_name: string }[]) => {
+                          /* 상품명 / ㄴ옵션 2줄 셀 — 주문관리·주문상세와 동일 형식으로 통일 */
+                          const prodCell = (items?: { product_name: string; option_label?: string | null }[]) => {
                             const arr = items || [];
-                            if (!arr.length) return '-';
-                            return arr.length > 1 ? `${arr[0].product_name} 외 ${arr.length - 1}건` : arr[0].product_name;
+                            if (!arr.length) return <span className="adm-muted">-</span>;
+                            const first = arr[0];
+                            const opt = first.option_label || '';
+                            let pname = first.product_name || '-';
+                            if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
+                            const extra = arr.length > 1 ? ` 외 ${arr.length - 1}건` : '';
+                            return (
+                              <div style={{ lineHeight:1.4 }}>
+                                <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pname}{extra}</div>
+                                {opt && <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>ㄴ {opt}</div>}
+                              </div>
+                            );
                           };
                           const openOrderModal = (o: Order) => { setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); };
                           const openOrder = (orderNo?: string | null, req?: AdminRefundReq) => {
@@ -12711,9 +12722,9 @@ export default function AdminClient() {
                                 {customerReqs.map(r => (
                                   <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => openOrder(r.orders?.order_no, r)}>
                                     <td><span className="adm-badge badge-normal">고객 직접취소</span></td>
-                                    <td><div style={{ fontWeight:500 }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11 }}>{r.profiles?.email || ''}</div></td>
-                                    <td className="adm-mono">{r.orders?.order_no || '-'}</td>
-                                    <td style={{ textAlign:'center', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(r.orders?.order_items)}</td>
+                                    <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.email || ''}</div></td>
+                                    <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.orders?.order_no || '-'}</td>
+                                    <td style={{ textAlign:'left' }}>{prodCell(r.orders?.order_items)}</td>
                                     <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                     <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
                                     <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
@@ -12723,9 +12734,9 @@ export default function AdminClient() {
                                 {directCancels.map(o => (
                                   <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => openOrderModal(o)}>
                                     <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
-                                    <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
-                                    <td className="adm-mono">{o.order_no}</td>
-                                    <td style={{ textAlign:'center', maxWidth:220, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{prodSummary(o.order_items)}</td>
+                                    <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
+                                    <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
+                                    <td style={{ textAlign:'left' }}>{prodCell(o.order_items)}</td>
                                     <td className="adm-muted">—</td>
                                     <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
                                     <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
@@ -12763,10 +12774,10 @@ export default function AdminClient() {
                                   return (
                                     <tr key={rep.order_id || rep.id}>
                                       <td>
-                                        <div style={{ fontWeight:500 }}>{rep.profiles?.name || '(탈퇴)'}</div>
-                                        <div className="adm-muted" style={{ fontSize:11 }}>{rep.profiles?.email || ''}</div>
+                                        <div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{rep.profiles?.name || '(탈퇴)'}</div>
+                                        <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{rep.profiles?.email || ''}</div>
                                       </td>
-                                      <td className="adm-mono">{rep.orders?.order_no || '-'}</td>
+                                      <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{rep.orders?.order_no || '-'}</td>
                                       <td>
                                         {`${fmtPrice(totalRefund)}원`}
                                         {group.length > 1
@@ -12787,8 +12798,8 @@ export default function AdminClient() {
                               })()}
                               {directCancels.map(o => (
                                 <tr key={o.id}>
-                                  <td><div style={{ fontWeight:500 }}>{o.recipient}</div></td>
-                                  <td className="adm-mono">{o.order_no}</td>
+                                  <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
+                                  <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
                                   <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
                                   <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
@@ -12945,7 +12956,7 @@ export default function AdminClient() {
                           <textarea className="adm-textarea" rows={3} style={{ width:'100%' }} value={refundMemoInput}
                             onChange={e => setRefundMemoInput(e.target.value)} placeholder="예) 계좌이체 환불 예정 / 고객 재송금 안내 완료 등" />
                           <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
-                            <button className="adm-btn adm-btn-outline" onClick={() => saveRefundPartial()} disabled={refundSaving}>{refundSaving ? '저장 중…' : '상품·메모 저장'}</button>
+                            <button className="adm-btn adm-btn-outline" onClick={() => saveRefundPartial()} disabled={refundSaving}>{refundSaving ? '저장 중…' : '메모 저장'}</button>
                           </div>
                         </div>
 
