@@ -13020,6 +13020,7 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-outline" onClick={downloadSettlementExcel} disabled={!settlementData}>
                     <span className="adm-btn-icon"><Icon.Download /></span>엑셀 다운로드
                   </button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => { setSettlementPreset('thisMonth'); const [f, t] = settlementRange('thisMonth'); setSettlementCustFrom(ymd(f)); setSettlementCustTo(ymd(new Date(t.getTime() - 1))); setSettlementData(null); loadSettlement(f, t); }}>초기화</button>
                   <button className="adm-btn adm-btn-outline" onClick={() => { const [f, t] = settlementRange(); loadSettlement(f, t); }}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                   </button>
@@ -13339,6 +13340,7 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
                   {selFarmSettle.size > 0 && <button className="adm-btn adm-btn-primary" onClick={markFarmSettledBulk}>선택 {selFarmSettle.size}건 정산완료</button>}
+                  <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); const m = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; setFarmSettleMonth(m); setFarmSettleHalf(1); setFarmSettleStatus('all'); setFarmSettleSearch(''); loadFarmSettlement(m, 1); }}>초기화</button>
                   <button className="adm-btn adm-btn-outline" onClick={() => loadFarmSettlement(farmSettleMonth, farmSettleHalf)}>
                     <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                   </button>
