@@ -13127,7 +13127,8 @@ export default function AdminClient() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ overflowX:'auto', padding:'8px 0' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+                      <div style={{ flex:'1 1 300px', minWidth:0, overflowX:'auto', padding:'8px 0' }}>
                       {settlementView === 'monthly' ? (() => {
                         const W = 46, H = 140, pad = 10;
                         const data = settlementYearly;
@@ -13181,6 +13182,26 @@ export default function AdminClient() {
                               </g>
                             ))}
                           </svg>
+                        );
+                      })()}
+                      </div>
+                      {/* 우측 빈 공간 — 예상 마진 원형(도넛) */}
+                      {(() => {
+                        const R = 46, SW = 13, C = 2 * Math.PI * R;
+                        const mPct = Math.max(0, Math.min(100, settlementData.marginRate));
+                        const dash = C * mPct / 100;
+                        return (
+                          <div style={{ flexShrink:0, width:186, alignSelf:'stretch', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, borderLeft:'1px solid #F1F5F9', paddingLeft:16 }}>
+                            <span style={{ fontSize:12, fontWeight:700, color:'#334155' }}>예상 마진</span>
+                            <svg width={118} height={118} viewBox="0 0 120 120">
+                              <circle cx="60" cy="60" r={R} fill="none" stroke="#E2E8F0" strokeWidth={SW} />
+                              <circle cx="60" cy="60" r={R} fill="none" stroke="#16A34A" strokeWidth={SW} strokeDasharray={`${dash} ${C - dash}`} strokeLinecap="round" transform="rotate(-90 60 60)" />
+                              <text x="60" y="57" textAnchor="middle" fontSize="19" fontWeight="800" fill="#16A34A">{settlementData.marginRate.toFixed(1)}%</text>
+                              <text x="60" y="75" textAnchor="middle" fontSize="10" fill="#94A3B8">마진율</text>
+                            </svg>
+                            <span style={{ fontSize:14, fontWeight:800, color:'#16A34A' }}>{fmtPrice(settlementData.margin)}원</span>
+                            <span style={{ fontSize:10, color:'#94A3B8' }}>상품원가 {fmtPrice(settlementData.supplyCost)}원</span>
+                          </div>
                         );
                       })()}
                     </div>
