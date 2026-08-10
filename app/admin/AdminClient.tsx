@@ -2900,6 +2900,16 @@ export default function AdminClient() {
   }
   const [settlementView, setSettlementView] = useState<'daily'|'monthly'>('daily');
   const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
+  /* 매출 그래프 좌측 영역 실측 폭 — 그래프를 컨테이너 폭에 꽉 채우기 위함(고정 픽셀 → 반응형) */
+  const settleChartRef = useRef<HTMLDivElement | null>(null);
+  const [settleChartW, setSettleChartW] = useState(720);
+  useEffect(() => {
+    const el = settleChartRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(entries => { const w = entries[0]?.contentRect?.width; if (w) setSettleChartW(Math.max(280, Math.round(w))); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [panel, settlementView, settlementData]);
 
   const loadedPanels = useRef(new Set<PanelKey>());
 
@@ -13127,39 +13137,42 @@ export default function AdminClient() {
                         ))}
                       </div>
                     </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-                      <div style={{ flex:'1 1 300px', minWidth:0, overflowX:'auto', display:'flex', alignItems:'center', padding:'8px 0' }}>
+                    <div style={{ display:'flex', alignItems:'stretch', gap:16, flexWrap:'wrap' }}>
+                      <div ref={settleChartRef} style={{ flex:'7 1 320px', minWidth:0, display:'flex', alignItems:'center', padding:'8px 0' }}>
                       {settlementView === 'monthly' ? (() => {
-                        const W = 46, H = 140, pad = 10;
+                        const H = 210, pad = 12;
                         const data = settlementYearly;
                         const maxAmt = Math.max(...data.map(d => d.amount), 1);
-                        const totalW = Math.max(data.length * W, 300);
+                        const totalW = settleChartW;
+                        const W = totalW / Math.max(data.length, 1);
+                        const barW = Math.min(W * 0.55, 40);
                         return (
                           <svg width={totalW} height={H + 22} style={{ display:'block' }}>
                             {[0.25,0.5,0.75,1].map(r => {
                               const y = H - pad - Math.round(r * (H - pad * 2));
-                              return <line key={r} x1={pad} x2={totalW - pad} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
+                              return <line key={r} x1={0} x2={totalW} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
                             })}
                             {data.map((d, i) => {
                               const barH = Math.round((d.amount / maxAmt) * (H - pad * 2));
-                              const x = pad + i * W + 6;
+                              const x = i * W + (W - barW) / 2;
                               return (
                                 <g key={i}>
-                                  <rect x={x} y={H - pad - barH} width={W - 16} height={barH} rx="3" fill="#3B82F6" fillOpacity={settlementMonth.endsWith(String(d.month).padStart(2,'0')) ? 1 : 0.55} />
+                                  <rect x={x} y={H - pad - barH} width={barW} height={barH} rx="3" fill="#3B82F6" fillOpacity={settlementMonth.endsWith(String(d.month).padStart(2,'0')) ? 1 : 0.55} />
                                   <title>{`${d.month}월: ${fmtPrice(d.amount)}원`}</title>
-                                  <text x={x + (W-16)/2} y={H + 14} textAnchor="middle" fontSize="10" fill="#94A3B8">{d.month}월</text>
+                                  <text x={i * W + W / 2} y={H + 14} textAnchor="middle" fontSize="10" fill="#94A3B8">{d.month}월</text>
                                 </g>
                               );
                             })}
                           </svg>
                         );
                       })() : (() => {
-                        const W = 28, H = 120, pad = 8;
+                        const H = 210, pad = 10;
                         const data = settlementData.daily;
                         const maxAmt = Math.max(...data.map(d => d.amount), 1);
-                        const totalW = Math.max(data.length * W, 300);
+                        const totalW = settleChartW;
+                        const W = totalW / Math.max(data.length, 1);
                         const pts = data.map((d, i) => {
-                          const x = pad + i * W + W / 2;
+                          const x = i * W + W / 2;
                           const y = H - pad - Math.round((d.amount / maxAmt) * (H - pad * 2));
                           return { x, y, d };
                         });
@@ -13168,7 +13181,7 @@ export default function AdminClient() {
                           <svg width={totalW} height={H + 20} style={{ display:'block' }}>
                             {[0.25,0.5,0.75,1].map(r => {
                               const y = H - pad - Math.round(r * (H - pad * 2));
-                              return <line key={r} x1={pad} x2={totalW - pad} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
+                              return <line key={r} x1={0} x2={totalW} y1={y} y2={y} stroke="#E2E8F0" strokeWidth="1" />;
                             })}
                             <polygon
                               points={`${pts[0]?.x},${H - pad} ${polyline} ${pts[pts.length-1]?.x},${H - pad}`}
@@ -13191,9 +13204,9 @@ export default function AdminClient() {
                         const mPct = Math.max(0, Math.min(100, settlementData.marginRate));
                         const dash = C * mPct / 100;
                         return (
-                          <div style={{ flexShrink:0, width:180, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, borderLeft:'1px solid #F1F5F9', paddingLeft:16 }}>
-                            <span style={{ fontSize:12, fontWeight:700, color:'#334155' }}>예상 마진</span>
-                            <svg width={96} height={96} viewBox="0 0 120 120">
+                          <div style={{ flex:'3 1 200px', minWidth:160, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:4, borderLeft:'1px solid #F1F5F9', paddingLeft:16 }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:'#334155' }}>예상 마진</span>
+                            <svg width={128} height={128} viewBox="0 0 120 120">
                               <circle cx="60" cy="60" r={R} fill="none" stroke="#E2E8F0" strokeWidth={SW} />
                               <circle cx="60" cy="60" r={R} fill="none" stroke="#16A34A" strokeWidth={SW} strokeDasharray={`${dash} ${C - dash}`} strokeLinecap="round" transform="rotate(-90 60 60)" />
                               <text x="60" y="57" textAnchor="middle" fontSize="19" fontWeight="800" fill="#16A34A">{settlementData.marginRate.toFixed(1)}%</text>
