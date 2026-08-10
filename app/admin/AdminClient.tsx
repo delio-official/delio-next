@@ -13129,7 +13129,7 @@ export default function AdminClient() {
 
                   {/* 매출 그래프 (일별/월별) — 전기간대비 아래 */}
                   <div className="adm-card" style={{ marginBottom:16 }}>
-                    <div className="adm-card-head">
+                    <div className="adm-card-head" style={{ borderBottom:'none' }}>
                       <span className="adm-card-title">{settlementView === 'daily' ? '일별 매출' : `${settlementMonth.slice(0,4)}년 월별 매출`}</span>
                       <div className="adm-btn-group">
                         {([['daily','일별'],['monthly','월별']] as const).map(([v, l]) => (
@@ -13226,7 +13226,7 @@ export default function AdminClient() {
                   {/* 주문 상태별 / 결제 수단별 */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">주문 상태별 현황</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">주문 상태별 현황</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>상태</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
                         <tbody>
@@ -13243,7 +13243,7 @@ export default function AdminClient() {
                       </table>
                     </div>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">결제 수단별 현황</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">결제 수단별 현황</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>결제수단</th><th className="adm-num">건수</th><th className="adm-num">금액</th></tr></thead>
                         <tbody>
@@ -13264,7 +13264,7 @@ export default function AdminClient() {
                   {/* 멤버십 등급별 매출 / 신규 vs 재구매 */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">멤버십 등급별 매출 비중</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">멤버십 등급별 매출 비중</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>등급</th><th className="adm-num">주문수</th><th className="adm-num">매출</th><th className="adm-num">비중</th></tr></thead>
                         <tbody>
@@ -13283,7 +13283,7 @@ export default function AdminClient() {
                       </table>
                     </div>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">신규 vs 재구매 매출 비중</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">신규 vs 재구매 매출 비중</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>구분</th><th className="adm-num">주문수</th><th className="adm-num">매출</th><th className="adm-num">비중</th></tr></thead>
                         <tbody>
@@ -13304,7 +13304,7 @@ export default function AdminClient() {
                   {/* TOP 상품 / 카테고리 */}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">상위 판매 상품 TOP 5</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>상품</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
                         <tbody>
@@ -13317,7 +13317,7 @@ export default function AdminClient() {
                       </table>
                     </div>
                     <div className="adm-card">
-                      <div className="adm-card-head"><span className="adm-card-title">카테고리별 매출 TOP</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">카테고리별 매출 TOP</span></div>
                       <table className="adm-table" style={{ marginTop:4 }}>
                         <thead><tr><th>카테고리</th><th className="adm-num">수량</th><th className="adm-num">매출</th></tr></thead>
                         <tbody>
