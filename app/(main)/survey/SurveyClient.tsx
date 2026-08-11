@@ -272,6 +272,7 @@ export default function SurveyClient() {
   useEffect(() => {
     if (!result) return;
     async function loadRecs() {
+      try {
       const supabase = createClient();
       /* 추천 상품 노출 설정 확인 */
       const { data: setting } = await supabase
@@ -299,7 +300,8 @@ export default function SurveyClient() {
         return (b.created_at || '').localeCompare(a.created_at || '');
       });
       setRecProducts(sorted.slice(0, 6));
-      setRecLoaded(true);
+      } catch { /* 조회 실패해도 로딩은 반드시 해제(무한 '불러오는 중' 방지) */ }
+      finally { setRecLoaded(true); }
     }
     loadRecs();
   }, [result]);
