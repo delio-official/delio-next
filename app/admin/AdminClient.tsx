@@ -10,6 +10,7 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
 import { SELLER_AXES, TASTE_AXES, axisLevelLabel, toLevel, type ReviewTaste } from '@/lib/taste';
 import SectionCuration from '@/components/admin/SectionCuration';
 import dynamic from 'next/dynamic';
@@ -14316,25 +14317,52 @@ export default function AdminClient() {
                   no = sv('biz_no','288-12-02921'), mo = sv('biz_mail_order','2026-고양덕양구-1612'),
                   addr = sv('biz_addr','경기도 고양시 덕양구 권율대로 656, 13층 1329호'),
                   phone = sv('cs_phone','070-8064-3601'), email = sv('cs_email','deli_o@naver.com');
-                /* 실제 사이트 푸터 재현 — mobile=true면 폭·글자 축소해 모바일 미리보기 */
+                /* 실제 사이트 푸터(SiteFooter) 재현 — mobile=true면 세로 스택·축소 */
                 const renderFooter = (mobile: boolean) => (
-                  <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:12, padding: mobile ? '16px 16px' : '22px 24px', width: mobile ? 320 : '100%', maxWidth:'100%', boxSizing:'border-box' }}>
-                    <img src="/DelioLogo.png" alt="Delio" style={{ height: mobile ? 26 : 30, width:'auto', display:'block', objectFit:'contain', marginBottom: mobile ? 12 : 16 }} />
-                    <div style={{ fontSize: mobile ? 11 : 12, color:'#888', lineHeight:1.9 }}>
-                      <div>상호명 : {biz} &nbsp;|&nbsp; 대표 : {ceo}</div>
-                      <div>주소 : {addr}</div>
-                      <div>사업자등록번호 : {no} &nbsp;|&nbsp; 통신판매업신고 : {mo}</div>
-                      <div>개인정보보호책임자 : {ceo} ({email})</div>
-                      <div>모든 거래에 대한 책임과 환불·민원 처리는 {biz}가 진행합니다. &nbsp;|&nbsp; 민원담당자 : {ceo} ({phone})</div>
-                      <div style={{ color:'#c0c0c0', marginTop:6 }}>© {biz}. All rights reserved.</div>
+                  <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:12, padding: mobile ? '18px 16px' : '24px 26px', width: mobile ? 340 : '100%', maxWidth:'100%', boxSizing:'border-box' }}>
+                    {/* 로고 */}
+                    <img src="/DelioLogo.png" alt="Delio" style={{ height: mobile ? 32 : 42, width:'auto', display:'block', objectFit:'contain', marginBottom: mobile ? 14 : 18 }} />
+                    {/* 사업자정보 | 고객센터 | 입금계좌 (모바일은 세로 스택) */}
+                    <div style={{ display:'grid', gridTemplateColumns: mobile ? '1fr' : '1.9fr 1fr 1fr', gap: mobile ? 18 : 26, paddingBottom: mobile ? 18 : 26, alignItems:'start' }}>
+                      {/* 사업자 정보 */}
+                      <div style={{ fontSize: mobile ? 11 : 12, color:'#888', lineHeight:1.75, display:'flex', flexDirection:'column', gap:12 }}>
+                        <div>
+                          <div>상호명 : {biz} &nbsp;|&nbsp; 대표 : {ceo}</div>
+                          <div>주소 : {addr}</div>
+                          <div>사업자등록번호 : {no} &nbsp;|&nbsp; 통신판매업신고 : {mo}</div>
+                          <div>개인정보보호책임자 : {ceo} ({email})</div>
+                          <div>모든 거래에 대한 책임과 환불·민원 처리는 {biz}가 진행합니다. &nbsp;|&nbsp; 민원담당자 : {ceo} ({phone})</div>
+                        </div>
+                        <div style={{ color:'#c0c0c0' }}>© {biz}. All rights reserved.</div>
+                      </div>
+                      {/* 고객센터 */}
+                      <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize: mobile ? 11.5 : 12.5, color:'#888', lineHeight:1.7 }}>
+                        <div style={{ fontWeight:700, color:'#1A1A1A', fontSize: mobile ? 13 : 14 }}>고객센터 안내</div>
+                        <div style={{ fontSize: mobile ? 20 : 24, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>{phone}</div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                          <div style={{ display:'flex', gap:14 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:52, flexShrink:0 }}>운영시간</span><span>평일 09:00 - 18:00</span></div>
+                          <div style={{ display:'flex', gap:14 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:52, flexShrink:0 }}>점심시간</span><span>12:00 - 13:00</span></div>
+                          <div style={{ display:'flex', gap:14 }}><span style={{ color:'#1A1A1A', fontWeight:600, minWidth:52, flexShrink:0 }}>휴무일</span><span>주말 및 공휴일</span></div>
+                        </div>
+                      </div>
+                      {/* 입금 계좌 */}
+                      <div style={{ display:'flex', flexDirection:'column', gap:8, fontSize: mobile ? 12 : 13, color:'#999', lineHeight:1.7 }}>
+                        <div style={{ fontWeight:700, color:'#1A1A1A', fontSize: mobile ? 13 : 14 }}>입금 계좌안내</div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                          <div>{BANK_LINE}</div>
+                          <div>예금주 : {BANK_HOLDER}</div>
+                        </div>
+                        <div style={{ display:'inline-block', alignSelf:'flex-start', background:'#F3F3F1', color:'#666', fontSize: mobile ? 12 : 13, padding:'8px 14px', borderRadius:6 }}>입금 시 주문자 성함 기재</div>
+                      </div>
                     </div>
-                    <div style={{ borderTop:'1px solid #F0F0EE', marginTop:16, paddingTop:16 }}>
-                      <div style={{ fontWeight:700, color:'#1A1A1A', fontSize:14, marginBottom:6 }}>고객센터 안내</div>
-                      <div style={{ fontSize: mobile ? 20 : 24, fontWeight:800, color:'#1A1A1A', letterSpacing:'-0.5px' }}>{phone}</div>
-                      <div style={{ fontSize: mobile ? 11.5 : 12.5, color:'#888', marginTop:8, lineHeight:1.8 }}>
-                        <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>운영시간</span>평일 09:00 - 18:00</div>
-                        <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>점심시간</span>12:00 - 13:00</div>
-                        <div><span style={{ color:'#1A1A1A', fontWeight:600, display:'inline-block', width:60 }}>휴무일</span>주말 및 공휴일</div>
+                    {/* 하단: 정책 링크 + SNS */}
+                    <div style={{ borderTop:'1px solid #EBEBEB', paddingTop: mobile ? 16 : 22, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+                      <div style={{ display:'flex', gap: mobile ? 14 : 22, fontSize: mobile ? 11.5 : 13, fontWeight:500, color:'#444', flexWrap:'wrap' }}>
+                        <span>개인정보처리방침</span><span>이용약관</span><span>취소/환불정책</span><span>자주 묻는 질문</span>
+                      </div>
+                      <div style={{ display:'flex', gap:14, alignItems:'center', color:'#bbb' }}>
+                        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+                        <svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"><path d="M23 12s0-3.5-.45-5.16a2.6 2.6 0 00-1.83-1.84C19.06 4.55 12 4.55 12 4.55s-7.06 0-8.72.45A2.6 2.6 0 001.45 6.84C1 8.5 1 12 1 12s0 3.5.45 5.16a2.6 2.6 0 001.83 1.84c1.66.45 8.72.45 8.72.45s7.06 0 8.72-.45a2.6 2.6 0 001.83-1.84C23 15.5 23 12 23 12zM9.75 15.27V8.73L15.5 12z"/></svg>
                       </div>
                     </div>
                   </div>
