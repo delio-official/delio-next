@@ -2374,6 +2374,12 @@ export default function AdminClient() {
   const [reviewOrder, setReviewOrder] = useState<{ order_no: string; created_at: string; option_label: string | null } | null>(null);
   const [reviewOrderLoading, setReviewOrderLoading] = useState(false);
   const [reviewReplySaving, setReviewReplySaving] = useState(false);
+  /* 리뷰 수정(관리자 전용) — 작성일·별점·내용 */
+  const [reviewEdit, setReviewEdit] = useState(false);
+  const [reviewEditDate, setReviewEditDate] = useState('');
+  const [reviewEditContent, setReviewEditContent] = useState('');
+  const [reviewEditRating, setReviewEditRating] = useState(5);
+  const [reviewEditSaving, setReviewEditSaving] = useState(false);
 
   /* ── 이벤트 ── */
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -4734,6 +4740,7 @@ export default function AdminClient() {
   async function openReviewDetail(r: AdminReview) {
     setSelectedReview(r);
     setReviewReply(r.seller_reply || '');
+    setReviewEdit(false);
     setReviewOrder(null);
     if (!r.user_id) return;                       // 관리자 작성 등 주문이 없는 리뷰
     setReviewOrderLoading(true);
@@ -4772,6 +4779,37 @@ export default function AdminClient() {
     } catch {
       setReviewReplySaving(false);
       alert('답변 저장 중 오류가 발생했습니다.');
+    }
+  }
+
+  /* 리뷰 수정 모드 진입 — 현재 값 프리필 */
+  function startReviewEdit() {
+    if (!selectedReview) return;
+    setReviewEditDate(selectedReview.created_at ? selectedReview.created_at.slice(0, 10) : '');
+    setReviewEditContent(selectedReview.content || '');
+    setReviewEditRating(selectedReview.rating || 5);
+    setReviewEdit(true);
+  }
+  /* 리뷰 수정 저장 — 관리자 전용 서버 라우트(작성일·별점·내용) */
+  async function saveReviewEdit() {
+    if (!selectedReview) return;
+    if (!reviewEditContent.trim()) { alert('리뷰 내용을 입력하세요.'); return; }
+    setReviewEditSaving(true);
+    try {
+      const res = await fetch('/api/reviews/update', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId: selectedReview.id, content: reviewEditContent.trim(), rating: reviewEditRating, reviewDate: reviewEditDate }),
+      });
+      const json = await res.json();
+      if (!json.ok) { alert('수정 실패: ' + (json.error || '')); return; }
+      const patch = { content: reviewEditContent.trim(), rating: reviewEditRating, ...(json.created_at ? { created_at: json.created_at as string } : {}) };
+      setReviews(prev => prev.map(r => r.id === selectedReview.id ? { ...r, ...patch } : r));
+      setSelectedReview(prev => prev && prev.id === selectedReview.id ? { ...prev, ...patch } : prev);
+      setReviewEdit(false);
+    } catch {
+      alert('수정 중 오류가 발생했습니다.');
+    } finally {
+      setReviewEditSaving(false);
     }
   }
 
@@ -14660,20 +14698,30 @@ export default function AdminClient() {
                       <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
                       {reviewOrder?.option_label && <span style={{ color:'#94A3B8' }}> ({reviewOrder.option_label})</span>}
                     </div>
-                    <div style={{ marginTop:4 }}><span style={{ color:'#64748B' }}>작성일</span> {fmtDate(selectedReview.created_at)}</div>
+                    <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}><span style={{ color:'#64748B' }}>작성일</span>
+                      {reviewEdit
+                        ? <input type="date" value={reviewEditDate} onChange={e => setReviewEditDate(e.target.value)} style={{ padding:'3px 8px', border:'1px solid #CBD5E1', borderRadius:6, fontSize:12 }} />
+                        : <span>{fmtDate(selectedReview.created_at)}</span>}
+                    </div>
                     <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ color:'#64748B' }}>별점</span>
-                      <StarRating rating={selectedReview.rating} size={12} />
-                      <span>({selectedReview.rating.toFixed(1)})</span>
+                      {reviewEdit
+                        ? <span style={{ display:'flex', alignItems:'center', gap:2 }}>{[1,2,3,4,5].map(n => (
+                            <button key={n} type="button" onClick={() => setReviewEditRating(n)} style={{ background:'none', border:'none', cursor:'pointer', fontSize:17, lineHeight:1, color: n <= reviewEditRating ? '#F59E0B' : '#CBD5E1', padding:0 }}>★</button>
+                          ))}<span style={{ marginLeft:4 }}>({reviewEditRating.toFixed(1)})</span></span>
+                        : <><StarRating rating={selectedReview.rating} size={12} /><span>({selectedReview.rating.toFixed(1)})</span></>}
                     </div>
                   </div>
 
                   <div style={{ textAlign:'left' }}>
                     <div style={{ fontSize:12, fontWeight:700, color:'#475569', marginBottom:6 }}>리뷰 내용</div>
-                    <div className="hide-scrollbar" style={{ fontSize:13.5, lineHeight:1.75, color:'#1A1A1A', whiteSpace:'pre-wrap',
-                      maxHeight:190, overflowY:'auto' }}>
-                      {selectedReview.content}
-                    </div>
+                    {reviewEdit
+                      ? <textarea value={reviewEditContent} onChange={e => setReviewEditContent(e.target.value)} rows={6}
+                          style={{ width:'100%', fontSize:13.5, lineHeight:1.7, padding:'8px 10px', border:'1px solid #CBD5E1', borderRadius:8, boxSizing:'border-box', resize:'vertical', fontFamily:'inherit' }} />
+                      : <div className="hide-scrollbar" style={{ fontSize:13.5, lineHeight:1.75, color:'#1A1A1A', whiteSpace:'pre-wrap',
+                          maxHeight:190, overflowY:'auto' }}>
+                          {selectedReview.content}
+                        </div>}
                   </div>
 
                   {selectedReview.image_urls && selectedReview.image_urls.length > 0 && (
@@ -14797,17 +14845,29 @@ export default function AdminClient() {
             </div>
             {/* 하단 — 좌: 삭제 / 우: 닫기·등록 */}
             <div className="adm-modal-foot">
-              <button className="adm-btn foot-left" style={{ background:'#DC2626', color:'#fff', border:'none' }}
-                onClick={async () => {
-                  if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
-                  await deleteReview(selectedReview.id);
-                  setSelectedReview(null);
-                }}>리뷰 삭제</button>
-              <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
-              <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
-                onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
-                {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
-              </button>
+              {reviewEdit ? (
+                <>
+                  <button className="adm-btn adm-btn-outline" disabled={reviewEditSaving} onClick={() => setReviewEdit(false)}>취소</button>
+                  <button className="adm-btn adm-btn-primary" disabled={reviewEditSaving || !reviewEditContent.trim()} onClick={saveReviewEdit}>
+                    {reviewEditSaving ? '저장 중...' : '리뷰 저장'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="adm-btn foot-left" style={{ background:'#DC2626', color:'#fff', border:'none' }}
+                    onClick={async () => {
+                      if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
+                      await deleteReview(selectedReview.id);
+                      setSelectedReview(null);
+                    }}>리뷰 삭제</button>
+                  <button className="adm-btn adm-btn-outline" onClick={startReviewEdit}>수정</button>
+                  <button className="adm-btn adm-btn-outline" onClick={() => setSelectedReview(null)}>닫기</button>
+                  <button className="adm-btn adm-btn-primary" disabled={reviewReplySaving || !reviewReply.trim()}
+                    onClick={() => saveReviewReply(selectedReview.id, reviewReply)}>
+                    {reviewReplySaving ? '저장 중...' : selectedReview.seller_reply ? '답변 수정' : '답변 등록'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
