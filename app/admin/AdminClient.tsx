@@ -13726,7 +13726,7 @@ export default function AdminClient() {
                           </div>
                           <div style={{ display:'flex', height:26, borderRadius:6, overflow:'hidden' }}>
                             {row.map((e, i) => (
-                              <div key={e.lb} style={{ width:`${e.pct}%`, background: i === 0 ? TASTE_HEX[ai % TASTE_HEX.length] : `${TASTE_HEX[ai % TASTE_HEX.length]}99`, color:'#fff', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', whiteSpace:'nowrap' }}>
+                              <div key={e.lb} style={{ width:`${e.pct}%`, background: i === 0 ? 'linear-gradient(180deg, #F7ADA5 0%, #EF938C 100%)' : '#FBDAD5', color: i === 0 ? '#fff' : '#B65C52', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', whiteSpace:'nowrap' }}>
                                 {e.pct >= 10 && `${e.pct}%`}
                               </div>
                             ))}
