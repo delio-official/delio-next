@@ -13968,9 +13968,9 @@ export default function AdminClient() {
                   </div>
                   {mktRange === 'custom' && (
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                      <input type="date" className="adm-input" value={mktFrom} onChange={e => setMktFrom(e.target.value)} style={{ padding:'6px 8px' }} />
+                      <input type="date" className="adm-select" value={mktFrom} onChange={e => setMktFrom(e.target.value)} />
                       <span className="adm-muted">~</span>
-                      <input type="date" className="adm-input" value={mktTo} onChange={e => setMktTo(e.target.value)} style={{ padding:'6px 8px' }} />
+                      <input type="date" className="adm-select" value={mktTo} onChange={e => setMktTo(e.target.value)} />
                     </div>
                   )}
                 </div>
