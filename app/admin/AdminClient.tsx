@@ -2953,6 +2953,19 @@ export default function AdminClient() {
     return () => ro.disconnect();
   }, [panel, settlementView, settlementData]);
 
+  /* 브랜드 수정 화면이 열리면 히스토리 1개 push — 브라우저 '뒤로가기'가 페이지 이탈 대신 목록으로 닫히게 */
+  useEffect(() => {
+    if (!farmModal) return;
+    window.history.pushState({ admFarmModal: true }, '');
+    const onPop = () => setFarmModal(false);
+    window.addEventListener('popstate', onPop);
+    return () => {
+      window.removeEventListener('popstate', onPop);
+      /* 버튼(목록으로 등)으로 닫힌 경우엔 push한 상태가 남아있으니 back으로 정리(뒤로가기로 닫힌 경우는 이미 pop됨) */
+      if ((window.history.state as { admFarmModal?: boolean } | null)?.admFarmModal) window.history.back();
+    };
+  }, [farmModal]);
+
   const loadedPanels = useRef(new Set<PanelKey>());
 
   /* ── 어드민 권한 확인 (모든 useState/useRef 이후) ── */
