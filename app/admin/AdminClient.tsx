@@ -14371,7 +14371,7 @@ export default function AdminClient() {
               <div className="adm-card" style={{ marginBottom:20 }}>
                 <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">사이트 정보</span><span className="adm-muted" style={{ fontSize:12 }}>· 사이트 하단 푸터에 표기됩니다</span></div>
                 <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
-                  <div className="adm-form" style={{ flex:'1 1 380px', minWidth:0 }}>
+                  <div className="adm-form" style={{ flex:'3 1 280px', minWidth:0 }}>
                     {([
                       ['biz_name', '상호명', '델리오'],
                       ['biz_ceo', '대표자명', '송민창'],
@@ -14394,7 +14394,7 @@ export default function AdminClient() {
                     </div>
                   </div>
                   {/* 푸터 미리보기 — PC / 모바일 위아래 */}
-                  <div style={{ flex:'1 1 340px', minWidth:0, display:'flex', flexDirection:'column', gap:20 }}>
+                  <div style={{ flex:'7 1 420px', minWidth:0, display:'flex', flexDirection:'column', gap:20 }}>
                     <div>
                       <div className="adm-muted" style={{ fontSize:12, marginBottom:8, fontWeight:600 }}>푸터 미리보기 · PC</div>
                       {renderFooter(false)}
