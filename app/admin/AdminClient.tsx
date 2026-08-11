@@ -14330,9 +14330,9 @@ export default function AdminClient() {
                       ['cs_email', '고객센터 이메일', 'deli_o@naver.com'],
                       ['biz_addr', '사업장 주소', '경기도 고양시 덕양구 …'],
                     ] as [string, string, string][]).map(([key, label, ph]) => (
-                      <div className="adm-form-row" key={key}>
-                        <label className="adm-label">{label}</label>
-                        <input type="text" className="adm-input-text" style={{ width:320, maxWidth:'100%' }}
+                      <div className="adm-form-row" key={key} style={{ marginBottom:24 }}>
+                        <label className="adm-label" style={{ marginBottom:8 }}>{label}</label>
+                        <input type="text" className="adm-input-text" style={{ width:320, maxWidth:'100%', padding:'11px 14px' }}
                           value={siteSettings[key] ?? ''} placeholder={ph}
                           onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
                       </div>
