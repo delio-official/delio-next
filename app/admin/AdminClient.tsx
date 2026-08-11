@@ -6983,14 +6983,18 @@ export default function AdminClient() {
     );
   }
 
-  /* 네비 그룹 — 섹션별 접기/펼치기(기본 '운영'만 열림, 활성 패널 포함 그룹은 자동 열림) */
-  function NavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  /* 네비 그룹 — 섹션별 접기/펼치기(기본 '운영'만 열림, 활성 패널 포함 그룹은 자동 열림).
+     badge: 접혀 있을 때만 헤더에 하위 이슈 합계 표시(펼치면 각 항목 뱃지로 보이므로 중복 방지) */
+  function NavGroup({ label, badge, children }: { label: string; badge?: number; children: React.ReactNode }) {
     const open = navOpen[label] !== undefined ? navOpen[label] : (label === '운영' || PANEL_GROUP[panel] === label);
     return (
       <div className="adm-nav-group">
         <button type="button" className="adm-nav-label" onClick={() => setNavOpen(prev => ({ ...prev, [label]: !open }))}
           style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', font:'inherit', textAlign:'left' }}>
-          <span>{label}</span>
+          <span style={{ display:'flex', alignItems:'center', gap:7 }}>
+            {label}
+            {!open && badge ? <span className="adm-nav-badge">{badge}</span> : null}
+          </span>
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition:'transform .15s', opacity:.6 }}><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         {open && <div>{children}</div>}
@@ -9073,15 +9077,15 @@ export default function AdminClient() {
             <div style={{ marginBottom:6 }}>
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
             </div>
-            <NavGroup label="운영">
-              <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" />
+            <NavGroup label="운영" badge={orders.filter(o => o.status === 'paid').length || undefined}>
+              <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" badge={orders.filter(o => o.status === 'paid').length || undefined} />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
               <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="브랜드 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </NavGroup>
-            <NavGroup label="고객지원">
+            <NavGroup label="고객지원" badge={(csPending.length + productInquiries.filter(q => !q.answer).length + refundReqs.filter(r => r.status === 'pending').length + pendingInquiries.length) || undefined}>
               <NavItem panel="cs"  icon={<Icon.Cs />}  label="1:1 문의"
                 badge={csPending.length || undefined} />
               <NavItem panel="productinquiry" icon={<Icon.Faq />} label="상품 문의"
