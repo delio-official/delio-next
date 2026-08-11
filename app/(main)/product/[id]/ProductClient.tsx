@@ -164,6 +164,7 @@ export default function ProductClient() {
   const [newRating,        setNewRating]        = useState(0);
   const [newContent,       setNewContent]       = useState('');
   const [newAuthorName,    setNewAuthorName]    = useState('');   // 관리자 전용: 작성자 표시명 직접 지정
+  const [newReviewDate,    setNewReviewDate]    = useState('');   // 관리자 전용: 작성일(YYYY-MM-DD) 직접 지정, 비우면 오늘
   const [newTaste,         setNewTaste]         = useState<Record<string, number>>({});
   const [newImages,        setNewImages]        = useState<File[]>([]);
   const [newVideo,         setNewVideo]         = useState<File | null>(null);
@@ -912,6 +913,7 @@ export default function ProductClient() {
         video_url:  finalVideo,
         taste:      Object.keys(newTaste).length > 0 ? newTaste : null,
         ...(isAdmin && newAuthorName.trim() ? { author_name: maskName(newAuthorName) } : {}),
+        ...(isAdmin && newReviewDate ? { created_at: new Date(newReviewDate + 'T12:00:00').toISOString() } : {}),
       }).eq('id', editingReviewId);
       submittingRef.current = false; setSubmitting(false);
       if (upErr) { alert('수정 실패: ' + upErr.message); return; }
@@ -931,6 +933,7 @@ export default function ProductClient() {
       taste: Object.keys(newTaste).length > 0 ? newTaste : null,
       author_name: authorName,
       is_best: false,
+      ...(isAdmin && newReviewDate ? { created_at: new Date(newReviewDate + 'T12:00:00').toISOString() } : {}),
     };
     let { data: inserted, error } = await supabase.from('reviews').insert(reviewPayload).select('id').single();
     /* author_name 컬럼이 아직 없으면(SQL 미실행) 제외하고 재시도 */
@@ -996,6 +999,7 @@ export default function ProductClient() {
     setNewRating(0);
     setNewContent('');
     setNewAuthorName('');
+    setNewReviewDate('');
     setNewTaste({});
     setNewImages([]);
     setNewVideo(null);
@@ -1082,6 +1086,7 @@ export default function ProductClient() {
     setNewImages([]);
     setNewVideo(null);
     setNewAuthorName(r.author_name || '');
+    setNewReviewDate(r.created_at ? r.created_at.slice(0, 10) : '');
     setReviewModalOpen(true);
   }
 
@@ -3298,6 +3303,26 @@ export default function ProductClient() {
                   value={newAuthorName}
                   onChange={e => setNewAuthorName(e.target.value)}
                   placeholder="예: 김신찬 (김**** 로 표시) · 비우면 내 이름으로"
+                  style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
+                    borderRadius:10, fontSize:14, outline:'none',
+                    fontFamily:'inherit', boxSizing:'border-box', color:'var(--color-ink)' }}
+                />
+              </div>
+            )}
+
+            {/* 관리자 전용: 작성일 직접 지정 (비우면 오늘 날짜로 저장) */}
+            {isAdmin && (
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:8, color:'var(--color-ink-soft)' }}>
+                  작성일
+                  <span style={{ fontSize:12, color:'#999', fontWeight:500, marginLeft:6 }}>
+                    관리자 전용 · 비우면 오늘 날짜로 저장 (선택한 날에 쓴 것처럼 표시)
+                  </span>
+                </div>
+                <input
+                  type="date"
+                  value={newReviewDate}
+                  onChange={e => setNewReviewDate(e.target.value)}
                   style={{ width:'100%', padding:'12px 14px', border:'1.5px solid #E8E8E6',
                     borderRadius:10, fontSize:14, outline:'none',
                     fontFamily:'inherit', boxSizing:'border-box', color:'var(--color-ink)' }}
