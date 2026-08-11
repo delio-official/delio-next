@@ -13821,15 +13821,12 @@ export default function AdminClient() {
                   </div>
                 )}
 
-                {/* 검색 */}
+                {/* 검색 — 좌측·표준 스타일(다른 섹션과 동일) */}
                 <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                   <div className="adm-toolbar-left">
-                    {surveyTypeFilter && <span className="adm-muted" style={{ fontSize:13 }}>필터: <b style={{ color:'#1A1A1A' }}>{TYPE_EMOJI[surveyTypeFilter] || ''} {surveyTypeFilter}</b> · <button onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }} style={{ border:'none', background:'none', color:'#3B82F6', cursor:'pointer', fontSize:13, padding:0 }}>전체 보기</button></span>}
-                  </div>
-                  <div className="adm-toolbar-right">
-                    <input className="adm-input" placeholder="회원명·이메일 검색" value={surveySearch}
+                    <input type="text" className="adm-input-text" placeholder="회원명·이메일 검색" value={surveySearch}
                       onChange={e => { setSurveySearch(e.target.value); setSurveyPage(1); }}
-                      style={{ minWidth:200 }} />
+                      style={{ minWidth:220 }} />
                   </div>
                 </div>
 
