@@ -13977,6 +13977,7 @@ export default function AdminClient() {
                 <div className="adm-toolbar-right" style={{ gap:8 }}>
                   <button className="adm-btn adm-btn-dark" onClick={loadMarketing}>조회</button>
                   <a className="adm-btn adm-btn-outline" href="https://analytics.google.com" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>GA4 열기 ↗</a>
+                  <a className="adm-btn adm-btn-outline" href="https://clarity.microsoft.com/projects" target="_blank" rel="noopener" style={{ textDecoration:'none' }}>Clarity 열기 ↗</a>
                 </div>
               </div>
               {marketingLoading || !marketing ? <PanelLoading /> : (() => {
