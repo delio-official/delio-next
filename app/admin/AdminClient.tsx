@@ -13797,7 +13797,7 @@ export default function AdminClient() {
                       <span className="adm-card-title">유형별 분포</span>
                       <span className="adm-muted" style={{ fontSize:12 }}>· 클릭하면 해당 유형만 조회</span>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10, padding:'4px 0 8px' }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:10, padding:'8px 18px 18px' }}>
                       {/* 전체 */}
                       <button onClick={() => { setSurveyTypeFilter(''); setSurveyPage(1); }}
                         style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:10, cursor:'pointer', textAlign:'left',
