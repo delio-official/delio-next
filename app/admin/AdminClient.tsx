@@ -2956,7 +2956,7 @@ export default function AdminClient() {
   /* 브랜드 수정 화면이 열리면 히스토리 1개 push — 브라우저 '뒤로가기'가 페이지 이탈 대신 목록으로 닫히게 */
   useEffect(() => {
     if (!farmModal) return;
-    window.history.pushState({ admFarmModal: true }, '');
+    window.history.pushState({ ...window.history.state, admFarmModal: true }, '');
     const onPop = () => setFarmModal(false);
     window.addEventListener('popstate', onPop);
     return () => {
@@ -3008,6 +3008,9 @@ export default function AdminClient() {
       const p = (window.history.state?.admPanel as PanelKey) || 'dashboard';
       go(p, true);
     }
+    /* 새로고침(마운트) 시 — 히스토리에 남은 패널을 복원(대시보드로 튕기지 않게) */
+    const initial = window.history.state?.admPanel as PanelKey | undefined;
+    if (initial && initial !== 'dashboard') go(initial, true);
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
