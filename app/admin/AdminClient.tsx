@@ -13734,12 +13734,11 @@ export default function AdminClient() {
                           <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#94A3B8', marginTop:3 }}>
                             {row.map(e => <span key={e.lb}>{e.lb} {e.n}명 ({e.pct}%)</span>)}
                           </div>
-                          {/* 성향 정의 — 글씨 끝 라인을 그래프 좌우 끝선에 맞춤(박스 여백 제거, 플러시 정렬) */}
-                          <div style={{ display:'flex', justifyContent:'space-between', gap:16, marginTop:8 }}>
+                          {/* 성향 정의 — 반복 제목 제거, 설명 문구만(그래프 좌우 끝선 플러시) */}
+                          <div style={{ display:'flex', justifyContent:'space-between', gap:16, marginTop:6 }}>
                             {row.map((e, i) => (
-                              <div key={e.lb} style={{ flex:1, textAlign: i === 0 ? 'left' : 'right' }}>
-                                <div style={{ fontSize:11.5, fontWeight:800, color:'#334155', marginBottom:2 }}>{e.lb}</div>
-                                <div style={{ fontSize:11, color:'#94A3B8', lineHeight:1.45 }}>{AXIS_DEF[e.k] || ''}</div>
+                              <div key={e.lb} style={{ flex:1, fontSize:11, color:'#94A3B8', lineHeight:1.45, textAlign: i === 0 ? 'left' : 'right' }}>
+                                {AXIS_DEF[e.k] || ''}
                               </div>
                             ))}
                           </div>
