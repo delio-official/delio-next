@@ -1373,7 +1373,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
           </div>
 
           {/* 실시간 미리보기 (작성하는 그대로 · 줄바꿈 유지) */}
-          <aside style={{ flex:'0 0 250px', position:'sticky', top:16, alignSelf:'flex-start' }}>
+          <aside style={{ flex:'0 0 360px', position:'sticky', top:16, alignSelf:'flex-start' }}>
             <div className="adm-label" style={{ marginBottom:8 }}>실시간 미리보기</div>
             <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px' }}>
               <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 8px' }} />
