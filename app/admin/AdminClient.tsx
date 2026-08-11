@@ -9096,9 +9096,9 @@ export default function AdminClient() {
               <NavItem panel="settlement"   icon={<Icon.Settlement />} label="매출 현황" />
               <NavItem panel="farmsettle"   icon={<Icon.Settlement />} label="브랜드 정산" />
             </NavGroup>
-            <NavGroup label="설정">
+            <div style={{ marginTop:6 }}>
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
-            </NavGroup>
+            </div>
           </nav>
           <div className="adm-sidebar-footer">
             <div className="adm-sidebar-user">
