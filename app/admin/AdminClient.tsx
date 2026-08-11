@@ -14332,7 +14332,7 @@ export default function AdminClient() {
                     ] as [string, string, string][]).map(([key, label, ph]) => (
                       <div className="adm-form-row" key={key}>
                         <label className="adm-label">{label}</label>
-                        <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0, maxWidth:420 }}
+                        <input type="text" className="adm-input-text" style={{ width:320, maxWidth:'100%' }}
                           value={siteSettings[key] ?? ''} placeholder={ph}
                           onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
                       </div>
@@ -14412,13 +14412,13 @@ export default function AdminClient() {
                     </div>
                     <div className="adm-form-row">
                       <label className="adm-label">새 비밀번호</label>
-                      <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                      <input type="password" className="adm-input-text" style={{ width:320, maxWidth:'100%' }}
                         value={adminPw} placeholder="8자 이상" autoComplete="new-password"
                         onChange={e => setAdminPw(e.target.value)} />
                     </div>
                     <div className="adm-form-row">
                       <label className="adm-label">비밀번호 확인</label>
-                      <input type="password" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                      <input type="password" className="adm-input-text" style={{ width:320, maxWidth:'100%' }}
                         value={adminPw2} placeholder="새 비밀번호 재입력" autoComplete="new-password"
                         onChange={e => setAdminPw2(e.target.value)} />
                     </div>
