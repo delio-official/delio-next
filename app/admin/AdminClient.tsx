@@ -14318,7 +14318,7 @@ export default function AdminClient() {
                   phone = sv('cs_phone','070-8064-3601'), email = sv('cs_email','deli_o@naver.com');
                 return (
               <div className="adm-card" style={{ marginBottom:20 }}>
-                <div className="adm-card-head"><span className="adm-card-title">사이트 정보</span><span className="adm-muted" style={{ fontSize:12 }}>· 사이트 하단 푸터에 표기됩니다</span></div>
+                <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">사이트 정보</span><span className="adm-muted" style={{ fontSize:12 }}>· 사이트 하단 푸터에 표기됩니다</span></div>
                 <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
                   <div className="adm-form" style={{ flex:'1 1 380px', minWidth:0 }}>
                     {([
@@ -14332,7 +14332,7 @@ export default function AdminClient() {
                     ] as [string, string, string][]).map(([key, label, ph]) => (
                       <div className="adm-form-row" key={key}>
                         <label className="adm-label">{label}</label>
-                        <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0 }}
+                        <input type="text" className="adm-input-text" style={{ flex:1, minWidth:0, maxWidth:420 }}
                           value={siteSettings[key] ?? ''} placeholder={ph}
                           onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
                       </div>
@@ -14376,7 +14376,7 @@ export default function AdminClient() {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))', gap:20, marginBottom:20, alignItems:'start' }}>
                 {/* 결제 수단 노출 */}
                 <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">결제 수단 노출</span></div>
+                  <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">결제 수단 노출</span></div>
                   <div className="adm-form" style={{ padding:'14px 18px' }}>
                     {([
                       ['pay_card', '신용카드', true],
@@ -14397,7 +14397,7 @@ export default function AdminClient() {
 
                 {/* 관리자 계정 */}
                 <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">관리자 계정</span><span className="adm-muted" style={{ fontSize:12 }}>· 비밀번호 변경</span></div>
+                  <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">관리자 계정</span><span className="adm-muted" style={{ fontSize:12 }}>· 비밀번호 변경</span></div>
                   <div className="adm-form" style={{ padding:'14px 18px' }}>
                     <div className="adm-form-row">
                       <label className="adm-label">이메일</label>
@@ -14425,7 +14425,7 @@ export default function AdminClient() {
 
                 {/* 표시 · 배송 설정 */}
                 <div className="adm-card">
-                  <div className="adm-card-head"><span className="adm-card-title">표시 · 배송 설정</span></div>
+                  <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">표시 · 배송 설정</span></div>
                   <div className="adm-form" style={{ padding:'14px 18px' }}>
                     <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                       <label className="adm-label">전체 출발 마감 시간 (기본값)</label>
@@ -14437,28 +14437,28 @@ export default function AdminClient() {
                       ['free_ship_min', '무료배송 기준금액', '30000'],
                       ['jeju_extra', '제주·도서산간 추가비', '3000'],
                     ] as [string, string, string][]).map(([key, label, ph]) => (
-                      <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
+                      <div className="adm-form-row" key={key} style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                         <label className="adm-label">{label}</label>
                         <div className="adm-flex-center-gap">
-                          <input type="number" min={0} step={100} className="adm-input-text" style={{ width:110, textAlign:'right' }}
+                          <input type="number" min={0} step={100} className="adm-input-text" style={{ width:130, textAlign:'left' }}
                             value={siteSettings[key] ?? ''} placeholder={ph}
                             onChange={e => setSiteSettings(prev => ({ ...prev, [key]: e.target.value }))} />
                           <span className="adm-muted">원</span>
                         </div>
                       </div>
                     ))}
-                    <div className="adm-form-row" style={{ alignItems:'center' }}>
-                      <label className="adm-label">상단 배송안내 탭 노출</label>
+                    <div className="adm-form-row" style={{ justifyContent:'flex-start', alignItems:'center', gap:12 }}>
                       <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
+                      <label className="adm-label" style={{ margin:0 }}>상단 배송안내 탭 노출</label>
                     </div>
                     <div className="adm-muted" style={{ fontSize:11 }}>* 기본 배송비를 <b>0으로 두면 무료배송</b>입니다. (현재 전 상품 무료배송)</div>
                   </div>
                 </div>
               </div>
 
-              <div className="adm-form-actions adm-settings-save">
+              <div className="adm-form-actions adm-settings-save" style={{ display:'flex', justifyContent:'flex-end' }}>
                 <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
-                  {settingsSaving ? '저장 중...' : '저장'}
+                  {settingsSaving ? '저장 중...' : '전체 설정 저장'}
                 </button>
               </div>
             </div>
