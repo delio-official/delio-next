@@ -13943,8 +13943,7 @@ export default function AdminClient() {
                       style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:20 }}>
                       <div onClick={e => e.stopPropagation()}
                         style={{ background:'#fff', borderRadius:16, width:'min(460px,100%)', maxHeight:'85vh', overflow:'auto', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
-                        <div style={{ padding:'18px 20px', borderBottom:'1px solid #F1F5F9', position:'relative' }}>
-                          <button onClick={() => setSurveyDetail(null)} style={{ position:'absolute', top:14, right:16, border:'none', background:'none', fontSize:22, cursor:'pointer', color:'#94A3B8', lineHeight:1 }}>×</button>
+                        <div style={{ padding:'18px 20px', borderBottom:'1px solid #F1F5F9' }}>
                           <div style={{ fontSize:20, fontWeight:900, color:'#1A1A1A' }}>{r.profiles ? r.profiles.name : '비회원'}</div>
                           {r.profiles && <div style={{ fontSize:12, color:'#94A3B8', marginTop:2 }}>{r.profiles.email}</div>}
                           <div style={{ marginTop:9, display:'inline-flex', alignItems:'center', gap:5, background:'#F1F5F9', borderRadius:99, padding:'4px 12px' }}>
@@ -13969,6 +13968,9 @@ export default function AdminClient() {
                               </div>
                             ))}
                           </div>
+                        </div>
+                        <div style={{ display:'flex', justifyContent:'flex-end', padding:'14px 20px', borderTop:'1px solid #F1F5F9' }}>
+                          <button className="adm-btn adm-btn-outline" onClick={() => setSurveyDetail(null)}>닫기</button>
                         </div>
                       </div>
                     </div>
