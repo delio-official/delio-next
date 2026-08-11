@@ -14361,6 +14361,9 @@ export default function AdminClient() {
                       </div>
                     ))}
                     <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
+                    <div style={{ display:'flex', justifyContent:'flex-start', marginTop:16 }}>
+                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '사이트 정보 저장'}</button>
+                    </div>
                   </div>
                   {/* 푸터 미리보기 — PC / 모바일 위아래 */}
                   <div style={{ flex:'1 1 340px', minWidth:0, display:'flex', flexDirection:'column', gap:20 }}>
@@ -14406,6 +14409,9 @@ export default function AdminClient() {
                       })}
                     </div>
                     <div className="adm-muted" style={{ fontSize:11, marginTop:12 }}>* 켜진 수단만 주문서에 노출됩니다. 네이버페이 등 PG 미승인 수단은 켜도 결제 실패할 수 있습니다.</div>
+                    <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
+                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '결제수단 저장'}</button>
+                    </div>
                   </div>
                 </div>
 
@@ -14466,14 +14472,11 @@ export default function AdminClient() {
                       <label className="adm-label" style={{ margin:0 }}>상단 배송안내 탭 노출</label>
                     </div>
                     <div className="adm-muted" style={{ fontSize:11 }}>* 기본 배송비를 <b>0으로 두면 무료배송</b>입니다. (현재 전 상품 무료배송)</div>
+                    <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
+                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '표시·배송 저장'}</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="adm-form-actions adm-settings-save" style={{ display:'flex', justifyContent:'flex-end' }}>
-                <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>
-                  {settingsSaving ? '저장 중...' : '전체 설정 저장'}
-                </button>
               </div>
             </div>
           )}
