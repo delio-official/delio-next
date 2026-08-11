@@ -353,28 +353,29 @@ export default function SurveyClient() {
   /* ── Supabase 저장 ───────── */
   async function saveResult(ans: Record<string, number>, r: ReturnType<typeof calcResult>) {
     try {
-      const supabase = createClient();
       const res = RESULTS[r.key];
       const getOpt = (id: string) => QS.find(q => q.id === id)?.opts[ans[id]];
-      /* 동일 회원 재검사 시 기존 기록 삭제 → 항상 1인 1건만 유지(모든 지표 최신 반영). 비회원은 식별 불가라 그대로 누적 */
-      if (user?.id) { await supabase.from('survey_results').delete().eq('user_id', user.id); }
-      await supabase.from('survey_results').insert({
-        user_id:            user?.id || null,
-        gender:             info.gender || null,
-        age_group:          info.age    || null,
-        family_size:        info.family || null,
-        result_type:        res?.name,
-        axis1:              r.axis1,
-        axis2:              r.axis2,
-        axis3:              r.axis3,
-        purchase_frequency: getOpt('q9')?.mktVal,
-        purchase_purpose:   getOpt('q10')?.mktVal,
-        decision_factor:    getOpt('q11')?.mktVal,
-        texture_pref:       getOpt('q8')?.a3tie,
-        answers:            Object.fromEntries(Object.entries(ans).map(([id,i]) => [id, QS.find(q=>q.id===id)?.opts[i]?.text ?? null])),
-        result_category:    r.axis3 === 'vitamin' ? 'vitamin' : 'healing',
-        result_label:       res?.name,
-        result_desc:        res?.tagline,
+      /* 서버 라우트에서 저장 — 동일 회원 재검사 시 기존 기록을 확실히 지우고 1건만 유지
+         (클라이언트 직접 delete는 RLS에 막혀 조용히 실패 → 중복 누적될 수 있어 서버 처리). */
+      await fetch('/api/survey/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gender:             info.gender || null,
+          age_group:          info.age    || null,
+          family_size:        info.family || null,
+          result_type:        res?.name,
+          axis1:              r.axis1,
+          axis2:              r.axis2,
+          axis3:              r.axis3,
+          purchase_frequency: getOpt('q9')?.mktVal,
+          purchase_purpose:   getOpt('q10')?.mktVal,
+          decision_factor:    getOpt('q11')?.mktVal,
+          texture_pref:       getOpt('q8')?.a3tie,
+          answers:            Object.fromEntries(Object.entries(ans).map(([id,i]) => [id, QS.find(q=>q.id===id)?.opts[i]?.text ?? null])),
+          result_category:    r.axis3 === 'vitamin' ? 'vitamin' : 'healing',
+          result_label:       res?.name,
+          result_desc:        res?.tagline,
+        }),
       });
     } catch { /* silent */ }
   }
