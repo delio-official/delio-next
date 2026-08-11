@@ -14377,21 +14377,28 @@ export default function AdminClient() {
                 {/* 결제 수단 노출 */}
                 <div className="adm-card">
                   <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">결제 수단 노출</span></div>
-                  <div className="adm-form" style={{ padding:'14px 18px' }}>
-                    {([
-                      ['pay_card', '신용카드', true],
-                      ['pay_kakao', '카카오페이', true],
-                      ['pay_naver', '네이버페이', false],
-                      ['pay_vbank', '무통장입금', true],
-                    ] as [string, string, boolean][]).map(([key, label, defOn]) => (
-                      <div className="adm-form-row" key={key} style={{ alignItems:'center' }}>
-                        <label className="adm-label">{label}</label>
-                        <Toggle
-                          defaultOn={siteSettings[key] !== undefined ? siteSettings[key] !== 'false' : defOn}
-                          onChange={v => setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }))} />
-                      </div>
-                    ))}
-                    <div className="adm-muted" style={{ fontSize:11 }}>* 끄면 주문서에서 숨겨집니다. 네이버페이 등 PG 미승인 수단은 켜도 결제 실패할 수 있습니다.</div>
+                  <div style={{ padding:'14px 18px' }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                      {([
+                        ['pay_card', '신용카드', true],
+                        ['pay_kakao', '카카오페이', true],
+                        ['pay_naver', '네이버페이', false],
+                        ['pay_vbank', '무통장입금', true],
+                      ] as [string, string, boolean][]).map(([key, label, defOn]) => {
+                        const on = siteSettings[key] !== undefined ? siteSettings[key] !== 'false' : defOn;
+                        return (
+                          <button key={key} type="button"
+                            onClick={() => setSiteSettings(prev => ({ ...prev, [key]: on ? 'false' : 'true' }))}
+                            style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'9px 15px', borderRadius:99, cursor:'pointer',
+                              fontSize:13, fontWeight:700, transition:'all .12s',
+                              background: on ? '#EFF6FF' : '#F1F5F9', color: on ? '#2563EB' : '#94A3B8',
+                              border: on ? '1.5px solid #3B82F6' : '1.5px solid #E2E8F0' }}>
+                            <span style={{ fontSize:9 }}>{on ? '🟢' : '⚪'}</span>{label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="adm-muted" style={{ fontSize:11, marginTop:12 }}>* 켜진 수단만 주문서에 노출됩니다. 네이버페이 등 PG 미승인 수단은 켜도 결제 실패할 수 있습니다.</div>
                   </div>
                 </div>
 
