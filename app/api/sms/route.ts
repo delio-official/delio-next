@@ -24,6 +24,13 @@ function solapiAuth(apiKey: string, apiSecret: string) {
 }
 
 export async function POST(req: NextRequest) {
+  /* ── 관리자 인증 — 임의 문자 대량발송 방지 ── */
+  const authClient = await createServerSupabaseClient();
+  const { data: { user: authUser } } = await authClient.auth.getUser();
+  if (!authUser) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const { data: isAdmin } = await authClient.rpc('is_current_user_admin');
+  if (!isAdmin) return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+
   /* ── 환경변수 확인 ── */
   const apiKey    = process.env.SOLAPI_API_KEY;
   const apiSecret = process.env.SOLAPI_API_SECRET;

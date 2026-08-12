@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 /* 포트원 V2 결제 취소(환불) — 관리자 환불 승인 시 호출.
    중요: '취소 실패'를 응답 문구로 추측해서 성공 처리하지 않는다(카드 미취소인데 DB만 환불완료되는 사고 방지).
    실패 시 PortOne에서 결제를 '조회'해 실제 취소 상태/금액을 확인한 뒤에만 성공으로 처리한다. */
 export async function POST(req: NextRequest) {
+  /* 관리자 인증 — 임의 결제취소 방지 */
+  const sb = await createServerSupabaseClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+  const { data: isAdmin } = await sb.rpc('is_current_user_admin');
+  if (!isAdmin) return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
+
   const apiSecret = process.env.PORTONE_API_SECRET;
   if (!apiSecret) {
     return NextResponse.json({ error: '포트원 API 시크릿 미설정' }, { status: 503 });
