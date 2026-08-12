@@ -7090,9 +7090,11 @@ export default function AdminClient() {
   async function downloadOrderExcel(farmId?: string, kind: 'ship' | 'purchase' = 'ship') {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
+    /* 체크된 주문이 있으면 그 주문만, 없으면 필터된 전체 — '해당 건만 체크 시 그것만' 요구 반영 */
+    const base = selOrders.size > 0 ? orders.filter(o => selOrders.has(o.id)) : filteredOrders;
     const targetOrders = (farmId
-      ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
-      : filteredOrders).filter(o => !NON_SHIPPABLE.includes(o.status));
+      ? base.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
+      : base).filter(o => !NON_SHIPPABLE.includes(o.status));
 
     // 주문항목을 농가별로 평탄화
     type Row = { farmId: string; farmName: string; carrier: string; order_no: string; recipient: string; phone: string; zipcode: string; address: string; memo: string; product: string; option: string; qty: number; supply: number; courierName: string; tracking: string; shipStatus: string };
@@ -7180,9 +7182,11 @@ export default function AdminClient() {
   async function downloadCJExcel(farmId?: string) {
     const xlsxMod = await import('xlsx');
     const XLSX = xlsxMod.default ?? xlsxMod;
+    /* 체크된 주문이 있으면 그 주문만, 없으면 필터된 전체 — '해당 건만 체크 시 그것만' 요구 반영 */
+    const base = selOrders.size > 0 ? orders.filter(o => selOrders.has(o.id)) : filteredOrders;
     const targetOrders = (farmId
-      ? orders.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
-      : filteredOrders).filter(o => !NON_SHIPPABLE.includes(o.status));
+      ? base.filter(o => (o.order_items || []).some(i => i.farm_id === farmId))
+      : base).filter(o => !NON_SHIPPABLE.includes(o.status));
     // (주문 × 농가) 단위로 묶어 파셀 1행 — 같은 주문 내 같은 농가 상품은 한 박스로 합침
     type Pcl = { order_no: string; recipient: string; phone: string; address: string; memo: string; products: string[]; qty: number; tracking: string };
     const parcels: Record<string, Pcl> = {};
