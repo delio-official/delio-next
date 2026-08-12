@@ -2138,7 +2138,10 @@ export default function AdminClient() {
     const { error } = await supabase.storage.from('products').upload(path, blob, { upsert: true, contentType: type });
     if (error) {
       console.error('[업로드] 실패:', error.message);
-      alert('업로드 실패: ' + error.message);
+      const tooBig = /exceeded the maximum allowed size|maximum allowed size|too large|payload too large/i.test(error.message);
+      alert(tooBig
+        ? `이미지 용량이 너무 큽니다 (${Math.round(blob.size/1024/1024*10)/10}MB).\n특히 GIF(움짤)는 용량이 큰 경우가 많아요.\n→ 용량을 줄이거나 jpg/png로 변환해서 올려주세요.`
+        : '업로드 실패: ' + error.message);
       setPImgUploading(false);
       return null;
     }
