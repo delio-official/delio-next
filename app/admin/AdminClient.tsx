@@ -8933,7 +8933,7 @@ export default function AdminClient() {
                 )}
                 <button disabled={updatingStatus === selectedOrder.id}
                   onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
-                  style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>환불</button>
+                  style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>전체환불</button>
                 </>)}
                 {['paid','preparing','shipped','delivered','confirmed'].includes(selectedOrder.status) && (
                   <button onClick={() => openAdminPartial(selectedOrder)}
