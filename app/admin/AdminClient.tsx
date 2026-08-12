@@ -2157,7 +2157,7 @@ export default function AdminClient() {
   const [chartData, setChartData] = useState<{ '7': { labels: string[]; values: number[] }; '30': { labels: string[]; values: number[] } }>({ '7': { labels:[], values:[] }, '30': { labels:[], values:[] } });
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [dashRefreshedAt, setDashRefreshedAt] = useState<Date | null>(null);
-  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number; lowStock:number; settleDue:number; settleDuePeriod:{ month:string; half:1|2 }|null }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0, lowStock:0, settleDue:0, settleDuePeriod:null });
+  const [dashExtra, setDashExtra] = useState<{ cancelReq:number; refunding:number; exchanging:number; shipDelay:number; refundDelay:number; pendingCancel:number; pendingRefund:number; unansweredCs:number; unansweredProdInq:number; unansweredFarmInq:number; unansweredReview:number; lowStock:number; settleDue:number; trackerAlert:boolean; settleDuePeriod:{ month:string; half:1|2 }|null }>({ cancelReq:0, refunding:0, exchanging:0, shipDelay:0, refundDelay:0, pendingCancel:0, pendingRefund:0, unansweredCs:0, unansweredProdInq:0, unansweredFarmInq:0, unansweredReview:0, lowStock:0, settleDue:0, trackerAlert:false, settleDuePeriod:null });
   /* ── 회원 현황 (대시보드, 전월 대비 비교) ── */
   const [memberDash, setMemberDash] = useState<{ total:number; netIncrease:number; newThis:number; newPrev:number; buyersThis:number; buyersPrev:number; repeatRateThis:number; repeatRatePrev:number; avgOrdersThis:number; avgOrdersPrev:number } | null>(null);
   /* ── 판매 성과 (GA 방문 + 주문 지표) ── */
@@ -3154,7 +3154,7 @@ export default function AdminClient() {
       unansweredProdInq: prodInqRes.count || 0,
       unansweredFarmInq: farmInqRes.count || 0,
       unansweredReview:  reviewRes.count  || 0,
-      lowStock: 0, settleDue: 0, settleDuePeriod: null,
+      lowStock: 0, settleDue: 0, trackerAlert: false, settleDuePeriod: null,
     });
 
     /* 품절·재고 임박 상품 + 지난 회차 브랜드 정산 미완료 (알림 바용, 비동기 후 병합) */
@@ -3197,7 +3197,11 @@ export default function AdminClient() {
       let settleDue = 0;
       salesFarms.forEach(fid => { if (!paidFarms.has(fid)) settleDue++; });
 
-      setDashExtra(prev => ({ ...prev, lowStock, settleDue, settleDuePeriod: { month: targetMonth, half: thalf } }));
+      /* 배송추적 자격증명 만료 경보 (크론이 site_settings.tracker_alert 에 세팅) */
+      const { data: trkAlert } = await sb.from('site_settings').select('value').eq('key', 'tracker_alert').maybeSingle();
+      const trackerAlert = !!(trkAlert?.value && String(trkAlert.value).length > 0);
+
+      setDashExtra(prev => ({ ...prev, lowStock, settleDue, trackerAlert, settleDuePeriod: { month: targetMonth, half: thalf } }));
     })();
 
     const allOrders = ordersRes.data || [];
@@ -9216,6 +9220,7 @@ export default function AdminClient() {
               dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
               dashExtra.unansweredProdInq > 0 && { icon:'❓', label:'미답변 상품문의', count: dashExtra.unansweredProdInq, onClick: () => go('productinquiry') },
               dashExtra.unansweredReview > 0 && { icon:'⭐', label:'미답변 리뷰', count: dashExtra.unansweredReview, onClick: () => { setReviewAnswered('unanswered'); go('reviews'); } },
+              dashExtra.trackerAlert && { icon:'🚚', label:'배송추적 연동 만료 — 갱신 필요', count: 1, onClick: () => go('orders') },
             ].filter(Boolean)) as AdmAlert[]} />
           </div>
 

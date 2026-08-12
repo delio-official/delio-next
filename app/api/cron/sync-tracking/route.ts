@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
-import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK } from '@/lib/tracker';
+import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK, getTrackerToken } from '@/lib/tracker';
 import { applyTrackingStatusByItems } from '@/lib/order-shipping';
 import { notifyAlimtalk } from '@/lib/sms';
 
@@ -23,6 +23,16 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminSupabaseClient();
+
+  /* 배송추적 자격증명 유효성 선확인 — 만료/실패면 관리자 경보(site_settings.tracker_alert) 세팅 후 중단.
+     예전엔 인증 실패 시 전건을 조용히 건너뛰어 아무도 몰랐음(무경보). */
+  try {
+    await getTrackerToken();
+    await admin.from('site_settings').upsert({ key: 'tracker_alert', value: '' }, { onConflict: 'key' }); // 정상 → 경보 해제
+  } catch (e) {
+    await admin.from('site_settings').upsert({ key: 'tracker_alert', value: new Date().toISOString() }, { onConflict: 'key' });
+    return NextResponse.json({ ok: false, alert: '배송추적 자격증명 만료/실패 — 관리자 경보 설정됨', detail: String(e) });
+  }
 
   // 운송장이 있고 아직 배송완료/취소 전인 주문만 (paid/preparing/shipped).
   // 최근 30일 이내 주문으로 한정 — 영영 미완료인 오래된/테스트 건 무한 폴링 방지(Rate Limit 절약).
