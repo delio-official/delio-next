@@ -119,7 +119,6 @@ export default function ProductClient() {
   /* 비회원 동작 → 로그인/회원가입으로 보내되, 끝나면 이 상품페이지로 돌아오도록 next 를 실어보낸다.
      (next 없이 /login 만 호출하면 로그인 후 메인으로 가버림) */
   const gotoLogin  = () => router.push(`/login?next=${encodeURIComponent(`/product/${id}`)}`);
-  const gotoSignup = () => router.push(`/signup?next=${encodeURIComponent(`/product/${id}`)}`);
 
   const [product,    setProduct]    = useState<Product | null>(null);
   const [options,    setOptions]    = useState<ProductOption[]>([]);
@@ -602,7 +601,7 @@ export default function ProductClient() {
     }
   }
   async function claimCoupons() {
-    if (!user) { setCouponDownOpen(false); gotoSignup(); return; }   // 쿠폰팩은 신규회원 대상 → 회원가입으로
+    if (!user) { setCouponDownOpen(false); gotoLogin(); return; }   // 비로그인 → 로그인창(소셜로그인·회원가입 진입)
     setClaiming(true);
     const n = await claimAllPublic(user.id);
     setClaiming(false);
@@ -1806,7 +1805,7 @@ export default function ProductClient() {
 
               {/* 회원가입 쿠폰 배너 — 비로그인 시만 표시 */}
               {!user && (
-                <Link href={`/signup?next=${encodeURIComponent(`/product/${id}`)}`} className="signup-coupon-banner">
+                <Link href={`/login?next=${encodeURIComponent(`/product/${id}`)}`} className="signup-coupon-banner">
                   <div className="signup-coupon-banner-left">
                     <span className="signup-coupon-icon" aria-hidden>
                       <svg viewBox="0 0 24 24" width="28" height="28">
