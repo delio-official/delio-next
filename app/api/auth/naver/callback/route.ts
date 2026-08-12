@@ -18,6 +18,7 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const cookieState = cookieStore.get('naver_oauth_state')?.value;
   const next = cookieStore.get('naver_oauth_next')?.value || '/';
+  let isNewUser = false;   // 신규 소셜 가입 여부 → 쿠폰 발급 안내 오버레이 표시용
 
   if (!code || !state || !cookieState || state !== cookieState) return fail('naver_state');
 
@@ -48,12 +49,14 @@ export async function GET(request: Request) {
 
     // 3) service-role로 유저 생성 (이미 있으면 무시) — provider=naver 기록
     const admin = createAdminSupabaseClient();
-    await admin.auth.admin.createUser({
+    const { error: createErr } = await admin.auth.admin.createUser({
       email,
       email_confirm: true,
       user_metadata: { name: name || email.split('@')[0], avatar_url: avatar || null },
       app_metadata: { provider: 'naver', providers: ['naver'] },
     }); // 이미 가입된 이메일이면 에러 → 그대로 진행(같은 사람)
+    /* 신규 가입 판별: createUser가 성공(에러 없음)했으면 이 로그인이 첫 가입 */
+    isNewUser = !createErr;
 
     // 4) 매직링크 토큰 발급 → 서버에서 검증해 세션 쿠키 설정
     const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
@@ -87,7 +90,10 @@ export async function GET(request: Request) {
     return fail('naver');
   }
 
-  const res = NextResponse.redirect(`${base}${next}`);
+  /* 신규 소셜 가입자면 쿠폰 발급 안내 오버레이(?welcome=1)를 띄운다 */
+  const dest = new URL(`${base}${next}`);
+  if (isNewUser) dest.searchParams.set('welcome', '1');
+  const res = NextResponse.redirect(dest.toString());
   res.cookies.set('naver_oauth_state', '', { maxAge: 0, path: '/' });
   res.cookies.set('naver_oauth_next', '', { maxAge: 0, path: '/' });
   return res;

@@ -7,6 +7,7 @@ import OptionDrawer from '@/components/OptionDrawer/OptionDrawer';
 import KakaoInit from '@/components/KakaoInit/KakaoInit';
 import IdentityGate from '@/components/IdentityGate/IdentityGate';
 import ScrollReset from '@/components/ScrollReset/ScrollReset';
+import WelcomeCoupon from '@/components/WelcomeCoupon/WelcomeCoupon';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <FloatingButtons />
       <CartToast />
       <OptionDrawer />
+      <WelcomeCoupon />
     </>
   );
 }

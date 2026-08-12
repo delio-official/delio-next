@@ -35,6 +35,7 @@ export async function GET(request: Request) {
   }
 
   // OAuth 회원 프로비저닝 (추천코드·프로필사진·웰컴쿠폰) — 모두 멱등, 빈 값만 채움
+  let isNewUser = false;
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -44,6 +45,8 @@ export async function GET(request: Request) {
         .select('referral_code, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
+      /* 신규 가입 판별: 추천코드는 이 콜백에서만 채워지므로, 비어 있으면 첫 로그인 */
+      isNewUser = !prof || !prof.referral_code;
       const patch: Record<string, unknown> = {};
       if (prof && !prof.referral_code) {
         patch.referral_code = `DELIO-${user.id.replace(/-/g, '').toUpperCase().slice(0, 8)}`;
@@ -61,5 +64,8 @@ export async function GET(request: Request) {
     }
   } catch { /* 프로비저닝 실패는 로그인 자체를 막지 않음 */ }
 
-  return NextResponse.redirect(`${base}${next}`);
+  /* 신규 소셜 가입자면 쿠폰 발급 안내 오버레이(?welcome=1)를 띄운다 */
+  const dest = new URL(`${base}${next}`);
+  if (isNewUser) dest.searchParams.set('welcome', '1');
+  return NextResponse.redirect(dest.toString());
 }
