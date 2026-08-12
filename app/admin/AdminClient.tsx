@@ -2628,6 +2628,8 @@ export default function AdminClient() {
   // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
   const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
   const [refundMemoInput, setRefundMemoInput] = useState('');
+  const [refundMemos, setRefundMemos] = useState<{ id: string; content: string; admin_name: string|null; created_at: string }[]>([]);
+  const [refundMemoSaving, setRefundMemoSaving] = useState(false);
   const [refundSaving, setRefundSaving] = useState(false);
   /* 관리자 직접 부분환불 (주문관리 → 상세 → 부분환불): 고객 신청 없이 하자분만 부분취소 */
   const [adminPartialOrder, setAdminPartialOrder] = useState<Order | null>(null);
@@ -4556,9 +4558,11 @@ export default function AdminClient() {
   /* 환불 상세 열기 — 주문 상품 로드 + 부분환불 입력·메모 초기화 */
   async function openRefundDetail(r: AdminRefundReq) {
     setRefundDetail(r);
-    setRefundMemoInput(r.memo || '');
+    setRefundMemoInput('');
+    setRefundMemos([]);
     setRefundOrderItems([]);
     if (!r.order_id) return;
+    loadRefundMemos(r.order_id);
     const supabase = createClient();
     const { data } = await supabase.from('order_items')
       .select('id, product_name, quantity, subtotal').eq('order_id', r.order_id);
@@ -4595,7 +4599,6 @@ export default function AdminClient() {
     const anyDefect = refundOrderItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
     const { refundItems, refundAmount } = calcRefund(refundOrderItems, orderTotal);
     const payload = {
-      memo: refundMemoInput || null,
       refund_items: anyDefect ? refundItems : null,
       refund_amount: anyDefect ? refundAmount : null,
       resend_amount: null,     // 재송금 방식 폐지 (진짜 부분취소로 전환)
@@ -4609,6 +4612,33 @@ export default function AdminClient() {
     setRefundDetail(prev => prev ? { ...prev, ...payload } : prev);
     if (!silent) alert('저장했습니다.');
     return { ...refundDetail, ...payload } as AdminRefundReq;
+  }
+
+  /* 환불 메모 — 주문 단위 누적(블록 스택). 브랜드/회원 메모와 동일 구조 */
+  async function loadRefundMemos(orderId: string) {
+    const supabase = createClient();
+    const { data } = await supabase.from('refund_memos')
+      .select('id, content, admin_name, created_at').eq('order_id', orderId)
+      .order('created_at', { ascending: false });
+    setRefundMemos(data || []);
+  }
+  async function addRefundMemo(orderId: string) {
+    if (!refundMemoInput.trim()) return;
+    setRefundMemoSaving(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('refund_memos')
+      .insert({ order_id: orderId, content: refundMemoInput.trim(), admin_name: user?.email || null })
+      .select('id, content, admin_name, created_at').single();
+    setRefundMemoSaving(false);
+    if (error) { alert('메모 저장 실패: ' + error.message); return; }
+    setRefundMemos(prev => [data, ...prev]);
+    setRefundMemoInput('');
+  }
+  async function deleteRefundMemo(id: string) {
+    const supabase = createClient();
+    await supabase.from('refund_memos').delete().eq('id', id);
+    setRefundMemos(prev => prev.filter(m => m.id !== id));
   }
 
   /* 관리자 직접 부분환불 — 주문관리 상세에서 고객 신청 없이 열기 */
@@ -13048,14 +13078,36 @@ export default function AdminClient() {
                           )}
                         </div>
 
-                        {/* 메모 */}
+                        {/* 하자 수량 저장 (부분환불 준비 — 승인 없이 하자수량만 저장) */}
+                        <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                          <button className="adm-btn adm-btn-outline" onClick={() => saveRefundPartial()} disabled={refundSaving}>{refundSaving ? '저장 중…' : '하자수량 저장'}</button>
+                        </div>
+
+                        {/* 메모 — 누적 기록(블록 스택), 브랜드·회원 메모와 동일 */}
                         <div>
-                          <div style={secTitle}>메모 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(작업상태·특이사항)</span></div>
-                          <textarea className="adm-textarea" rows={3} style={{ width:'100%' }} value={refundMemoInput}
-                            onChange={e => setRefundMemoInput(e.target.value)} placeholder="예) 계좌이체 환불 예정 / 고객 재송금 안내 완료 등" />
-                          <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
-                            <button className="adm-btn adm-btn-outline" onClick={() => saveRefundPartial()} disabled={refundSaving}>{refundSaving ? '저장 중…' : '메모 저장'}</button>
+                          <div style={secTitle}>메모 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(작업상태·특이사항 · 누적 기록)</span></div>
+                          <div style={{ display:'flex', gap:8, alignItems:'stretch' }}>
+                            <textarea rows={2} style={{ flex:1, padding:'10px 12px', borderRadius:8, border:'1.5px solid #E2E8F0', fontSize:13, resize:'vertical', fontFamily:'inherit', outline:'none', boxSizing:'border-box' }}
+                              placeholder="새 메모 입력 후 추가 · 예) 계좌이체 환불 예정 / 고객 재송금 안내 완료"
+                              value={refundMemoInput} onChange={e => setRefundMemoInput(e.target.value)} />
+                            <button onClick={() => refundDetail?.order_id && addRefundMemo(refundDetail.order_id)} disabled={refundMemoSaving || !refundMemoInput.trim() || !refundDetail?.order_id}
+                              style={{ flexShrink:0, padding:'0 16px', borderRadius:8, border:'none', background: refundMemoInput.trim() ? '#1A1A1A' : '#CBD5E1', color:'#fff', fontSize:13, fontWeight:700, cursor: refundMemoInput.trim() ? 'pointer' : 'default' }}>
+                              {refundMemoSaving ? '저장 중' : '추가'}
+                            </button>
                           </div>
+                          {refundMemos.length > 0 && (
+                            <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:6 }}>
+                              {refundMemos.map(mm => (
+                                <div key={mm.id} style={{ background:'#F8FAFC', borderRadius:8, padding:'8px 12px', fontSize:13 }}>
+                                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+                                    <span style={{ fontSize:11, color:'#94A3B8' }}>{fmtDate(mm.created_at)}{mm.admin_name ? ` · ${mm.admin_name}` : ''}</span>
+                                    <button onClick={() => deleteRefundMemo(mm.id)} style={{ background:'none', border:'none', color:'#DC2626', fontSize:11, cursor:'pointer' }}>삭제</button>
+                                  </div>
+                                  <div style={{ color:'#334155', whiteSpace:'pre-wrap', lineHeight:1.5 }}>{mm.content}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                       </div>
