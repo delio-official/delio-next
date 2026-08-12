@@ -12939,7 +12939,7 @@ export default function AdminClient() {
                                           ? <div className="adm-muted" style={{ fontSize:10 }}>부분환불 {partialCount}건 합계</div>
                                           : (rep.refund_amount != null && rep.orders && rep.refund_amount < rep.orders.final_amount && <div className="adm-muted" style={{ fontSize:10 }}>부분환불</div>)}
                                       </td>
-                                      <td>{payLabel(rep.orders?.payment_method)}</td>
+                                      <td><PayBadge method={rep.orders?.payment_method || ''} /></td>
                                       <td style={{ textAlign:'center', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                         {rep.reason}{group.length > 1 ? ` 외 ${group.length - 1}건` : ''}
                                       </td>
@@ -12956,7 +12956,7 @@ export default function AdminClient() {
                                   <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
                                   <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
                                   <td>{fmtPrice(o.final_amount)}원</td>
-                                  <td>{payLabel((o as { payment_method?: string | null }).payment_method)}</td>
+                                  <td><PayBadge method={(o as { payment_method?: string | null }).payment_method || ''} /></td>
                                   <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
                                   <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
                                   <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
