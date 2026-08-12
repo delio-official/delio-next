@@ -2837,6 +2837,7 @@ export default function AdminClient() {
     }, { onConflict: 'farm_id,period' });
     if (error) { alert('정산 처리 실패: ' + error.message); return; }
     setFarmSettlePaid(prev => ({ ...prev, [row.farmId!]: { paidAt: new Date().toISOString(), invoice: prev[row.farmId!]?.invoice || false } }));
+    setSelectedFarmSettle(null);   // 정산완료 처리 후 상세 자동 닫기
   }
   /* 선택 항목 일괄 정산완료 */
   async function markFarmSettledBulk() {
@@ -4815,7 +4816,9 @@ export default function AdminClient() {
       if (!json.ok) { alert('답변 저장 실패: ' + (json.error || '')); return; }
       const payload = { seller_reply: json.seller_reply, seller_replied_at: json.seller_replied_at };
       setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, ...payload } : r));
-      setSelectedReview(prev => prev && prev.id === reviewId ? { ...prev, ...payload } : prev);
+      /* 답변 등록/수정이면 작업 완료 → 상세 닫기. 답변 삭제(빈 값)는 계속 볼 수 있게 열어둠 */
+      if (reply.trim()) setSelectedReview(null);
+      else setSelectedReview(prev => prev && prev.id === reviewId ? { ...prev, ...payload } : prev);
     } catch {
       setReviewReplySaving(false);
       alert('답변 저장 중 오류가 발생했습니다.');
