@@ -43,11 +43,12 @@ export async function GET(req: NextRequest) {
   for (const o of (orders || []) as Array<{ id: string; recipient: string | null; phone: string | null; order_items?: { product_name: string | null }[] }>) {
     if (!o.phone) continue;
     const productName = o.order_items?.[0]?.product_name || '구매하신 상품';
-    try {
-      await notifyAlimtalk('review_request', o.phone, { recipient: o.recipient || '고객', productName });
+    /* 실제 발송 성공했을 때만 '보냄' 플래그 → 실패건은 다음 회차에 재시도 */
+    const ok = await notifyAlimtalk('review_request', o.phone, { recipient: o.recipient || '고객', productName }).catch(() => false);
+    if (ok) {
       await admin.from('orders').update({ review_request_sent: true }).eq('id', o.id);
       sent++;
-    } catch { /* 개별 실패는 건너뜀 (플래그 미설정 → 다음 회차 재시도) */ }
+    }
   }
 
   return NextResponse.json({ ok: true, candidates: orders?.length || 0, sent });

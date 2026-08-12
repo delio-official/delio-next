@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { finalizeOrder, OrderData } from '@/lib/finalize-order';
+import { restoreOrderCouponPoint } from '@/lib/refund-restore';
 
 /* 포트원 V2 결제 웹훅 수신.
    ⚠️ 웹훅 본문을 신뢰하지 않고, paymentId로 포트원 API를 직접 재조회해
@@ -55,8 +56,13 @@ export async function POST(req: NextRequest) {
     const total = Number(payment?.amount?.total) || 0;
     const fully = status === 'CANCELLED' || (total > 0 && cancelled >= total);
     if (fully) {
+      /* 상태 갱신 + 쿠폰·포인트·재고 복원(멱등). 관리자 화면 환불과 달리
+         PortOne 콘솔 직접취소는 복원이 누락됐던 것을 여기서 보완(중복 호출은 refund_restored 가드로 무해). */
+      const { data: ord } = await supabase.from('orders')
+        .select('id').eq('portone_payment_id', paymentId).maybeSingle();
       await supabase.from('orders').update({ status: 'refunded', partial_refund_amount: cancelled })
         .eq('portone_payment_id', paymentId);
+      if (ord?.id) await restoreOrderCouponPoint(supabase, ord.id);
     } else {
       /* 부분취소: 상태는 건드리지 않고(배송완료/구매확정 유지), 부분환불 누적액만 카드 실제값으로 반영.
          단, 이미 취소/환불/미결제 상태인 주문은 제외(오작동 방지). */

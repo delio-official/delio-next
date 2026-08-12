@@ -85,7 +85,7 @@ export type AlimtalkKind = keyof typeof ALIMTALK_TEMPLATES;
 
 /** 알림톡 타입별 발송 — 변수 매핑 + 실패 시 SMS 대체문구.
    d 는 미리 포맷된 문자열 필드(금액은 "25,900원" 식)로 전달. */
-export async function notifyAlimtalk(kind: AlimtalkKind, to: string, d: Record<string, string>): Promise<void> {
+export async function notifyAlimtalk(kind: AlimtalkKind, to: string, d: Record<string, string>): Promise<boolean> {
   const name = d.name || d.recipient || '고객';
   let variables: Record<string, string> = {};
   let fallback = '';
@@ -133,7 +133,7 @@ export async function notifyAlimtalk(kind: AlimtalkKind, to: string, d: Record<s
       break;
   }
 
-  await sendAlimtalk({ to, templateId: ALIMTALK_TEMPLATES[kind], variables, fallbackText: fallback });
+  return sendAlimtalk({ to, templateId: ALIMTALK_TEMPLATES[kind], variables, fallbackText: fallback });
 }
 
 /**
@@ -146,13 +146,13 @@ export async function sendAlimtalk(params: {
   templateId: string;
   variables?: Record<string, string>;
   fallbackText?: string;
-}): Promise<void> {
+}): Promise<boolean> {
   const key    = process.env.SOLAPI_API_KEY;
   const secret = process.env.SOLAPI_API_SECRET;
   const from   = process.env.SOLAPI_FROM_NUMBER;
   if (!key || !secret || !from) {
     console.warn('[알림톡] 환경변수 미설정 — 발송 스킵');
-    return;
+    return false;
   }
 
   const message: Record<string, unknown> = {
@@ -176,10 +176,12 @@ export async function sendAlimtalk(params: {
       signal:  AbortSignal.timeout(8000),
     });
     const json = await res.json();
-    if (!res.ok) console.error('[알림톡] 발송 실패:', json);
-    else         console.log('[알림톡] 발송 성공:', cleanPhone(params.to), params.templateId);
+    if (!res.ok) { console.error('[알림톡] 발송 실패:', json); return false; }
+    console.log('[알림톡] 발송 성공:', cleanPhone(params.to), params.templateId);
+    return true;
   } catch (e) {
     console.error('[알림톡] 네트워크 오류:', e);
+    return false;
   }
 }
 

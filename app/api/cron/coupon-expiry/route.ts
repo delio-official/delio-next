@@ -47,11 +47,12 @@ export async function GET(req: NextRequest) {
     if (!phone) { await admin.from('user_coupons').update({ expiry_notified: true }).eq('id', uc.id); continue; }
     const couponName = uc.coupons?.name || '보유 쿠폰';
     const validUntil = new Date(uc.expires_at).toLocaleDateString('ko-KR');
-    try {
-      await notifyAlimtalk('coupon_expiry', phone, { recipient: uc.profiles?.name || '고객', couponName, validUntil });
+    /* 실제 발송 성공했을 때만 '보냄' 플래그 → 실패건은 다음 회차에 재시도 */
+    const ok = await notifyAlimtalk('coupon_expiry', phone, { recipient: uc.profiles?.name || '고객', couponName, validUntil }).catch(() => false);
+    if (ok) {
       await admin.from('user_coupons').update({ expiry_notified: true }).eq('id', uc.id);
       sent++;
-    } catch { /* 개별 실패는 건너뜀 → 다음 회차 재시도 */ }
+    }
   }
 
   return NextResponse.json({ ok: true, candidates: ucs?.length || 0, sent });

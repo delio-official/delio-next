@@ -66,7 +66,9 @@ export async function POST(req: Request) {
         await admin.from('user_coupons').update(patch).eq('id', order.used_coupon_id);
       }
       const pointUsed = order.point_used || 0;
-      const earned = order.earned_point || 0;
+      /* 미입금(무통장 pending) 취소는 적립이 아직 지급된 적 없으므로 회수하지 않는다.
+         (적립은 입금확인 시 지급 설계 → 지급 전 취소인데 차감하면 손님 포인트만 잃음) */
+      const earned = order.status === 'pending' ? 0 : (order.earned_point || 0);
       if (pointUsed > 0 || earned > 0) {
         const { data: prof } = await admin.from('profiles').select('point_balance').eq('id', user.id).single();
         const newBal = Math.max(0, (prof?.point_balance || 0) + pointUsed - earned);
