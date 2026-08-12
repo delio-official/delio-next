@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
+import { getSignupCouponTotal } from '@/lib/signup-coupon';
 import '@/styles/signup.css';
 
 export default function WelcomeCoupon() {
@@ -26,9 +26,8 @@ export default function WelcomeCoupon() {
     const url = window.location.pathname + (q ? `?${q}` : '') + window.location.hash;
     window.history.replaceState(window.history.state, '', url);
 
-    /* 쿠폰 금액 조회 (관리자 설정값) */
-    createClient().from('site_settings').select('value').eq('key', 'signup_coupon').maybeSingle()
-      .then(({ data }) => { if (data?.value) setAmount(Number(data.value) || 0); });
+    /* 실제 지급되는 신규 쿠폰 총액 조회 */
+    getSignupCouponTotal().then(setAmount);
   }, []);
 
   /* 오버레이가 뜨면 뒤 페이지(html·body) 스크롤 잠금 */

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signUp, signIn } from '@/lib/auth';
 import { createClient } from '@/lib/supabase';
+import { getSignupCouponTotal } from '@/lib/signup-coupon';
 import '@/styles/signup.css';
 import { ARTICLES as TERMS_ARTICLES } from '@/lib/legal_terms';
 import { SECTIONS as PRIVACY_SECTIONS } from '@/lib/legal_privacy';
@@ -106,11 +107,10 @@ export default function SignupClient() {
     if (sp.get('preview') === 'done') setDone(true);
   }, []);
 
-  /* 회원가입 쿠폰 금액 (관리자 설정값) */
+  /* 회원가입 쿠폰 금액 — 실제 지급되는 신규 쿠폰(정액) 총액 */
   const [welcomeAmount, setWelcomeAmount] = useState(0);
   useEffect(() => {
-    createClient().from('site_settings').select('value').eq('key', 'signup_coupon').maybeSingle()
-      .then(({ data }) => { if (data?.value) setWelcomeAmount(Number(data.value) || 0); });
+    getSignupCouponTotal().then(setWelcomeAmount);
   }, []);
 
   /* ── 약관 ── */
