@@ -2622,6 +2622,7 @@ export default function AdminClient() {
   const [refundFilter, setRefundFilter] = useState<'all' | 'customer' | 'admin'>('all');
   const [refundTypeFilter, setRefundTypeFilter] = useState<'' | 'cancel' | 'refund'>('refund'); // 서브탭(환불 먼저)
   const [refundStatusFilter, setRefundStatusFilter] = useState('');
+  const [refundSearch, setRefundSearch] = useState(''); // 취소·환불 검색(신청자·이메일·주문번호)
   const [cancelReasonFilter, setCancelReasonFilter] = useState(''); // 취소 탭 사유 필터
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
@@ -12796,11 +12797,13 @@ export default function AdminClient() {
                         ]} />
                     </>
                   )}
+                  <input type="text" className="adm-input-text" placeholder="신청자·이메일·주문번호 검색" value={refundSearch}
+                    onChange={e => setRefundSearch(e.target.value)} style={{ minWidth:200 }} />
                   <input type="date" className="adm-select" value={refundFrom} onChange={e => setRefundFrom(e.target.value)} />
                   <span style={{ color:'#94A3B8' }}>~</span>
                   <input type="date" className="adm-select" value={refundTo} onChange={e => setRefundTo(e.target.value)} />
-                  {(refundStatusFilter || cancelReasonFilter || refundFrom || refundTo) && (
-                    <button className="adm-btn adm-btn-outline" onClick={() => { setRefundStatusFilter(''); setCancelReasonFilter(''); setRefundFrom(''); setRefundTo(''); }}>초기화</button>
+                  {(refundStatusFilter || cancelReasonFilter || refundSearch || refundFrom || refundTo) && (
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setRefundStatusFilter(''); setCancelReasonFilter(''); setRefundSearch(''); setRefundFrom(''); setRefundTo(''); }}>초기화</button>
                   )}
                 </div>
                 <div className="adm-toolbar-right">
@@ -12853,10 +12856,12 @@ export default function AdminClient() {
                           };
                           /* 고객 환불신청에 이미 잡힌 주문은 제외하고, 관리자 취소/환불 주문만 추가 */
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
+                          const kw = refundSearch.trim().toLowerCase();
                           const customerReqs = (refundFilter === 'admin' ? [] : refundReqs)
                             .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at)
                               && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter)
-                              && (!isCancelTab || !cancelReasonFilter || r.reason === cancelReasonFilter));
+                              && (!isCancelTab || !cancelReasonFilter || r.reason === cancelReasonFilter)
+                              && (!kw || [r.profiles?.name, r.profiles?.email, r.orders?.order_no].some(v => (v || '').toLowerCase().includes(kw))));
                           /* 상태 필터가 환불신청 전용값이면 관리자취소는 숨김. 취소탭 사유필터 있으면 판매자취소 숨김(사유없음) */
                           const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
                           /* 관리자 직접취소: 주문상태 cancelled=취소, refunded/refunding=환불 */
@@ -12865,6 +12870,7 @@ export default function AdminClient() {
                             && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
                             /* 무통장 미입금(결제 안 됨) 취소는 환불관리에서 제외 — 돌려줄 돈이 없음 */
                             && !(o.status === 'cancelled' && !(o as { paid_at?: string | null }).paid_at)
+                            && (!kw || [o.recipient, o.order_no].some(v => (v || '').toLowerCase().includes(kw)))
                           );
                           if (customerReqs.length === 0 && directCancels.length === 0) {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{isCancelTab ? '취소 내역이 없습니다.' : '환불 내역이 없습니다.'}</td></tr>;
