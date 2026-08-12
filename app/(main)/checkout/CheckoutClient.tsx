@@ -553,9 +553,12 @@ export default function CheckoutClient() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentId: pid, orderData }),
         }).catch(() => null);
-        if (prep && !prep.ok) {
-          const j = await prep.json().catch(() => null);
-          alert(j?.error || '주문 정보를 확인할 수 없습니다. 다시 시도해주세요.');
+        /* prepare 실패(네트워크 오류 포함) 시 결제 진행 중단.
+           서버가 주문을 검증·저장(pending_payments)하지 못했으면 결제하면 안 됨
+           (verify가 이 저장값으로만 주문을 확정하므로). 돈은 안 빠지고 재시도만. */
+        if (!prep || !prep.ok) {
+          const j = prep ? await prep.json().catch(() => null) : null;
+          alert(j?.error || '주문 정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
           setLoading(false); submittingRef.current = false;
           return;
         }
