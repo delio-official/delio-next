@@ -5,7 +5,7 @@ import { useTrackingBlocked } from '@/lib/useTrackingBlocked';
 
 /* 구글 태그매니저 — NEXT_PUBLIC_GTM_ID(GTM-XXXXXXX) 설정 시에만 로드.
    관리자 페이지/계정은 추적 제외(useTrackingBlocked). ID 미설정이면 아무것도 안 함. */
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || '';
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID || 'GTM-T5HXZV7K';
 
 export default function GoogleTagManager() {
   const blocked = useTrackingBlocked();
