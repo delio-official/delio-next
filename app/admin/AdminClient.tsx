@@ -7158,6 +7158,16 @@ export default function AdminClient() {
         cols = [{ wch: 18 }, { wch: 24 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
       }
       const ws = XLSX.utils.aoa_to_sheet(aoa);
+      if (kind === 'ship') {
+        /* 연락처(D)·운송장번호(L)를 텍스트로 강제 — 긴 숫자가 지수(E+11)로 깨지는 것 방지 */
+        for (let r = 4; r < 4 + rows.length; r++) {
+          for (const c of [3, 11]) {
+            const addr = XLSX.utils.encode_cell({ r, c });
+            const cell = ws[addr] || (ws[addr] = { t: 's', v: '' });
+            cell.t = 's'; cell.v = String(cell.v ?? ''); cell.z = '@';
+          }
+        }
+      }
       ws['!cols'] = cols;
       // 시트명: 농가명(31자, 특수문자 제거, 중복방지)
       let nm = f.farmName.replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || '농가';
@@ -7212,6 +7222,15 @@ export default function AdminClient() {
       aoa.push([p.recipient, p.phone, '', p.address, item, '', p.qty, '소', '신용', '', p.memo, p.order_no, p.tracking]);
     });
     const ws = XLSX.utils.aoa_to_sheet(aoa);
+    /* 전화번호(B)·고객주문번호(L)·운송장번호(M)를 텍스트로 강제 — 긴 숫자가 지수(E+11)로 깨지는 것 방지.
+       빈 칸도 텍스트 포맷으로 만들어, 나중에 운송장번호를 직접 입력해도 숫자 변환 안 되게 함 */
+    for (let r = 1; r <= list.length; r++) {
+      for (const c of [1, 11, 12]) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws[addr] || (ws[addr] = { t: 's', v: '' });
+        cell.t = 's'; cell.v = String(cell.v ?? ''); cell.z = '@';
+      }
+    }
     ws['!cols'] = [{ wch:10 },{ wch:15 },{ wch:15 },{ wch:40 },{ wch:24 },{ wch:12 },{ wch:8 },{ wch:8 },{ wch:8 },{ wch:8 },{ wch:24 },{ wch:20 },{ wch:16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'sheet1');
