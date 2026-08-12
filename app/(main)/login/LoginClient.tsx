@@ -27,6 +27,16 @@ export default function LoginClient() {
     if (saved) { setEmail(saved); setRemember(true); }
   }, []);
 
+  /* 로그인 진입 시 약 2틱(~150px) 아래로 살짝 — 로그인 박스를 화면 중앙 쪽으로.
+     ScrollReset이 먼저 최상단으로 보내므로 그 뒤에 실행되도록 지연 */
+  useEffect(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const t = setTimeout(() => {
+      window.scrollTo({ top: 150, behavior: reduce ? 'auto' : 'smooth' });
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
+
   /* 소셜 로그인 콜백에서 되돌아온 오류 (차단 회원 등) */
   useEffect(() => {
     const e = searchParams.get('error');
