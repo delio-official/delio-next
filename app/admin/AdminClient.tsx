@@ -2317,6 +2317,7 @@ export default function AdminClient() {
   const [qgGroups, setQgGroups] = useState<QGGroup[]>([]);
   const [qgNewTitle, setQgNewTitle] = useState('');
   const [qgPickerId, setQgPickerId] = useState<number | null>(null); // 상품 담기 편집 중인 그룹
+  const [qgTitleEdit, setQgTitleEdit] = useState<{ id: number; val: string } | null>(null); // 가이드 제목 인라인 수정
   const [qgProdSearch, setQgProdSearch] = useState('');
   const qgProdDragIdx = useRef<number | null>(null); // 담긴 상품 드래그 순서변경
   /* 섹션관리 상단 카드 접기/펼치기 */
@@ -11859,15 +11860,25 @@ export default function AdminClient() {
                       const setPids = (pids: string[]) => updateQgGroup(g.id, { product_ids: pids });
                       return (
                         <div key={g.id} style={{ border:'1px solid #E2E8F0', borderRadius:10, background:'#fff', overflow:'hidden' }}>
-                          <div draggable
+                          <div draggable={qgTitleEdit?.id !== g.id}
                             onDragStart={() => { dragRow.current = String(g.id); }} onDragEnd={() => { dragRow.current = null; }}
                             onDragOver={e => e.preventDefault()} onDrop={() => { if (dragRow.current) reorderQgGroups(Number(dragRow.current), g.id); }}
-                            style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 13px', cursor:'grab', opacity:g.is_active?1:0.55 }}>
+                            style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 13px', cursor: qgTitleEdit?.id === g.id ? 'default' : 'grab', opacity:g.is_active?1:0.55 }}>
                             <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
-                            <span style={{ fontSize:14, fontWeight:700 }}>{g.title}</span>
+                            {qgTitleEdit?.id === g.id ? (
+                              <input type="text" className="adm-input-text" autoFocus value={qgTitleEdit.val}
+                                onChange={e => setQgTitleEdit({ id: g.id, val: e.target.value })}
+                                onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
+                                onKeyDown={e => { if (e.key === 'Enter') { const v = qgTitleEdit.val.trim(); if (v && v !== g.title) updateQgGroup(g.id, { title: v }); setQgTitleEdit(null); } if (e.key === 'Escape') setQgTitleEdit(null); }}
+                                onBlur={() => { const v = qgTitleEdit.val.trim(); if (v && v !== g.title) updateQgGroup(g.id, { title: v }); setQgTitleEdit(null); }}
+                                style={{ fontSize:14, fontWeight:700, maxWidth:260, padding:'4px 8px' }} />
+                            ) : (
+                              <span style={{ fontSize:14, fontWeight:700 }}>{g.title}</span>
+                            )}
                             <span className="adm-muted" style={{ fontSize:12 }}>· 상품 {g.product_ids.length}개</span>
                             <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
                               <AdmToggle on={g.is_active} onChange={v => updateQgGroup(g.id, { is_active: v })} title="노출" />
+                              <button className="adm-row-btn" onClick={e => { e.stopPropagation(); setQgTitleEdit(qgTitleEdit?.id === g.id ? null : { id: g.id, val: g.title }); }}>{qgTitleEdit?.id === g.id ? '취소' : '제목 수정'}</button>
                               <button className="adm-row-btn" onClick={() => { setQgPickerId(editing ? null : g.id); setQgProdSearch(''); }}>{editing ? '닫기' : '상품 담기'}</button>
                               <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteQgGroup(g)}>삭제</button>
                             </div>
