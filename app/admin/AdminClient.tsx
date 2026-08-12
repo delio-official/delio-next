@@ -7025,7 +7025,8 @@ export default function AdminClient() {
   /* 네비 그룹 — 섹션별 접기/펼치기(기본 '운영'만 열림, 활성 패널 포함 그룹은 자동 열림).
      badge: 접혀 있을 때만 헤더에 하위 이슈 합계 표시(펼치면 각 항목 뱃지로 보이므로 중복 방지) */
   function NavGroup({ label, badge, children }: { label: string; badge?: number; children: React.ReactNode }) {
-    const open = navOpen[label] !== undefined ? navOpen[label] : (label === '운영' || PANEL_GROUP[panel] === label);
+    /* 열림 = 수동토글 우선 → 없으면 (운영 기본 · 활성패널 포함 · 이슈 뱃지 있음) 자동 펼침 */
+    const open = navOpen[label] !== undefined ? navOpen[label] : (label === '운영' || PANEL_GROUP[panel] === label || !!(badge && badge > 0));
     return (
       <div className="adm-nav-group">
         <button type="button" className="adm-nav-label" onClick={() => setNavOpen(prev => ({ ...prev, [label]: !open }))}
