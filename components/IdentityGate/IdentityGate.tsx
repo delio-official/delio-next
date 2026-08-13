@@ -22,11 +22,14 @@ export default function IdentityGate() {
     if (ALLOW.some(p => pathname === p || pathname.startsWith(p + '/'))) return;
 
     let cancelled = false;
-    createClient().from('profiles').select('ci').eq('id', user.id).maybeSingle()
+    createClient().from('profiles').select('ci, provider').eq('id', user.id).maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
-        if (data?.ci) {
-          setVerifiedId(user.id); // 인증 완료 → 이후 재조회 안 함
+        /* 소셜 로그인(카카오/네이버)은 번호인증 면제 — 로그인 후 바로 이용,
+           번호는 첫 주문(결제창)에서 확보한다. 이메일 가입은 기존대로 인증 필요. */
+        const social = data?.provider === 'kakao' || data?.provider === 'naver';
+        if (data?.ci || social) {
+          setVerifiedId(user.id); // 인증 완료 or 소셜 → 이후 재조회 안 함
         } else {
           router.replace(`/verify?next=${encodeURIComponent(pathname)}`);
         }

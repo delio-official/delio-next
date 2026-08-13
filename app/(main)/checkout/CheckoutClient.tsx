@@ -100,6 +100,7 @@ export default function CheckoutClient() {
   /* 주문하시는 분(계정) */
   const [ordererName, setOrdererName] = useState('');
   const [ordererPhone, setOrdererPhone] = useState('');
+  const [profileHadPhone, setProfileHadPhone] = useState(true); // 저장된 번호 있으면 주문자 연락처 읽기전용, 없으면(소셜 최초주문) 입력 필수
   const [ordererEmail, setOrdererEmail] = useState('');
   const [payAgree, setPayAgree] = useState(false);
   /* 섹션 접기/펼치기 (기본 모두 펼침) */
@@ -203,7 +204,7 @@ export default function CheckoutClient() {
     loadAddresses();
     // 주문하시는 분(계정 정보)
     createClient().from('profiles').select('name, phone').eq('id', user.id).maybeSingle()
-      .then(({ data }) => { setOrdererName(data?.name || ''); setOrdererPhone(data?.phone || ''); });
+      .then(({ data }) => { setOrdererName(data?.name || ''); setOrdererPhone(data?.phone || ''); setProfileHadPhone(!!(data?.phone && data.phone.trim())); });
     setOrdererEmail(prev => prev || user.email || '');
   }, [user]); // eslint-disable-line
 
@@ -338,11 +339,25 @@ export default function CheckoutClient() {
     }
   }, [items, subtotal]);
 
+  /* 프로필에 번호가 없던 사용자(소셜 최초주문)의 본인 연락처를 계정에 저장
+     → 이후 쿠폰만료·리뷰요청 등 주문과 무관한 알림톡도 이 번호로 발송된다. */
+  async function persistOrdererPhone() {
+    if (profileHadPhone || !user) return;
+    const p = ordererPhone.trim();
+    if (p.length < 10) return;
+    try { await createClient().from('profiles').update({ phone: p }).eq('id', user.id); } catch { /* 저장 실패는 주문에 영향 없음 */ }
+  }
+
   /* ── 결제 처리 ── */
   async function handleOrder() {
     if (!user) { router.push('/login'); return; }
     if (!recipient.trim() || !phone.trim() || !addr1.trim()) {
       alert('배송지 정보를 모두 입력해주세요.'); return;
+    }
+    /* 프로필에 저장된 번호가 없으면(소셜 최초주문 등) 알림 받을 '본인' 연락처 필수.
+       받는 사람(배송지) 번호와 별개 — 선물 주문이어도 주문자 본인 번호를 확보한다. */
+    if (!profileHadPhone && ordererPhone.trim().length < 10) {
+      alert('알림 받을 본인 휴대폰 번호를 정확히 입력해주세요.\n(주문·배송 알림톡이 이 번호로 발송됩니다)'); return;
     }
 
     /* 총액 검증 — 0/NaN이 결제창에 넘어가 400 나는 것 방지 */
@@ -471,6 +486,7 @@ export default function CheckoutClient() {
         }).catch(() => {});
         gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
         fbPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
+        await persistOrdererPhone();
         router.push(`/order-complete?order=${order.order_no}&point=${Math.floor(total * 0.01)}`);
         return;
       } else if (payMethod === 'vbank') {
@@ -530,6 +546,7 @@ export default function CheckoutClient() {
           }
         }
         clearCart(); clearOrderPrefs();
+        await persistOrdererPhone();
         router.push(`/order-complete?order=${order.order_no}&vbank=1`);
         return;
       } else {
@@ -620,6 +637,7 @@ export default function CheckoutClient() {
       }
 
       clearCart(); clearOrderPrefs();
+      await persistOrdererPhone();
       gaPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
       fbPurchase(verifyData.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
       router.push(`/order-complete?order=${verifyData.orderNo}&point=${verifyData.earnedPoint}`);
@@ -717,9 +735,13 @@ export default function CheckoutClient() {
           {/* ② 주문하시는 분 */}
           <Section title="주문하시는 분" sk="orderer" open={isOpen('orderer')} onToggle={toggleSec}>
             <input value={ordererName} readOnly tabIndex={-1} placeholder="주문자 이름" style={{ ...inS, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
-            <input value={ordererPhone} readOnly tabIndex={-1} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:10, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
+            {profileHadPhone
+              ? <input value={ordererPhone} readOnly tabIndex={-1} placeholder="연락처" inputMode="tel" style={{ ...inS, marginTop:10, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
+              : <input value={ordererPhone} onChange={e => setOrdererPhone(e.target.value.replace(/[^0-9]/g, ''))} placeholder="알림 받을 본인 휴대폰 번호 (필수)" inputMode="tel" maxLength={11} style={{ ...inS, marginTop:10 }} />}
             <input value={ordererEmail} readOnly tabIndex={-1} placeholder="이메일" inputMode="email" style={{ ...inS, marginTop:10, background:'#F1F5F9', color:'#475569', cursor:'default' }} />
-            <p style={{ fontSize:12, color:'#94A3B8', margin:'10px 0 0' }}>주문자 정보는 가입 계정 정보로 자동 입력되며 변경할 수 없습니다. 수정은 마이페이지에서 가능합니다.</p>
+            {profileHadPhone
+              ? <p style={{ fontSize:12, color:'#94A3B8', margin:'10px 0 0' }}>주문자 정보는 가입 계정 정보로 자동 입력되며 변경할 수 없습니다. 수정은 마이페이지에서 가능합니다.</p>
+              : <p style={{ fontSize:12, color:'#64748B', margin:'10px 0 0' }}>주문·배송 <b>알림톡을 받을 본인 휴대폰 번호</b>를 입력해주세요. 입력한 번호는 마이페이지에 저장됩니다. (받는 사람 연락처와 별개)</p>}
           </Section>
 
           {/* ③ 받으시는 분 */}
