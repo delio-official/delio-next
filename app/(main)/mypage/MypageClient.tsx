@@ -74,7 +74,7 @@ interface Order {
 interface Profile {
   name: string | null; email: string; point_balance: number; grade: string;
   avatar_url?: string | null;
-  phone?: string | null; birth?: string | null; provider?: string | null;
+  phone?: string | null; birth?: string | null; verified_at?: string | null;
   marketing_email?: boolean; marketing_sms?: boolean; push_enabled?: boolean;
 }
 interface WishItem {
@@ -592,24 +592,21 @@ export default function MypageClient() {
     window.scrollTo(0, 0);
   }, [activePanel, showMobileMenu]);
 
-  /* 소셜 로그인(카카오/네이버) 여부 — 카카오는 app_metadata.provider, 네이버는 providers 배열에 흔적.
-     소셜은 휴대폰 본인인증을 하지 않으므로 회원정보 수정 게이트/번호변경을 다르게 처리한다. */
-  const _authMeta = user?.app_metadata as { provider?: string; providers?: string[] } | undefined;
-  const isSocialUser = _authMeta?.provider === 'kakao' || _authMeta?.provider === 'naver'
-    || (_authMeta?.providers?.some(p => p === 'kakao' || p === 'naver') ?? false)
-    || profile?.provider === 'kakao' || profile?.provider === 'naver';   // DB provider = 가장 신뢰(네이버 app_metadata 불안정 대비)
-
-  /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작.
-     단, 소셜이면 건너뛰고(인증 불가), 최근 1시간 이내 인증 통과 시 유예하고 바로 수정 폼(edit). */
+  /* 회원정보 수정 진입 게이트 — 재인증은 본인인증(CI) 이력이 있어야 의미가 있으므로
+     verified_at(본인인증 시각) 유무로 판단한다.
+     · 인증 이력 있음(이메일 가입 / 소셜인데 인증함) → 재인증 게이트(verify) [1시간 유예]
+     · 인증 이력 없음(소셜 미인증) → 재인증할 게 없어 바로 수정 폼(edit)
+     프로필 로드 전에는 안전하게 게이트를 유지(로드 후 미인증이면 edit로 전환). */
   useEffect(() => {
     if (activePanel !== 'info') return;
-    if (isSocialUser) { setInfoStep('edit'); return; }
+    if (!profile) { setInfoStep('verify'); return; }
+    if (!profile.verified_at) { setInfoStep('edit'); return; }
     try {
       const at = Number(localStorage.getItem(`mp_reauth_at_${user?.id}`) || 0);
       if (at && Date.now() - at < 60 * 60 * 1000) { setInfoStep('edit'); return; }
     } catch { /* localStorage 접근 불가 시 무시 */ }
     setInfoStep('verify');
-  }, [activePanel, user?.id, profile?.provider]);
+  }, [activePanel, user?.id, profile]);
 
   /* toast helper */
   function showToastMsg(msg: string) {
@@ -686,7 +683,7 @@ export default function MypageClient() {
     async function load() {
       const supabase = createClient();
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
-        supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,provider,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
+        supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,verified_at,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
           .select('id,order_no,status,final_amount,partial_refund_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,option_id,farm_name,courier,tracking_number,ship_status,products(origin,category))')
           .eq('user_id', user!.id)
@@ -3468,19 +3465,13 @@ export default function MypageClient() {
                           <div className="mp-info-row">
                             <div className="mp-info-label"><span className="req">*</span> 휴대폰번호</div>
                             <div className="mp-info-value">
-                              {isSocialUser ? (
-                                <input className="mp-info-input" value={editPhone}
-                                  onChange={e => setEditPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                                  inputMode="tel" maxLength={11} placeholder="휴대폰 번호 (숫자만 입력)" />
-                              ) : (
-                                <div className="mp-info-phone">
-                                  <span>{profile?.phone || '미등록'}</span>
-                                  <button className="mp-info-btn"
-                                    onClick={startPhoneVerify}>
-                                    {profile?.phone ? '재인증' : '인증하기'}
-                                  </button>
-                                </div>
-                              )}
+                              <div className="mp-info-phone">
+                                <span>{profile?.phone || '미등록'}</span>
+                                <button className="mp-info-btn"
+                                  onClick={startPhoneVerify}>
+                                  {profile?.phone ? '재인증' : '인증하기'}
+                                </button>
+                              </div>
                             </div>
                           </div>
                           <div className="mp-info-row">
