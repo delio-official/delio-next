@@ -3544,20 +3544,6 @@ export default function AdminClient() {
     if (error) { alert('삭제 실패: ' + error.message); return; }
     loadFilterTabs();
   }
-  async function moveFilterTab(t: FilterTab, dir: -1 | 1) {
-    const sorted = [...filterTabs].sort((a, b) => a.sort_order - b.sort_order);
-    const i = sorted.findIndex(x => x.id === t.id);
-    const j = i + dir;
-    if (j < 0 || j >= sorted.length) return;
-    const a = sorted[i], b = sorted[j];
-    const supabase = createClient();
-    await Promise.all([
-      supabase.from('filter_tabs').update({ sort_order: b.sort_order }).eq('id', a.id),
-      supabase.from('filter_tabs').update({ sort_order: a.sort_order }).eq('id', b.id),
-    ]);
-    loadFilterTabs();
-  }
-
   /* 드래그 순서변경 — 같은 그룹(같은 parent) 안에서만 재배치 후 sort_order 재부여.
      (dragRow ref는 훅이라 early return 위 hook 영역에 선언되어 있음) */
   async function reorderFilterTabs(draggedId: string, targetId: string) {
@@ -5008,21 +4994,6 @@ export default function AdminClient() {
   }
 
   /* FAQ 순서 이동 (같은 카테고리 내 인접 항목과 sort_order 교환) */
-  async function moveFaq(item: FaqItem, dir: -1 | 1) {
-    const sameCat = faqItems.filter(f => f.category === item.category).sort((a, b) => a.sort_order - b.sort_order);
-    const idx = sameCat.findIndex(f => f.id === item.id);
-    const swap = sameCat[idx + dir];
-    if (!swap) return;
-    const supabase = createClient();
-    await Promise.all([
-      supabase.from('faq_items').update({ sort_order: swap.sort_order }).eq('id', item.id),
-      supabase.from('faq_items').update({ sort_order: item.sort_order }).eq('id', swap.id),
-    ]);
-    setFaqItems(prev => prev.map(f =>
-      f.id === item.id ? { ...f, sort_order: swap.sort_order } :
-      f.id === swap.id ? { ...f, sort_order: item.sort_order } : f));
-  }
-
   function openFaqModal(item?: FaqItem) {
     if (item) {
       setEditingFaq(item);
@@ -5545,36 +5516,10 @@ export default function AdminClient() {
   }
 
   /* ========== 포인트 적립 설정 ========== */
-  function openPtEdit() {
-    // 예약 변경이 있으면 그 값을, 없으면 현재값을 프리필
-    setPtRate(siteSettings.point_rate_next || siteSettings.point_rate || '1');
-    setPtApply(siteSettings.point_apply_date || '');
-    setPtEdit(true);
-  }
   async function togglePointEnabled(v: boolean) {
     setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }));
     await createClient().from('site_settings').upsert({ key: 'point_enabled', value: v ? 'true' : 'false' }, { onConflict: 'key' });
   }
-  async function savePointSettings() {
-    const rate = Number(ptRate);
-    const today = new Date().toISOString().slice(0, 10);
-    if (isNaN(rate) || rate < 0 || rate > 10) { alert('적립률은 0% ~ 10% 사이로 입력해주세요.'); return; }
-    if (ptApply && ptApply < today) { alert('적용일은 오늘 이후 날짜만 선택할 수 있습니다.'); return; }
-    setPtSaving(true);
-    // 미래 적용일이면 예약(point_rate_next)으로 두고 현재 적립률은 유지(소급 적용 X).
-    // 적용일이 없거나 오늘이면 즉시 반영.
-    const scheduled = !!ptApply && ptApply > today;
-    const patch: Record<string, string> = scheduled
-      ? { point_rate_next: String(rate), point_apply_date: ptApply, point_updated_at: today }
-      : { point_rate: String(rate), point_rate_next: '', point_apply_date: '', point_updated_at: today };
-    const rows = Object.entries(patch).map(([key, value]) => ({ key, value }));
-    const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
-    setPtSaving(false);
-    if (error) { alert('저장 실패: ' + error.message); return; }
-    setSiteSettings(prev => ({ ...prev, ...patch }));
-    setPtEdit(false);
-  }
-
   /* ========== 멤버십 등급 설정 ========== */
   async function loadMTiers() {
     const { data } = await createClient().from('membership_tiers').select('*').order('sort');
@@ -5799,14 +5744,6 @@ export default function AdminClient() {
     const { error } = await supabase.from('search_logs').delete().eq('keyword', keyword);
     if (error) { alert('삭제 실패: ' + error.message); return; }
     setSearchStats(prev => prev.filter(s => s.keyword !== keyword));
-  }
-
-  async function clearAllSearchLogs() {
-    if (!confirm('모든 검색 로그를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('search_logs').delete().gte('id', 0);
-    if (error) { alert('삭제 실패: ' + error.message); return; }
-    setSearchStats([]);
   }
 
   /* ========== 정산 집계 ========== */
@@ -6237,117 +6174,6 @@ export default function AdminClient() {
     setSelectedOrder(s => (s && s.id === order.id ? apply(s) : s));
     refreshStageCounts();
     setSavingTracking(false);
-  }
-
-  async function saveTracking() {
-    if (!selectedOrder) return;
-    setSavingTracking(true);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('orders')
-      .update({
-        courier:         trackingInput.courier || null,
-        tracking_number: trackingInput.tracking_number || null,
-      })
-      .eq('id', selectedOrder.id);
-    if (!error) {
-      setOrders(prev => prev.map(o => o.id === selectedOrder.id
-        ? { ...o, courier: trackingInput.courier || null, tracking_number: trackingInput.tracking_number || null }
-        : o
-      ));
-      setSelectedOrder(s => s ? { ...s, courier: trackingInput.courier || null, tracking_number: trackingInput.tracking_number || null } : s);
-
-      // 운송장번호가 새로 입력된 경우: 배송 시작 SMS + 상태 배송중 전환 + 웹훅 구독 등록
-      if (trackingInput.tracking_number) {
-        const cid = trackingInput.courier || 'kr.cjlogistics';
-        const tno = trackingInput.tracking_number;
-
-        // 배송 시작 알림 — 수령인 + 주문자 양쪽
-        notifyOrderRoles(selectedOrder, {
-          type: 'shipping_started',
-          recipient: selectedOrder.recipient,
-          orderNo: selectedOrder.order_no,
-          productName: orderProductName(selectedOrder),
-          courierName: COURIER_NAMES[trackingInput.courier] || trackingInput.courier || '택배사',
-          trackingNumber: tno,
-        });
-
-        // 송장 등록 시 실제 배송상태 조회해서 반영 (배송완료면 바로 배송완료, 진행중이면 배송중)
-        if (selectedOrder.status === 'paid' || selectedOrder.status === 'preparing' || selectedOrder.status === 'shipped') {
-          const sync = await fetch(`/api/tracking/webhook?carrierId=${encodeURIComponent(cid)}&trackingNumber=${encodeURIComponent(tno)}`, { method: 'POST' })
-            .then(r => r.json()).catch(() => null);
-          const real = sync?.updated as string | undefined; // 'shipped' | 'delivered' 등
-          const finalStatus = (real && real !== 'preparing') ? real : 'shipped';
-          await supabase.from('orders').update({ status: finalStatus }).eq('id', selectedOrder.id);
-          setOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: finalStatus } : o));
-          setSelectedOrder(s => s ? { ...s, status: finalStatus } : s);
-        }
-
-        // tracker.delivery 웹훅 구독 등록 → 이후 상태 변경 자동 동기화 (배포 환경)
-        fetch('/api/tracking/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ carrierId: cid, trackingNumber: tno }),
-        }).catch(() => {});
-      }
-    } else {
-      alert('저장 실패: ' + error.message);
-    }
-    setSavingTracking(false);
-  }
-
-  /* 주문 목록 인라인 송장 저장 — 택배사 기본(CJ) + SMS + 상태동기화 + 웹훅(상세 저장과 동일 흐름) */
-  async function saveInlineTracking(o: Order, tno: string, courierSel?: string) {
-    const trk = (tno || '').trim();
-    if (!trk) { alert('송장번호를 입력하세요.'); return; }
-
-    /* 한 주문에 브랜드가 여러 개면 목록 인라인(주문 단위 송장 하나)으로는
-       어느 상품 송장인지 구분할 수 없다. 남의 브랜드 상품까지 같은 번호로
-       채워지는 사고를 막기 위해, 다중 브랜드 주문은 목록 저장을 막고 상세로 유도. */
-    const farmSet = new Set((o.order_items || []).map(i => i.farm_id || '__none'));
-    if (farmSet.size > 1) {
-      alert('여러 브랜드가 함께 담긴 주문입니다.\n상세 화면의 "브랜드별 송장"에서 각각 입력해주세요.');
-      setSelectedOrder(o);
-      return;
-    }
-
-    setTrackSaving(o.id);
-    const supabase = createClient();
-    const cid = courierSel || o.courier || 'kr.cjlogistics';
-    const { error } = await supabase.from('orders').update({ courier: cid, tracking_number: trk }).eq('id', o.id);
-    if (error) { alert('저장 실패: ' + error.message); setTrackSaving(null); return; }
-
-    /* 단일 브랜드 주문만 여기 도달 — 주문의 모든 상품이 같은 브랜드이므로
-       한 송장으로 전부 채워도 안전하다. */
-    const targetIds = (o.order_items || []).filter(i => i.id).map(i => i.id as string);
-    if (targetIds.length > 0) {
-      await supabase.from('order_items')
-        .update({ courier: cid, tracking_number: trk, ship_status: 'shipped', shipped_at: new Date().toISOString() })
-        .in('id', targetIds);
-    }
-    const tset = new Set(targetIds);
-    const syncItems = (x: Order) => ({
-      ...x, courier: cid, tracking_number: trk,
-      order_items: (x.order_items || []).map(i =>
-        i.id && tset.has(i.id) ? { ...i, courier: cid, tracking_number: trk, ship_status: 'shipped' } : i),
-    });
-    setOrders(prev => prev.map(x => x.id === o.id ? syncItems(x) : x));
-    setSelectedOrder(s2 => (s2 && s2.id === o.id ? syncItems(s2) : s2));
-    // 배송 시작 알림 — 수령인 + 주문자 양쪽
-    notifyOrderPhones([o.phone, o.orderer_phone], { type:'shipping_started', recipient:o.recipient, orderNo:o.order_no, productName: orderProductName(o), courierName: COURIER_NAMES[cid] || cid || '택배사', trackingNumber: trk });
-    // 상태 동기화 (배송중/배송완료)
-    if (o.status === 'paid' || o.status === 'preparing' || o.status === 'shipped') {
-      const sync = await fetch(`/api/tracking/webhook?carrierId=${encodeURIComponent(cid)}&trackingNumber=${encodeURIComponent(trk)}`, { method:'POST' }).then(r => r.json()).catch(() => null);
-      const real = sync?.updated as string | undefined;
-      const finalStatus = (real && real !== 'preparing') ? real : 'shipped';
-      await supabase.from('orders').update({ status: finalStatus }).eq('id', o.id);
-      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: finalStatus } : x));
-      refreshStageCounts();
-    }
-    // 웹훅 구독 등록
-    fetch('/api/tracking/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ carrierId: cid, trackingNumber: trk }) }).catch(() => {});
-    setTrackSaving(null);
-    setTrackEditRow(null);
   }
 
   /* 선택 주문 일괄 배송준비 처리 */
