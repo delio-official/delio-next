@@ -74,7 +74,7 @@ interface Order {
 interface Profile {
   name: string | null; email: string; point_balance: number; grade: string;
   avatar_url?: string | null;
-  phone?: string | null; birth?: string | null;
+  phone?: string | null; birth?: string | null; provider?: string | null;
   marketing_email?: boolean; marketing_sms?: boolean; push_enabled?: boolean;
 }
 interface WishItem {
@@ -596,7 +596,8 @@ export default function MypageClient() {
      소셜은 휴대폰 본인인증을 하지 않으므로 회원정보 수정 게이트/번호변경을 다르게 처리한다. */
   const _authMeta = user?.app_metadata as { provider?: string; providers?: string[] } | undefined;
   const isSocialUser = _authMeta?.provider === 'kakao' || _authMeta?.provider === 'naver'
-    || (_authMeta?.providers?.some(p => p === 'kakao' || p === 'naver') ?? false);
+    || (_authMeta?.providers?.some(p => p === 'kakao' || p === 'naver') ?? false)
+    || profile?.provider === 'kakao' || profile?.provider === 'naver';   // DB provider = 가장 신뢰(네이버 app_metadata 불안정 대비)
 
   /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작.
      단, 소셜이면 건너뛰고(인증 불가), 최근 1시간 이내 인증 통과 시 유예하고 바로 수정 폼(edit). */
@@ -608,7 +609,7 @@ export default function MypageClient() {
       if (at && Date.now() - at < 60 * 60 * 1000) { setInfoStep('edit'); return; }
     } catch { /* localStorage 접근 불가 시 무시 */ }
     setInfoStep('verify');
-  }, [activePanel, user?.id]);
+  }, [activePanel, user?.id, profile?.provider]);
 
   /* toast helper */
   function showToastMsg(msg: string) {
@@ -685,7 +686,7 @@ export default function MypageClient() {
     async function load() {
       const supabase = createClient();
       const [{ data: prof }, { data: ords }, { data: revs }, { data: rpSettings }] = await Promise.all([
-        supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
+        supabase.from('profiles').select('name,email,point_balance,grade,referral_code,avatar_url,phone,birth,provider,marketing_email,marketing_sms,push_enabled').eq('id', user!.id).single(),
         supabase.from('orders')
           .select('id,order_no,status,final_amount,partial_refund_amount,created_at,delivered_at,paid_at,shipped_at,courier,tracking_number,recipient,phone,zipcode,address1,address2,delivery_memo,payment_method,total_amount,discount_amount,coupon_discount,point_used,earned_point,order_items(product_id,product_name,quantity,unit_price,subtotal,thumbnail_url,option_label,option_id,farm_name,courier,tracking_number,ship_status,products(origin,category))')
           .eq('user_id', user!.id)
