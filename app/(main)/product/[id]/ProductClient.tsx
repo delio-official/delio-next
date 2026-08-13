@@ -239,7 +239,6 @@ export default function ProductClient() {
     setTimeout(() => setToast(null), 2500);
   }
   const [csPhone,             setCsPhone]             = useState(CS_PHONE);   // lib/company 단일 소스
-  const [signupCoupon,        setSignupCoupon]        = useState(5000);
   const [signupBest,          setSignupBest]          = useState<{ discountAmt: number; finalPrice: number; totalRate: number; fromSignup: boolean } | null>(null);
   const [downCoupons,         setDownCoupons]         = useState<PublicCoupon[]>([]);
   const [claiming,            setClaiming]            = useState(false);
@@ -459,7 +458,6 @@ export default function ProductClient() {
       (settingRows || []).forEach((s: { key: string; value: string }) => {
         if (s.key === 'dispatch_cutoff' && s.value) setSiteDispatchCutoff(s.value);
         if (s.key === 'cs_phone'        && s.value) setCsPhone(s.value);
-        if (s.key === 'signup_coupon'   && s.value) setSignupCoupon(Number(s.value));
       });
 
       if (prodT.farm_id) {

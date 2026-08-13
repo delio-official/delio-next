@@ -353,13 +353,6 @@ export default function MypageClient() {
   });
 
   /* 반려/보류된 신청 → 같은 주문·유형으로 다시 신청 */
-  function reapplyReq(r: MyRefundReq) {
-    const o = orders.find(x => x.id === r.order_id);
-    if (!o) { alert('주문 정보를 찾을 수 없습니다.'); return; }
-    setReqModal({ order: o, type: (r.type === 'cancel' ? 'cancel' : 'refund') });
-    setReqReason(''); setReqDetail('');
-  }
-
   async function submitReq() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
     if (reqReason === '기타' && !reqDetail.trim()) { alert('기타 사유를 직접 작성해주세요.'); return; }
@@ -1096,13 +1089,6 @@ export default function MypageClient() {
   }
 
   /* 찜 삭제 */
-  async function removeWish(wishId: string) {
-    const supabase = createClient();
-    await supabase.from('wishlist').delete().eq('id', wishId);
-    setWishlist(prev => prev.filter(w => w.id !== wishId));
-    showToastMsg('찜 목록에서 삭제했습니다');
-  }
-
   /* 패널 전환 (모바일: 메뉴 → 패널) — URL 변경으로 히스토리 기록 */
   function goPanel(panel: PanelType) {
     router.push(`/mypage?panel=${panel}`, { scroll: false });
@@ -1203,13 +1189,6 @@ export default function MypageClient() {
   }
 
   /* 상품 찜하기(최근 본 상품 카드용) */
-  async function addProductWish(id: string) {
-    if (!user) { router.push('/login?next=/mypage'); return; }
-    const { error } = await createClient().from('wishlist').insert({ user_id: user.id, product_id: id });
-    if (error && !/duplicate|unique/i.test(error.message)) { showToastMsg('찜 실패: ' + error.message); return; }
-    showToastMsg('찜 목록에 담았어요 ♥');
-  }
-
   /* 패널 → 메뉴 복귀 (모바일) */
   function goBackMenu() {
     router.push('/mypage', { scroll: false });
@@ -1220,23 +1199,6 @@ export default function MypageClient() {
   }
 
   /* ── 회원정보 수정 ── */
-  async function verifyPassword() {
-    if (!verifyPw) { setVerifyError('비밀번호를 입력해주세요.'); return; }
-    setVerifyLoading(true);
-    setVerifyError('');
-    const supabase = createClient();
-    const email = profile?.email || user!.email || '';
-    const { error } = await supabase.auth.signInWithPassword({ email, password: verifyPw });
-    setVerifyLoading(false);
-    if (error) {
-      setVerifyError('비밀번호가 올바르지 않습니다.');
-    } else {
-      setEditName(profile?.name || '');
-      setEditPwNew(''); setEditPwNew2('');
-      setVerifyPw('');
-      setInfoStep('edit');
-    }
-  }
   async function saveInfo() {
     if (!editName.trim()) { showToastMsg('이름을 입력해주세요.'); return; }
     setInfoSaving(true);
