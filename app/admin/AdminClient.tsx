@@ -2094,7 +2094,6 @@ export default function AdminClient() {
   const [draftInfo,   setDraftInfo]   = useState<InfoContent | null>(null);
   const [farmList, setFarmList] = useState<AdminFarmSimple[]>([]);
   const [farmSearch, setFarmSearch] = useState('');
-  const [farmPickOpen, setFarmPickOpen] = useState(false);
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
     sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
@@ -2288,7 +2287,6 @@ export default function AdminClient() {
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
   const [trackEditCourier, setTrackEditCourier] = useState('');
-  const [trackSaving, setTrackSaving] = useState<string | null>(null);
   const [farmTracking, setFarmTracking] = useState<Record<string, { courier: string; tracking_number: string }>>({}); // 농가별 송장 입력
   const [savingTracking, setSavingTracking] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
@@ -2436,14 +2434,8 @@ export default function AdminClient() {
   const [plPage, setPlPage] = useState(1); const [plSize, setPlSize] = useState(10);
   const [memPage, setMemPage] = useState(1); const [memSize, setMemSize] = useState(10);
   const [cpPage, setCpPage] = useState(1); const [cpSize, setCpSize] = useState(10);
-  /* 포인트 적립 설정 */
-  const [ptEdit, setPtEdit] = useState(false);
-  const [ptRate, setPtRate] = useState('1');
-  const [ptApply, setPtApply] = useState('');
-  const [ptSaving, setPtSaving] = useState(false);
   /* 멤버십 등급 설정 */
   const [mTiers, setMTiers] = useState<MembershipTier[]>([]);
-  const [mLoaded, setMLoaded] = useState(false);
   const [mSaving, setMSaving] = useState(false);
   const [recalcRunning, setRecalcRunning] = useState(false);
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
@@ -5524,7 +5516,6 @@ export default function AdminClient() {
   async function loadMTiers() {
     const { data } = await createClient().from('membership_tiers').select('*').order('sort');
     setMTiers(data && data.length ? (data as MembershipTier[]) : DEFAULT_TIERS);
-    setMLoaded(true);
   }
   function updateTier(grade: string, patch: Partial<MembershipTier>) {
     setMTiers(prev => prev.map(t => t.grade === grade ? { ...t, ...patch } : t));
