@@ -592,10 +592,17 @@ export default function MypageClient() {
     window.scrollTo(0, 0);
   }, [activePanel, showMobileMenu]);
 
+  /* 소셜 로그인(카카오/네이버) 여부 — 카카오는 app_metadata.provider, 네이버는 providers 배열에 흔적.
+     소셜은 휴대폰 본인인증을 하지 않으므로 회원정보 수정 게이트/번호변경을 다르게 처리한다. */
+  const _authMeta = user?.app_metadata as { provider?: string; providers?: string[] } | undefined;
+  const isSocialUser = _authMeta?.provider === 'kakao' || _authMeta?.provider === 'naver'
+    || (_authMeta?.providers?.some(p => p === 'kakao' || p === 'naver') ?? false);
+
   /* 회원정보 수정 패널 진입 시 본인인증 게이트(verify)부터 시작.
-     단, 최근 1시간 이내에 본인인증을 통과했으면 유예하고 바로 수정 폼(edit). */
+     단, 소셜이면 건너뛰고(인증 불가), 최근 1시간 이내 인증 통과 시 유예하고 바로 수정 폼(edit). */
   useEffect(() => {
     if (activePanel !== 'info') return;
+    if (isSocialUser) { setInfoStep('edit'); return; }
     try {
       const at = Number(localStorage.getItem(`mp_reauth_at_${user?.id}`) || 0);
       if (at && Date.now() - at < 60 * 60 * 1000) { setInfoStep('edit'); return; }
@@ -3460,13 +3467,19 @@ export default function MypageClient() {
                           <div className="mp-info-row">
                             <div className="mp-info-label"><span className="req">*</span> 휴대폰번호</div>
                             <div className="mp-info-value">
-                              <div className="mp-info-phone">
-                                <span>{profile?.phone || '미등록'}</span>
-                                <button className="mp-info-btn"
-                                  onClick={startPhoneVerify}>
-                                  {profile?.phone ? '재인증' : '인증하기'}
-                                </button>
-                              </div>
+                              {isSocialUser ? (
+                                <input className="mp-info-input" value={editPhone}
+                                  onChange={e => setEditPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                                  inputMode="tel" maxLength={11} placeholder="휴대폰 번호 (숫자만 입력)" />
+                              ) : (
+                                <div className="mp-info-phone">
+                                  <span>{profile?.phone || '미등록'}</span>
+                                  <button className="mp-info-btn"
+                                    onClick={startPhoneVerify}>
+                                    {profile?.phone ? '재인증' : '인증하기'}
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="mp-info-row">
