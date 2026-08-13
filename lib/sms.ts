@@ -185,32 +185,3 @@ export async function sendAlimtalk(params: {
   }
 }
 
-/* ─────────────────────────────────────────
-   메시지 템플릿 (일반 SMS)
-───────────────────────────────────────── */
-
-/** 주문 완료 알림 */
-export function smsOrderComplete(params: {
-  recipient: string;
-  orderNo:   string;
-  amount:    number;
-}) {
-  return `[델리오] ${params.recipient}님, 주문이 완료됐습니다.\n주문번호: ${params.orderNo}\n결제금액: ${params.amount.toLocaleString()}원\n감사합니다 :)`;
-}
-
-/** 배송 시작 알림 */
-export function smsShippingStarted(params: {
-  recipient:      string;
-  courierName:    string;
-  trackingNumber: string;
-}) {
-  return `[델리오] ${params.recipient}님, 주문하신 상품이 출고됐습니다.\n택배사: ${params.courierName}\n운송장번호: ${params.trackingNumber}\n마이페이지에서 배송조회가 가능합니다.`;
-}
-
-/** 배송 완료 알림 */
-export function smsDeliveryComplete(params: {
-  recipient: string;
-  orderNo:   string;
-}) {
-  return `[델리오] ${params.recipient}님, 주문하신 상품 배송이 완료됐습니다.\n주문번호: ${params.orderNo}\n이용해주셔서 감사합니다 :)`;
-}
