@@ -1961,12 +1961,15 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   if (options.length === 0) return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {stockRadio}
-      <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', marginLeft:2 }}>
+      <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10, padding:'12px 14px', marginLeft:2 }}>
+        <div style={{ fontSize:12, fontWeight:800, color:'#334155', marginBottom:6 }}>재고 수량</div>
+        <div style={{ fontSize:12, color:'#64748B', marginBottom:10, lineHeight:1.5 }}>
+          지금은 <b style={{ color:'#1A8A4C' }}>무제한 판매</b> 상태예요. 판매 수량을 정해두려면 아래 버튼을 눌러 재고 수량을 입력하세요.
+        </div>
         <button type="button" onClick={startSingleStock}
-          style={{ fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer', fontWeight:600 }}>
-          + 이 상품 재고관리(수량) 설정
+          style={{ fontSize:13, color:'#fff', background:'#2563EB', border:'none', borderRadius:8, padding:'9px 16px', cursor:'pointer', fontWeight:700 }}>
+          ＋ 재고 수량 입력하기
         </button>
-        <span style={{ fontSize:11, color:'#94A3B8' }}>옵션이 없는 단품이어도 재고 수량을 관리하려면 눌러주세요.</span>
       </div>
     </div>
   );
