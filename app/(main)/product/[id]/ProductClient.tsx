@@ -213,6 +213,7 @@ export default function ProductClient() {
   }
   const [submitting,       setSubmitting]       = useState(false);
   const submittingRef = useRef(false); // 연타 동시 제출 방지 (state는 비동기라 ref로 동기 차단)
+  const editOrigDateRef = useRef('');  // 리뷰 수정 진입 시점의 작성일(YYYY-MM-DD) — 날짜를 실제로 바꿨을 때만 created_at 갱신
   const [reviewPt,         setReviewPt]         = useState({ text: 100, photo: 500 });
   const [hasPurchased,     setHasPurchased]     = useState(false);
   const [purchaseCount,    setPurchaseCount]    = useState(0);   // 이 상품 구매 건수 = 쓸 수 있는 리뷰 총 개수
@@ -903,17 +904,38 @@ export default function ProductClient() {
     if (editingReviewId) {
       const finalImgs  = [...editImgUrls, ...uploadedImageUrls];
       const finalVideo = uploadedVideoUrl || editVideoUrl;
-      const { error: upErr } = await supabase.from('reviews').update({
-        rating:     newRating,
-        content:    newContent.trim(),
-        image_urls: finalImgs.length > 0 ? finalImgs : null,
-        video_url:  finalVideo,
-        taste:      Object.keys(newTaste).length > 0 ? newTaste : null,
-        ...(isAdmin && newAuthorName.trim() ? { author_name: maskName(newAuthorName) } : {}),
-        ...(isAdmin && newReviewDate ? { created_at: new Date(newReviewDate + 'T12:00:00').toISOString() } : {}),
-      }).eq('id', editingReviewId);
-      submittingRef.current = false; setSubmitting(false);
-      if (upErr) { alert('수정 실패: ' + upErr.message); return; }
+      /* 작성일은 관리자가 날짜를 '실제로 바꿨을 때만' 갱신 → 사진 추가 등 일반 수정 시 순서/날짜 불변 */
+      const dateChanged = isAdmin && !!newReviewDate && newReviewDate !== editOrigDateRef.current;
+
+      if (isAdmin) {
+        /* 관리자: 서버 라우트(service_role)로 갱신 → 고객 리뷰도 수정 가능(브라우저 update는 RLS로 막힘) */
+        const res = await fetch('/api/reviews/update', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reviewId:   editingReviewId,
+            content:    newContent.trim(),
+            rating:     newRating,
+            image_urls: finalImgs,
+            video_url:  finalVideo,
+            taste:      newTaste,
+            ...(newAuthorName.trim() ? { author_name: maskName(newAuthorName) } : {}),
+            ...(dateChanged ? { reviewDate: newReviewDate } : {}),
+          }),
+        }).then(r => r.json()).catch(() => null);
+        submittingRef.current = false; setSubmitting(false);
+        if (!res?.ok) { alert('수정 실패: ' + (res?.error || '알 수 없는 오류')); return; }
+      } else {
+        /* 일반 회원: 본인 리뷰만(RLS 허용). created_at은 건드리지 않음 */
+        const { error: upErr } = await supabase.from('reviews').update({
+          rating:     newRating,
+          content:    newContent.trim(),
+          image_urls: finalImgs.length > 0 ? finalImgs : null,
+          video_url:  finalVideo,
+          taste:      Object.keys(newTaste).length > 0 ? newTaste : null,
+        }).eq('id', editingReviewId);
+        submittingRef.current = false; setSubmitting(false);
+        if (upErr) { alert('수정 실패: ' + upErr.message); return; }
+      }
       await refreshReviewsAndRating(supabase);
       closeReviewModal();
       showToast('리뷰가 수정되었습니다.');
@@ -1083,7 +1105,9 @@ export default function ProductClient() {
     setNewImages([]);
     setNewVideo(null);
     setNewAuthorName(r.author_name || '');
-    setNewReviewDate(r.created_at ? r.created_at.slice(0, 10) : '');
+    const origDate = r.created_at ? r.created_at.slice(0, 10) : '';
+    setNewReviewDate(origDate);
+    editOrigDateRef.current = origDate;   // 이 값과 달라졌을 때만 작성일 갱신
     setReviewModalOpen(true);
   }
 
