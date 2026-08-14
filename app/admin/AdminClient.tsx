@@ -7471,16 +7471,10 @@ export default function AdminClient() {
                     ) : (
                       <>
                         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                          <div>
-                            <div style={{ fontSize:10, color:'#94A3B8', marginBottom:3 }}>매입가</div>
-                            <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupPurchase || ''} placeholder="0"
-                              onChange={e => { const v = Number(e.target.value) || 0; setPSupPurchase(v); setPForm(f => ({ ...f, supply_price: v + pSupShip })); }} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize:10, color:'#94A3B8', marginBottom:3 }}>배송비</div>
-                            <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupShip || ''} placeholder="0"
-                              onChange={e => { const v = Number(e.target.value) || 0; setPSupShip(v); setPForm(f => ({ ...f, supply_price: pSupPurchase + v })); }} />
-                          </div>
+                          <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupPurchase || ''} placeholder="매입가"
+                            onChange={e => { const v = Number(e.target.value) || 0; setPSupPurchase(v); setPForm(f => ({ ...f, supply_price: v + pSupShip })); }} />
+                          <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupShip || ''} placeholder="배송비"
+                            onChange={e => { const v = Number(e.target.value) || 0; setPSupShip(v); setPForm(f => ({ ...f, supply_price: pSupPurchase + v })); }} />
                         </div>
                         <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
                           공급가 <strong style={{ color:'#334155' }}>{(pSupPurchase + pSupShip).toLocaleString()}원</strong>
