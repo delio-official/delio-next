@@ -4442,10 +4442,11 @@ export default function AdminClient() {
     /* 관리자 직접 취소/환불된 주문(취소환불관리 목록의 '판매자 직접취소' 행)을 주문관리 기간필터와 무관하게 별도로 로드 */
     const { data: dc } = await supabase
       .from('orders')
-      .select('id, order_no, status, recipient, orderer_name, phone, orderer_phone, zipcode, address1, address2, delivery_memo, final_amount, partial_refund_amount, coupon_discount, point_used, payment_method, courier, tracking_number, paid_at, created_at, order_items ( id, product_name, option_label, quantity, unit_price, subtotal )')
+      .select('id, order_no, status, recipient, orderer_name, phone, orderer_phone, zipcode, address1, address2, delivery_memo, final_amount, partial_refund_amount, coupon_discount, point_used, payment_method, courier, tracking_number, paid_at, created_at, updated_at, order_items ( id, product_name, option_label, quantity, unit_price, subtotal )')
       .in('status', ['cancelled', 'refunded', 'refunding'])
       .not('order_no', 'like', 'TEST%')
-      .order('created_at', { ascending: false })
+      /* 판매자 직접취소는 '취소 처리한 시각'(updated_at) 최신순 — 방금 취소한 건이 위로 오게 */
+      .order('updated_at', { ascending: false })
       .limit(500);
     setDirectCancelOrders((dc as unknown as Order[]) || []);
     setRefundLoading(false);
@@ -12777,7 +12778,7 @@ export default function AdminClient() {
                           const adminStatusOk = !refundStatusFilter || ['completed','processing'].includes(refundStatusFilter);
                           /* 관리자 직접취소: 주문상태 cancelled=취소, refunded/refunding=환불 */
                           const directCancels = (refundFilter === 'customer' || !adminStatusOk || (isCancelTab && cancelReasonFilter) ? [] : directCancelOrders).filter(o =>
-                            ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate(o.created_at)
+                            ['cancelled','refunded','refunding'].includes(o.status) && !reqOrderNos.has(o.order_no) && inDate((o as { updated_at?: string | null }).updated_at || o.created_at)
                             && (!refundTypeFilter || (o.status === 'cancelled' ? 'cancel' : 'refund') === refundTypeFilter)
                             /* 무통장 미입금(결제 안 됨) 취소는 환불관리에서 제외 — 돌려줄 돈이 없음 */
                             && !(o.status === 'cancelled' && !(o as { paid_at?: string | null }).paid_at)
