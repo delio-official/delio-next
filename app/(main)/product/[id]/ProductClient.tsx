@@ -2749,13 +2749,14 @@ export default function ProductClient() {
                 <button className="page-btn"
                   disabled={reviewPage === 0}
                   onClick={() => setReviewPage(p => p - 1)}>‹</button>
-                {Array.from({ length: reviewTotalPages }, (_, i) => (
-                  <button key={i}
-                    className={`page-num${reviewPage === i ? ' active' : ''}`}
-                    onClick={() => setReviewPage(i)}>
-                    {i + 1}
-                  </button>
-                ))}
+                {(() => {
+                  const W = 5;
+                  let s = Math.max(0, safeReviewPage - Math.floor(W / 2));
+                  const e = Math.min(reviewTotalPages, s + W); s = Math.max(0, e - W);
+                  return Array.from({ length: e - s }, (_, k) => s + k).map(i => (
+                    <button key={i} className={`page-num${safeReviewPage === i ? ' active' : ''}`} onClick={() => setReviewPage(i)}>{i + 1}</button>
+                  ));
+                })()}
                 <button className="page-btn"
                   disabled={reviewPage === reviewTotalPages - 1}
                   onClick={() => setReviewPage(p => p + 1)}>›</button>

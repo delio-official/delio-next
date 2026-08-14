@@ -2640,9 +2640,14 @@ export default function MypageClient() {
                     <div className="pagination" style={{ marginTop:24 }}>
                       <button className="page-btn" onClick={() => setOrderPage(0)} disabled={orderSafePage === 0}>«</button>
                       <button className="page-btn" onClick={() => setOrderPage(p => Math.max(0, p - 1))} disabled={orderSafePage === 0}>‹</button>
-                      {Array.from({ length: orderTotalPages }, (_, n) => n).map(n => (
-                        <button key={n} className={`page-btn page-num${orderSafePage === n ? ' active' : ''}`} onClick={() => setOrderPage(n)}>{n + 1}</button>
-                      ))}
+                      {(() => {
+                        const W = 5;
+                        let s = Math.max(0, orderSafePage - Math.floor(W / 2));
+                        const e = Math.min(orderTotalPages, s + W); s = Math.max(0, e - W);
+                        return Array.from({ length: e - s }, (_, k) => s + k).map(n => (
+                          <button key={n} className={`page-btn page-num${orderSafePage === n ? ' active' : ''}`} onClick={() => setOrderPage(n)}>{n + 1}</button>
+                        ));
+                      })()}
                       <button className="page-btn" onClick={() => setOrderPage(p => Math.min(orderTotalPages - 1, p + 1))} disabled={orderSafePage === orderTotalPages - 1}>›</button>
                       <button className="page-btn" onClick={() => setOrderPage(orderTotalPages - 1)} disabled={orderSafePage === orderTotalPages - 1}>»</button>
                     </div>

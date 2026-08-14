@@ -55,9 +55,14 @@ function Pagination({ total, perPage, page, onChange }: {
     <div className="pagination">
       <button className="page-btn" disabled={page === 0} onClick={() => onChange(0)}>«</button>
       <button className="page-btn" disabled={page === 0} onClick={() => onChange(page - 1)}>‹</button>
-      {Array.from({ length: totalPages }, (_, i) => (
-        <button key={i} className={`page-num${page === i ? ' active' : ''}`} onClick={() => onChange(i)}>{i + 1}</button>
-      ))}
+      {(() => {
+        const W = 5;
+        let s = Math.max(0, page - Math.floor(W / 2));
+        const e = Math.min(totalPages, s + W); s = Math.max(0, e - W);
+        return Array.from({ length: e - s }, (_, k) => s + k).map(i => (
+          <button key={i} className={`page-num${page === i ? ' active' : ''}`} onClick={() => onChange(i)}>{i + 1}</button>
+        ));
+      })()}
       <button className="page-btn" disabled={page === totalPages - 1} onClick={() => onChange(page + 1)}>›</button>
       <button className="page-btn" disabled={page === totalPages - 1} onClick={() => onChange(totalPages - 1)}>»</button>
     </div>
