@@ -9862,14 +9862,16 @@ export default function AdminClient() {
                       const caretSt: React.CSSProperties = { width:20, height:20, flexShrink:0, border:'none', background:'transparent', cursor:'pointer', color:'#64748B', fontSize:11, lineHeight:1, padding:0 };
                       return (
                       <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: m.is_active ? 1 : 0.55 }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:'#1A8A4C', marginBottom:8 }}>대분류</div>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                          <span style={{ fontSize:11, fontWeight:800, color:'#1A8A4C' }}>대분류</span>
+                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(m.id); return n; }); addCategory(m.tab_value); }} style={addMiniSt} title="소분류 추가">+ 소분류</button>
+                        </div>
                         {/* 대분류 행 */}
                         <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', m.id); dragRow.current = null; }}>
                           <button type="button" onClick={() => toggleMegaCat(m.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {ftText(m)}
                           <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>소분류 {subs.length}</span>
-                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(m.id); return n; }); addCategory(m.tab_value); }} style={addMiniSt} title="소분류 추가">+ 소분류</button>
                           <AdmToggle on={m.is_active} color="#2563EB" onChange={v => updateFt(m.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteCategory(m)} style={delSt}>삭제</button>
                         </div>
@@ -9896,13 +9898,15 @@ export default function AdminClient() {
                       const caretSt: React.CSSProperties = { width:20, height:20, flexShrink:0, border:'none', background:'transparent', cursor:'pointer', color:'#64748B', fontSize:11, lineHeight:1, padding:0 };
                       return (
                       <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: g.is_active ? 1 : 0.55 }}>
-                        <div style={{ fontSize:11, fontWeight:800, color:'#2563EB', marginBottom:8 }}>메뉴 그룹</div>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                          <span style={{ fontSize:11, fontWeight:800, color:'#2563EB' }}>메뉴 그룹</span>
+                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(g.id); return n; }); addMenu({ parent:g.id, label:'새 링크', href:'/' }); }} style={addMiniSt} title="하위 추가">+ 하위</button>
+                        </div>
                         <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', g.id); dragRow.current = null; }}>
                           <button type="button" onClick={() => toggleMegaCat(g.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
                           <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>하위 {subs.length}</span>
-                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(g.id); return n; }); addMenu({ parent:g.id, label:'새 링크', href:'/' }); }} style={addMiniSt} title="하위 추가">+ 하위</button>
                           <AdmToggle on={g.is_active} color="#2563EB" onChange={v => updateMenu(g.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
