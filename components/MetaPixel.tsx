@@ -8,7 +8,7 @@ import { useTrackingBlocked } from '@/lib/useTrackingBlocked';
 /* Meta(Facebook) 픽셀.
    픽셀 ID는 브라우저에 어차피 노출되는 공개값이라 코드에 직접 둔다.
    App Router는 페이지 전환 시 <head> 스크립트가 다시 안 도므로 PageView 를 수동 전송한다. */
-const PIXEL_ID = '1573647507665281';
+const PIXEL_ID = '1360493722151034';
 
 function PageviewTracker() {
   const pathname = usePathname();
