@@ -175,9 +175,9 @@ body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--b
 .adm-kpi-change.neutral { color: var(--text-mute); }
 
 /* ===== 레이아웃 ===== */
-.adm-row { display: flex; gap: 16px; align-items: flex-start; }
+.adm-row { display: flex; gap: 16px; align-items: stretch; }
 .adm-card { background: var(--surface); border: 1px solid var(--border); }
-.adm-card-lg { flex: 1; min-width: 0; }
+.adm-card-lg { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .adm-card-sm { width: 280px; flex-shrink: 0; }
 .adm-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .adm-card-title { font-size: 13px; font-weight: 700; color: var(--text); }
@@ -604,7 +604,7 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 
   /* 차트 */
   .adm-chart-pad { padding: 10px 12px; }
-  .adm-chart { height: 120px; }
+  .adm-chart { flex: none; min-height: 0; height: 160px; }
 }
 
 /* ===== KPI 섹션 라벨 ===== */
@@ -779,7 +779,8 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 
 .adm-chart {
   width: 100%;
-  height: 160px;
+  flex: 1;
+  min-height: 160px;
   overflow: visible;
 }
 .adm-chart svg { display: block; width: 100%; }
@@ -984,7 +985,7 @@ input[type="datetime-local"].adm-input-text { cursor: pointer; }
 .adm-kpi-4 { grid-template-columns: repeat(4, 1fr); }
 
 /* 차트 */
-.adm-chart-pad { padding: 16px 20px; }
+.adm-chart-pad { padding: 16px 20px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* 우측 사이드 카드 컬럼 */
 .adm-sidebar-cards { display: flex; flex-direction: column; gap: 12px; width: 260px; flex-shrink: 0; }

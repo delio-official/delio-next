@@ -1503,16 +1503,19 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; values: number[] } }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(560);
+  const [height, setHeight] = useState(220);
 
-  /* ResizeObserver로 컨테이너 너비 안정적으로 추적 */
+  /* ResizeObserver로 컨테이너 너비·높이 추적 — 높이는 카드에 맞춰 차트가 채워지도록 */
   useEffect(() => {
     if (!ref.current) return;
     const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setWidth(w);
+      const r = entries[0]?.contentRect;
+      if (r?.width && r.width > 0) setWidth(r.width);
+      if (r?.height && r.height > 0) setHeight(Math.max(160, r.height));
     });
     ro.observe(ref.current);
     setWidth(ref.current.clientWidth || 560);
+    setHeight(Math.max(160, ref.current.clientHeight || 220));
     return () => ro.disconnect();
   }, []);
 
@@ -1522,13 +1525,13 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
 
   if (noData) {
     return (
-      <div ref={ref} style={{ height: 160, display:'flex', alignItems:'center', justifyContent:'center', color:'#CBD5E1', fontSize:13 }}>
+      <div ref={ref} style={{ height: '100%', minHeight: 160, display:'flex', alignItems:'center', justifyContent:'center', color:'#CBD5E1', fontSize:13 }}>
         아직 매출 데이터가 없습니다
       </div>
     );
   }
 
-  const H   = 160;
+  const H   = height;
   const PAD = { top: 28, right: 16, bottom: 4, left: 44 };
   const cw  = width - PAD.left - PAD.right;
   const ch  = H - PAD.top - PAD.bottom;
@@ -1583,7 +1586,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
   const visibleLbs = lbs.filter((_, i) => i % step === 0 || i === n - 1);
 
   return (
-    <div style={{ overflow: 'hidden' }}>
+    <div style={{ overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div ref={ref} className="adm-chart" dangerouslySetInnerHTML={{ __html: svgStr }} />
       <div style={{ display:'flex', justifyContent:'space-between', paddingLeft:44, paddingRight:16, marginTop:4 }}>
         {visibleLbs.map(l => <span key={l} style={{ fontSize:10, color:'#94A3B8', whiteSpace:'nowrap' }}>{l}</span>)}
@@ -9162,6 +9165,7 @@ export default function AdminClient() {
                 ) : (() => {
                   const now = new Date();
                   const monthFirst = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                  const monthLast = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
                   const today = ymd(now);
                   return [
                   { label:'이번달 매출', val: stats ? `${fmtPrice(stats.monthRevenue)}원` : '-', kpiCls:'kpi-green',
@@ -9171,7 +9175,7 @@ export default function AdminClient() {
                     onClick: () => { pendingSettlePreset.current = 'today'; go('settlement'); },
                     icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><rect x="2" y="7" width="20" height="14"/><path d="M16 7V5a2 2 0 00-4 0v2"/></svg> },
                   { label:'이번달 주문', val: stats ? `${stats.monthOrders.toLocaleString()}건` : '-', kpiCls:'kpi-blue',
-                    onClick: () => { pendingOrderDate.current = { from: monthFirst, to: today }; go('orders'); },
+                    onClick: () => { pendingOrderDate.current = { from: monthFirst, to: monthLast }; go('orders'); },
                     icon:<Icon.Orders /> },
                   { label:'금일 신규 주문', val: stats ? `${stats.todayOrders}건` : '-', kpiCls:'kpi-purple',
                     onClick: () => { pendingOrderDate.current = { from: today, to: today }; go('orders'); },
@@ -9216,13 +9220,14 @@ export default function AdminClient() {
                   const netTag = (() => { const n = m.netIncrease; return <span style={{ color: col(n > 0, n === 0) }}>{n > 0 ? '+' : ''}{n.toLocaleString()}명</span>; })();
                   const now = new Date();
                   const monthFirst = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
+                  const monthLast = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
                   const today = ymd(now);
                   const cards = [
                     { label:'전체 회원',      val:`${m.total.toLocaleString()}명`,     cls:'kpi-green',  icon:<Icon.Members />, sub:<>이번달 {netTag}</>,                       onClick:() => go('members') },
                     { label:'이번달 신규',     val:`${m.newThis.toLocaleString()}명`,   cls:'kpi-blue',   icon:<Icon.Members />, sub:<>전월 대비 {pctTag(m.newThis, m.newPrev)}</>, onClick:() => go('members') },
-                    { label:'이번달 구매 회원', val:`${m.buyersThis.toLocaleString()}명`, cls:'kpi-purple', icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.buyersThis, m.buyersPrev)}</>, onClick:() => { pendingOrderDate.current = { from: monthFirst, to: today }; go('orders'); } },
+                    { label:'이번달 구매 회원', val:`${m.buyersThis.toLocaleString()}명`, cls:'kpi-purple', icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.buyersThis, m.buyersPrev)}</>, onClick:() => { pendingOrderDate.current = { from: monthFirst, to: monthLast }; go('orders'); } },
                     { label:'재구매율',       val:`${m.repeatRateThis.toFixed(0)}%`,   cls:'kpi-green',  icon:<Icon.Members />, sub:<>전월 대비 {ppTag(m.repeatRateThis, m.repeatRatePrev)}</>, onClick:() => go('analytics') },
-                    { label:'평균 구매 횟수',  val:`${m.avgOrdersThis.toFixed(1)}회`,    cls:'kpi-blue',   icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.avgOrdersThis, m.avgOrdersPrev)}</>, onClick:() => go('members') },
+                    { label:'평균 구매 횟수',  val:`${m.avgOrdersThis.toFixed(1)}회`,    cls:'kpi-blue',   icon:<Icon.Orders />,  sub:<>전월 대비 {pctTag(m.avgOrdersThis, m.avgOrdersPrev)}</>, onClick:() => go('analytics') },
                   ];
                   return cards.map(k => (
                     <div key={k.label} className="adm-kpi-card" style={{ cursor:'pointer' }} onClick={k.onClick}>
