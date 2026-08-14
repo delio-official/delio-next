@@ -366,7 +366,7 @@ export default function ProductClient() {
             .eq('product_id', id)
             .order('is_best', { ascending: false })
             .order('created_at', { ascending: false })
-            .limit(50),
+            .limit(500),
           supabase.from('product_detail_sections')
             .select('*').eq('product_id', id).order('sort_order'),
           supabase.from('product_detail_sections')
@@ -1001,7 +1001,8 @@ export default function ProductClient() {
     const { data: refreshed } = await supabase
       .from('reviews').select('*, profiles(name)')
       .eq('product_id', product!.id)
-      .order('created_at', { ascending: false }).limit(50);
+      .order('is_best', { ascending: false })
+      .order('created_at', { ascending: false }).limit(500);
     setReviews((refreshed as Review[]) || []);
 
     const { data: p } = await supabase
