@@ -9449,7 +9449,7 @@ export default function AdminClient() {
                               onChange={e => setSelOrders(prev => { const next = new Set(prev); if (e.target.checked) pagedOrders.forEach(o => next.add(o.id)); else pagedOrders.forEach(o => next.delete(o.id)); return next; })} />
                           </th>
                           <th style={{ width:'10%' }}>주문번호</th><th style={{ width:'12%' }}>주문일시</th><th style={{ width:'7%' }}>주문자</th>
-                          <th style={{ width:'18%', textAlign:'left' }}>상품</th>
+                          <th style={{ width:'18%' }}>상품</th>
                           <th style={{ width:'13%' }}>금액</th><th style={{ width:'9%' }}>상태</th><th style={{ width:'20%' }}>송장번호</th><th style={{ width:'9%' }}>관리</th>
                         </tr>
                       </thead>
