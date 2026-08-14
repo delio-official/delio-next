@@ -2660,6 +2660,8 @@ export default function AdminClient() {
   const [cancelReasonFilter, setCancelReasonFilter] = useState(''); // 취소 탭 사유 필터
   const [refundFrom, setRefundFrom] = useState('');
   const [refundTo, setRefundTo] = useState('');
+  const [refundPage, setRefundPage] = useState(1); // 취소·환불 목록 페이지
+  useEffect(() => { setRefundPage(1); }, [refundTypeFilter, refundFilter, refundStatusFilter, refundSearch, refundFrom, refundTo, cancelReasonFilter]);
   // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
   const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
   const [refundMemoInput, setRefundMemoInput] = useState('');
@@ -12734,7 +12736,7 @@ export default function AdminClient() {
                         {refundTypeFilter === 'cancel' ? (
                           <tr><th style={{ width:'11%' }}>유형</th><th style={{ width:'16%' }}>신청자</th><th style={{ width:'15%' }}>주문번호</th><th style={{ width:'20%' }}>상품</th><th style={{ width:'14%' }}>사유</th><th style={{ width:'10%' }}>일자</th><th style={{ width:'8%' }}>상태</th><th style={{ width:'6%' }}>보기</th></tr>
                         ) : (
-                          <tr><th style={{ width:'20%' }}>신청자</th><th style={{ width:'16%' }}>주문번호</th><th style={{ width:'14%' }}>환불금액</th><th style={{ width:'10%' }}>방법</th><th style={{ width:'18%' }}>사유</th><th style={{ width:'12%' }}>상태</th><th style={{ width:'10%' }}>관리</th></tr>
+                          <tr><th style={{ width:'18%' }}>신청자</th><th style={{ width:'15%' }}>주문번호</th><th style={{ width:'13%' }}>환불금액</th><th style={{ width:'9%' }}>방법</th><th style={{ width:'15%' }}>사유</th><th style={{ width:'11%' }}>처리일</th><th style={{ width:'11%' }}>상태</th><th style={{ width:'8%' }}>관리</th></tr>
                         )}
                       </thead>
                       <tbody>
@@ -12789,6 +12791,26 @@ export default function AdminClient() {
                             return <tr><td colSpan={8} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{isCancelTab ? '취소 내역이 없습니다.' : '환불 내역이 없습니다.'}</td></tr>;
                           }
 
+                          const REFUND_PAGE_SIZE = 20;
+                          const pageOf = (total: number) => Math.min(Math.max(1, refundPage), Math.max(1, Math.ceil(total / REFUND_PAGE_SIZE)));
+                          const pagRow = (total: number, page: number, cols: number) => {
+                            const totalPages = Math.max(1, Math.ceil(total / REFUND_PAGE_SIZE));
+                            if (totalPages <= 1) return null;
+                            const W = 5; const end = Math.min(totalPages, Math.max(0, page - Math.floor(W / 2)) + W); const start = Math.max(0, end - W);
+                            const nums = Array.from({ length: end - start }, (_, k) => start + k + 1);
+                            return (
+                              <tr>
+                                <td colSpan={cols} style={{ padding:'16px 0' }}>
+                                  <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:6 }}>
+                                    <button className="adm-row-btn" disabled={page <= 1} onClick={() => setRefundPage(page - 1)}>‹</button>
+                                    {nums.map(n => <button key={n} className="adm-row-btn" onClick={() => setRefundPage(n)} style={n === page ? { background:'#1A1A1A', color:'#fff', borderColor:'#1A1A1A' } : undefined}>{n}</button>)}
+                                    <button className="adm-row-btn" disabled={page >= totalPages} onClick={() => setRefundPage(page + 1)}>›</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          };
+
                           /* ── 취소 탭: 로그·보기용 (유형/신청자/주문번호/상품/사유/일자/상태/보기) ── */
                           if (isCancelTab) {
                             /* 고객/판매자 구분 없이 최근 처리(updated_at) 순으로 통합 정렬 */
@@ -12798,9 +12820,11 @@ export default function AdminClient() {
                               ...customerReqs.map(r => ({ ts: tsOf(r.updated_at, r.created_at), r } as CxEntry)),
                               ...directCancels.map(o => ({ ts: tsOf((o as { updated_at?: string | null }).updated_at, o.created_at), o } as CxEntry)),
                             ].sort((a, b) => b.ts - a.ts);
+                            const page = pageOf(rows.length);
+                            const paged = rows.slice((page - 1) * REFUND_PAGE_SIZE, page * REFUND_PAGE_SIZE);
                             return (
                               <>
-                                {rows.map(e => {
+                                {paged.map(e => {
                                   if (e.r) {
                                     const r = e.r;
                                     return (
@@ -12830,6 +12854,7 @@ export default function AdminClient() {
                                     </tr>
                                   );
                                 })}
+                                {pagRow(rows.length, page, 8)}
                               </>
                             );
                           }
@@ -12850,9 +12875,11 @@ export default function AdminClient() {
                             })),
                             ...directCancels.map(o => ({ ts: tsOf((o as { updated_at?: string | null }).updated_at, o.created_at), dc: o })),
                           ].sort((a, b) => b.ts - a.ts);
+                          const rPage = pageOf(entries.length);
+                          const rPaged = entries.slice((rPage - 1) * REFUND_PAGE_SIZE, rPage * REFUND_PAGE_SIZE);
                           return (
                             <>
-                              {entries.map(e => {
+                              {rPaged.map(e => {
                                 if (e.group) {
                                   const group = e.group;
                                   const rep = group[0];                               // 대표(최신)
@@ -12884,6 +12911,7 @@ export default function AdminClient() {
                                       <td style={{ textAlign:'center', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                         {rep.reason}{group.length > 1 ? ` 외 ${group.length - 1}건` : ''}
                                       </td>
+                                      <td className="adm-muted">{fmtDateShort(new Date(e.ts).toISOString())}</td>
                                       <td><span className={`adm-badge ${badgeCls}`}>{badgeLabel}</span></td>
                                       <td>
                                         <button className="adm-row-btn" onClick={() => openRefundDetail(rep)}>상세</button>
@@ -12899,11 +12927,13 @@ export default function AdminClient() {
                                     <td>{fmtPrice(o.final_amount)}원</td>
                                     <td><PayBadge method={(o as { payment_method?: string | null }).payment_method || ''} /></td>
                                     <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
+                                    <td className="adm-muted">{fmtDateShort((o as { updated_at?: string | null }).updated_at || o.created_at)}</td>
                                     <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
                                     <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
                                   </tr>
                                 );
                               })}
+                              {pagRow(entries.length, rPage, 8)}
                             </>
                           );
                         })()}
