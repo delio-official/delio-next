@@ -243,6 +243,7 @@ interface AdminProduct {
   sort_order: number;
   created_at: string;
   total_stock?: number | null;
+  low_stock?: boolean;
 }
 
 interface AdminProductFull extends AdminProduct {
@@ -2298,7 +2299,7 @@ export default function AdminClient() {
   const [productSearch, setProductSearch] = useState('');
   const [productCatFilter, setProductCatFilter] = useState('');
   const [productBrandFilter, setProductBrandFilter] = useState('');
-  const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'>('');
+  const [productStatusFilter, setProductStatusFilter] = useState<''|'selling'|'soldout'|'stopped'|'lowstock'>('');
   const [productTypeFilter, setProductTypeFilter] = useState<''|'own'|'brand'>(''); // 자사 / 브랜드(산지직송)
   const [productPage, setProductPage] = useState(1);
   const PRODUCT_PAGE_SIZE = 20;
@@ -3160,7 +3161,7 @@ export default function AdminClient() {
         .select('product_id, products!inner(is_active)')
         .eq('manage_stock', true).eq('products.is_active', true)
         .lte('stock', LOW_STOCK).limit(1000);
-      const lowStock = (lowOpts || []).length;
+      const lowStock = new Set((lowOpts || []).map((o: Record<string, unknown>) => o.product_id as string)).size;
 
       /* ② 지급일이 지난 가장 최근 정산 회차에서, 매출은 있는데 정산완료(paid) 안 된 브랜드 수 */
       const now = new Date();
@@ -3428,9 +3429,11 @@ export default function AdminClient() {
       const managed = opts.filter(o => o.manage_stock !== false);
       const hasUnlimited = opts.length > managed.length;
       const total_stock = (!hasUnlimited && managed.length > 0) ? managed.reduce((s, o) => s + (o.stock || 0), 0) : null;
+      /* 재고 임박: 판매중 상품 중 재고관리 켠 옵션이 5개 이하(품절 포함) — 알림 바 LOW_STOCK와 동일 기준 */
+      const low_stock = !!p.is_active && managed.some(o => (o.stock || 0) <= 5);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { product_options: _po, ...rest } = p;
-      return { ...rest, total_stock };
+      return { ...rest, total_stock, low_stock };
     });
     setProducts(flat as AdminProduct[]);
     setProductsLoading(false);
@@ -7075,6 +7078,7 @@ export default function AdminClient() {
     selling: products.filter(p => productSellState(p) === 'selling').length,
     soldout: products.filter(p => productSellState(p) === 'soldout').length,
     stopped: products.filter(p => productSellState(p) === 'stopped').length,
+    lowstock: products.filter(p => p.low_stock).length,
   };
   /* 카테고리 라벨 — filter_tabs(category형)에서 동적 생성, 없으면 하드코딩 폴백 */
   const dynCatLabel: Record<string, string> = filterTabs
@@ -7093,7 +7097,7 @@ export default function AdminClient() {
     const pFarm = farms.find(f => f.id === p.farm_id);
     const brandName = (pFarm?.name || '').toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q) || brandName.includes(q);
-    const matchStatus = !productStatusFilter || productSellState(p) === productStatusFilter;
+    const matchStatus = !productStatusFilter || (productStatusFilter === 'lowstock' ? !!p.low_stock : productSellState(p) === productStatusFilter);
     const isOwn = !!pFarm?.is_own; // 자사센터 상품
     const matchType = !productTypeFilter || (productTypeFilter === 'own' ? isOwn : !isOwn);
     return matchCat && matchBrand && matchSearch && matchStatus && matchType;
@@ -9033,11 +9037,10 @@ export default function AdminClient() {
               dashExtra.shipDelay > 0 && { icon:'🚨', label:'발송 지연(2일+)', count: dashExtra.shipDelay, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
               dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
               dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
-              dashExtra.lowStock > 0 && { icon:'📉', label:'품절·재고 임박', count: dashExtra.lowStock, onClick: () => go('products') },
+              dashExtra.lowStock > 0 && { icon:'📉', label:'품절·재고 임박', count: dashExtra.lowStock, onClick: () => { setProductStatusFilter('lowstock'); go('products'); } },
               dashExtra.settleDue > 0 && { icon:'💸', label:'브랜드 정산 미완료', count: dashExtra.settleDue, onClick: () => { if (dashExtra.settleDuePeriod) pendingFarmSettle.current = dashExtra.settleDuePeriod; go('farmsettle'); } },
               dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
               dashExtra.unansweredProdInq > 0 && { icon:'❓', label:'미답변 상품문의', count: dashExtra.unansweredProdInq, onClick: () => go('productinquiry') },
-              dashExtra.unansweredReview > 0 && { icon:'⭐', label:'미답변 리뷰', count: dashExtra.unansweredReview, onClick: () => { setReviewAnswered('unanswered'); go('reviews'); } },
               dashExtra.trackerAlert && { icon:'🚚', label:'배송추적 연동 만료 — 갱신 필요', count: 1, onClick: () => go('orders') },
             ].filter(Boolean)) as AdmAlert[]} />
           </div>
@@ -9623,10 +9626,11 @@ export default function AdminClient() {
           {/* ===== 상품 관리 ===== */}
           {panel === 'products' && (
             <div className="adm-content">
-              <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
+              <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                 {[
                   { l:'전체 상품', v:products.length, st:'' as const, red:false },
                   { l:'판매중', v:productStatusCounts.selling, st:'selling' as const, red:false },
+                  { l:'재고 임박', v:productStatusCounts.lowstock, st:'lowstock' as const, red:true },
                   { l:'품절', v:productStatusCounts.soldout, st:'soldout' as const, red:true },
                   { l:'판매중지', v:productStatusCounts.stopped, st:'stopped' as const, red:false },
                 ].map(k => (
