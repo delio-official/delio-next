@@ -1503,19 +1503,17 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; values: number[] } }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(560);
-  const [height, setHeight] = useState(220);
 
-  /* ResizeObserver로 컨테이너 너비·높이 추적 — 높이는 카드에 맞춰 차트가 채워지도록 */
+  /* ResizeObserver로 컨테이너 너비만 추적 — 높이는 SVG를 100%로 채워 카드 높이에 맞춘다
+     (높이를 JS로 측정해 되먹이면 무한 확대 루프가 생기므로 CSS 스케일로 처리) */
   useEffect(() => {
     if (!ref.current) return;
     const ro = new ResizeObserver(entries => {
-      const r = entries[0]?.contentRect;
-      if (r?.width && r.width > 0) setWidth(r.width);
-      if (r?.height && r.height > 0) setHeight(Math.max(160, r.height));
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
     });
     ro.observe(ref.current);
     setWidth(ref.current.clientWidth || 560);
-    setHeight(Math.max(160, ref.current.clientHeight || 220));
     return () => ro.disconnect();
   }, []);
 
@@ -1531,7 +1529,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     );
   }
 
-  const H   = height;
+  const H   = 200;   // viewBox 좌표 기준값(고정). 실제 표시 높이는 SVG height:100%로 카드에 맞춰 스케일
   const PAD = { top: 28, right: 16, bottom: 4, left: 44 };
   const cw  = width - PAD.left - PAD.right;
   const ch  = H - PAD.top - PAD.bottom;
@@ -1570,7 +1568,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     `</g>`
   ).join('');
 
-  const svgStr = `<svg width="100%" height="${H}" viewBox="0 0 ${width} ${H}" preserveAspectRatio="none" overflow="visible">` +
+  const svgStr = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${H}" preserveAspectRatio="none" overflow="visible">` +
     `<defs><linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0%" stop-color="#3B82F6" stop-opacity="0.18"/>` +
     `<stop offset="100%" stop-color="#3B82F6" stop-opacity="0.01"/>` +
