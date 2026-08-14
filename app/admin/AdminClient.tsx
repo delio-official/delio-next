@@ -1690,6 +1690,7 @@ function BadgeColorRow({ value, presets, onPick }: {
   });
   const [selIdx, setSelIdx] = useState(() => { const i = presets.indexOf(value); return i >= 0 ? i : 0; });
   const [local, setLocal] = useState(value);
+  const [hexText, setHexText] = useState(value); // 헥스(#코드) 입력칸 표시값
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCommit = useRef(value); // 우리가 마지막으로 부모에 커밋한 값
 
@@ -1698,6 +1699,7 @@ function BadgeColorRow({ value, presets, onPick }: {
     if (value === lastCommit.current) return;
     lastCommit.current = value;
     setLocal(value);
+    setHexText(value);
     const i = presets.indexOf(value);
     if (i >= 0) { setSelIdx(i); setColors([...presets]); }
     else { setSelIdx(0); setColors(prev => { const n = [...presets]; n[0] = value; return n; }); }
@@ -1706,7 +1708,7 @@ function BadgeColorRow({ value, presets, onPick }: {
   function commit(v: string) { lastCommit.current = v; onPick(v); }
   function pick(i: number) {
     if (timer.current) clearTimeout(timer.current);
-    setSelIdx(i); setLocal(colors[i]); commit(colors[i]); // 그 칸의 현재 색 커밋
+    setSelIdx(i); setLocal(colors[i]); setHexText(colors[i]); commit(colors[i]); // 그 칸의 현재 색 커밋
   }
   function recolor(v: string) {
     setLocal(v);
@@ -1732,10 +1734,16 @@ function BadgeColorRow({ value, presets, onPick }: {
       <label title="선택한 칸 색 직접 변경" style={{ position:'relative', width:24, height:24, borderRadius:'50%', cursor:'pointer', overflow:'hidden',
         background:'conic-gradient(red, orange, yellow, lime, cyan, blue, magenta, red)', border:'2px solid #fff', boxShadow:'0 0 0 1px #E2E8F0' }}>
         <input type="color" value={local}
-          onChange={e => recolor(e.target.value)}
+          onChange={e => { setHexText(e.target.value); recolor(e.target.value); }}
           onBlur={commitNow}
           style={{ position:'absolute', inset:0, opacity:0, width:'100%', height:'100%', border:'none', padding:0, cursor:'pointer' }} />
       </label>
+      {/* 헥스(#코드) 직접 입력 — 색상은 모두 이 방식으로 통일 */}
+      <input type="text" value={hexText}
+        onChange={e => { const raw = e.target.value; setHexText(raw); let n = raw.trim(); if (n && n[0] !== '#') n = '#' + n; if (/^#[0-9a-fA-F]{6}$/.test(n)) recolor(n); }}
+        onBlur={() => { setHexText(local); commitNow(); }}
+        placeholder="#CB1D11" maxLength={7} spellCheck={false} aria-label="색상 코드(#)"
+        style={{ width:88, fontSize:12, fontFamily:'monospace', letterSpacing:'0.3px', padding:'4px 8px', border:'1px solid #E2E8F0', borderRadius:6, textTransform:'uppercase', color:'#334155' }} />
     </>
   );
 }

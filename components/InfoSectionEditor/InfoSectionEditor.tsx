@@ -190,7 +190,7 @@ export default function InfoSectionEditor({ productId, productName, onClose, dra
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {data[sec].map((txt, i) => (
             <li key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ flexShrink: 0, color: '#AAAAAA', fontSize: 16 }}>•</span>
+              <span style={{ flexShrink: 0, width: 14, textAlign: 'center', color: '#AAAAAA', fontSize: 16 }}>•</span>
               <input
                 value={txt}
                 onChange={e => setItem(sec, i, e.target.value)}
@@ -205,7 +205,7 @@ export default function InfoSectionEditor({ productId, productName, onClose, dra
           ))}
         </ul>
         <button onClick={() => addItem(sec)}
-          style={{ marginTop: 10, padding: '5px 14px', border: '1px dashed #C0C0C0',
+          style={{ marginTop: 10, marginLeft: 22, padding: '5px 14px', border: '1px dashed #C0C0C0',
             borderRadius: 6, background: 'transparent', cursor: 'pointer',
             fontSize: 12, color: '#888', fontWeight: 600 }}>
           + 항목 추가
