@@ -1836,6 +1836,10 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   const [subNameDraft, setSubNameDraft] = useState(''); // 하위 옵션이 아직 없을 때 하위 그룹명 미리 입력용
   useEffect(() => { if (!userTouchedMode.current) setMode(dataCascade ? 'cascade' : 'indep'); }, [dataCascade]);
 
+  // 단품 재고관리용 '기본' 항목 1개만 있는 상태 = 실제 판매옵션 아님(무제한 단품과 동일 취급, 재고칸만 노출)
+  const isSingleBasic = options.length === 1 && options[0].label === '기본' && !options[0].parent_id && !(options[0].parent_label || '').trim();
+  const isSimple = options.length === 0 || isSingleBasic; // 단품(무제한 또는 재고 수량관리)
+
   const patch = (_i: number, p: Partial<POpt>) => setOptions(prev => prev.map((o, i) => i === _i ? { ...o, ...p } : o));
   const removeAt = (_i: number) => setOptions(prev => prev.filter((_, i) => i !== _i));
   const renameGroup = (oldG: string, nv: string) => setOptions(prev => prev.map(o => o.group === oldG ? { ...o, group: nv } : o));
@@ -1905,8 +1909,8 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
 
   /* ── 시작 / 모드 전환 ── */
   const startOne = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('indep'); };
-  // 단품(옵션 없음)에서 재고관리만 켜기 — 기본 단품 항목 1개 생성
-  const startSingleStock = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'기본', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('indep'); };
+  // 단품(옵션 없음)에서 재고 수량 입력 → '기본' 항목 1개 생성(화면은 단품 그대로 유지)
+  const setSingleStock = (n: number) => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'기본', add_price:0, purchase_price:0, shipping_fee:0, stock:n, manage_stock:true, parent_label:'' }]); setMode('indep'); };
   const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'분류', required:true, label:'', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
     const hasCascade = options.some(o => (o.parent_label || '').trim());
@@ -1943,36 +1947,56 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
     <div style={{ display:'flex', alignItems:'center', gap:18, flexWrap:'wrap', paddingBottom:4 }}>
       <span style={{ fontSize:12, fontWeight:800, color:'#334155', flexShrink:0 }}>옵션</span>
       <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
-        <input type="radio" name="stockMode" checked={options.length === 0} onChange={clearAll} />
+        <input type="radio" name="stockMode" checked={isSimple} onChange={() => { if (!isSimple) clearAll(); }} />
         설정안함
       </label>
       <label style={{ display:'inline-flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13, fontWeight:600, color:'#334155' }}>
-        <input type="radio" name="stockMode" checked={options.length > 0} onChange={() => options.length === 0 && startOne()} />
+        <input type="radio" name="stockMode" checked={!isSimple} onChange={() => isSimple && startOne()} />
         설정함
       </label>
       <span style={{ fontSize:11, color:'#94A3B8' }}>
-        {options.length === 0
-          ? '옵션 없는 단품입니다. 재고 관리 없이 수량 제한 없이 계속 판매돼요.'
+        {isSimple
+          ? '옵션 없는 단품입니다. 아래에서 재고 수량을 정하거나, 비워두면 무제한 판매돼요.'
           : '재고는 옵션마다 [재고관리] 체크로 켜고 끌 수 있어요. (끄면 무한 판매)'}
       </span>
     </div>
   );
 
-  if (options.length === 0) return (
+  if (isSimple) {
+    const single = isSingleBasic ? idx[0] : null;
+    return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {stockRadio}
       <div style={{ background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:10, padding:'12px 14px', marginLeft:2 }}>
-        <div style={{ fontSize:12, fontWeight:800, color:'#334155', marginBottom:6 }}>재고 수량</div>
-        <div style={{ fontSize:12, color:'#64748B', marginBottom:10, lineHeight:1.5 }}>
-          지금은 <b style={{ color:'#1A8A4C' }}>무제한 판매</b> 상태예요. 판매 수량을 정해두려면 아래 버튼을 눌러 재고 수량을 입력하세요.
+        <div style={{ display:'flex', alignItems:'flex-end', gap:14, flexWrap:'wrap' }}>
+          <div>
+            <div style={{ fontSize:12, fontWeight:800, color:'#334155', marginBottom:6 }}>재고 수량</div>
+            <input className="adm-input-text" style={{ width:140 }} type="number" min="0" placeholder="무제한"
+              value={single ? String(single.stock ?? 0) : ''}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === '') { if (single) setOptions([]); return; }   // 비우면 무제한
+                const n = Math.max(0, Number(v) || 0);
+                if (single) patch(single._i, { stock: n, manage_stock: true });
+                else setSingleStock(n);
+              }} />
+          </div>
+          {single && (
+            <button type="button" onClick={() => setOptions([])}
+              style={{ fontSize:12, color:'#64748B', background:'none', border:'none', cursor:'pointer', textDecoration:'underline', paddingBottom:9 }}>
+              무제한으로 전환
+            </button>
+          )}
         </div>
-        <button type="button" onClick={startSingleStock}
-          style={{ fontSize:13, color:'#fff', background:'#2563EB', border:'none', borderRadius:8, padding:'9px 16px', cursor:'pointer', fontWeight:700 }}>
-          ＋ 재고 수량 입력하기
-        </button>
+        <div style={{ fontSize:11, color:'#94A3B8', marginTop:8 }}>
+          {single
+            ? '입력한 수량만큼 팔리면 자동으로 품절 처리돼요. (0 = 품절)'
+            : '비워두면 재고 제한 없이 계속 판매돼요. 숫자를 입력하면 재고 관리가 켜집니다.'}
+        </div>
       </div>
     </div>
-  );
+    );
+  }
 
   const modeBar = stockRadio;
 
@@ -3891,6 +3915,9 @@ export default function AdminClient() {
             if (pl) { const sup = rows.find(s => !(s.parent_label || '').trim() && s.label === pl); if (sup) r.parent_id = sup.id; }
           }
           setPOptions(rows);
+          // 단품 재고관리('기본' 항목)만 있는 상품 → 옵션 매입가/배송비를 상품 단위 공급가 입력칸에 복원(재저장 시 값 보존)
+          const onlyBasic = rows.length === 1 && rows[0].label === '기본' && !rows[0].parent_id && !(rows[0].parent_label || '').trim() ? rows[0] : null;
+          if (onlyBasic) { setPSupPurchase(Number(onlyBasic.purchase_price) || 0); setPSupShip(Number(onlyBasic.shipping_fee) || 0); }
         });
     } else {
       setEditingProduct(null);
@@ -3898,7 +3925,7 @@ export default function AdminClient() {
       setPDiscOn(false); setPDiscAmount(''); setPDiscMode('amount');  // 신규는 할인 접힘, 기본 단위 = 원
       setPSupPurchase(0); setPSupShip(0);
       setPForm({ ...PRODUCT_EMPTY });
-      setPOptions([{ id: newOptId(), group: '옵션', required: true, label: '기본', add_price: 0, purchase_price: 0, shipping_fee: 0, stock: 999, manage_stock: true, parent_label: '' }]);  // 단품 기본 옵션
+      setPOptions([]);  // 신규는 옵션 없는 단품(무제한)으로 시작 — 재고 수량을 입력하면 자동으로 재고 관리 켜짐
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
       generateSku(PRODUCT_EMPTY.category).then(sku => setPForm(f => ({ ...f, sku })));
@@ -3977,6 +4004,8 @@ export default function AdminClient() {
         const k = `${pl}|${o.group?.trim() || '옵션'}|${o.label.trim()}`;
         if (_seenSave.has(k)) return false; _seenSave.add(k); return true;
       });
+      // 단품 재고관리('기본' 항목)만 있는 경우 = 상품 단위 브랜드 공급가(매입가+배송비)를 그 항목에 그대로 저장
+      const saveSingleBasic = validOpts.length === 1 && validOpts[0].label.trim() === '기본' && !validOpts[0].parent_id && !(validOpts[0].parent_label || '').trim();
       if (validOpts.length > 0) {
         await supabase.from('product_options').insert(
           validOpts.map((o, i) => ({
@@ -3985,10 +4014,10 @@ export default function AdminClient() {
             is_required: o.required !== false,
             label: o.label.trim(),
             add_price: Number(o.add_price) || 0,
-            purchase_price: Number(o.purchase_price) || 0,
-            shipping_fee: Number(o.shipping_fee) || 0,
+            purchase_price: (saveSingleBasic ? Number(pSupPurchase) : Number(o.purchase_price)) || 0,
+            shipping_fee: (saveSingleBasic ? Number(pSupShip) : Number(o.shipping_fee)) || 0,
             // 공급가 = 매입가 + 배송비 (발주서·농가정산·트리거가 이 값을 사용)
-            supply_price: (Number(o.purchase_price) || 0) + (Number(o.shipping_fee) || 0),
+            supply_price: saveSingleBasic ? ((Number(pSupPurchase) || 0) + (Number(pSupShip) || 0)) : ((Number(o.purchase_price) || 0) + (Number(o.shipping_fee) || 0)),
             stock: Number(o.stock) || 0,
             manage_stock: o.manage_stock !== false,
             parent_label: o.parent_id ? (labelById.get(o.parent_id) || null) : (o.parent_label?.trim() || null),
@@ -7090,6 +7119,9 @@ export default function AdminClient() {
     stopped: products.filter(p => productSellState(p) === 'stopped').length,
     lowstock: products.filter(p => p.low_stock).length,
   };
+  /* 단품 재고관리용 '기본' 옵션만 있는 상태는 실제 판매옵션이 아님 → 브랜드 공급가는 상품 단위로 계속 입력 */
+  const pIsSingleBasic = pOptions.length === 1 && pOptions[0]?.label === '기본' && !pOptions[0]?.parent_id && !(pOptions[0]?.parent_label || '').trim();
+  const pHasRealOptions = pOptions.length > 0 && !pIsSingleBasic;
   /* 카테고리 라벨 — filter_tabs(category형)에서 동적 생성, 없으면 하드코딩 폴백 */
   const dynCatLabel: Record<string, string> = filterTabs
     .filter(t => t.tab_type === 'category')
@@ -7460,7 +7492,7 @@ export default function AdminClient() {
                   </div>
                   <div>
                     <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 매입가+배송비</span></label>
-                    {pOptions.length > 0 ? (
+                    {pHasRealOptions ? (
                       <>
                         <input className="adm-input-text" style={{ width:'100%', background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' }}
                           type="text" disabled readOnly value="" placeholder="옵션별 매입가로 정산" />
