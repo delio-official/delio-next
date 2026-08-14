@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { splitBadges } from '@/lib/badges';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -372,7 +373,7 @@ function QuickGuide() {
             <span style={{ display:'inline-flex', gap:4, flexWrap:'wrap' }}>
               {p.is_new  && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>NEW</span>}
               {p.is_best && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>인기</span>}
-              {p.badge   && <span className="qg-card-tag" style={{ background: p.badge_color || '#1A1A1A', color:'#fff' }}>{p.badge}</span>}
+              {splitBadges(p.badge).map((t, i) => <span key={`b${i}`} className="qg-card-tag" style={{ background: p.badge_color || '#1A1A1A', color:'#fff' }}>{t}</span>)}
             </span>
           ) : (
             <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>

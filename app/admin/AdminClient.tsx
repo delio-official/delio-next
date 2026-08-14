@@ -10,6 +10,7 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { splitBadges } from '@/lib/badges';
 import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
 import { SELLER_AXES, TASTE_AXES, axisLevelLabel, toLevel, type ReviewTaste } from '@/lib/taste';
 import SectionCuration from '@/components/admin/SectionCuration';
@@ -81,7 +82,7 @@ function ProductPreviewCard(p: PreviewProps) {
           <div style={{ height:22, display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
             {p.isNew  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>NEW</span>}
             {p.isBest && <span style={{ fontSize:11, fontWeight:800, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>인기</span>}
-            {p.badge  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:p.badgeColor || '#1A1A1A', color:'#fff' }}>{p.badge}</span>}
+            {splitBadges(p.badge).map((t, i) => <span key={`b${i}`} style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:p.badgeColor || '#1A1A1A', color:'#fff' }}>{t}</span>)}
           </div>
         )}
         <div style={{ fontSize: mob ? 14 : 17, fontWeight:600, color:'#1A1A1A', lineHeight:1.4,
@@ -7760,21 +7761,21 @@ export default function AdminClient() {
               <div style={{ fontSize:13, fontWeight:700, color:'#475569', margin:'22px 0 12px', paddingTop:18, borderTop:'1px solid #EEF1F5' }}>표시 설정 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(뱃지 · 정렬 · 태그)</span></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(쉼표로 여러 개 · 색상 공통)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.badge || ''}
-                    onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 한정수량" />
+                    onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 당일수확, 예약발송" />
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
                     <BadgeColorRow
                       value={pForm.badge_color || BADGE_DEFAULT_COLOR}
                       presets={BADGE_COLORS.map(c => c.value)}
                       onPick={v => setPForm(f => ({ ...f, badge_color: v }))} />
                     <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
-                    {pForm.badge && (
-                      <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
+                    {splitBadges(pForm.badge).map((t, i) => (
+                      <span key={`b${i}`} style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
                         background: pForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
-                        {pForm.badge}
+                        {t}
                       </span>
-                    )}
+                    ))}
                   </div>
                 </div>
                 <div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { imgThumb } from '@/lib/img';
+import { splitBadges } from '@/lib/badges';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -150,9 +151,9 @@ function ProductCard({ p }: { p: Product }) {
           {/* NEW · 인기 · 직접 입력 뱃지 — 켠 것은 모두 표시 */}
           {p.is_new  && <span className="product-badge badge-new">NEW</span>}
           {p.is_best && <span className="product-badge badge-best">인기</span>}
-          {p.badge && (
-            <span className="product-badge" style={{ background: p.badge_color || '#1A1A1A', color: '#fff' }}>{p.badge}</span>
-          )}
+          {splitBadges(p.badge).map((t, i) => (
+            <span key={`b${i}`} className="product-badge" style={{ background: p.badge_color || '#1A1A1A', color: '#fff' }}>{t}</span>
+          ))}
         </div>
         <div className="product-card-name">{p.name}</div>
         {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}

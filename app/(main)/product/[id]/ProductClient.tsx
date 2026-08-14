@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { splitBadges } from '@/lib/badges';
 import { PRODUCT_PUBLIC_COLS } from '@/lib/productCols';
 import { addToCart, getCart, showCartToast, openOptionDrawer } from '@/lib/cart';
 import { getDownloadableCoupons, claimAllPublic, type PublicCoupon } from '@/lib/coupons';
@@ -1761,13 +1762,13 @@ export default function ProductClient() {
                   color:      product.is_dawn ? '#7A5C2E' : '#CB1D11' }}>
                   {product.is_dawn ? '산지직송' : '자사배송'}
                 </span>
-                {product.badge && (
-                  <span style={{ fontSize:13, fontWeight:700, padding:'3px 9px', borderRadius:6,
+                {splitBadges(product.badge).map((t, i) => (
+                  <span key={`b${i}`} style={{ fontSize:13, fontWeight:700, padding:'3px 9px', borderRadius:6,
                     background: product.badge_color || 'var(--color-bg)',
                     color: product.badge_color ? '#fff' : 'var(--color-ink-soft)' }}>
-                    {product.badge}
+                    {t}
                   </span>
-                )}
+                ))}
                 {product.avg_rating > 0 && (
                   <div onClick={goToReviews} role="button" title="후기 보기"
                     style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
