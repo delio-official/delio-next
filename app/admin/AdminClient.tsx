@@ -7453,9 +7453,16 @@ export default function AdminClient() {
                   </div>
                   <div>
                     <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 정산 단가</span></label>
-                    <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pForm.supply_price || ''}
-                      onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))} placeholder="0" />
-                    {pForm.supply_price > 0 && pForm.price > 0 && (() => {
+                    <input className="adm-input-text"
+                      style={{ width:'100%', background: pOptions.length > 0 ? '#F1F5F9' : undefined, color: pOptions.length > 0 ? '#94A3B8' : undefined, cursor: pOptions.length > 0 ? 'not-allowed' : undefined }}
+                      type="number" min="0" disabled={pOptions.length > 0} value={pForm.supply_price || ''}
+                      onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))}
+                      placeholder={pOptions.length > 0 ? '옵션별 매입가로 정산' : '0'} />
+                    {pOptions.length > 0 ? (
+                      <div style={{ marginTop:6, fontSize:12, color:'#94A3B8' }}>
+                        옵션 판매는 <strong style={{ color:'#475569' }}>각 옵션의 매입가</strong>로 정산돼요. 여기는 안 쓰셔도 됩니다.
+                      </div>
+                    ) : (pForm.supply_price > 0 && pForm.price > 0 && (() => {
                       const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
                       const margin = sellPrice - Number(pForm.supply_price);
                       return (
@@ -7463,7 +7470,7 @@ export default function AdminClient() {
                           마진: <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong>
                         </div>
                       );
-                    })()}
+                    })())}
                   </div>
                 </div>
                 {/* 할인 — 체크 시 펼쳐지는 영역 (전체 폭) */}
