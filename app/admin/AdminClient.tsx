@@ -9271,9 +9271,9 @@ export default function AdminClient() {
                       ))}
                     </div>
                   </div>
-                  <div className="adm-card">
+                  <div className="adm-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div className="adm-card-head"><span className="adm-card-title">최근 주문 현황</span></div>
-                    <div className="adm-pending-list">
+                    <div className="adm-pending-list" style={{ flex: 1 }}>
                       {orders.slice(0, 5).map(o => (
                         <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
                           <span className="adm-muted" style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</span>
