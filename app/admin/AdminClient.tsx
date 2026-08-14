@@ -9852,6 +9852,7 @@ export default function AdminClient() {
                       const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' };
                       const addSt: React.CSSProperties = { width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 };
                       const addBtnSm: React.CSSProperties = { ...addSt, marginTop:0, width:'auto', padding:'9px 18px' };
+                      const addMiniSt: React.CSSProperties = { flexShrink:0, fontSize:11, fontWeight:700, color:'#475569', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:6, padding:'4px 9px', cursor:'pointer', whiteSpace:'nowrap' };
                       return (
                     <>
                     {/* 카테고리 대분류 컬럼 */}
@@ -9868,6 +9869,7 @@ export default function AdminClient() {
                           <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {ftText(m)}
                           <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>소분류 {subs.length}</span>
+                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(m.id); return n; }); addCategory(m.tab_value); }} style={addMiniSt} title="소분류 추가">+ 소분류</button>
                           <AdmToggle on={m.is_active} color="#2563EB" onChange={v => updateFt(m.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteCategory(m)} style={delSt}>삭제</button>
                         </div>
@@ -9882,7 +9884,6 @@ export default function AdminClient() {
                             <button type="button" onClick={() => deleteCategory(s)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addCategory(m.tab_value)} style={{ ...addSt, marginLeft:28, width:'auto' }}>+ 소분류 추가</button>
                         </>)}
                       </div>
                       );
@@ -9901,6 +9902,7 @@ export default function AdminClient() {
                           <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
                           <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>하위 {subs.length}</span>
+                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(g.id); return n; }); addMenu({ parent:g.id, label:'새 링크', href:'/' }); }} style={addMiniSt} title="하위 추가">+ 하위</button>
                           <AdmToggle on={g.is_active} color="#2563EB" onChange={v => updateMenu(g.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
@@ -9914,7 +9916,6 @@ export default function AdminClient() {
                             <button type="button" onClick={() => deleteMenu(s.id)} style={delSt}>삭제</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addMenu({ parent:g.id, label:'새 링크', href:'/' })} style={{ ...addSt, marginLeft:28, width:'auto' }}>+ 소분류 추가</button>
                         </>)}
                       </div>
                       );
