@@ -42,5 +42,6 @@ export async function POST(req: Request) {
   const { error } = await admin.from('reviews').update(payload).eq('id', reviewId);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  /* 갱신된 값을 그대로 반환 — 클라이언트가 화면(작성일 등)을 즉시 반영하는 데 사용 */
+  return NextResponse.json({ ok: true, ...payload });
 }
