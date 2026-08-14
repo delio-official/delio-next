@@ -37,6 +37,19 @@ const ORG_JSONLD = {
   description: '산지직송 프리미엄 과일 전문 쇼핑몰',
 };
 
+/* 사이트 검색박스(구글 sitelinks searchbox) 구조화 데이터 */
+const WEBSITE_JSONLD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: '델리오',
+  url: 'https://www.delio.co.kr',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: { '@type': 'EntryPoint', urlTemplate: 'https://www.delio.co.kr/search?q={search_term_string}' },
+    'query-input': 'required name=search_term_string',
+  },
+};
+
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -54,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSONLD) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSONLD) }} />
         <GoogleTagManager />
         <GoogleAnalytics />
         <MetaPixel />
