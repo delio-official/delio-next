@@ -2112,6 +2112,8 @@ export default function AdminClient() {
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('amount');
   const [pDiscOn, setPDiscOn] = useState(false); // '할인 판매하기' 체크 → 할인영역 펼침
   const [pDiscAmount, setPDiscAmount] = useState(''); // '원 할인' 모드 입력값(원)
+  const [pSupPurchase, setPSupPurchase] = useState(0); // 단품 브랜드 공급가 = 매입가 + 배송비 (합계를 pForm.supply_price에 저장)
+  const [pSupShip, setPSupShip] = useState(0);
   // 금액 입력 → 가격 기준으로 할인율(%) 환산 (가격 입력 순서 무관)
   useEffect(() => {
     if (pDiscMode !== 'amount' || pDiscAmount === '') return;
@@ -3855,6 +3857,7 @@ export default function AdminClient() {
           setPDiscOn((data.discount_rate || 0) > 0); // 기존 할인 있으면 펼친 상태로
           setPDiscMode('amount'); // 기본 단위 = 원 할인
           setPDiscAmount((data.discount_rate || 0) > 0 ? String(Math.round(data.price * data.discount_rate / 100)) : '');
+          setPSupPurchase(data.supply_price ?? 0); setPSupShip(0); // 단품 공급가는 로드 시 전액 매입가로 표시(배송비 0)
           setPForm({
             sku: data.sku || '', name: data.name, category: data.category,
             origin: data.origin || '', origin_region: data.origin_region || '', supply_price: data.supply_price ?? 0, price: data.price, discount_rate: data.discount_rate,
@@ -3893,6 +3896,7 @@ export default function AdminClient() {
       setEditingProduct(null);
       uploadedThumbnailRef.current = '';          // 새 등록 시 ref 초기화
       setPDiscOn(false); setPDiscAmount(''); setPDiscMode('amount');  // 신규는 할인 접힘, 기본 단위 = 원
+      setPSupPurchase(0); setPSupShip(0);
       setPForm({ ...PRODUCT_EMPTY });
       setPOptions([{ id: newOptId(), group: '옵션', required: true, label: '기본', add_price: 0, purchase_price: 0, shipping_fee: 0, stock: 999, manage_stock: true, parent_label: '' }]);  // 단품 기본 옵션
       setProductModal(true);
@@ -7455,25 +7459,39 @@ export default function AdminClient() {
                       onChange={e => setPForm(f => ({ ...f, price: Number(e.target.value) }))} placeholder="0" />
                   </div>
                   <div>
-                    <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 정산 단가</span></label>
-                    <input className="adm-input-text"
-                      style={{ width:'100%', background: pOptions.length > 0 ? '#F1F5F9' : undefined, color: pOptions.length > 0 ? '#94A3B8' : undefined, cursor: pOptions.length > 0 ? 'not-allowed' : undefined }}
-                      type="number" min="0" disabled={pOptions.length > 0} value={pForm.supply_price || ''}
-                      onChange={e => setPForm(f => ({ ...f, supply_price: Number(e.target.value) }))}
-                      placeholder={pOptions.length > 0 ? '옵션별 매입가로 정산' : '0'} />
+                    <label className="adm-label">브랜드 공급가 (원) <span style={{ fontWeight:400, color:'#94A3B8' }}>· 매입가+배송비</span></label>
                     {pOptions.length > 0 ? (
-                      <div style={{ marginTop:6, fontSize:12, color:'#94A3B8' }}>
-                        옵션 판매는 <strong style={{ color:'#475569' }}>각 옵션의 매입가</strong>로 정산돼요. 여기는 안 쓰셔도 됩니다.
-                      </div>
-                    ) : (pForm.supply_price > 0 && pForm.price > 0 && (() => {
-                      const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
-                      const margin = sellPrice - Number(pForm.supply_price);
-                      return (
-                        <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
-                          마진: <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong>
+                      <>
+                        <input className="adm-input-text" style={{ width:'100%', background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' }}
+                          type="text" disabled readOnly value="" placeholder="옵션별 매입가로 정산" />
+                        <div style={{ marginTop:6, fontSize:12, color:'#94A3B8' }}>
+                          옵션 판매는 <strong style={{ color:'#475569' }}>각 옵션의 매입가</strong>로 정산돼요. 여기는 안 쓰셔도 됩니다.
                         </div>
-                      );
-                    })())}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                          <div>
+                            <div style={{ fontSize:10, color:'#94A3B8', marginBottom:3 }}>매입가</div>
+                            <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupPurchase || ''} placeholder="0"
+                              onChange={e => { const v = Number(e.target.value) || 0; setPSupPurchase(v); setPForm(f => ({ ...f, supply_price: v + pSupShip })); }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize:10, color:'#94A3B8', marginBottom:3 }}>배송비</div>
+                            <input className="adm-input-text" style={{ width:'100%' }} type="number" min="0" value={pSupShip || ''} placeholder="0"
+                              onChange={e => { const v = Number(e.target.value) || 0; setPSupShip(v); setPForm(f => ({ ...f, supply_price: pSupPurchase + v })); }} />
+                          </div>
+                        </div>
+                        <div style={{ marginTop:6, fontSize:12, color:'#475569' }}>
+                          공급가 <strong style={{ color:'#334155' }}>{(pSupPurchase + pSupShip).toLocaleString()}원</strong>
+                          {pForm.price > 0 && (pSupPurchase + pSupShip) > 0 && (() => {
+                            const sellPrice = Math.round(pForm.price * (1 - pForm.discount_rate / 100));
+                            const margin = sellPrice - (pSupPurchase + pSupShip);
+                            return <> · 마진 <strong style={{ color: margin >= 0 ? '#1A8A4C' : '#DC2626' }}>{margin.toLocaleString()}원</strong></>;
+                          })()}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
                 {/* 할인 — 체크 시 펼쳐지는 영역 (전체 폭) */}
