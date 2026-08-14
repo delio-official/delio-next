@@ -427,6 +427,7 @@ interface AdminRefundReq {
   status: string; // pending | processing | completed | rejected | hold
   reject_reason?: string | null;
   created_at: string;
+  updated_at?: string | null; // 마지막 처리 시각(상태 변경 등) — 최근 처리순 정렬용
   type?: string; // 'cancel' | 'refund'
   refund_amount?: number | null;   // 하자분 순환불액
   resend_amount?: number | null;   // 소비자 재송금액
@@ -4431,7 +4432,7 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('refund_requests')
       .select(`
-        id, order_id, reason, detail, status, reject_reason, created_at, type,
+        id, order_id, reason, detail, status, reject_reason, created_at, updated_at, type,
         refund_amount, resend_amount, resend_status, refund_items, attachments, memo,
         orders ( order_no, final_amount, status, portone_payment_id, payment_method, order_items ( product_name, quantity ) ),
         profiles:user_id ( name, email )
@@ -12770,7 +12771,7 @@ export default function AdminClient() {
                           const reqOrderNos = new Set(refundReqs.map(r => r.orders?.order_no).filter(Boolean) as string[]);
                           const kw = refundSearch.trim().toLowerCase();
                           const customerReqs = (refundFilter === 'admin' ? [] : refundReqs)
-                            .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.created_at)
+                            .filter(r => (!refundStatusFilter || r.status === refundStatusFilter) && inDate(r.updated_at || r.created_at)
                               && (!refundTypeFilter || (r.type || 'refund') === refundTypeFilter)
                               && (!isCancelTab || !cancelReasonFilter || r.reason === cancelReasonFilter)
                               && (!kw || [r.profiles?.name, r.profiles?.email, r.orders?.order_no].some(v => (v || '').toLowerCase().includes(kw))));
@@ -12790,48 +12791,70 @@ export default function AdminClient() {
 
                           /* ── 취소 탭: 로그·보기용 (유형/신청자/주문번호/상품/사유/일자/상태/보기) ── */
                           if (isCancelTab) {
+                            /* 고객/판매자 구분 없이 최근 처리(updated_at) 순으로 통합 정렬 */
+                            const tsOf = (v: string | null | undefined, fb: string) => new Date(v || fb).getTime();
+                            type CxEntry = { ts: number; r?: AdminRefundReq; o?: Order };
+                            const rows: CxEntry[] = [
+                              ...customerReqs.map(r => ({ ts: tsOf(r.updated_at, r.created_at), r } as CxEntry)),
+                              ...directCancels.map(o => ({ ts: tsOf((o as { updated_at?: string | null }).updated_at, o.created_at), o } as CxEntry)),
+                            ].sort((a, b) => b.ts - a.ts);
                             return (
                               <>
-                                {customerReqs.map(r => (
-                                  <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => openOrder(r.orders?.order_no, r)}>
-                                    <td><span className="adm-badge badge-normal">고객 직접취소</span></td>
-                                    <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.email || ''}</div></td>
-                                    <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.orders?.order_no || '-'}</td>
-                                    <td style={{ textAlign:'left' }}>{prodCell(r.orders?.order_items)}</td>
-                                    <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
-                                    <td className="adm-muted">{fmtDateShort(r.created_at)}</td>
-                                    <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
-                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrder(r.orders?.order_no, r); }}>보기</button></td>
-                                  </tr>
-                                ))}
-                                {directCancels.map(o => (
-                                  <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => openOrderModal(o)}>
-                                    <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
-                                    <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
-                                    <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
-                                    <td style={{ textAlign:'left' }}>{prodCell(o.order_items)}</td>
-                                    <td className="adm-muted">—</td>
-                                    <td className="adm-muted">{fmtDateShort(o.created_at)}</td>
-                                    <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
-                                    <td><button className="adm-row-btn" onClick={(e) => { e.stopPropagation(); openOrderModal(o); }}>보기</button></td>
-                                  </tr>
-                                ))}
+                                {rows.map(e => {
+                                  if (e.r) {
+                                    const r = e.r;
+                                    return (
+                                      <tr key={r.id} style={{ cursor:'pointer' }} onClick={() => openOrder(r.orders?.order_no, r)}>
+                                        <td><span className="adm-badge badge-normal">고객 직접취소</span></td>
+                                        <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.name || '(탈퇴)'}</div><div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.profiles?.email || ''}</div></td>
+                                        <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.orders?.order_no || '-'}</td>
+                                        <td style={{ textAlign:'left' }}>{prodCell(r.orders?.order_items)}</td>
+                                        <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
+                                        <td className="adm-muted">{fmtDateShort(r.updated_at || r.created_at)}</td>
+                                        <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
+                                        <td><button className="adm-row-btn" onClick={(ev) => { ev.stopPropagation(); openOrder(r.orders?.order_no, r); }}>보기</button></td>
+                                      </tr>
+                                    );
+                                  }
+                                  const o = e.o!;
+                                  return (
+                                    <tr key={o.id} style={{ cursor:'pointer' }} onClick={() => openOrderModal(o)}>
+                                      <td><span className="adm-badge badge-off">판매자 직접취소</span></td>
+                                      <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
+                                      <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
+                                      <td style={{ textAlign:'left' }}>{prodCell(o.order_items)}</td>
+                                      <td className="adm-muted">—</td>
+                                      <td className="adm-muted">{fmtDateShort((o as { updated_at?: string | null }).updated_at || o.created_at)}</td>
+                                      <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
+                                      <td><button className="adm-row-btn" onClick={(ev) => { ev.stopPropagation(); openOrderModal(o); }}>보기</button></td>
+                                    </tr>
+                                  );
+                                })}
                               </>
                             );
                           }
 
-                          /* ── 환불 탭: 처리·관리용 (기존) ── */
+                          /* ── 환불 탭 — 고객/관리자 구분 없이 최근 처리(updated_at) 순으로 통합 정렬 ── */
+                          const tsOf = (v: string | null | undefined, fb: string) => new Date(v || fb).getTime();
+                          /* 한 주문에서 부분환불이 여러 번이면 주문번호로 묶어 1행만 표시. customerReqs는 최신순이라 group[0]=대표(최신). */
+                          const custGroups = new Map<string, AdminRefundReq[]>();
+                          customerReqs.forEach(r => {
+                            const key = r.order_id || r.id;
+                            (custGroups.get(key) || custGroups.set(key, []).get(key)!).push(r);
+                          });
+                          type RefEntry = { ts: number; group?: AdminRefundReq[]; dc?: Order };
+                          const entries: RefEntry[] = [
+                            ...[...custGroups.values()].map(group => ({
+                              ts: group.reduce((m, x) => Math.max(m, tsOf(x.updated_at, x.created_at)), 0),
+                              group,
+                            })),
+                            ...directCancels.map(o => ({ ts: tsOf((o as { updated_at?: string | null }).updated_at, o.created_at), dc: o })),
+                          ].sort((a, b) => b.ts - a.ts);
                           return (
                             <>
-                              {(() => {
-                                /* 한 주문에서 부분환불이 여러 번이면 주문번호로 묶어 1행만 표시(내역은 상세에서 리스트로).
-                                   customerReqs는 최신순 정렬이므로 각 그룹의 첫 항목이 최신(대표). */
-                                const groups = new Map<string, AdminRefundReq[]>();
-                                customerReqs.forEach(r => {
-                                  const key = r.order_id || r.id;
-                                  (groups.get(key) || groups.set(key, []).get(key)!).push(r);
-                                });
-                                return [...groups.values()].map(group => {
+                              {entries.map(e => {
+                                if (e.group) {
+                                  const group = e.group;
                                   const rep = group[0];                               // 대표(최신)
                                   const isCancel = rep.type === 'cancel';
                                   const final = rep.orders?.final_amount ?? 0;
@@ -12867,19 +12890,20 @@ export default function AdminClient() {
                                       </td>
                                     </tr>
                                   );
-                                });
-                              })()}
-                              {directCancels.map(o => (
-                                <tr key={o.id}>
-                                  <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
-                                  <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
-                                  <td>{fmtPrice(o.final_amount)}원</td>
-                                  <td><PayBadge method={(o as { payment_method?: string | null }).payment_method || ''} /></td>
-                                  <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
-                                  <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
-                                  <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
-                                </tr>
-                              ))}
+                                }
+                                const o = e.dc!;
+                                return (
+                                  <tr key={o.id}>
+                                    <td><div style={{ fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</div></td>
+                                    <td className="adm-mono" style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.order_no}</td>
+                                    <td>{fmtPrice(o.final_amount)}원</td>
+                                    <td><PayBadge method={(o as { payment_method?: string | null }).payment_method || ''} /></td>
+                                    <td className="adm-muted">관리자 {o.status === 'cancelled' ? '취소' : '환불'}</td>
+                                    <td><span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-off'}`}>{STATUS_LABEL[o.status] || o.status}</span></td>
+                                    <td><button className="adm-row-btn" onClick={() => openOrderModal(o)}>상세</button></td>
+                                  </tr>
+                                );
+                              })}
                             </>
                           );
                         })()}
