@@ -7033,14 +7033,17 @@ export default function AdminClient() {
         if (farmId && i.farm_id !== farmId) return;
         const key = `${o.id}|${i.farm_id || '__none__'}`;
         const p = (parcels[key] ||= { order_no: o.order_no, recipient: o.recipient, phone: o.phone,
-          address: o.address1 + (o.address2 ? ' ' + o.address2 : ''), memo: o.delivery_memo || '', products: [], qty: 0, tracking: (i.tracking_number as string) || '' });
+          address: o.address1 + (o.address2 ? ' ' + o.address2 : ''), memo: o.delivery_memo || '', products: [], qty: 0, tracking: '' });
+        if (!p.tracking && i.tracking_number) p.tracking = i.tracking_number as string;
         const nm = i.product_name + (i.option_label ? ` (${i.option_label})` : '');
         p.products.push(nm);
         p.qty += Number(i.quantity) || 0;
       });
     });
-    const list = Object.values(parcels);
-    if (list.length === 0) { alert('다운로드할 주문이 없습니다.'); return; }
+    /* CJ 대량접수(발송 등록) 양식은 아직 운송장 없는 '발송 전' 자사 건만 담는다.
+       이미 발송돼 운송장이 찍힌 과거 내역은 제외 — 재업로드/중복 방지 */
+    const list = Object.values(parcels).filter(p => !p.tracking);
+    if (list.length === 0) { alert('발송할 자사 주문이 없습니다.\n(이미 운송장이 등록된 건은 제외됩니다)'); return; }
 
     const header = ['받는분성명','받는분전화번호','받는분기타연락처','받는분주소(전체, 분할)','품목명','내품명','내품수량','박스타입','운임구분','사용안함','배송메세지1','고객주문번호','운송장번호'];
     const aoa: (string | number)[][] = [header];
