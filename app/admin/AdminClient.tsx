@@ -9854,8 +9854,6 @@ export default function AdminClient() {
                       const leadSt: React.CSSProperties = { width:16, flexShrink:0, textAlign:'center', color:'#CBD5E1', fontSize:14 };
                       const handleSt: React.CSSProperties = { cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' };
                       const delSt: React.CSSProperties = { flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' };
-                      const addSt: React.CSSProperties = { width:'100%', fontSize:14, fontWeight:600, color:'#1A1A1A', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:8, padding:'10px', cursor:'pointer', marginTop:8 };
-                      const addBtnSm: React.CSSProperties = { ...addSt, marginTop:0, width:'auto', padding:'9px 18px' };
                       const addMiniSt: React.CSSProperties = { flexShrink:0, fontSize:11, fontWeight:700, color:'#475569', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:6, padding:'4px 9px', cursor:'pointer', whiteSpace:'nowrap' };
                       return (
                     <>
@@ -9896,7 +9894,7 @@ export default function AdminClient() {
                       );
                     })}
                     <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
-                      <button type="button" onClick={() => addCategory(null)} style={addBtnSm}>+ 카테고리 추가</button>
+                      <button type="button" onClick={() => addCategory(null)} style={addMiniSt}>+ 카테고리 추가</button>
                     </div>
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => {
@@ -9933,7 +9931,7 @@ export default function AdminClient() {
                       );
                     })}
                     <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addBtnSm}>+ 메뉴 그룹 추가</button>
+                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addMiniSt}>+ 메뉴 그룹 추가</button>
                     </div>
                     </>
                       );
