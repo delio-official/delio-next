@@ -9895,7 +9895,9 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
-                    <button type="button" onClick={() => addCategory(null)} style={{ ...addBtnSm, marginBottom:14 }}>+ 카테고리 추가</button>
+                    <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
+                      <button type="button" onClick={() => addCategory(null)} style={addBtnSm}>+ 카테고리 추가</button>
+                    </div>
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => {
                       const subs = menus.filter(s => s.parent===g.id).sort((a,b)=>a.sort_order-b.sort_order);
@@ -9930,7 +9932,9 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
-                    <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addBtnSm}>+ 메뉴 그룹 추가</button>
+                    <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addBtnSm}>+ 메뉴 그룹 추가</button>
+                    </div>
                     </>
                       );
                     })()}
