@@ -9875,7 +9875,7 @@ export default function AdminClient() {
                           <button type="button" onClick={() => toggleMegaCat(m.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {ftText(m)}
-                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>소분류 {subs.length}</span>
+                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0, width:48, textAlign:'right', whiteSpace:'nowrap' }}>소분류 {subs.length}</span>
                           <AdmToggle on={m.is_active} color="#2563EB" onChange={v => updateFt(m.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteCategory(m)} style={delSt}>삭제</button>
                         </div>
@@ -9886,6 +9886,7 @@ export default function AdminClient() {
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {ftText(s)}
+                            <span style={{ width:48, flexShrink:0 }} />
                             <AdmToggle on={s.is_active} color="#2563EB" onChange={v => updateFt(s.id, { is_active: v }, false)} title="노출" />
                             <button type="button" onClick={() => deleteCategory(s)} style={delSt}>삭제</button>
                           </div>
@@ -9910,7 +9911,7 @@ export default function AdminClient() {
                           <button type="button" onClick={() => toggleMegaCat(g.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
-                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0 }}>하위 {subs.length}</span>
+                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0, width:48, textAlign:'right', whiteSpace:'nowrap' }}>하위 {subs.length}</span>
                           <AdmToggle on={g.is_active} color="#2563EB" onChange={v => updateMenu(g.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
@@ -9920,6 +9921,7 @@ export default function AdminClient() {
                             <span style={leadSt}>└</span>
                             <span draggable onDragStart={() => { dragRow.current = s.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                             {mText(s)}
+                            <span style={{ width:48, flexShrink:0 }} />
                             <AdmToggle on={s.is_active} color="#2563EB" onChange={v => updateMenu(s.id, { is_active: v }, false)} title="노출" />
                             <button type="button" onClick={() => deleteMenu(s.id)} style={delSt}>삭제</button>
                           </div>
