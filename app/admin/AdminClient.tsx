@@ -2362,6 +2362,8 @@ export default function AdminClient() {
   /* 섹션관리 상단 카드 접기/펼치기 */
   /* 메인페이지 섹션관리 접기/펼치기 기본값 — 메인섹션 노출·바로가기 필탭만 펼침, 나머지 닫힘 */
   const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: false });
+  const [homePreviewKey, setHomePreviewKey] = useState(0); // 메인페이지 미리보기 새로고침용
+  const [homePreviewOpen, setHomePreviewOpen] = useState(true);
   /* ── 상단 메뉴 (menu_items) ── */
   type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
   const [menus, setMenus] = useState<MenuRow[]>([]);
@@ -11672,6 +11674,25 @@ export default function AdminClient() {
           {/* ===== 메인페이지 섹션관리 ===== */}
           {panel === 'homesections' && (
             <div className="adm-content">
+              {/* 실제 메인페이지 미리보기 — 아래에서 섹션 편집 후 [새로고침]으로 결과 확인 */}
+              <div className="adm-card" style={{ marginBottom: 16, padding:'14px 16px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                  <div onClick={() => setHomePreviewOpen(o => !o)} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
+                    <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: homePreviewOpen ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
+                    <span className="adm-card-title">실제 메인페이지 미리보기</span>
+                    <span style={{ fontSize:12, color:'#94A3B8' }}>(클릭·스크롤 됩니다)</span>
+                  </div>
+                  <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:12 }}>
+                    <button className="adm-btn adm-btn-outline" style={{ height:30, padding:'0 12px', fontSize:12 }} onClick={() => setHomePreviewKey(k => k + 1)}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
+                    <a href="/" target="_blank" rel="noreferrer" style={{ fontSize:12, color:'#2563EB', textDecoration:'none' }}>새 탭에서 열기 ↗</a>
+                  </div>
+                </div>
+                {homePreviewOpen && (
+                  <div style={{ border:'1px solid #EBEBEB', borderRadius:8, overflow:'hidden', background:'#fff', marginTop:12 }}>
+                    <iframe key={homePreviewKey} src="/" title="메인페이지 미리보기" style={{ width:'100%', height:600, border:'none', display:'block' }} />
+                  </div>
+                )}
+              </div>
               <div className="adm-card" style={{ marginBottom: 16, padding:'16px 18px' }}>
                 <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
                   <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: secOpen.toggles ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
