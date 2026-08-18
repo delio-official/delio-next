@@ -2368,7 +2368,7 @@ export default function AdminClient() {
   type MenuRow = { id: string; label: string; href: string; emoji: string; parent: string | null; sort_order: number; is_active: boolean; show_in_mega: boolean; show_in_header: boolean; show_in_shortcut: boolean };
   const [menus, setMenus] = useState<MenuRow[]>([]);
   const [menusLoading, setMenusLoading] = useState(false);
-  const [menuTab, setMenuTab] = useState<'mega'|'header'|'productlist'|'shortcut'>('mega');
+  const [menuTab, setMenuTab] = useState<'mega'|'header'|'shortcut'>('mega');
   const [openMegaCat, setOpenMegaCat] = useState<Set<string>>(new Set()); // 메가메뉴 대분류 아코디언 펼침 상태
   const toggleMegaCat = (id: string) => setOpenMegaCat(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -9794,7 +9794,6 @@ export default function AdminClient() {
                 tabs={[
                   { id:'mega',        label:'메가메뉴' },
                   { id:'header',      label:'상단바' },
-                  { id:'productlist', label:'상품목록' },
                   { id:'shortcut',    label:'모바일 서랍' },
                 ]} />
 
@@ -9974,39 +9973,6 @@ export default function AdminClient() {
                         <button type="button" onClick={() => deleteMenu(m.id)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
-                  </>
-                );
-              })()) : menuTab === 'productlist' ? (ftLoading ? <PanelLoading /> : (() => {
-                const majors = filterTabs.filter(t => t.tab_type==='category' && !t.parent).sort((a,b)=>a.sort_order-b.sort_order);
-                const subsOf = (mv: string) => filterTabs.filter(s => s.parent===mv).sort((a,b)=>a.sort_order-b.sort_order);
-                const shownMajors = majors.filter(m => m.show_in_category && m.is_active);
-                const catLabel = (t: FilterTab) => (
-                  <input className="adm-input-text" style={{ flex:'1 1 140px', minWidth:0, fontWeight:600 }} value={t.label} placeholder="이름"
-                    onChange={e => setFilterTabs(prev => prev.map(x => x.id===t.id ? { ...x, label:e.target.value } : x))}
-                    onBlur={() => updateFt(t.id, { label: t.label }, false)} />
-                );
-                const chip = { display:'inline-flex', alignItems:'center', padding:'5px 11px', border:'1px solid #E5E7EB', borderRadius:999, background:'#fff', fontSize:12, fontWeight:600, color:'#374151', whiteSpace:'nowrap' as const };
-                return (
-                  <>
-                    {/* 미리보기 — 실제 상품목록 페이지를 그대로 임베드(클릭 동작) */}
-                    <div style={{ marginBottom:16 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                        <span style={{ fontSize:12, color:'#94A3B8' }}>실제 상품목록 미리보기 (클릭·스크롤 됩니다)</span>
-                        <a href="/category" target="_blank" rel="noreferrer" style={{ fontSize:12, color:'#2563EB', textDecoration:'none' }}>새 탭에서 열기 ↗</a>
-                      </div>
-                      <div style={{ border:'1px solid #EBEBEB', borderRadius:8, overflow:'hidden', background:'#fff' }}>
-                        <iframe src="/category" title="상품목록 미리보기" style={{ width:'100%', height:560, border:'none', display:'block' }} />
-                      </div>
-                    </div>
-                    {/* 대분류·소분류는 메가메뉴 탭에서 일원 관리 (여기선 미리보기만) */}
-                    <div className="adm-muted" style={{ fontSize:12.5, padding:'10px 2px 4px' }}>
-                      대분류·소분류(카테고리)는 <strong style={{ color:'#475569' }}>메뉴 관리 &gt; 메가메뉴</strong> 탭에서 추가·수정·순서 변경하세요. (여기선 미리보기만 표시됩니다)
-                    </div>
-                    {/* 정렬·태그·바로가기 필탭은 상품목록 페이지에 노출되지 않음 → 퀵가이드 탭에서 관리 */}
-                    <div className="adm-muted" style={{ fontSize:12.5, padding:'14px 2px 4px', lineHeight:1.7 }}>
-                      상품목록 페이지 상단엔 <strong style={{ color:'#475569' }}>카테고리 필터 + 정렬 드롭다운</strong>만 표시됩니다.<br/>
-                      신상품·베스트 같은 <strong style={{ color:'#475569' }}>태그 필탭</strong>과 <strong style={{ color:'#475569' }}>바로가기(링크)</strong>는 <strong style={{ color:'#475569' }}>퀵가이드</strong> 탭에서 관리하세요. (여기선 상품목록에 안 뜹니다)
-                    </div>
                   </>
                 );
               })()) : (ftLoading ? <PanelLoading /> : (() => {
