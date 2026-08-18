@@ -2316,7 +2316,7 @@ export default function AdminClient() {
   const pendingFarmSettle = useRef<{ month:string; half:1|2 }|null>(null); // 정산 지연 알림 클릭 시 이동할 정산 회차
   const [orderFarmFilter, setOrderFarmFilter] = useState('');
   const [orderReqOnly, setOrderReqOnly] = useState(false);
-  const [orderDateBasis, setOrderDateBasis] = useState<'paid_at'|'delivered_at'>('paid_at');
+  const [orderDateBasis, setOrderDateBasis] = useState<'paid_at'|'delivered_at'|'confirmed_at'>('paid_at');
   const [orderFrom, setOrderFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
   const [orderTo, setOrderTo] = useState<string>(() => ymd(new Date()));
   const [orderPageSize, setOrderPageSize] = useState(50);
@@ -3394,7 +3394,7 @@ export default function AdminClient() {
     });
   }
 
-  async function loadOrders(opts?: { from?: string; to?: string; basis?: 'paid_at'|'delivered_at' }) {
+  async function loadOrders(opts?: { from?: string; to?: string; basis?: 'paid_at'|'delivered_at'|'confirmed_at' }) {
     setOrdersLoading(true);
     setOrderPage(1);
     const basis = opts?.basis ?? orderDateBasis;
@@ -3419,7 +3419,9 @@ export default function AdminClient() {
       .limit(500);
     if (from) unpaidQ = unpaidQ.gte('created_at', new Date(`${from}T00:00:00`).toISOString());
     if (to)   unpaidQ = unpaidQ.lte('created_at', new Date(`${to}T23:59:59`).toISOString());
-    const [{ data: mainData }, { data: unpaidData }] = await Promise.all([query, unpaidQ]);
+    const [{ data: mainData }, { data: unpaidRaw }] = await Promise.all([query, unpaidQ]);
+    /* 구매확정일 기준 조회일 땐 미결제·미확정 건은 합류 안 함 — 정산서와 1:1 대조용 순수 구매확정 집합 */
+    const unpaidData = basis === 'confirmed_at' ? [] : unpaidRaw;
     const seen = new Set<string>();
     const data = [...(mainData || []), ...(unpaidData || [])].filter((o: Record<string, unknown>) => {
       const id = o.id as string; if (seen.has(id)) return false; seen.add(id); return true;
@@ -6936,24 +6938,24 @@ export default function AdminClient() {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) pendingReqByOrder.set(r.order_id, r);
   });
 
-  /* 주문 단계 바 카운트 — 조회된 기간(로드된 주문) 기준. 상태 필터/검색과 무관하게 기간 전체를 셈 */
-  const stageCountByPeriod: Record<string, number> = {};
-  orders.forEach(o => { stageCountByPeriod[o.status] = (stageCountByPeriod[o.status] || 0) + 1; });
-
-  const filteredOrders = orders.filter(o => {
-    const matchStatus = !orderStatusFilter || o.status === orderStatusFilter;
-    const matchFarm   = !orderFarmFilter || (o.order_items || []).some(i => i.farm_id === orderFarmFilter);
-    const q = orderSearch.toLowerCase();
+  /* 주문 목록 공통 필터(농가·검색·요청) — 상태는 제외. 단계 카운트와 목록이 같은 기준을 쓰도록 공유 */
+  const orderQ = orderSearch.toLowerCase();
+  const matchesOrderFilters = (o: Order) =>
+    (!orderFarmFilter || (o.order_items || []).some(i => i.farm_id === orderFarmFilter)) &&
     /* 이름은 결제자·수령인·계정명·이메일 모두, 번호는 수령인·주문자 연락처 모두 매칭 (선물/대리결제로 이름이 달라도 검색되게) */
-    const matchSearch = !q || o.order_no.toLowerCase().includes(q) ||
-      o.recipient.toLowerCase().includes(q) ||
-      (o.orderer_name || '').toLowerCase().includes(q) ||
-      (o.account_name || '').toLowerCase().includes(q) ||
-      (o.account_email || '').toLowerCase().includes(q) ||
-      o.phone.includes(q) || (o.orderer_phone || '').includes(q);
-    const matchReq = !orderReqOnly || pendingReqByOrder.has(o.id);
-    return matchStatus && matchFarm && matchSearch && matchReq;
-  });
+    (!orderQ || o.order_no.toLowerCase().includes(orderQ) ||
+      o.recipient.toLowerCase().includes(orderQ) ||
+      (o.orderer_name || '').toLowerCase().includes(orderQ) ||
+      (o.account_name || '').toLowerCase().includes(orderQ) ||
+      (o.account_email || '').toLowerCase().includes(orderQ) ||
+      o.phone.includes(orderQ) || (o.orderer_phone || '').includes(orderQ)) &&
+    (!orderReqOnly || pendingReqByOrder.has(o.id));
+
+  /* 주문 단계 바 카운트 — 농가·검색 필터는 반영하되 상태 필터와는 무관하게 기간 전체를 셈 */
+  const stageCountByPeriod: Record<string, number> = {};
+  orders.forEach(o => { if (matchesOrderFilters(o)) stageCountByPeriod[o.status] = (stageCountByPeriod[o.status] || 0) + 1; });
+
+  const filteredOrders = orders.filter(o => (!orderStatusFilter || o.status === orderStatusFilter) && matchesOrderFilters(o));
 
   /* 페이지네이션 (N개씩) */
   const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize));
@@ -9426,8 +9428,8 @@ export default function AdminClient() {
               {/* 조회 기준 · 기간 · 페이지당 개수 */}
               <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
                 <div className="adm-toolbar-left" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
-                  <AdmSelect value={orderDateBasis} onChange={v => setOrderDateBasis(v as 'paid_at'|'delivered_at')}
-                    options={[{ value:'paid_at', label:'결제일' }, { value:'delivered_at', label:'배송완료일' }]} />
+                  <AdmSelect value={orderDateBasis} onChange={v => { const b = v as 'paid_at'|'delivered_at'|'confirmed_at'; setOrderDateBasis(b); loadOrders({ basis: b }); }}
+                    options={[{ value:'paid_at', label:'결제일' }, { value:'delivered_at', label:'배송완료일' }, { value:'confirmed_at', label:'구매확정일' }]} />
                   <div className="adm-btn-group">
                     {([['오늘',0],['1주',7],['1개월',30],['3개월',90]] as const).map(([label, days]) => (
                       <button key={label} className="adm-seg-btn" onClick={() => {
