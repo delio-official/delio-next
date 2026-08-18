@@ -9813,6 +9813,7 @@ export default function AdminClient() {
                 const megaGroups = menus.filter(m => !m.parent && m.show_in_mega).sort((a,b)=>a.sort_order-b.sort_order);
                 return (
                   <>
+                    <div style={{ fontSize:12.5, color:'#64748B', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'10px 12px', marginBottom:14, lineHeight:1.6 }}>PC 상단 <b>‘카테고리’</b>에 마우스를 올리면 펼쳐지는 대분류·소분류 메뉴입니다. 여기서 카테고리와 순서를 관리합니다.</div>
                     {/* 미리보기 — 실제 사이트 메가드롭다운과 동일하게 렌더 */}
                     <div style={{ marginBottom:16 }}>
                       <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>실제 메가드롭다운 미리보기</div>
@@ -9949,6 +9950,7 @@ export default function AdminClient() {
                 );
                 return (
                   <>
+                    <div style={{ fontSize:12.5, color:'#64748B', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'10px 12px', marginBottom:14, lineHeight:1.6 }}>PC 화면 <b>맨 위 가로 메뉴줄</b>(신상품·이벤트 등)입니다. 노출 항목·이름·순서를 관리합니다.</div>
                     <div style={{ marginBottom:16 }}>
                       <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>상단바 미리보기</div>
                       {/* 실제 PC 헤더 상단 메뉴바와 동일 (흰 바탕·큰 글씨·넓은 간격) */}
@@ -9990,6 +9992,7 @@ export default function AdminClient() {
                 );
                 return (
                   <>
+                    <div style={{ fontSize:12.5, color:'#64748B', background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:8, padding:'10px 12px', marginBottom:14, lineHeight:1.6 }}>모바일에서 <b>왼쪽 ☰ 메뉴</b>를 열면 나오는 바로가기 버튼 줄입니다. 노출 여부·순서를 관리합니다.</div>
                     <div style={{ marginBottom:16 }}>
                       <div style={{ fontSize:12, color:'#94A3B8', marginBottom:8 }}>모바일 서랍 바로가기 미리보기</div>
                       <div style={{ background:'#fff', border:'1px solid #EBEBEB', borderRadius:8, padding:'16px 20px', display:'flex', gap:8, flexWrap:'wrap' }}>
