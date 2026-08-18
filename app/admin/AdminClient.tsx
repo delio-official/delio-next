@@ -9967,7 +9967,7 @@ export default function AdminClient() {
                         <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                         {mIn(m,'label','메뉴명','1 1 120px')}
                         {mIn(m,'href','/경로','1 1 130px')}
-                        <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>상단바 노출 <AdmToggle on={m.show_in_header} onChange={v => updateMenu(m.id, { show_in_header: v })} title="상단바 노출" /></span>
+                        <span style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:11, color:'#475569', flexShrink:0 }}>상단바 노출 <AdmToggle on={m.show_in_header} color="#2563EB" onChange={v => updateMenu(m.id, { show_in_header: v })} title="상단바 노출" /></span>
                         <button type="button" onClick={() => deleteMenu(m.id)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
