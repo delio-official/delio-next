@@ -8532,7 +8532,9 @@ export default function AdminClient() {
               <span className="adm-modal-title">{editingFarm ? '브랜드 수정' : '브랜드 등록'}</span>
               <button className="adm-btn adm-btn-outline" style={{ height:32, padding:'0 12px', fontSize:13 }} onClick={() => setFarmModal(false)}>← 목록으로</button>
             </div>
-            <div className="adm-modal-body">
+            <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">기본정보</div>
               <div className="adm-detail-grid adm-farm-grid">
                 <div className="adm-form-row">
                   <label className="adm-label">브랜드명 <span className="adm-required">*</span></label>
@@ -8625,6 +8627,11 @@ export default function AdminClient() {
                     출고마감시간을 비워두면 사이트 전체 설정을 따라갑니다. 여기서 정하면 이 브랜드로 등록하는 상품의 기본값이 되고, 상품별로 다시 바꿀 수 있습니다.
                   </div>
                 </div>
+              </div>
+              </div>
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">정산 정보</div>
+              <div className="adm-detail-grid adm-farm-grid">
                 <div className="adm-form-row">
                   <label className="adm-label">은행명 <span className="adm-required">*</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 국민은행"
@@ -8635,6 +8642,11 @@ export default function AdminClient() {
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 123456-01-234567"
                     value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
                 </div>
+              </div>
+              </div>
+              <div className="adm-formsec">
+              <div className="adm-formsec-title">브랜드 소개 · 이미지</div>
+              <div className="adm-detail-grid adm-farm-grid">
                 <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">브랜드 소개 <span className="adm-required">*</span></label>
                   <textarea className="adm-textarea" rows={8} style={{ width:'100%' }} placeholder="브랜드 소개 (상세 상단 좌측에 표시)"
@@ -8712,6 +8724,7 @@ export default function AdminClient() {
                     </label>
                   </div>
                 </div>
+              </div>
               </div>
 
               {/* ===== 운영 메모 (등록된 브랜드만. 작성 즉시 저장되고 최신이 위로 쌓임) ===== */}
