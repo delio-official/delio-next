@@ -9079,9 +9079,6 @@ export default function AdminClient() {
             <div style={{ marginTop:6 }}>
               <NavItem panel="settings"     icon={<Icon.Settings />}   label="설정" />
             </div>
-            <div style={{ marginTop:6 }}>
-              <a className="adm-nav-item" href="/" target="_blank" rel="noreferrer">실제 사이트 보기 ↗</a>
-            </div>
           </nav>
           <div className="adm-sidebar-footer">
             <div className="adm-sidebar-user">
