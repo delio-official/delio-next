@@ -9983,7 +9983,7 @@ export default function AdminClient() {
                     <span draggable onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                     <span style={{ fontWeight:600, flex:'1 1 120px' }}>{t.label}</span>
                     <span className={`adm-badge ${t.tab_type==='link'?'badge-off':'badge-on'}`}>{t.tab_type==='flag'?'태그':t.tab_type==='sort'?'정렬':t.tab_type==='link'?'링크':'카테고리'}</span>
-                    <AdmToggle on={!!t.show_in_shortcut} onChange={v => updateFt(t.id, { show_in_shortcut: v })} title="노출" />
+                    <AdmToggle on={!!t.show_in_shortcut} color="#2563EB" onChange={v => updateFt(t.id, { show_in_shortcut: v })} title="노출" />
                     <button type="button" className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
                     <button type="button" onClick={() => deleteFilterTab(t)} style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#DC2626', background:'#fff', border:'1px solid #E5E5E1', borderRadius:0, padding:'6px 11px', cursor:'pointer' }}>삭제</button>
                   </div>
