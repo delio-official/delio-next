@@ -8575,13 +8575,13 @@ export default function AdminClient() {
                 </div>
                 <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">취급 품목 <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
-                  <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'center' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, flex:1 }}>
                     {/* 품목 드롭다운(택배사처럼 클릭 → 목록). 고르면 아래 칩으로 추가된다 */}
-                    <AdmSelect value="" placeholder="품목 선택" style={{ flex:'1 1 200px', minWidth:180 }}
+                    <AdmSelect value="" placeholder="품목 선택" className="adm-cs-full"
                       onChange={v => { if (v) setFarmForm(p => p.items.includes(v) ? p : ({ ...p, items: [...p.items, v] })); }}
                       options={itemPresets.filter(t => !farmForm.items.includes(t)).map(t => ({ value:t, label:t }))} />
                     {/* 목록에 없는 품목 직접 추가 */}
-                    <input type="text" className="adm-input-text" style={{ flex:'1 1 150px', minWidth:150 }} placeholder="직접 추가 후 Enter"
+                    <input type="text" className="adm-input-text" style={{ width:'100%', minWidth:0 }} placeholder="직접 추가 후 Enter"
                       onKeyDown={e => {
                         if (e.key !== 'Enter') return;
                         e.preventDefault();
