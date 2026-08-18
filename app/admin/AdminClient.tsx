@@ -9585,9 +9585,9 @@ export default function AdminClient() {
                               {gi === 0 && <td rowSpan={n} title={o.order_no}>#{(o.order_no || '').split('-').pop()}</td>}
                               {gi === 0 && <td rowSpan={n} className="adm-muted">{fmtDate(o.created_at)}</td>}
                               {gi === 0 && <td rowSpan={n}>
-                                <div>{o.orderer_name || o.recipient}</div>
+                                <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.orderer_name || o.recipient}>{o.orderer_name || o.recipient}</div>
                                 {o.orderer_name && o.recipient && o.recipient !== o.orderer_name && (
-                                  <div className="adm-muted" style={{ fontSize:11 }}>수령: {o.recipient}</div>
+                                  <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.recipient}>수령: {o.recipient}</div>
                                 )}
                               </td>}
 
