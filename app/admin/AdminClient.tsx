@@ -3090,6 +3090,7 @@ export default function AdminClient() {
 
   /* 메뉴 순서변경 드래그 중인 행 id (훅이므로 early return 위에 선언) */
   const dragRow = useRef<string | null>(null);
+  const dragImgIdx = useRef<number | null>(null); // 브랜드 소개 이미지 드래그 순서변경용
 
   /* ── Early return: 모든 Hook 선언 이후에만 위치 가능 ── */
   if (!adminChecked) {
@@ -8693,13 +8694,19 @@ export default function AdminClient() {
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/')); if (!files.length) return; setFarmImgUploading(true); for (const f of files) { const url = await uploadProductImage(f); if (url) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, url] })); } setFarmImgUploading(false); }}>
                     {farmForm.landing_images.map((url, i) => (
-                      <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:8 }}
+                        onDragOver={e => { if (dragImgIdx.current !== null) e.preventDefault(); }}
+                        onDrop={e => {
+                          if (dragImgIdx.current === null) return;   // 파일 드롭(업로드)은 상위에서 처리
+                          e.preventDefault(); e.stopPropagation();
+                          const from = dragImgIdx.current; dragImgIdx.current = null;
+                          if (from === i) return;
+                          setFarmForm(p => { const a=[...p.landing_images]; const [m]=a.splice(from,1); a.splice(i,0,m); return {...p, landing_images:a}; });
+                        }}>
+                        <span draggable onDragStart={() => { dragImgIdx.current = i; }} onDragEnd={() => { dragImgIdx.current = null; }} title="드래그로 순서 변경"
+                          style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', userSelect:'none', flexShrink:0 }}>⠿⠿</span>
                         <span style={{ fontSize:11, color:'#94A3B8', width:18, textAlign:'right' }}>{i+1}</span>
                         <img src={url} alt="" style={{ width:90, height:54, objectFit:'cover', borderRadius:6, border:'1px solid #E2E8F0' }} />
-                        <div style={{ display:'flex', gap:4 }}>
-                          <button type="button" disabled={i===0} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i-1],a[i]]=[a[i],a[i-1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor: i===0?'default':'pointer', color: i===0?'#CBD5E1':'#64748B' }}>▲</button>
-                          <button type="button" disabled={i===farmForm.landing_images.length-1} onClick={() => setFarmForm(p => { const a=[...p.landing_images]; [a[i+1],a[i]]=[a[i],a[i+1]]; return {...p, landing_images:a}; })} style={{ width:26, height:26, border:'1px solid #E2E8F0', borderRadius:5, background:'#fff', cursor:'pointer', color:'#64748B' }}>▼</button>
-                        </div>
                         <button type="button" onClick={() => setFarmForm(p => ({ ...p, landing_images: p.landing_images.filter((_, j) => j !== i) }))} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:0, padding:'5px 9px', cursor:'pointer' }}>삭제</button>
                       </div>
                     ))}
