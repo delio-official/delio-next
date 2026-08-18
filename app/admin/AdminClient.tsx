@@ -8540,12 +8540,12 @@ export default function AdminClient() {
                     value={farmForm.name} onChange={e => setFarmForm(p => ({ ...p, name: e.target.value }))} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">대표자명</label>
+                  <label className="adm-label">대표자명 <span className="adm-required">*</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 홍길동"
                     value={farmForm.farmer_name} onChange={e => setFarmForm(p => ({ ...p, farmer_name: e.target.value }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">지역/주소 <span style={{ fontWeight:400, color:'#94A3B8' }}>(시·도 → 시·군·구 → 상세주소)</span></label>
+                  <label className="adm-label">지역/주소 <span className="adm-required">*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>(시·도 → 시·군·구 → 상세주소)</span></label>
                   {/* 상품등록 원산지와 동일한 계층 입력. region 한 칸에 '시도 시군구 상세' 형태로 저장 */}
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', flex:1 }}>
                     {(() => {
@@ -8575,7 +8575,7 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">취급 품목 <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
+                  <label className="adm-label">취급 품목 <span className="adm-required">*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, flex:1 }}>
                     {/* 품목 드롭다운(택배사처럼 클릭 → 목록). 고르면 아래 칩으로 추가된다 */}
                     <AdmSelect value="" placeholder="품목 선택" className="adm-cs-full"
@@ -8605,7 +8605,7 @@ export default function AdminClient() {
                   )}
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">담당 택배사</label>
+                  <label className="adm-label">담당 택배사 <span className="adm-required">*</span></label>
                   <AdmSelect className="adm-cs-full" value={farmForm.carrier}
                     onChange={v => setFarmForm(p => ({ ...p, carrier: v }))}
                     options={['', 'CJ대한통운', '롯데택배', '한진택배', '우체국택배', '로젠택배'].map(c => ({ value:c, label:c || '택배사 선택' }))} />
@@ -8626,17 +8626,17 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">은행명</label>
+                  <label className="adm-label">은행명 <span className="adm-required">*</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 국민은행"
                     value={farmForm.bank_name} onChange={e => setFarmForm(p => ({ ...p, bank_name: e.target.value }))} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">계좌번호 <span style={{ fontWeight:400, color:'#94A3B8' }}>(관리자만 열람)</span></label>
+                  <label className="adm-label">계좌번호 <span className="adm-required">*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>(관리자만 열람)</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 123456-01-234567"
                     value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
                 </div>
                 <div className="adm-form-row adm-form-row-full">
-                  <label className="adm-label">브랜드 소개</label>
+                  <label className="adm-label">브랜드 소개 <span className="adm-required">*</span></label>
                   <textarea className="adm-textarea" rows={8} style={{ width:'100%' }} placeholder="브랜드 소개 (상세 상단 좌측에 표시)"
                     value={farmForm.intro} onChange={e => setFarmForm(p => ({ ...p, intro: e.target.value }))} />
                 </div>
@@ -8654,10 +8654,8 @@ export default function AdminClient() {
                       </div>
                     ) : (
                       <label style={{ width:130, height:96, border:'1px solid #E2E8F0', borderRadius:8, background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:12, gap:5 }}>
-                        {farmImgUploading ? '업로드 중...' : (<>
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                          <span>썸네일</span>
-                        </>)}
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span>썸네일</span>
                         <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); e.target.value=''; }} />
                       </label>
                     )}
@@ -8677,10 +8675,8 @@ export default function AdminClient() {
                       </div>
                     ) : (
                       <label style={{ width:80, height:80, border:'1px solid #E2E8F0', borderRadius:'50%', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:11, gap:3, textAlign:'center' }}>
-                        {farmImgUploading ? '업로드중' : (<>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                          <span>로고</span>
-                        </>)}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span>로고</span>
                         <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); e.target.value=''; }} />
                       </label>
                     )}
@@ -8711,7 +8707,7 @@ export default function AdminClient() {
                       </div>
                     ))}
                     <label style={{ alignSelf:'flex-start', fontSize:12, color:'#2563EB', background:'#fff', border:'1px dashed #BFDBFE', borderRadius:6, padding:'8px 12px', cursor:'pointer' }}>
-                      {farmImgUploading ? '업로드 중...' : '+ 브랜드 소개 이미지 추가 (여러 장 선택 가능)'}
+                      + 브랜드 소개 이미지 추가 (여러 장 선택 가능)
                       <input type="file" accept="image/*" multiple hidden onChange={async e => { const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/')); e.target.value=''; if (!files.length) return; setFarmImgUploading(true); const urls = (await Promise.all(files.map(f => uploadProductImage(f)))).filter(Boolean) as string[]; if (urls.length) setFarmForm(p => ({ ...p, landing_images: [...p.landing_images, ...urls] })); setFarmImgUploading(false); }} />
                     </label>
                   </div>
@@ -8751,7 +8747,7 @@ export default function AdminClient() {
               <div className="adm-flex-gap adm-flex-end adm-mt-20">
                 <button className="adm-btn adm-btn-outline" onClick={() => setFarmModal(false)}>취소</button>
                 <button className="adm-btn adm-btn-primary" onClick={saveFarm} disabled={farmSaving}>
-                  {farmSaving ? '저장 중...' : editingFarm ? '수정 완료' : '브랜드 등록'}
+                  {farmSaving ? '저장 중...' : editingFarm ? '수정 완료' : '등록'}
                 </button>
               </div>
             </div>
