@@ -8573,25 +8573,15 @@ export default function AdminClient() {
                     })()}
                   </div>
                 </div>
-                <div className="adm-form-row">
+                <div className="adm-form-row adm-form-row-full">
                   <label className="adm-label">취급 품목 <span style={{ fontWeight:400, color:'#94A3B8' }}>(여러 개 선택 가능)</span></label>
                   <div style={{ display:'flex', gap:8, flex:1, flexWrap:'wrap', alignItems:'center' }}>
-                    {/* 등록된 품목(소분류 카테고리) 칩 — 클릭해서 여러 개 켜고 끔 */}
-                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                      {itemPresets.map(t => {
-                        const on = farmForm.items.includes(t);
-                        return (
-                          <button key={t} type="button"
-                            onClick={() => setFarmForm(p => ({ ...p, items: on ? p.items.filter(x => x !== t) : [...p.items, t] }))}
-                            style={{ fontSize:12.5, fontWeight:600, padding:'7px 13px', borderRadius:999, cursor:'pointer',
-                              border:`1px solid ${on ? '#1A1A1A' : '#E2E8F0'}`, background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#64748B' }}>
-                            {t}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {/* 품목 드롭다운(택배사처럼 클릭 → 목록). 고르면 아래 칩으로 추가된다 */}
+                    <AdmSelect value="" placeholder="품목 선택" style={{ flex:'1 1 200px', minWidth:180 }}
+                      onChange={v => { if (v) setFarmForm(p => p.items.includes(v) ? p : ({ ...p, items: [...p.items, v] })); }}
+                      options={itemPresets.filter(t => !farmForm.items.includes(t)).map(t => ({ value:t, label:t }))} />
                     {/* 목록에 없는 품목 직접 추가 */}
-                    <input type="text" className="adm-input-text" style={{ flex:1, minWidth:150 }} placeholder="직접 추가 후 Enter"
+                    <input type="text" className="adm-input-text" style={{ flex:'1 1 150px', minWidth:150 }} placeholder="직접 추가 후 Enter"
                       onKeyDown={e => {
                         if (e.key !== 'Enter') return;
                         e.preventDefault();
