@@ -2826,18 +2826,23 @@ export default function AdminClient() {
       if (orderNo) map[key].orderNos.add(orderNo);
       map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal, origQty, defectQty });
     };
-    /* 부분환불(승인완료) 하자수량 맵 — 주문은 confirmed로 남아 메인 집계에 전량 잡히므로,
-       하자분만큼 매출·공급가를 차감한다(하자분 공급가 = 농가 부담). order_no 기준 매칭. */
+    /* 부분환불(승인완료) 하자 맵 — 개수 기준(전체 total · 불량 defective).
+       고객 환불이 '개수 비례'(불량/전체)로 처리되므로 정산도 같은 비율로 차감한다.
+       (예전엔 불량 '개수'를 박스 '수량'에서 빼, 3과 불량인데 박스 전체가 0원 처리되는 단위 오류가 있었음) */
     const { data: partialReqs } = await supabase
       .from('refund_requests')
       .select('refund_items, orders!inner(order_no)')
       .not('refund_items', 'is', null).eq('status', 'completed');
-    const defectiveByOrderNo: Record<string, Record<string, number>> = {};
-    (partialReqs as { refund_items: { name: string; defective: number }[] | null; orders: { order_no: string } | null }[] | null || []).forEach(pr => {
+    const defectInfoByOrderNo: Record<string, Record<string, { d: number; t: number }>> = {};
+    (partialReqs as { refund_items: { name: string; defective: number; total: number }[] | null; orders: { order_no: string } | null }[] | null || []).forEach(pr => {
       const ono = pr.orders?.order_no;
       if (!ono) return;
-      const m = defectiveByOrderNo[ono] || (defectiveByOrderNo[ono] = {});
-      (pr.refund_items || []).forEach(it => { m[it.name] = (m[it.name] || 0) + (Number(it.defective) || 0); });
+      const m = defectInfoByOrderNo[ono] || (defectInfoByOrderNo[ono] = {});
+      (pr.refund_items || []).forEach(it => {
+        const cur = m[it.name] || (m[it.name] = { d: 0, t: 0 });
+        cur.d += Number(it.defective) || 0;
+        cur.t += Number(it.total) || 0;
+      });
     });
 
     (data as Record<string, unknown>[] | null || []).forEach(row => {
@@ -2845,18 +2850,22 @@ export default function AdminClient() {
       if (prod?.farms?.is_own) return;   // 자사(델리오)는 브랜드 정산 대상에서 제외
       const ord = row.orders as { order_no: string } | null;
       const totalQty = Number(row.quantity) || 0;
-      /* 부분환불 하자분 차감 — 같은 주문에 동일 상품명 라인이 여러 개면 하자수량을 '소진'해서
-         이중차감 방지(한 행에서 뺀 만큼 남은 하자수량을 줄임). */
+      if (totalQty <= 0) return;
       const ono = ord?.order_no || '';
       const name = (row.product_name as string) || '';
-      const avail = defectiveByOrderNo[ono]?.[name] || 0;
-      const defect = Math.min(avail, totalQty);
-      if (defectiveByOrderNo[ono]) defectiveByOrderNo[ono][name] = avail - defect;
-      const qty = Math.max(0, totalQty - defect);
-      if (totalQty <= 0) return;   // 원수량 0이면 스킵. 부분환불로 정산수량이 0이 돼도 '기록'은 남긴다.
+      /* 하자율 = 불량개수 / 전체개수 (개수 비례). 같은 주문·동일상품 여러 라인이면 첫 라인에만 적용(소진). */
+      const info = defectInfoByOrderNo[ono]?.[name];
+      let ratio = 0, dFruit = 0, tFruit = 0;
+      if (info && info.t > 0) {
+        dFruit = info.d; tFruit = info.t;
+        ratio = Math.min(1, info.d / info.t);
+        defectInfoByOrderNo[ono][name] = { d: 0, t: 0 };
+      }
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
-      const sales = totalQty > 0 ? Math.round((Number(row.subtotal) || 0) * qty / totalQty) : 0;
-      addRow(prod, qty, sales, unitSupply * qty, ord?.order_no || '', (row.product_name as string) || '상품', totalQty, defect);
+      const supplyTotal = Math.round(unitSupply * totalQty * (1 - ratio));   // 하자분만큼 개수 비례 차감
+      const sales = Math.round((Number(row.subtotal) || 0) * (1 - ratio));
+      const origQty = ratio > 0 ? tFruit : totalQty;   // 하자 있으면 개수(과) 기준 표시, 없으면 박스 수량
+      addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', origQty, dFruit);
     });
     const rows = Object.values(map)
       .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
@@ -2928,7 +2937,7 @@ export default function AdminClient() {
       const dq = o.defectQty || 0;
       const bg = dq > 0 ? ' style="background:#fff7ed"' : '';
       const qtyCells = anyDefect
-        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.qty}</td>`
+        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.origQty - dq}</td>`
         : `<td style="text-align:center">${o.qty}</td>`;
       return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
@@ -3001,7 +3010,7 @@ export default function AdminClient() {
       const dq = o.defectQty || 0;
       const bg = dq > 0 ? ' style="background:#fff7ed"' : '';
       const qtyCells = anyDefect
-        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.qty}</td>`
+        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.origQty - dq}</td>`
         : `<td style="text-align:center">${o.qty}</td>`;
       return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
@@ -13682,7 +13691,7 @@ export default function AdminClient() {
                                 {anyDefect ? (<>
                                   <td className="adm-num">{o.origQty}개</td>
                                   <td className="adm-num" style={{ color: dq > 0 ? '#DC2626' : '#CBD5E1', fontWeight: dq > 0 ? 700 : 400 }}>{dq > 0 ? `-${dq}` : '0'}</td>
-                                  <td className="adm-num" style={{ fontWeight:700 }}>{o.qty}개</td>
+                                  <td className="adm-num" style={{ fontWeight:700 }}>{o.origQty - dq}개</td>
                                 </>) : (
                                   <td className="adm-num">{o.qty}개</td>
                                 )}
