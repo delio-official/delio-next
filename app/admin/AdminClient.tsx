@@ -2985,6 +2985,67 @@ export default function AdminClient() {
       setPdfBusy(false);
     }
   }
+  /* 정산 명세서 — 브라우저 인쇄(PDF로 저장) 방식.
+     html2canvas 이미지가 아니라 실제 텍스트로 렌더 → (1) 주문번호 등 복사 가능 (2) CSS page-break로 줄 잘림 없음.
+     한글 폰트 임베드 불필요(브라우저가 시스템 폰트로 렌더). */
+  function printFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; orders: FarmSettleOrder[] }) {
+    const info = farmPeriodInfo();
+    const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
+    const anyDefect = row.orders.some(o => (o.defectQty || 0) > 0);
+    const totalDefect = row.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+    const optMap: Record<string, { qty: number; supply: number }> = {};
+    row.orders.forEach(o => { const k = o.product || '-'; if (!optMap[k]) optMap[k] = { qty: 0, supply: 0 }; optMap[k].qty += o.qty; optMap[k].supply += o.supply; });
+    const optRows = Object.entries(optMap).sort((a, b) => b[1].qty - a[1].qty)
+      .map(([name, v]) => `<tr><td>${esc(name)}</td><td style="text-align:center;font-weight:700">${v.qty.toLocaleString()}개</td><td style="text-align:right">${v.supply.toLocaleString()}원</td></tr>`).join('');
+    const rowsHtml = row.orders.map(o => {
+      const dq = o.defectQty || 0;
+      const bg = dq > 0 ? ' style="background:#fff7ed"' : '';
+      const qtyCells = anyDefect
+        ? `<td style="text-align:center">${o.origQty}</td><td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'}">${dq>0?'-'+dq:'0'}</td><td style="text-align:center;font-weight:700">${o.qty}</td>`
+        : `<td style="text-align:center">${o.qty}</td>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${o.supply.toLocaleString()}원</td></tr>`;
+    }).join('');
+    const qtyHead = anyDefect
+      ? `<th style="text-align:center">주문</th><th style="text-align:center">환불</th><th style="text-align:center">정산</th>`
+      : `<th style="text-align:center">수량</th>`;
+    const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>정산명세서_${esc(row.farmName)}_${farmSettleMonth}_${farmSettleHalf}차</title>
+      <style>
+      @page{size:A4;margin:14mm;}
+      *{box-sizing:border-box;}
+      body{font-family:'맑은 고딕','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:#1a1a1a;margin:0;padding:0;}
+      h1{font-size:20px;margin:0 0 4px;} h2{font-size:15px;margin:20px 0 8px;}
+      .sub{color:#666;font-size:13px;margin-bottom:18px;}
+      .box{border:1px solid #ddd;border-radius:8px;padding:14px 16px;margin-bottom:16px;page-break-inside:avoid;}
+      .rowline{display:flex;justify-content:space-between;padding:4px 0;font-size:14px;}
+      table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px;}
+      th,td{border:1px solid #d8d8d8;padding:7px 9px;}
+      th{background:#f4f4f4;text-align:left;}
+      thead{display:table-header-group;}          /* 페이지 넘어가도 표 머리글 반복 */
+      tr{page-break-inside:avoid;}                 /* 한 줄이 페이지 경계서 반토막 안 나게 */
+      .total{text-align:right;font-size:16px;font-weight:800;margin-top:12px;}
+      .tip{margin:0 0 14px;font-size:11px;color:#999;}
+      @media print{.tip{display:none;}}
+      </style></head><body>
+      <p class="tip">이 창에서 <b>인쇄 → 대상을 'PDF로 저장'</b> 하시면 글자 복사가 되는 PDF로 저장됩니다.</p>
+      <h1>정산 명세서</h1>
+      <div class="sub">${esc(row.farmName)} · ${farmSettleMonth} ${farmSettleHalf}차 (${info.rangeLabel}) · 지급예정 ${info.payLabel}</div>
+      <div class="box">
+        <div class="rowline"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
+        ${anyDefect ? `<div class="rowline"><span>환불(하자) 차감</span><b style="color:#c0392b">-${totalDefect.toLocaleString()}개</b></div>` : ''}
+        <div class="rowline"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
+      </div>
+      <h2>옵션별 판매 수량</h2>
+      <table><thead><tr><th>상품 (옵션)</th><th style="text-align:center">판매수량</th><th style="text-align:right">공급가 합계</th></tr></thead><tbody>${optRows}</tbody></table>
+      <h2>주문별 상세</h2>
+      <table><thead><tr><th>주문번호</th><th>상품</th>${qtyHead}<th style="text-align:right">공급가</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <div class="total">정산 합계: ${row.payout.toLocaleString()}원</div>
+      <script>window.onload=function(){window.focus();setTimeout(function(){window.print();},300);};</` + `script>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('팝업이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도해 주세요.'); return; }
+    w.document.write(html);
+    w.document.close();
+  }
   const [settlementView, setSettlementView] = useState<'daily'|'monthly'>('daily');
   const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
   /* 매출 그래프 좌측 영역 실측 폭 — 그래프를 컨테이너 폭에 꽉 채우기 위함(고정 픽셀 → 반응형) */
@@ -13662,7 +13723,8 @@ export default function AdminClient() {
                     {r.farmId && meta && (
                       <button className="adm-btn adm-btn-outline foot-left" style={{ color:'#DC2626', borderColor:'#FCA5A5' }} onClick={() => { unmarkFarmSettled(r.farmId!); }}>정산 취소</button>
                     )}
-                    <button className="adm-btn adm-btn-outline" disabled={pdfBusy} onClick={() => downloadFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>{pdfBusy ? 'PDF 생성 중…' : '정산명세서(PDF)'}</button>
+                    <button className="adm-btn adm-btn-outline" disabled={pdfBusy} onClick={() => downloadFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>{pdfBusy ? 'PDF 생성 중…' : '명세서(이미지)'}</button>
+                    <button className="adm-btn adm-btn-primary" onClick={() => printFarmSettlePdf(r)}><span className="adm-btn-icon"><Icon.Download /></span>PDF(복사가능)</button>
                     <button className="adm-btn adm-btn-outline" onClick={() => setSelectedFarmSettle(null)}>닫기</button>
                     {r.farmId && !meta && (
                       <button className="adm-btn adm-btn-primary" onClick={() => { markFarmSettled(r); }}>정산완료 처리</button>
