@@ -17,7 +17,7 @@ import { SingleStar } from '@/components/StarRating';
 interface Product {
   id: string; name: string; category: string;
   price: number; discount_rate: number; discounted_price: number;
-  thumbnail_url: string | null; badge: string | null;
+  thumbnail_url: string | null; badge: string | null; short_desc: string | null;
   is_dawn: boolean; is_best: boolean; avg_rating: number; review_count: number;
   brix: number | null;
   soldout?: boolean;
@@ -114,6 +114,7 @@ function SearchProductCard({ p }: { p: Product }) {
           {p.is_best && <span className="product-badge badge-best">인기</span>}
         </div>
         <div className="product-card-name">{p.name}</div>
+        {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
         <div className="price-block">
           {p.discount_rate > 0 && (
             <div className="price-top-row"><span className="price-original">{fmtPrice(p.price)}원</span></div>

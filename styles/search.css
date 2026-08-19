@@ -35,7 +35,7 @@
     /* ── 상품 그리드 ── */
     .result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
     @media(max-width:1024px){.result-grid{grid-template-columns:repeat(3,1fr);}}
-    @media(max-width:640px){.result-grid{grid-template-columns:repeat(3,1fr);gap:10px;}}
+    @media(max-width:640px){.result-grid{grid-template-columns:repeat(2,1fr);gap:10px;}}
 
     .no-result{text-align:center;padding:var(--space-10) var(--space-4);}
     .no-result .icon{font-size:56px;margin-bottom:var(--space-4);}
