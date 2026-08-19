@@ -2758,7 +2758,7 @@ export default function AdminClient() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   });
   const [farmSettleHalf, setFarmSettleHalf] = useState<1 | 2>(1); // 1차(1~15) / 2차(16~말)
-  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number; origQty: number; defectQty: number };
+  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number; origQty: number; defectQty: number; refundCut: number };
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
@@ -2818,13 +2818,13 @@ export default function AdminClient() {
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
       .limit(10000);
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
-    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, origQty: number, defectQty: number) => {
+    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, origQty: number, defectQty: number, refundCut: number) => {
       const farmId = prod?.farm_id ?? null;
       const key = farmId ?? '__none__';
       if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0, orderNos: new Set(), orders: [] };
       map[key].qty += qty; map[key].sales += sales; map[key].payout += supplyTotal;
       if (orderNo) map[key].orderNos.add(orderNo);
-      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal, origQty, defectQty });
+      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal, origQty, defectQty, refundCut });
     };
     /* 부분환불(승인완료) 하자 맵 — 개수 기준(전체 total · 불량 defective).
        고객 환불이 '개수 비례'(불량/전체)로 처리되므로 정산도 같은 비율로 차감한다.
@@ -2862,10 +2862,12 @@ export default function AdminClient() {
         defectInfoByOrderNo[ono][name] = { d: 0, t: 0 };
       }
       const unitSupply = (row.supply_price != null ? Number(row.supply_price) : (prod?.supply_price ?? 0)) || 0;
+      const fullSupply = Math.round(unitSupply * totalQty);
       const supplyTotal = Math.round(unitSupply * totalQty * (1 - ratio));   // 하자분만큼 개수 비례 차감
+      const refundCut = fullSupply - supplyTotal;                             // 하자 차감액(원) — 명세서 표기용
       const sales = Math.round((Number(row.subtotal) || 0) * (1 - ratio));
       const origQty = ratio > 0 ? tFruit : totalQty;   // 하자 있으면 개수(과) 기준 표시, 없으면 박스 수량
-      addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', origQty, dFruit);
+      addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', origQty, dFruit, refundCut);
     });
     const rows = Object.values(map)
       .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
@@ -2928,6 +2930,8 @@ export default function AdminClient() {
     const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
     const anyDefect = row.orders.some(o => (o.defectQty || 0) > 0);   // 환불 차감 있으면 환불 열 노출
     const totalDefect = row.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+    const totalCut = row.orders.reduce((s, o) => s + (o.refundCut || 0), 0);
+    const refundCount = row.orders.filter(o => (o.refundCut || 0) > 0).length;
     /* 옵션별(상품+옵션명) 판매수량 요약 — product_name에 옵션이 포함됨 */
     const optMap: Record<string, { qty: number; supply: number }> = {};
     row.orders.forEach(o => { const k = o.product || '-'; if (!optMap[k]) optMap[k] = { qty: 0, supply: 0 }; optMap[k].qty += o.qty; optMap[k].supply += o.supply; });
@@ -2960,7 +2964,7 @@ export default function AdminClient() {
         <div class="sub">${esc(row.farmName)} · ${farmSettleMonth} ${farmSettleHalf}차 (${info.rangeLabel}) · 지급예정 ${info.payLabel}</div>
         <div class="box">
           <div class="row"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
-          ${anyDefect ? `<div class="row"><span>환불(하자) 차감</span><b style="color:#c0392b">-${totalDefect.toLocaleString()}개</b></div>` : ''}
+          ${anyDefect ? `<div class="row"><span>부분환불(하자) 차감</span><b style="color:#c0392b">${refundCount}건 · -${totalCut.toLocaleString()}원 <span style="font-weight:400;color:#999">(하자 ${totalDefect}개)</span></b></div>` : ''}
           <div class="row"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
         </div>
         <h2>옵션별 판매 수량</h2>
@@ -3002,6 +3006,8 @@ export default function AdminClient() {
     const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
     const anyDefect = row.orders.some(o => (o.defectQty || 0) > 0);
     const totalDefect = row.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+    const totalCut = row.orders.reduce((s, o) => s + (o.refundCut || 0), 0);
+    const refundCount = row.orders.filter(o => (o.refundCut || 0) > 0).length;
     const optMap: Record<string, { qty: number; supply: number }> = {};
     row.orders.forEach(o => { const k = o.product || '-'; if (!optMap[k]) optMap[k] = { qty: 0, supply: 0 }; optMap[k].qty += o.qty; optMap[k].supply += o.supply; });
     const optRows = Object.entries(optMap).sort((a, b) => b[1].qty - a[1].qty)
@@ -3040,7 +3046,7 @@ export default function AdminClient() {
       <div class="sub">${esc(row.farmName)} · ${farmSettleMonth} ${farmSettleHalf}차 (${info.rangeLabel}) · 지급예정 ${info.payLabel}</div>
       <div class="box">
         <div class="rowline"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
-        ${anyDefect ? `<div class="rowline"><span>환불(하자) 차감</span><b style="color:#c0392b">-${totalDefect.toLocaleString()}개</b></div>` : ''}
+        ${anyDefect ? `<div class="rowline"><span>부분환불(하자) 차감</span><b style="color:#c0392b">${refundCount}건 · -${totalCut.toLocaleString()}원 <span style="font-weight:400;color:#999">(하자 ${totalDefect}개)</span></b></div>` : ''}
         <div class="rowline"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
       </div>
       <h2>옵션별 판매 수량</h2>
@@ -7028,7 +7034,14 @@ export default function AdminClient() {
   const stageCountByPeriod: Record<string, number> = {};
   orders.forEach(o => { if (matchesOrderFilters(o)) stageCountByPeriod[o.status] = (stageCountByPeriod[o.status] || 0) + 1; });
 
-  const filteredOrders = orders.filter(o => (!orderStatusFilter || o.status === orderStatusFilter) && matchesOrderFilters(o));
+  const filteredOrders = orders.filter(o => {
+    if (!matchesOrderFilters(o)) return false;
+    if (!orderStatusFilter) return true;
+    if (o.status === orderStatusFilter) return true;
+    /* ⑧ 구매확정 필터: 원래 구매확정이었다가 '전체환불'된 건도 정산 대조용으로 함께 노출('환불완료' 뱃지로 구분) */
+    if (orderStatusFilter === 'confirmed' && o.status === 'refunded' && (o as { confirmed_at?: string | null }).confirmed_at) return true;
+    return false;
+  });
 
   /* 페이지네이션 (N개씩) */
   const orderTotalPages = Math.max(1, Math.ceil(filteredOrders.length / orderPageSize));
@@ -8910,11 +8923,13 @@ export default function AdminClient() {
                     style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>취소</button>
                 )}
                 <button disabled={updatingStatus === selectedOrder.id}
+                  title="주문 전체를 환불합니다. 일부 품목·박스만 환불하려면 오른쪽 '부분환불'을 사용하세요."
                   onClick={() => { if (confirm('이 주문을 환불(환불완료) 처리할까요?\n결제취소 + 쿠폰·포인트 복원이 진행됩니다.')) updateOrderStatus(selectedOrder.id, 'refunded'); }}
                   style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #FCA5A5', background:'#fff', color:'#DC2626' }}>전체환불</button>
                 </>)}
                 {['paid','preparing','shipped','delivered','confirmed'].includes(selectedOrder.status) && (
                   <button onClick={() => openAdminPartial(selectedOrder)}
+                    title="품목·수량을 골라 일부만 환불 (예: 2박스 중 1박스). 카드도 해당 금액만 부분취소되고 주문은 유지됩니다."
                     style={{ height:32, padding:'0 13px', fontSize:13, fontWeight:700, borderRadius:8, cursor:'pointer', border:'1px solid #93C5FD', background:'#fff', color:'#2563EB' }}>부분환불</button>
                 )}
               </div>
@@ -13664,9 +13679,11 @@ export default function AdminClient() {
                     {(() => {
                       const anyDefect = r.orders.some(o => (o.defectQty || 0) > 0);   // 환불 차감이 하나라도 있으면 환불 열 노출
                       const totalDefect = r.orders.reduce((s, o) => s + (o.defectQty || 0), 0);
+                      const totalCut = r.orders.reduce((s, o) => s + (o.refundCut || 0), 0);
+                      const refundCount = r.orders.filter(o => (o.refundCut || 0) > 0).length;
                       return (
                     <div>
-                      <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 환불(하자) {totalDefect}개 차감 반영</span>}</div>
+                      <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 부분환불(하자) {refundCount}건 · −{fmtPrice(totalCut)}원 차감 (하자 {totalDefect}개)</span>}</div>
                       <table className="adm-table" style={{ width:'100%', tableLayout:'fixed' }}>
                         <thead><tr>
                           <th style={{ width:132 }}>주문번호</th>
@@ -15123,14 +15140,14 @@ export default function AdminClient() {
         return (
           <div className="adm-modal-bg open" onClick={() => setAdminPartialOrder(null)}>
             <div className="adm-modal" style={{ maxWidth:620, width:'95vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
-              <div className="adm-modal-head"><span className="adm-modal-title">부분환불 (관리자 직접)</span></div>
+              <div className="adm-modal-head"><span className="adm-modal-title">부분환불 · 품목/수량 선택 (관리자)</span></div>
               <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:16 }}>
                 <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 16px', fontSize:13 }}>
                   <div><b>{o.order_no}</b> · {o.orderer_name || o.recipient}</div>
                   <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>결제 {fmtPrice(orderTotal)}원{already > 0 ? ` · 기 부분환불 ${fmtPrice(already)}원` : ''}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize:13, fontWeight:800, marginBottom:8 }}>하자 수량 입력 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(체크 후 하자 개수 입력 · 원 단위 반올림)</span></div>
+                  <div style={{ fontSize:13, fontWeight:800, marginBottom:8 }}>환불할 상품·수량 선택 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>(체크 후 ‘전체 중 환불수량’ 입력 · 일부 박스/개수만 환불 가능 · 원 단위 반올림)</span></div>
                   <div style={{ border:'1px solid #EEF2F6', borderRadius:10, overflow:'hidden' }}>
                     {adminPartialItems.length === 0 ? (
                       <div className="adm-muted" style={{ padding:'12px 14px', fontSize:13 }}>상품 정보를 불러오는 중…</div>
@@ -15147,7 +15164,7 @@ export default function AdminClient() {
                           </div>
                           <span style={{ fontSize:12, color:'#64748B' }}>전체</span>
                           <input type="text" inputMode="numeric" value={it.total} disabled={!on} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'total', e.target.value)} style={{ ...numInput, background: on ? '#fff' : '#F1F5F9' }} />
-                          <span style={{ fontSize:12, color:'#64748B' }}>중 하자</span>
+                          <span style={{ fontSize:12, color:'#64748B' }}>중 환불</span>
                           <input type="text" inputMode="numeric" value={it.defective} disabled={!on} onFocus={e => e.target.select()} onChange={e => setItem(it.id, 'defective', e.target.value)} style={{ ...numInput, background: on ? '#fff' : '#F1F5F9', borderColor: (on && d > 0) ? '#FCA5A5' : '#E2E8F0' }} />
                           <span style={{ width:78, textAlign:'right', fontWeight:700, fontSize:13, color: itRefund > 0 ? '#DC2626' : '#94A3B8' }}>{fmtPrice(itRefund)}원</span>
                         </div>
@@ -15173,7 +15190,7 @@ export default function AdminClient() {
                       {exceed && <div style={{ color:'#DC2626', fontSize:12, marginTop:8, fontWeight:600 }}>누적 환불액이 잔액({fmtPrice(remaining)}원)을 초과했습니다. 하자 수량을 줄여주세요.</div>}
                     </div>
                   )}
-                  <div className="adm-muted" style={{ fontSize:11, marginTop:8, lineHeight:1.6 }}>· 하자 수량은 <b>지금까지 환불한 총 개수(누적)</b>로 입력하세요. 예: 2개 환불 후 2개 더 → <b>4</b> 입력, 나머지까지 전부 → <b>5</b>. 이미 환불한 수량은 자동으로 채워집니다.<br/>· 시스템이 <b>차액만</b> 카드 부분취소합니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
+                  <div className="adm-muted" style={{ fontSize:11, marginTop:8, lineHeight:1.6 }}>· <b>일부 박스/개수만 환불</b>: ‘전체’=주문 수량, ‘환불’=환불할 개수. 예) 2박스 중 1박스만 → 전체 <b>2</b> · 환불 <b>1</b>. (해당 상품 전부 선택하면 전액환불로 전환)<br/>· 환불 수량은 <b>지금까지 환불한 총 개수(누적)</b>로 입력하세요. 예: 2개 환불 후 2개 더 → <b>4</b> 입력. 이미 환불한 수량은 자동으로 채워집니다.<br/>· 시스템이 <b>차액만</b> 카드 부분취소합니다. 주문은 유지되고 쿠폰·포인트는 복구되지 않습니다.</div>
                 </div>
               </div>
               <div className="adm-modal-foot">
