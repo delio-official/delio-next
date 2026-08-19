@@ -2943,7 +2943,7 @@ export default function AdminClient() {
       const qtyCells = `<td style="text-align:center">${o.qty}개</td>` + (anyDefect
         ? `<td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'};font-size:11px">${dq>0?o.origQty+'과중 '+dq+'과':'-'}</td>`
         : '');
-      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span> `:''}${o.supply.toLocaleString()}원</td></tr>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
     const qtyHead = `<th style="text-align:center">수량</th>` + (anyDefect ? `<th style="text-align:center">하자</th>` : ``);
     const inner = `
@@ -3016,7 +3016,7 @@ export default function AdminClient() {
       const qtyCells = `<td style="text-align:center">${o.qty}개</td>` + (anyDefect
         ? `<td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'};font-size:11px">${dq>0?o.origQty+'과중 '+dq+'과':'-'}</td>`
         : '');
-      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span> `:''}${o.supply.toLocaleString()}원</td></tr>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
     const qtyHead = `<th style="text-align:center">수량</th>` + (anyDefect ? `<th style="text-align:center">하자</th>` : ``);
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>정산명세서_${esc(row.farmName)}_${farmSettleMonth}_${farmSettleHalf}차</title>
@@ -13698,7 +13698,7 @@ export default function AdminClient() {
                                 <td style={{ textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
                                 <td className="adm-num">{o.qty}개</td>
                                 {anyDefect && <td className="adm-num" style={{ color: dq > 0 ? '#DC2626' : '#CBD5E1', fontWeight: dq > 0 ? 700 : 400, fontSize:12 }}>{dq > 0 ? `${o.origQty}과중 ${dq}과` : '-'}</td>}
-                                <td className="adm-num" style={{ fontWeight:600 }}>{dq > 0 && o.refundCut > 0 ? <><span style={{ textDecoration:'line-through', color:'#CBD5E1', fontWeight:400, fontSize:11, marginRight:4 }}>{fmtPrice(o.supply + o.refundCut)}</span>{fmtPrice(o.supply)}원</> : `${fmtPrice(o.supply)}원`}</td>
+                                <td className="adm-num" style={{ fontWeight:600 }}>{dq > 0 && o.refundCut > 0 ? <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}><span style={{ textDecoration:'line-through', color:'#CBD5E1', fontWeight:400, fontSize:11 }}>{fmtPrice(o.supply + o.refundCut)}</span><span>{fmtPrice(o.supply)}원</span></div> : `${fmtPrice(o.supply)}원`}</td>
                               </tr>
                               );
                             })}
