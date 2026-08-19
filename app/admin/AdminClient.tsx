@@ -518,6 +518,7 @@ const STATUS_BTN_COLOR: Record<string, { bg: string; color: string; border: stri
   preparing: { bg:'#FFF7ED', color:'#C2410C', border:'#FDBA74' }, // 배송준비중(주황)
   shipped:   { bg:'#F0FDF4', color:'#15803D', border:'#86EFAC' }, // 배송중(초록)
   delivered: { bg:'#F1F5F9', color:'#475569', border:'#CBD5E1' }, // 배송완료(회색)
+  confirmed: { bg:'#EFF6FF', color:'#2563EB', border:'#93C5FD' }, // 구매확정(파랑)
   cancelled: { bg:'#FEF2F2', color:'#B91C1C', border:'#FCA5A5' }, // 취소(빨강)
   refunded:  { bg:'#FEF2F2', color:'#DC2626', border:'#FCA5A5' }, // 환불(빨강)
 };
@@ -2811,7 +2812,7 @@ export default function AdminClient() {
     // 구매확정 주문 상품항목 (구매확정일 기준 반차 범위)
     const { data } = await supabase
       .from('order_items')
-      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name))')
+      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name, is_own))')
       .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
       .eq('orders.status', 'confirmed')
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
@@ -2840,7 +2841,8 @@ export default function AdminClient() {
     });
 
     (data as Record<string, unknown>[] | null || []).forEach(row => {
-      const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string }|null } | null;
+      const prod = row.products as { farm_id: string|null; supply_price: number|null; farms: { id: string; name: string; is_own?: boolean }|null } | null;
+      if (prod?.farms?.is_own) return;   // 자사(델리오)는 브랜드 정산 대상에서 제외
       const ord = row.orders as { order_no: string } | null;
       const totalQty = Number(row.quantity) || 0;
       /* 부분환불 하자분 차감 — 같은 주문에 동일 상품명 라인이 여러 개면 하자수량을 '소진'해서
@@ -6054,7 +6056,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { error } = await supabase
       .from('orders')
-      .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+      .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}), ...(newStatus === 'confirmed' ? { confirmed_at: new Date().toISOString() } : {}) })
       .eq('id', orderId);
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -8818,7 +8820,7 @@ export default function AdminClient() {
                 <span className={`adm-badge ${STATUS_BADGE_CLS[selectedOrder.status] || 'badge-wait'}`}>{STATUS_LABEL[selectedOrder.status] || selectedOrder.status}</span>
               </div>
               <div className="adm-statusbar-btns">
-                {(['preparing','shipped','delivered'] as const).map(s => {
+                {(['preparing','shipped','delivered','confirmed'] as const).map(s => {
                   const on = detailStatus === s; const c = STATUS_BTN_COLOR[s];
                   return (
                     <button key={s} disabled={updatingStatus === selectedOrder.id}
@@ -9497,7 +9499,7 @@ export default function AdminClient() {
                     자사상품 주문서
                   </button>
                   {(orderFrom || orderTo || orderSearch || orderStatusFilter || orderFarmFilter || orderReqOnly) && (
-                    <button className="adm-btn adm-btn-outline" onClick={() => { setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderReqOnly(false); setOrderFrom(''); setOrderTo(''); setOrderPage(1); loadOrders({ from:'', to:'' }); }}>초기화</button>
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderReqOnly(false); setOrderFrom(''); setOrderTo(''); setOrderPage(1); setSelOrders(new Set()); loadOrders({ from:'', to:'' }); }}>초기화</button>
                   )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setOrderStatusFilter(''); setOrderFarmFilter(''); setOrderSearch(''); setOrderReqOnly(false); setOrderPage(1); loadOrders(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                 </div>
@@ -9597,11 +9599,22 @@ export default function AdminClient() {
                                 )}
                               </td>}
 
-                              {/* 상품 — 상품명 / ㄴ옵션 2줄. 옵션이 길면 …으로 잘라 금액칸 침범 방지 */}
+                              {/* 상품 — 한 주문에 여러 품목이면 '외 N건'으로 접지 않고 전부 펼쳐 표시 (정산 대조용) */}
                               <td style={{ whiteSpace:'normal', textAlign:'left' }}>
                                 <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'left', whiteSpace:'normal' }}>
-                                  <div style={{ fontWeight:600, whiteSpace:'normal', wordBreak:'break-word' }}>{pname}{g.items.length > 1 ? ` 외 ${g.items.length - 1}건` : ''}</div>
-                                  {opt && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'normal', wordBreak:'break-word' }}>ㄴ {opt}</div>}
+                                  {g.items.length > 0 ? g.items.map((it, idx) => {
+                                    const io = it.option_label || '';
+                                    let inm = it.product_name || '상품';
+                                    if (io && inm.endsWith(`(${io})`)) inm = inm.slice(0, -(`(${io})`.length)).trim();
+                                    return (
+                                      <div key={it.id || idx} style={idx > 0 ? { marginTop:4, paddingTop:4, borderTop:'1px dotted #EEECE8' } : undefined}>
+                                        <div style={{ fontWeight:600, whiteSpace:'normal', wordBreak:'break-word' }}>{inm}{(it.quantity || 1) > 1 ? ` (${it.quantity}개)` : ''}</div>
+                                        {io && <div className="adm-muted" style={{ fontSize:11, whiteSpace:'normal', wordBreak:'break-word' }}>ㄴ {io}</div>}
+                                      </div>
+                                    );
+                                  }) : (
+                                    <div style={{ fontWeight:600, whiteSpace:'normal', wordBreak:'break-word' }}>{pname}{opt && <span className="adm-muted" style={{ fontSize:11 }}> ㄴ {opt}</span>}</div>
+                                  )}
                                 </div>
                               </td>
 
