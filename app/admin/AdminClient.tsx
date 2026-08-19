@@ -2759,14 +2759,14 @@ export default function AdminClient() {
   });
   const [farmSettleHalf, setFarmSettleHalf] = useState<1 | 2>(1); // 1차(1~15) / 2차(16~말)
   type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number; origQty: number; defectQty: number; refundCut: number };
-  const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] }[]>([]);
+  const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
   const [farmBankMap, setFarmBankMap] = useState<Record<string, { bank_name: string; bank_account: string }>>({});
   const [farmSettleSearch, setFarmSettleSearch] = useState('');
   const [farmSettleStatus, setFarmSettleStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [selFarmSettle, setSelFarmSettle] = useState<Set<string>>(new Set());
-  const [selectedFarmSettle, setSelectedFarmSettle] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; orders: FarmSettleOrder[] } | null>(null);
+  const [selectedFarmSettle, setSelectedFarmSettle] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] } | null>(null);
   /* 정산 기간 키 & 범위(배송완료일 기준) & 지급일 */
   function farmPeriodInfo(month = farmSettleMonth, half = farmSettleHalf) {
     const [y, m] = month.split('-').map(Number);
@@ -2817,6 +2817,22 @@ export default function AdminClient() {
       .eq('orders.status', 'confirmed')
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
       .limit(10000);
+    /* ⑯ 명세서용 — 같은 기간(구매확정일 기준) '전체환불(refunded)'된 주문 수를 농가별 집계.
+       정산액엔 안 잡히지만(제외) 명세서에 'N건 정산 제외'로 안내한다. */
+    const { data: refData } = await supabase
+      .from('order_items')
+      .select('orders!inner(order_no, status, confirmed_at), products!inner(farm_id, is_own)')
+      .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
+      .eq('orders.status', 'refunded')
+      .not('orders.order_no', 'like', 'TEST%')
+      .limit(10000);
+    const fullRefundByFarm: Record<string, Set<string>> = {};
+    (refData as { orders: { order_no: string }|null; products: { farm_id: string|null; is_own?: boolean }|null }[] | null || []).forEach(rr => {
+      if (rr.products?.is_own) return;
+      const fid = rr.products?.farm_id; const ono = rr.orders?.order_no;
+      if (!fid || !ono) return;
+      (fullRefundByFarm[fid] || (fullRefundByFarm[fid] = new Set())).add(ono);
+    });
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
     const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, origQty: number, defectQty: number, refundCut: number) => {
       const farmId = prod?.farm_id ?? null;
@@ -2870,7 +2886,7 @@ export default function AdminClient() {
       addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', origQty, dFruit, refundCut);
     });
     const rows = Object.values(map)
-      .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, orders: r.orders }))
+      .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, fullRefundCount: (r.farmId && fullRefundByFarm[r.farmId]) ? fullRefundByFarm[r.farmId].size : 0, orders: r.orders }))
       .sort((a, b) => b.payout - a.payout);
     setFarmSettleRows(rows);
     setFarmSettleLoading(false);
@@ -2924,7 +2940,7 @@ export default function AdminClient() {
   /* 정산 명세서 PDF — 인쇄창 없이 파일로 바로 다운로드(html2canvas+jsPDF).
      구성: 요약 → 옵션별 판매수량 → 주문별 상세. 공급가(배송비 포함) 기준, 마진·매출 제외 */
   const [pdfBusy, setPdfBusy] = useState(false);
-  async function downloadFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; orders: FarmSettleOrder[] }) {
+  async function downloadFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }) {
     if (pdfBusy) return;
     const info = farmPeriodInfo();
     const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
@@ -2963,6 +2979,7 @@ export default function AdminClient() {
         <div class="box">
           <div class="row"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
           ${anyDefect ? `<div class="row"><span>부분환불(하자) 차감</span><b style="color:#c0392b">${refundCount}건 · -${totalCut.toLocaleString()}원 <span style="font-weight:400;color:#999">(하자 ${totalDefect}개)</span></b></div>` : ''}
+          ${row.fullRefundCount > 0 ? `<div class="row"><span>전체환불 (정산 제외)</span><b style="color:#c0392b">${row.fullRefundCount}건</b></div>` : ''}
           <div class="row"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
         </div>
         <h2>옵션별 판매 수량</h2>
@@ -2999,7 +3016,7 @@ export default function AdminClient() {
   /* 정산 명세서 — 브라우저 인쇄(PDF로 저장) 방식.
      html2canvas 이미지가 아니라 실제 텍스트로 렌더 → (1) 주문번호 등 복사 가능 (2) CSS page-break로 줄 잘림 없음.
      한글 폰트 임베드 불필요(브라우저가 시스템 폰트로 렌더). */
-  function printFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; orders: FarmSettleOrder[] }) {
+  function printFarmSettlePdf(row: { farmName: string; qty: number; payout: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }) {
     const info = farmPeriodInfo();
     const esc = (s: string) => String(s).replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c] || c));
     const anyDefect = row.orders.some(o => (o.defectQty || 0) > 0);
@@ -3043,6 +3060,7 @@ export default function AdminClient() {
       <div class="box">
         <div class="rowline"><span>판매 건수</span><b>${row.orderCount.toLocaleString()}건 (${row.qty.toLocaleString()}개)</b></div>
         ${anyDefect ? `<div class="rowline"><span>부분환불(하자) 차감</span><b style="color:#c0392b">${refundCount}건 · -${totalCut.toLocaleString()}원 <span style="font-weight:400;color:#999">(하자 ${totalDefect}개)</span></b></div>` : ''}
+        ${row.fullRefundCount > 0 ? `<div class="rowline"><span>전체환불 (정산 제외)</span><b style="color:#c0392b">${row.fullRefundCount}건</b></div>` : ''}
         <div class="rowline"><span>정산액 (공급가 · 배송비 포함)</span><b>${row.payout.toLocaleString()}원</b></div>
       </div>
       <h2>옵션별 판매 수량</h2>
@@ -12912,7 +12930,7 @@ export default function AdminClient() {
                                         <td style={{ textAlign:'left' }}>{prodCell(r.orders?.order_items)}</td>
                                         <td style={{ textAlign:'center', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.reason}</td>
                                         <td className="adm-muted">{fmtDateShort(r.updated_at || r.created_at)}</td>
-                                        <td><span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
+                                        <td><span className={`adm-badge ${r.status === 'completed' ? 'badge-off' : (stCls[r.status] || 'badge-wait')}`}>{(stLabel[r.status] || r.status).replace('환불', '취소')}</span></td>
                                         <td><button className="adm-row-btn" onClick={(ev) => { ev.stopPropagation(); openOrder(r.orders?.order_no, r); }}>보기</button></td>
                                       </tr>
                                     );
@@ -13052,11 +13070,13 @@ export default function AdminClient() {
 
                         {/* 신청 정보 */}
                         <div>
-                          <div style={secTitle}>신청 정보 <span className={`adm-badge ${stCls[r.status] || 'badge-wait'}`} style={{ marginLeft:6 }}>{
-                            (r.status === 'completed' && r.type !== 'cancel' && r.refund_amount != null && r.orders && r.refund_amount < r.orders.final_amount)
-                              ? '부분환불 완료'
-                              : (stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불')
-                          }</span></div>
+                          {(() => {
+                            const isPartialDone = (r.status === 'completed' && r.type !== 'cancel' && r.refund_amount != null && r.orders && r.refund_amount < r.orders.final_amount);
+                            /* 전체환불·취소완료=빨강(주문관리와 통일), 부분환불완료=파랑(주문은 구매확정 유지) */
+                            const cls = r.status === 'completed' ? (isPartialDone ? 'badge-paid' : 'badge-off') : (stCls[r.status] || 'badge-wait');
+                            const label = isPartialDone ? '부분환불 완료' : (stLabel[r.status] || r.status).replace('환불', r.type === 'cancel' ? '취소' : '환불');
+                            return <div style={secTitle}>신청 정보 <span className={`adm-badge ${cls}`} style={{ marginLeft:6 }}>{label}</span></div>;
+                          })()}
                           <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'14px 16px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px 16px' }}>
                             {info.map(([l, v], i) => (
                               <div key={l} style={i >= 4 ? { gridColumn:'1 / -1' } : undefined}>
@@ -13679,7 +13699,7 @@ export default function AdminClient() {
                       const refundCount = r.orders.filter(o => (o.refundCut || 0) > 0).length;
                       return (
                     <div>
-                      <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 부분환불(하자) {refundCount}건 · −{fmtPrice(totalCut)}원 차감 (하자 {totalDefect}개)</span>}</div>
+                      <div style={secTitle}>정산 대상 주문 내역{anyDefect && <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}> · 부분환불(하자) {refundCount}건 · −{fmtPrice(totalCut)}원 차감 (하자 {totalDefect}개)</span>}{r.fullRefundCount > 0 && <span style={{ fontWeight:400, fontSize:12, color:'#DC2626' }}> · 전체환불 {r.fullRefundCount}건(정산 제외)</span>}</div>
                       <table className="adm-table" style={{ width:'100%', tableLayout:'fixed' }}>
                         <thead><tr>
                           <th style={{ width:132 }}>주문번호</th>
