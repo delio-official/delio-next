@@ -12972,7 +12972,7 @@ export default function AdminClient() {
                                   const active = group.find(x => x.status === 'pending' || x.status === 'processing' || x.status === 'hold'); // 미완 우선 표기
                                   let badgeLabel: string, badgeCls: string;
                                   if (active) { badgeLabel = (stLabel[active.status] || active.status).replace('환불', isCancel ? '취소' : '환불'); badgeCls = stCls[active.status] || 'badge-wait'; }
-                                  else if (allCompleted) { badgeLabel = (!isCancel && !fully) ? '부분환불 완료' : (isCancel ? '취소완료' : '환불완료'); badgeCls = 'badge-paid'; }
+                                  else if (allCompleted) { badgeLabel = (!isCancel && !fully) ? '부분환불 완료' : (isCancel ? '취소완료' : '환불완료'); badgeCls = (!isCancel && !fully) ? 'badge-paid' : 'badge-off'; }  /* 전체환불·취소완료는 빨강(badge-off)으로 통일 — 주문관리와 색 일치. 부분환불완료는 주문이 구매확정 유지라 파랑 */
                                   else { badgeLabel = (stLabel[rep.status] || rep.status).replace('환불', isCancel ? '취소' : '환불'); badgeCls = stCls[rep.status] || 'badge-wait'; }
                                   const partialCount = group.filter(x => x.status === 'completed').length;
                                   return (
