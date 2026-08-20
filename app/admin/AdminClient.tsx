@@ -14817,7 +14817,7 @@ export default function AdminClient() {
                       if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
                       const extra = its.length > 1 ? ` 외 ${its.length - 1}건` : '';
                       return (
-                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
+                      <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
                         <div style={{ display:'flex', alignItems:'flex-start', gap:6, minWidth:0 }}>
                           <div style={{ minWidth:0, lineHeight:1.4 }}>
                             <div style={{ fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pname}{extra}</div>
