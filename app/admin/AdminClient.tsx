@@ -15329,7 +15329,8 @@ export default function AdminClient() {
               <div className="adm-form">
                 <div className="adm-form-row">
                   <label className="adm-label">지급 유형</label>
-                  <div style={{ display:'flex', gap:8 }}>
+                  <div className="adm-flex-center-gap">
+                    <div style={{ display:'flex', gap:8, flex:1 }}>
                     {([['give','+ 지급'],['deduct','- 차감']] as const).map(([v,l]) => (
                       <button key={v} type="button"
                         onClick={() => setGivePointForm(p => ({ ...p, type: v }))}
@@ -15340,6 +15341,9 @@ export default function AdminClient() {
                         {l}
                       </button>
                     ))}
+                    </div>
+                    {/* 포인트 칸의 'P'와 동일 폭 여백 → 버튼 끝선을 입력칸과 일치 */}
+                    <span className="adm-muted" style={{ visibility:'hidden' }}>P</span>
                   </div>
                 </div>
                 <div className="adm-form-row">
@@ -15363,9 +15367,13 @@ export default function AdminClient() {
                     <span className="adm-muted" style={{ visibility:'hidden' }}>P</span>
                   </div>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginTop:4 }}>
-                  <span style={{ fontSize:13, color:'#64748B' }}>지급 후 보유 포인트</span>
-                  <span style={{ fontSize:15, fontWeight:700, color:'#2563EB' }}>{fmtPrice(after)}P</span>
+                <div className="adm-flex-center-gap" style={{ marginTop:4 }}>
+                  <div style={{ flex:1, display:'flex', justifyContent:'space-between', alignItems:'center', background:'#F8FAFC', borderRadius:10, padding:'12px 16px' }}>
+                    <span style={{ fontSize:13, color:'#64748B' }}>지급 후 보유 포인트</span>
+                    <span style={{ fontSize:15, fontWeight:700, color:'#2563EB' }}>{fmtPrice(after)}P</span>
+                  </div>
+                  {/* 입력칸 끝선과 일치 */}
+                  <span className="adm-muted" style={{ visibility:'hidden' }}>P</span>
                 </div>
               </div>
             </div>
