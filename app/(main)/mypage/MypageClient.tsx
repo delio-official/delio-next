@@ -2050,16 +2050,21 @@ export default function MypageClient() {
                         </button>
                         {withdrawReason===rs && (
                           <textarea value={withdrawDetail} onChange={e => setWithdrawDetail(e.target.value)} rows={3}
-                            placeholder="구체적으로 알려주시면 빠르게 개선해볼게요"
-                            style={{ width:'100%', padding:'10px 12px', margin:'0 0 12px', fontSize:13, border:'1.5px solid #E5E5E5', borderRadius:8, resize:'none', outline:'none', fontFamily:'inherit', lineHeight:1.6, boxSizing:'border-box' }} />
+                            placeholder={rs === '기타' ? '기타 사유를 직접 작성해주세요 (필수)' : '구체적으로 알려주시면 빠르게 개선해볼게요'}
+                            style={{ width:'100%', padding:'10px 12px', margin:'0 0 12px', fontSize:13, border:`1.5px solid ${rs === '기타' && !withdrawDetail.trim() ? '#F5A5A5' : '#E5E5E5'}`, borderRadius:8, resize:'none', outline:'none', fontFamily:'inherit', lineHeight:1.6, boxSizing:'border-box' }} />
                         )}
                       </div>
                     ))}
                   </div>
                   <div style={{ display:'flex', gap:10, marginTop:20 }}>
                     <button onClick={() => setWithdrawStep(0)} style={{ flex:1, padding:'13px', border:'1.5px solid #E5E5E5', borderRadius:10, background:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>계속 사용하기</button>
-                    <button onClick={() => setWithdrawStep(2)} disabled={!withdrawReason}
-                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: withdrawReason ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: withdrawReason ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>다음 단계로</button>
+                    {(() => {
+                      const wOk = !!withdrawReason && !(withdrawReason === '기타' && !withdrawDetail.trim());
+                      return (
+                    <button onClick={() => { if (withdrawReason === '기타' && !withdrawDetail.trim()) { alert('기타 사유를 직접 작성해주세요.'); return; } setWithdrawStep(2); }} disabled={!wOk}
+                      style={{ flex:1, padding:'13px', border:'none', borderRadius:10, background: wOk ? 'var(--color-accent)' : '#E5E5E5', color:'#fff', fontSize:14, fontWeight:700, cursor: wOk ? 'pointer' : 'not-allowed', fontFamily:'inherit' }}>다음 단계로</button>
+                      );
+                    })()}
                   </div>
                 </>
               ) : (
