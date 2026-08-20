@@ -10669,13 +10669,14 @@ export default function AdminClient() {
                                 value={String(t.point_rate)} onChange={e => updateTier(t.grade, { point_rate: Number(e.target.value) })} />
                               <span className="adm-muted" style={{ width:12 }}>%</span>
                             </div>
-                            {/* 예약 적립률 / 적용일 */}
-                            <div style={{ display:'flex', gap:5, alignItems:'center', marginTop:6 }}>
+                            {/* 예약 적립률 / 적용일 — 달력 끝선을 위 '포인트 적립률' 입력칸과 일치(% 폭 12px 여백) */}
+                            <div className="adm-flex-center-gap" style={{ marginTop:6 }}>
                               <input type="number" className="adm-input-text" style={{ width:56, minWidth:0, flexShrink:0, textAlign:'right' }} min={0} max={10} step={0.5} placeholder="예약%"
                                 value={t.point_rate_next == null ? '' : String(t.point_rate_next)}
                                 onChange={e => updateTier(t.grade, { point_rate_next: e.target.value === '' ? null : Number(e.target.value) })} />
                               <input type="date" className="adm-input-text" style={{ flex:1, minWidth:0, width:0 }} min={new Date().toISOString().slice(0,10)}
                                 value={t.apply_date || ''} onChange={e => updateTier(t.grade, { apply_date: e.target.value || null })} />
+                              <span style={{ width:12, flexShrink:0 }} />
                             </div>
                           </div>
                           {/* 분기 누적금액 기준 */}
