@@ -2601,7 +2601,7 @@ export default function AdminClient() {
   const [mhPage, setMhPage] = useState(1); const [mhSize, setMhSize] = useState(10);
   const [popupModal, setPopupModal] = useState(false);
   const [editingPopup, setEditingPopup] = useState<AdminPopup | null>(null);
-  const POPUP_EMPTY = { name: '', title: '', link_url: '/', width: 400, position: 'center', is_active: true, show_today_close: true, starts_at: '', ends_at: '' };
+  const POPUP_EMPTY = { name: '', title: '', link_url: '', width: 400, position: 'center', is_active: true, show_today_close: true, starts_at: '', ends_at: '' };  // link_url 빈 값 = '직접 입력' 모드로 시작(배너와 동일)
   const [ppForm, setPpForm] = useState<typeof POPUP_EMPTY>({ ...POPUP_EMPTY });
   const [ppImgUrl, setPpImgUrl] = useState('');
   const [ppImgUrlMobile, setPpImgUrlMobile] = useState('');
