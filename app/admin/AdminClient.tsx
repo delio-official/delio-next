@@ -2494,6 +2494,10 @@ export default function AdminClient() {
   const [givePointTarget, setGivePointTarget] = useState<AdminProfile | null>(null);
   const [givePointForm, setGivePointForm] = useState<{ amount: string; desc: string; type: 'give' | 'deduct' }>({ amount: '', desc: '', type: 'give' });
   const [givePointSaving, setGivePointSaving] = useState(false);
+  /* 회원별 포인트 내역 모달 — 행 클릭 시 그 회원의 지급/사용 이력 */
+  const [pointHistMember, setPointHistMember] = useState<AdminProfile | null>(null);
+  const [pointHistLogs, setPointHistLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null }[]>([]);
+  const [pointHistLoading, setPointHistLoading] = useState(false);
 
   /* ── 쿠폰 ── */
   const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
@@ -6668,6 +6672,19 @@ export default function AdminClient() {
     const { data } = await q;
     setPointLogs((data as unknown as typeof pointLogs) || []);
   }
+  /* 특정 회원의 포인트 내역 로드 + 모달 오픈 */
+  async function openPointHistory(m: AdminProfile) {
+    setPointHistMember(m);
+    setPointHistLoading(true);
+    setPointHistLogs([]);
+    const supabase = createClient();
+    const { data } = await supabase.from('point_logs')
+      .select('id, amount, created_at, description')
+      .eq('user_id', m.id)
+      .order('created_at', { ascending: false }).limit(300);
+    setPointHistLogs((data as unknown as typeof pointHistLogs) || []);
+    setPointHistLoading(false);
+  }
 
   async function givePoints() {
     if (!givePointTarget) return;
@@ -10820,7 +10837,7 @@ export default function AdminClient() {
                             {filteredPointMembers.length === 0 ? (
                               <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>회원 없음</td></tr>
                             ) : pagedPointMembers.map(m => (
-                              <tr key={m.id}>
+                              <tr key={m.id} style={{ cursor:'pointer' }} onClick={() => openPointHistory(m)} title="클릭하면 이 회원의 포인트 내역을 봅니다">
                                 <td style={{ fontWeight:500 }}>{m.name}</td>
                                 <td className="adm-muted">{m.email}</td>
                                 <td>
@@ -10831,7 +10848,7 @@ export default function AdminClient() {
                                 <td className="adm-mono adm-num" style={{ fontWeight:600, color: (m.point_balance||0) > 0 ? '#2D7A4D' : '#94A3B8' }}>
                                   {fmtPrice(m.point_balance||0)}P
                                 </td>
-                                <td>
+                                <td onClick={e => e.stopPropagation()}>
                                   <button className="adm-row-btn"
                                     onClick={() => { setGivePointTarget(m); setGivePointForm({ amount:'', desc:'', type:'give' }); setGivePointModal(true); }}>
                                     지급
@@ -15387,6 +15404,41 @@ export default function AdminClient() {
         </div>
         );
       })()}
+
+      {/* ===== 회원별 포인트 내역 모달 ===== */}
+      {pointHistMember && (
+        <div className="adm-modal-bg open" style={{ zIndex: 10000 }} onClick={() => setPointHistMember(null)}>
+          <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'85vh', display:'flex', flexDirection:'column' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head"><span className="adm-modal-title">{pointHistMember.name} · 포인트 내역</span></div>
+            <div className="adm-modal-body" style={{ overflowY:'auto' }}>
+              <div style={{ background:'#F8FAFC', borderRadius:10, padding:'12px 16px', marginBottom:14 }}>
+                <div style={{ fontSize:14, fontWeight:700 }}>{pointHistMember.name} <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>{pointHistMember.email}</span></div>
+                <div style={{ fontSize:13, fontWeight:600, marginTop:6 }}>현재 보유 포인트: <span style={{ color:'#16A34A' }}>{fmtPrice(pointHistMember.point_balance||0)}P</span></div>
+              </div>
+              {pointHistLoading ? <PanelLoading />
+                : pointHistLogs.length === 0 ? <div className="adm-muted" style={{ textAlign:'center', padding:'30px 0', fontSize:13 }}>포인트 지급·사용 내역이 없습니다.</div>
+                : (
+                <table className="adm-table adm-table-clean" style={{ width:'100%' }}>
+                  <thead><tr><th style={{ textAlign:'left' }}>일시</th><th style={{ textAlign:'left' }}>내용</th><th className="adm-num">증감</th></tr></thead>
+                  <tbody>
+                    {pointHistLogs.map(l => (
+                      <tr key={l.id}>
+                        <td className="adm-muted" style={{ textAlign:'left', whiteSpace:'nowrap' }}>{fmtDate(l.created_at)}</td>
+                        <td style={{ textAlign:'left' }}>{l.description || '-'}</td>
+                        <td className="adm-mono adm-num" style={{ fontWeight:700, color: l.amount >= 0 ? '#16A34A' : '#DC2626' }}>{l.amount >= 0 ? '+' : ''}{fmtPrice(l.amount)}P</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-primary" onClick={() => { const m = pointHistMember; setPointHistMember(null); setGivePointTarget(m); setGivePointForm({ amount:'', desc:'', type:'give' }); setGivePointModal(true); }}>포인트 지급</button>
+              <button className="adm-btn adm-btn-outline" onClick={() => setPointHistMember(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== 상품 문의 상세 + 답변 모달 ===== */}
       {selectedProductInquiry && (
