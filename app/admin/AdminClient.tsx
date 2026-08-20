@@ -7910,9 +7910,13 @@ export default function AdminClient() {
                   </div>
                 </div>
                 <div>
-                  <label className="adm-label">정렬 순서</label>
+                  <label className="adm-label">정렬 순서 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 목록 노출 순서(작을수록 앞)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.sort_order || ''}
                     onChange={e => setPForm(f => ({ ...f, sort_order: Number(e.target.value) }))} placeholder="0" />
+                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:4, lineHeight:1.6 }}>
+                    상품 목록에서 <b>앞에 보일 순서</b>를 정합니다. <b>숫자가 작을수록 앞쪽</b>(예: 1=맨앞, 2, 3…).<br />
+                    비워두면 <b>0(기본)</b> — 이땐 화면에서 고른 정렬(인기·최신·가격 등)대로 나옵니다.
+                  </div>
                 </div>
               </div>
 
