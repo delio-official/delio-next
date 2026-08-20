@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { splitBadges } from '@/lib/badges';
+import { parseBadges } from '@/lib/badges';
 import { openOptionDrawer } from '@/lib/cart';
 import { getWishlistIds, toggleWishlist } from '@/lib/wishlist';
 import { useLoginGuard } from '@/hooks/useLoginGuard';
@@ -373,7 +373,7 @@ function QuickGuide() {
             <span style={{ display:'inline-flex', gap:4, flexWrap:'wrap' }}>
               {p.is_new  && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>NEW</span>}
               {p.is_best && <span className="qg-card-tag" style={{ background:'#1A1A1A', color:'#fff' }}>인기</span>}
-              {splitBadges(p.badge).map((t, i) => <span key={`b${i}`} className="qg-card-tag" style={{ background: p.badge_color || '#1A1A1A', color:'#fff' }}>{t}</span>)}
+              {parseBadges(p.badge, p.badge_color).map((b, i) => <span key={`b${i}`} className="qg-card-tag" style={{ background: b.c, color:'#fff' }}>{b.t}</span>)}
             </span>
           ) : (
             <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
@@ -1213,7 +1213,7 @@ export default function HomeClient() {
                     </div>
                     <div className="lounge-card-meta">
                       <span className="lounge-card-cat">{LOUNGE_CAT[post.filter] || post.filter}</span>
-                      {post.badge && <span className="lounge-card-sub">{post.badge}</span>}
+                      {parseBadges(post.badge).map((b, i) => <span key={i} className="lounge-card-sub" style={{ background:b.c, color:'#fff', borderRadius:4, padding:'1px 6px' }}>{b.t}</span>)}
                     </div>
                     <div className="lounge-card-title">{post.title}</div>
                   </Link>

@@ -10,7 +10,8 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
-import { splitBadges } from '@/lib/badges';
+import { parseBadges } from '@/lib/badges';
+import BadgeTagsInput from '@/components/BadgeTagsInput';
 import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
 import { SELLER_AXES, TASTE_AXES, axisLevelLabel, toLevel, type ReviewTaste } from '@/lib/taste';
 import SectionCuration from '@/components/admin/SectionCuration';
@@ -82,7 +83,7 @@ function ProductPreviewCard(p: PreviewProps) {
           <div style={{ height:22, display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
             {p.isNew  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>NEW</span>}
             {p.isBest && <span style={{ fontSize:11, fontWeight:800, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>인기</span>}
-            {splitBadges(p.badge).map((t, i) => <span key={`b${i}`} style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:p.badgeColor || '#1A1A1A', color:'#fff' }}>{t}</span>)}
+            {parseBadges(p.badge, p.badgeColor).map((b, i) => <span key={`b${i}`} style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:b.c, color:'#fff' }}>{b.t}</span>)}
           </div>
         )}
         <div style={{ fontSize: mob ? 14 : 17, fontWeight:600, color:'#1A1A1A', lineHeight:1.4,
@@ -4074,7 +4075,7 @@ export default function AdminClient() {
       dispatch_cutoff: pForm.dispatch_cutoff?.trim() || null,
       brix:           pForm.brix != null ? Number(pForm.brix) : null,
       badge:          pForm.badge?.trim()         || null,
-      badge_color:    pForm.badge?.trim() ? (pForm.badge_color || BADGE_DEFAULT_COLOR) : null,
+      badge_color:    parseBadges(pForm.badge, pForm.badge_color)[0]?.c || null,   // 레거시 폴백용(첫 뱃지 색). 개별 색상은 badge(JSON)에 저장
       is_new:         Boolean(pForm.is_new),
       is_best:        Boolean(pForm.is_best),
       is_dawn:        Boolean(pForm.is_dawn),
@@ -6569,7 +6570,7 @@ export default function AdminClient() {
     setLoungeSaving(true);
     const supabase = createClient();
     /* 뱃지 텍스트 없으면 색상도 null */
-    const badgeColor = loungeForm.badge.trim() ? (loungeForm.badge_color || BADGE_DEFAULT_COLOR) : null;
+    const badgeColor = parseBadges(loungeForm.badge, loungeForm.badge_color)[0]?.c || null;
     if (editingLounge) {
       /* 작성일(date)은 등록 시점 고정 — 수정 시 건드리지 않음 */
       const { date: _d, ...rest0 } = loungeForm; void _d;
@@ -6930,7 +6931,7 @@ export default function AdminClient() {
       title:         evForm.title.trim(),
       subtitle:      evForm.subtitle.trim()     || null,
       badge:         evForm.badge.trim()        || null,
-      badge_color:   evForm.badge.trim() ? (evForm.badge_color || BADGE_DEFAULT_COLOR) : null,
+      badge_color:   parseBadges(evForm.badge, evForm.badge_color)[0]?.c || null,
       thumbnail_url: evForm.thumbnail_url.trim() || null,
       image_url:     evForm.image_url.trim()     || null,
       content:       evForm.content.trim()       || null,
@@ -7892,22 +7893,8 @@ export default function AdminClient() {
               <div style={{ fontSize:13, fontWeight:700, color:'#475569', margin:'22px 0 12px', paddingTop:18, borderTop:'1px solid #EEF1F5' }}>표시 설정 <span style={{ fontWeight:400, fontSize:11, color:'#94A3B8' }}>(뱃지 · 정렬 · 태그)</span></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <div>
-                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(쉼표로 여러 개 · 색상 공통)</span></label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={pForm.badge || ''}
-                    onChange={e => setPForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: 당일수확, 예약발송" />
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                    <BadgeColorRow
-                      value={pForm.badge_color || BADGE_DEFAULT_COLOR}
-                      presets={BADGE_COLORS.map(c => c.value)}
-                      onPick={v => setPForm(f => ({ ...f, badge_color: v }))} />
-                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
-                    {splitBadges(pForm.badge).map((t, i) => (
-                      <span key={`b${i}`} style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
-                        background: pForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
-                        {t}
-                      </span>
-                    ))}
-                  </div>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(Enter로 하나씩 추가 · 색상 개별)</span></label>
+                  <BadgeTagsInput value={pForm.badge || ''} onChange={v => setPForm(f => ({ ...f, badge: v }))} presets={BADGE_COLORS.map(c => c.value)} fallbackColor={pForm.badge_color} />
                 </div>
                 <div>
                   <label className="adm-label">정렬 순서 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>· 목록 노출 순서(작을수록 앞)</span></label>
@@ -8041,22 +8028,8 @@ export default function AdminClient() {
                     onChange={e => setEvForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="선택 입력" />
                 </div>
                 <div>
-                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(쉼표로 여러 개 · 색상 공통)</span></label>
-                  <input className="adm-input-text" style={{ width:'100%' }} value={evForm.badge}
-                    onChange={e => setEvForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: HOT, NEW, 한정" />
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                    <BadgeColorRow
-                      value={evForm.badge_color || BADGE_DEFAULT_COLOR}
-                      presets={BADGE_COLORS.map(c => c.value)}
-                      onPick={v => setEvForm(f => ({ ...f, badge_color: v }))} />
-                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
-                    {splitBadges(evForm.badge).map((t, i) => (
-                      <span key={`eb${i}`} style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
-                        background: evForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
-                        {t}
-                      </span>
-                    ))}
-                  </div>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(Enter로 하나씩 추가 · 색상 개별)</span></label>
+                  <BadgeTagsInput value={evForm.badge || ''} onChange={v => setEvForm(f => ({ ...f, badge: v }))} presets={BADGE_COLORS.map(c => c.value)} fallbackColor={evForm.badge_color} />
                 </div>
               </div>
 
@@ -11640,7 +11613,7 @@ export default function AdminClient() {
                           return (
                             <tr key={ev.id}>
                               <td>{ev.title}</td>
-                              <td>{ev.badge ? <span className="adm-badge badge-paid">{ev.badge}</span> : '-'}</td>
+                              <td>{ev.badge ? parseBadges(ev.badge, ev.badge_color).map((b, i) => <span key={i} className="adm-badge" style={{ background:b.c, color:'#fff', marginRight:3 }}>{b.t}</span>) : '-'}</td>
                               <td className="adm-muted">{fmtDateShort(ev.starts_at)}</td>
                               <td className="adm-muted">{fmtDateShort(ev.ends_at)}</td>
                               <td><div style={{ display:'flex', justifyContent:'center' }}><span className={`adm-badge ${s.cls}`}>{s.label}</span></div></td>
@@ -15638,17 +15611,8 @@ export default function AdminClient() {
 
               {/* 뱃지 */}
               <div>
-                <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
-                <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="예: NEW, HOT"
-                  value={loungeForm.badge} onChange={e => setLoungeForm(p => ({ ...p, badge: e.target.value }))} />
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                  <BadgeColorRow value={loungeForm.badge_color || BADGE_DEFAULT_COLOR} presets={BADGE_COLORS.map(c => c.value)}
-                    onPick={v => setLoungeForm(p => ({ ...p, badge_color: v }))} />
-                  <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
-                  {loungeForm.badge && (
-                    <span style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff', background: loungeForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>{loungeForm.badge}</span>
-                  )}
-                </div>
+                <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(Enter로 하나씩 추가 · 색상 개별)</span></label>
+                <BadgeTagsInput value={loungeForm.badge || ''} onChange={v => setLoungeForm(p => ({ ...p, badge: v }))} presets={BADGE_COLORS.map(c => c.value)} fallbackColor={loungeForm.badge_color} />
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>작성일은 등록 시점으로 자동 기록됩니다.</div>
               </div>
 

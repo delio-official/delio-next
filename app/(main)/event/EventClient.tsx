@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/event.css';
-import { splitBadges } from '@/lib/badges';
+import { parseBadges } from '@/lib/badges';
 
 interface Event {
   id: string;
@@ -168,8 +168,8 @@ export default function EventClient() {
                       {/* 커스텀 뱃지 (관리자 지정 텍스트+색상) */}
                       {ev.badge && ev.badge !== 'EVENT' && (
                         <div style={{ position:'absolute', top:10, left:10, zIndex:2, display:'flex', gap:4, flexWrap:'wrap', maxWidth:'calc(100% - 20px)' }}>
-                          {splitBadges(ev.badge).map((t, i) => (
-                            <span key={i} style={{ background: ev.badge_color || '#1A8A4C', color:'#fff', fontSize:11, fontWeight:700, borderRadius:4, padding:'3px 8px' }}>{t}</span>
+                          {parseBadges(ev.badge, ev.badge_color).map((b, i) => (
+                            <span key={i} style={{ background: b.c || '#1A8A4C', color:'#fff', fontSize:11, fontWeight:700, borderRadius:4, padding:'3px 8px' }}>{b.t}</span>
                           ))}
                         </div>
                       )}

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import '@/styles/event.css';
-import { splitBadges } from '@/lib/badges';
+import { parseBadges } from '@/lib/badges';
 
 interface Event {
   id: string;
@@ -82,13 +82,13 @@ export default function EventDetailClient() {
           }}>
             {status === 'ongoing' ? '진행중' : '종료'}
           </span>
-          {event.badge && event.badge !== 'EVENT' && splitBadges(event.badge).map((t, i) => (
+          {event.badge && event.badge !== 'EVENT' && parseBadges(event.badge, event.badge_color).map((b, i) => (
             <span key={i} style={{
               display: 'inline-block', marginLeft: 6,
-              background: event.badge_color || '#1A8A4C', color: '#fff',
+              background: b.c || '#1A8A4C', color: '#fff',
               fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
             }}>
-              {t}
+              {b.t}
             </span>
           ))}
         </div>

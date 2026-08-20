@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase';
 import ComingSoon from '@/components/ComingSoon/ComingSoon';
 import Spinner from '@/components/Spinner/Spinner';
 import '@/styles/review.css';
+import { parseBadges } from '@/lib/badges';
 
 /* 작성일 표시: ISO datetime → "2026.05.30 14:30", 그 외(레거시 문자열)는 그대로 */
 function fmtLoungeDate(s: string | null | undefined): string {
@@ -133,7 +134,7 @@ export default function LoungeClient() {
                   <div className="lounge-card-info">
                     <div className="lounge-card-title">{p.title}</div>
                     <div className="lounge-card-meta">
-                      {p.badge && <span className="lounge-badge" style={p.badge_color ? { background:p.badge_color, color:'#fff' } : undefined}>{p.badge}</span>}
+                      {parseBadges(p.badge, p.badge_color).map((b, i) => <span key={i} className="lounge-badge" style={{ background:b.c, color:'#fff' }}>{b.t}</span>)}
                       <span className="lounge-card-date">{fmtLoungeDate(p.date)}</span>
                     </div>
                   </div>

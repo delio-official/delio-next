@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import '@/styles/review.css';
+import { parseBadges } from '@/lib/badges';
 
 /* 작성일 표시: ISO datetime → "2026.05.30 14:30", 그 외(레거시)는 그대로 */
 function fmtLoungeDate(s: string | null | undefined): string {
@@ -75,13 +76,13 @@ export default function LoungeDetailClient() {
         </div>
 
         {/* 뱃지 */}
-        {post.badge && <span style={{
-          display: 'inline-block', marginBottom: 12,
-          background: post.badge_color || 'var(--color-accent-bg)', color: post.badge_color ? '#fff' : 'var(--color-accent)',
+        {parseBadges(post.badge, post.badge_color).map((b, i) => <span key={i} style={{
+          display: 'inline-block', marginBottom: 12, marginRight: 6,
+          background: b.c, color: '#fff',
           fontSize: 11, fontWeight: 700, borderRadius: 4, padding: '2px 8px',
         }}>
-          {post.badge}
-        </span>}
+          {b.t}
+        </span>)}
 
         {/* 제목 */}
         <h1 style={{ fontSize: 'clamp(21px, 4.5vw, 26px)', fontWeight: 800, marginBottom: 12, lineHeight: 1.4 }}>
