@@ -11702,7 +11702,7 @@ export default function AdminClient() {
 
               {loungeTab === 'cats' && (
                 <div className="adm-card" style={{ padding:'18px 20px', maxWidth:620 }}>
-                  <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:14 }}>
+                  <div className="adm-card-head" style={{ borderBottom:'none', marginBottom:14, padding:0 }}>
                     <div>
                       <span className="adm-card-title">카테고리 관리</span>
                       <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>라운지 글 분류. 카드를 드래그해 순서를 바꿀 수 있습니다.</div>
