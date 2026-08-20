@@ -10874,8 +10874,6 @@ export default function AdminClient() {
                         options={[{ value:'', label:'전체 등급' }, ...Object.entries(GRADE_LABEL).map(([v,l]) => ({ value:v, label:l as string }))]} />
                       <input type="text" className="adm-input-text" placeholder="회원 이름 · 이메일 검색"
                         value={plSearch} onChange={e => { setPlSearch(e.target.value); setPlPage(1); }} />
-                    </div>
-                    <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8, alignItems:'center' }}>
                       <input type="date" className="adm-select" value={pointLogFrom} onChange={e => setPointLogFrom(e.target.value)} />
                       <span style={{ color:'#94A3B8' }}>~</span>
                       <input type="date" className="adm-select" value={pointLogTo} onChange={e => setPointLogTo(e.target.value)} />
@@ -10883,6 +10881,8 @@ export default function AdminClient() {
                       {(plType !== 'all' || plGrade || plSearch) && (
                         <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setPlType('all'); setPlGrade(''); setPlSearch(''); setPlPage(1); const f = ymd(d), t = ymd(new Date()); setPointLogFrom(f); setPointLogTo(t); loadPointLogs(f, t); }}>초기화</button>
                       )}
+                    </div>
+                    <div className="adm-toolbar-right" style={{ gap:8, alignItems:'center' }}>
                       <button className="adm-btn adm-btn-outline" onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setPlType('all'); setPlGrade(''); setPlSearch(''); setPlPage(1); const f = ymd(d), t = ymd(new Date()); setPointLogFrom(f); setPointLogTo(t); loadPointLogs(f, t); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
                     </div>
                   </div>
