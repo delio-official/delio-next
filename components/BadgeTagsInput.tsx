@@ -51,7 +51,6 @@ export default function BadgeTagsInput({
         <input type="color" value={/^#[0-9A-Fa-f]{6}$/.test(color) ? color : '#1A1A1A'} onChange={e => pickColor(e.target.value)}
           style={{ width: 26, height: 26, border: 'none', background: 'none', cursor: 'pointer', padding: 0 }} title="직접 색상" />
         <input className="adm-input-text" style={{ width: 92 }} value={color} onChange={e => pickColor(e.target.value)} />
-        <span style={{ fontSize: 11, color: '#94A3B8' }}>{sel != null ? '↑ 선택한 뱃지 색 변경' : '↑ 다음 추가 뱃지 색'}</span>
       </div>
 
       {/* 추가된 뱃지 칩 (클릭=선택해서 색변경 · × 삭제) */}

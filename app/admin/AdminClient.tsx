@@ -11001,7 +11001,7 @@ export default function AdminClient() {
                   <div className="adm-toolbar">
                     <div className="adm-toolbar-left" />
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-dark" onClick={() => openPopupModal()}>+ 팝업 등록</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => openPopupModal()}>+ 팝업 등록</button>
                     </div>
                   </div>
                   {popupsLoading
@@ -11590,7 +11590,7 @@ export default function AdminClient() {
                     <button className="adm-btn adm-btn-outline" onClick={() => { setEvStatusFilter('all'); setEvSearch(''); setEvFrom(''); setEvTo(''); }}>초기화</button>
                   )}
                   <button className="adm-btn adm-btn-outline" onClick={() => { setEvStatusFilter('all'); setEvSearch(''); setEvFrom(''); setEvTo(''); loadEvents(); }}><span className="adm-btn-icon"><Icon.Refresh /></span>새로고침</button>
-                  <button className="adm-btn adm-btn-dark" onClick={() => openEventModal()}>+ 이벤트 등록</button>
+                  <button className="adm-btn adm-btn-primary" onClick={() => openEventModal()}>+ 이벤트 등록</button>
                 </div>
               </div>
               {eventsLoading ? <div style={{ textAlign:'center', padding:40, color:'#94A3B8' }}>불러오는 중...</div>
