@@ -10310,7 +10310,7 @@ export default function AdminClient() {
                 {reviewsLoading ? <PanelLoading /> : (
                   <div className="adm-table-wrap">
                     <table className="adm-table">
-                      <thead><tr><th>별점</th><th>내용</th><th>상품명</th><th>작성자</th><th>답변</th><th>노출</th><th>신고</th><th>작성일</th><th>관리</th></tr></thead>
+                      <thead><tr><th>별점</th><th>내용</th><th>상품명</th><th>작성자</th><th>답변</th><th>베스트</th><th>신고</th><th>작성일</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredReviews.length === 0 ? (
                           <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{reviews.length === 0 ? '리뷰 없음' : '검색 결과 없음'}</td></tr>
@@ -14877,7 +14877,7 @@ export default function AdminClient() {
                     <div><span style={{ color:'#64748B' }}>작성자</span> {selectedReview.profiles?.name || '익명'} <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
                     <div style={{ marginTop:4 }}>
                       <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
-                      {reviewOrder?.option_label && <span style={{ color:'#94A3B8' }}> ({reviewOrder.option_label})</span>}
+                      {reviewOrder?.option_label && <div style={{ color:'#94A3B8', fontSize:12, marginTop:3 }}>ㄴ {reviewOrder.option_label}</div>}
                     </div>
                     <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}><span style={{ color:'#64748B' }}>작성일</span>
                       {reviewEdit
