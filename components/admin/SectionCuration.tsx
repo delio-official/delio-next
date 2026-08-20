@@ -100,7 +100,9 @@ export default function SectionCuration({ sec, items, buckets }: {
         <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: '#475569', fontWeight: 600 }}>
           노출 방식
           <select value={mode} onChange={e => setMode(e.target.value as SectionMode)}
-            style={{ padding: '8px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, minWidth: 140, background: '#fff' }}>
+            style={{ padding: '8px 34px 8px 10px', borderRadius: 7, border: '1px solid #CBD5E1', fontSize: 13, minWidth: 140,
+              WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none',
+              background: "#fff url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>\") no-repeat right 12px center" }}>
             {meta?.modes.map(m => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </select>
         </label>
@@ -151,7 +153,7 @@ export default function SectionCuration({ sec, items, buckets }: {
                       <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
                       {it.sub && <div style={{ fontSize: 11, color: '#94A3B8' }}>{it.sub}</div>}
                     </div>
-                    <button onClick={() => setCurIds(p => p.filter(x => x !== it.id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA' }}>×</button>
+                    <button onClick={() => setCurIds(p => p.filter(x => x !== it.id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA', width: 'auto', padding: '3px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>삭제</button>
                   </div>
                 ))}
             </div>
