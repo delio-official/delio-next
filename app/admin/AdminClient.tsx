@@ -8041,7 +8041,7 @@ export default function AdminClient() {
                     onChange={e => setEvForm(f => ({ ...f, subtitle: e.target.value }))} placeholder="선택 입력" />
                 </div>
                 <div>
-                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(텍스트 + 색상)</span></label>
+                  <label className="adm-label">뱃지 <span style={{ fontWeight:400, color:'#94A3B8' }}>(쉼표로 여러 개 · 색상 공통)</span></label>
                   <input className="adm-input-text" style={{ width:'100%' }} value={evForm.badge}
                     onChange={e => setEvForm(f => ({ ...f, badge: e.target.value }))} placeholder="예: HOT, NEW, 한정" />
                   <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8, flexWrap:'wrap' }}>
@@ -8049,12 +8049,13 @@ export default function AdminClient() {
                       value={evForm.badge_color || BADGE_DEFAULT_COLOR}
                       presets={BADGE_COLORS.map(c => c.value)}
                       onPick={v => setEvForm(f => ({ ...f, badge_color: v }))} />
-                    {evForm.badge && (
-                      <span style={{ fontSize:11, fontWeight:700, color:'#fff',
+                    <span style={{ fontSize:11, color:'#94A3B8' }}>← 색칸 선택 후 🌈로 변경</span>
+                    {splitBadges(evForm.badge).map((t, i) => (
+                      <span key={`eb${i}`} style={{ marginLeft:4, fontSize:11, fontWeight:700, color:'#fff',
                         background: evForm.badge_color || BADGE_DEFAULT_COLOR, padding:'3px 8px', borderRadius:6 }}>
-                        {evForm.badge}
+                        {t}
                       </span>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
