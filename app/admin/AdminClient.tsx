@@ -12215,6 +12215,8 @@ export default function AdminClient() {
                       <input type="date" className="adm-select" value={refTo} onChange={e => setRefTo(e.target.value)} />
                       <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
                         value={referralSearch} onChange={e => setReferralSearch(e.target.value)} />
+                      {(referralStatusFilter !== 'all' || refFrom || refTo || referralSearch) &&
+                        <button className="adm-btn adm-btn-outline" onClick={() => { setReferralStatusFilter('all'); setRefFrom(''); setRefTo(''); setReferralSearch(''); }}>초기화</button>}
                     </div>
                     <div className="adm-toolbar-right">
                       <button className="adm-btn adm-btn-outline" onClick={loadReferrals}>
@@ -12292,6 +12294,8 @@ export default function AdminClient() {
                       <input type="date" className="adm-select" value={refCpTo} onChange={e => setRefCpTo(e.target.value)} />
                       <input type="text" className="adm-input-text" placeholder="추천인 · 피추천인 검색"
                         value={refCpSearch} onChange={e => setRefCpSearch(e.target.value)} />
+                      {(refCpStatus !== 'all' || refCpFrom || refCpTo || refCpSearch) &&
+                        <button className="adm-btn adm-btn-outline" onClick={() => { setRefCpStatus('all'); setRefCpFrom(''); setRefCpTo(''); setRefCpSearch(''); }}>초기화</button>}
                     </div>
                     <div className="adm-toolbar-right">
                       <button className="adm-btn adm-btn-outline" onClick={loadReferralCoupons}>
@@ -12482,6 +12486,8 @@ export default function AdminClient() {
                     options={[{ value:'all', label:'전체 노출' }, { value:'on', label:'노출중' }, { value:'off', label:'숨김' }]} />
                   <input type="text" className="adm-input-text" placeholder="질문 · 답변 검색"
                     value={faqSearch} onChange={e => { setFaqSearch(e.target.value); setFaqPage(1); }} />
+                  {(faqCatFilter || faqActiveFilter !== 'all' || faqSearch) &&
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setFaqCatFilter(''); setFaqActiveFilter('all'); setFaqSearch(''); setFaqPage(1); }}>초기화</button>}
                 </div>
                 <div className="adm-toolbar-right" style={{ flexWrap:'wrap', gap:8 }}>
                   <AdmSelect value={String(faqPageSize)} onChange={v => { setFaqPageSize(Number(v)); setFaqPage(1); }}
@@ -13956,10 +13962,12 @@ export default function AdminClient() {
 
                 {/* 검색 — 좌측·표준 스타일(다른 섹션과 동일) */}
                 <div className="adm-toolbar" style={{ flexWrap:'wrap', gap:8 }}>
-                  <div className="adm-toolbar-left">
+                  <div className="adm-toolbar-left" style={{ alignItems:'center', gap:8 }}>
                     <input type="text" className="adm-input-text" placeholder="회원명·이메일 검색" value={surveySearch}
                       onChange={e => { setSurveySearch(e.target.value); setSurveyPage(1); }}
                       style={{ minWidth:220 }} />
+                    {(surveySearch || surveyTypeFilter) &&
+                      <button className="adm-btn adm-btn-outline" onClick={() => { setSurveySearch(''); setSurveyTypeFilter(''); setSurveyPage(1); }}>초기화</button>}
                   </div>
                 </div>
 
