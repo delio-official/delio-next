@@ -756,7 +756,7 @@ function computeFarmStats(
   });
   const topProducts = Object.values(pMap)
     .map(v => ({ name: v.name, option: v.option, orders: v.orders.size, amount: v.amount, margin: v.margin, qty: v.qty }))
-    .sort((a, b) => b.amount - a.amount).slice(0, 5);
+    .sort((a, b) => b.orders - a.orders || b.amount - a.amount).slice(0, 5);
 
   const recentReviews = reviews.slice(0, 5).map(r => ({ ...r, product_name: prodName.get(r.product_id) || '' }));
 
@@ -8419,7 +8419,7 @@ export default function AdminClient() {
                   { label:'총 매출액',   value:`${fmtPrice(d.cur.sales)}원`,  color:'#2563EB', cur:d.cur.sales,  prev:d.prev.sales,  kind:'money', unit:'원' },
                   { label:'브랜드 정산액', hint:'(공급가+배송비)', value:`${fmtPrice(d.cur.payout)}원`, color:'#DC2626', cur:d.cur.payout, prev:d.prev.payout, kind:'money', unit:'원' },
                   { label:'매출 총이익', value:`${fmtPrice(d.cur.margin)}원`, color:'#16A34A', cur:d.cur.margin, prev:d.prev.margin, kind:'money', unit:'원' },
-                  { label:'누적 매출액', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
+                  { label:'누적 매출액', hint:'(등록일~현재)', value:`${fmtPrice(d.cumulative)}원`, color:'#1A1A1A', cur:0, prev:0, kind:'flat' },
                 ];
                 const rateCards: { label: string; value: string; cur: number; prev: number; kind: DeltaKind }[] = [
                   { label:'재구매율',    value:`${d.cur.repurchase.toFixed(1)}%`, cur:d.cur.repurchase, prev:d.prev.repurchase, kind:'rate' },
@@ -8443,9 +8443,7 @@ export default function AdminClient() {
                         <div key={c.label} style={cardBox}>
                           <div style={cardLabel}>{c.label}{c.hint && <span style={{ fontWeight:400, color:'#94A3B8', fontSize:10 }}> {c.hint}</span>}</div>
                           <div style={{ fontSize:19, fontWeight:800, color:c.color, marginTop:5, letterSpacing:'-0.4px' }}>{c.value}</div>
-                          {c.label === '누적 매출액'
-                            ? <div style={{ fontSize:11, color:'#94A3B8', marginTop:3 }}>등록일~현재</div>
-                            : <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} unit={c.unit} />}
+                          <FaDelta cur={c.cur} prev={c.prev} kind={c.kind} unit={c.unit} />
                         </div>
                       ))}
                     </div>
@@ -8575,7 +8573,7 @@ export default function AdminClient() {
 
                     {/* 5) 인기 상품 TOP 5 */}
                     <div className="adm-card" style={{ marginBottom:12 }}>
-                      <div className="adm-card-head"><span className="adm-card-title">인기 상품 TOP 5</span></div>
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">인기 상품 TOP 5</span></div>
                       <table className="adm-table adm-table-clean" style={{ marginTop:4 }}>
                         <thead><tr><th>상품명</th><th>옵션</th><th>주문 건수</th><th>매출액</th><th>마진액</th></tr></thead>
                         <tbody>
