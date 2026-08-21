@@ -13852,6 +13852,20 @@ export default function AdminClient() {
 
             return (
               <div className="adm-content">
+                {/* 결과 페이지 설정 (추천 상품 노출 토글) — 상단 */}
+                <div className="adm-card" style={{ marginBottom:16 }}>
+                  <div className="adm-card-head"><span className="adm-card-title">진단 결과 페이지 설정</span></div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px' }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품 노출</div>
+                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:3 }}>
+                        끄면 취향진단 결과 화면에서 추천 상품 섹션이 숨겨집니다.
+                      </div>
+                    </div>
+                    <Toggle defaultOn={surveyShowProducts} onChange={toggleSurveyProducts} />
+                  </div>
+                </div>
+
                 {/* KPI */}
                 <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
                   {/* 총 응답 수 */}
@@ -14012,6 +14026,7 @@ export default function AdminClient() {
                   const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
                   const ageTxt = (a: string | null) => !a ? '—' : a.endsWith('plus') ? a.replace('plus', '') + '대 이상' : a.replace('s', '대');
                   return (
+                    <>
                     <div className="adm-card">
                       {surveyLoading ? <PanelLoading /> : (
                         <>
@@ -14061,32 +14076,20 @@ export default function AdminClient() {
                               </tbody>
                             </table>
                           </div>
-                          {totalPages > 1 && (
-                            <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, padding:'14px 0 4px' }}>
-                              <button className="adm-btn adm-btn-outline" disabled={page <= 1} onClick={() => setSurveyPage(page - 1)}>이전</button>
-                              <span className="adm-muted" style={{ fontSize:13 }}>{page} / {totalPages}</span>
-                              <button className="adm-btn adm-btn-outline" disabled={page >= totalPages} onClick={() => setSurveyPage(page + 1)}>다음</button>
-                            </div>
-                          )}
                         </>
                       )}
                     </div>
+                    {totalPages > 1 && (
+                      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14, flexWrap:'wrap' }}>
+                        <button className="adm-btn adm-btn-outline" disabled={page <= 1} onClick={() => setSurveyPage(page - 1)}>이전</button>
+                        <span className="adm-muted" style={{ fontSize:13 }}>{page} / {totalPages}</span>
+                        <button className="adm-btn adm-btn-outline" disabled={page >= totalPages} onClick={() => setSurveyPage(page + 1)}>다음</button>
+                        <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {shown.length}건</span>
+                      </div>
+                    )}
+                    </>
                   );
                 })()}
-
-                {/* 결과 페이지 설정 (추천 상품 노출 토글) — 하단 이동 */}
-                <div className="adm-card" style={{ marginTop:16 }}>
-                  <div className="adm-card-head"><span className="adm-card-title">진단 결과 페이지 설정</span></div>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px' }}>
-                    <div>
-                      <div style={{ fontSize:14, fontWeight:600, color:'#1A1A1A' }}>🛒 나를 위한 추천 상품 노출</div>
-                      <div style={{ fontSize:12, color:'#94A3B8', marginTop:3 }}>
-                        끄면 취향진단 결과 화면에서 추천 상품 섹션이 숨겨집니다.
-                      </div>
-                    </div>
-                    <Toggle defaultOn={surveyShowProducts} onChange={toggleSurveyProducts} />
-                  </div>
-                </div>
 
                 {/* 상세 모달 */}
                 {surveyDetail && (() => {
