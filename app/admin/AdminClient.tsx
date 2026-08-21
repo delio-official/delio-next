@@ -5807,13 +5807,13 @@ export default function AdminClient() {
     monthOrdersArr.forEach(o => { hourMap[new Date(o.created_at).getHours()]++; });
     const byHour = Object.entries(hourMap).map(([h, count]) => ({ h: Number(h), count }));
     // 연령대(취향진단)
-    const AGE_ORDER = ['10대', '20대', '30대', '40대', '50대 이상'];
-    /* 취향진단 저장값('20s'·'50plus' 등)을 '20대'·'50대 이상' 형태로 변환 */
+    /* 취향진단 저장값('20s'·'60plus' 등)을 '20대'·'60대 이상' 형태로 변환 */
     const ageLabelMkt = (a: string) => a.endsWith('plus') ? a.replace('plus', '').replace('s', '') + '대 이상' : a.replace('s', '대');
     const ageMap: Record<string, number> = {};
     (svRes.data || []).forEach((r: { age_group: string|null }) => { if (r.age_group) { const k = ageLabelMkt(r.age_group); ageMap[k] = (ageMap[k] || 0) + 1; } });
-    const byAge = AGE_ORDER.filter(a => ageMap[a]).map(a => ({ label: a, n: ageMap[a] }));
-    const byAgeFinal = byAge.length ? byAge : Object.entries(ageMap).map(([label, n]) => ({ label, n }));
+    /* 나이 앞자리 기준 오름차순 — 50대·60대 이상 등 어떤 구간도 누락 없이 정렬 */
+    const byAgeFinal = Object.entries(ageMap).map(([label, n]) => ({ label, n }))
+      .sort((a, b) => (parseInt(a.label) || 0) - (parseInt(b.label) || 0));
     // 쿠폰
     const coupons = (cRes.data || []) as { id: string; name: string; is_active: boolean }[];
     const ucs = (ucRes.data || []) as { coupon_id: string; is_used: boolean }[];
@@ -13930,7 +13930,7 @@ export default function AdminClient() {
 
                 {/* 응답 분포 (마케팅용) */}
                 {(() => {
-                  const AGE_LABEL: Record<string,string> = { '10s':'10대','20s':'20대','30s':'30대','40s':'40대','50s':'50대 이상' };
+                  const AGE_LABEL: Record<string,string> = { '10s':'10대','20s':'20대','30s':'30대','40s':'40대','50s':'50대','60plus':'60대 이상' };
                   const GENDER_LABEL: Record<string,string> = { male:'남성', female:'여성', other:'기타' };
                   const dist = (field: keyof AdminSurveyResult, labelMap?: Record<string,string>) => {
                     const m: Record<string, number> = {};
