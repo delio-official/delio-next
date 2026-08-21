@@ -2765,7 +2765,7 @@ export default function AdminClient() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   });
   const [farmSettleHalf, setFarmSettleHalf] = useState<1 | 2>(1); // 1차(1~15) / 2차(16~말)
-  type FarmSettleOrder = { order_no: string; product: string; qty: number; supply: number; origQty: number; defectQty: number; refundCut: number };
+  type FarmSettleOrder = { order_no: string; product: string; option: string; qty: number; supply: number; origQty: number; defectQty: number; refundCut: number };
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
@@ -2819,7 +2819,7 @@ export default function AdminClient() {
     // 구매확정 주문 상품항목 (구매확정일 기준 반차 범위)
     const { data } = await supabase
       .from('order_items')
-      .select('product_name, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name, is_own))')
+      .select('product_name, option_label, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name, is_own))')
       .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
       .eq('orders.status', 'confirmed')
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
@@ -2841,13 +2841,13 @@ export default function AdminClient() {
       (fullRefundByFarm[fid] || (fullRefundByFarm[fid] = new Set())).add(ono);
     });
     const map: Record<string, { farmId: string|null; farmName: string; qty: number; sales: number; payout: number; orderNos: Set<string>; orders: FarmSettleOrder[] }> = {};
-    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, origQty: number, defectQty: number, refundCut: number) => {
+    const addRow = (prod: { farm_id: string|null; farms: { id: string; name: string }|null } | null, qty: number, sales: number, supplyTotal: number, orderNo: string, product: string, option: string, origQty: number, defectQty: number, refundCut: number) => {
       const farmId = prod?.farm_id ?? null;
       const key = farmId ?? '__none__';
       if (!map[key]) map[key] = { farmId, farmName: prod?.farms?.name ?? '브랜드 미지정', qty: 0, sales: 0, payout: 0, orderNos: new Set(), orders: [] };
       map[key].qty += qty; map[key].sales += sales; map[key].payout += supplyTotal;
       if (orderNo) map[key].orderNos.add(orderNo);
-      map[key].orders.push({ order_no: orderNo, product, qty, supply: supplyTotal, origQty, defectQty, refundCut });
+      map[key].orders.push({ order_no: orderNo, product, option, qty, supply: supplyTotal, origQty, defectQty, refundCut });
     };
     /* 부분환불(승인완료) 하자 맵 — 개수 기준(전체 total · 불량 defective).
        고객 환불이 '개수 비례'(불량/전체)로 처리되므로 정산도 같은 비율로 차감한다.
@@ -2890,7 +2890,7 @@ export default function AdminClient() {
       const refundCut = fullSupply - supplyTotal;                             // 하자 차감액(원) — 명세서 표기용
       const sales = Math.round((Number(row.subtotal) || 0) * (1 - ratio));
       const origQty = ratio > 0 ? tFruit : totalQty;   // 하자 있으면 개수(과) 기준 표시, 없으면 박스 수량
-      addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', origQty, dFruit, refundCut);
+      addRow(prod, totalQty, sales, supplyTotal, ord?.order_no || '', (row.product_name as string) || '상품', (row.option_label as string) || '', origQty, dFruit, refundCut);
     });
     const rows = Object.values(map)
       .map(r => ({ farmId: r.farmId, farmName: r.farmName, qty: r.qty, sales: r.sales, payout: r.payout, margin: r.sales - r.payout, orderCount: r.orderNos.size, fullRefundCount: (r.farmId && fullRefundByFarm[r.farmId]) ? fullRefundByFarm[r.farmId].size : 0, orders: r.orders }))
@@ -2966,7 +2966,7 @@ export default function AdminClient() {
       const qtyCells = `<td style="text-align:center">${o.qty}개</td>` + (anyDefect
         ? `<td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'};font-size:11px">${dq>0?o.origQty+'과중 '+dq+'과':'-'}</td>`
         : '');
-      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${(() => { const opt = o.option || ''; let pn = o.product || '-'; if (opt && pn.endsWith(`(${opt})`)) pn = pn.slice(0, -(`(${opt})`.length)).trim(); return esc(pn) + (opt ? `<br><span style="color:#888;font-size:11px">ㄴ ${esc(opt)}</span>` : ''); })()}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
     const qtyHead = `<th style="text-align:center">수량</th>` + (anyDefect ? `<th style="text-align:center">하자</th>` : ``);
     const inner = `
@@ -3040,7 +3040,7 @@ export default function AdminClient() {
       const qtyCells = `<td style="text-align:center">${o.qty}개</td>` + (anyDefect
         ? `<td style="text-align:center;color:${dq>0?'#c0392b':'#bbb'};font-size:11px">${dq>0?o.origQty+'과중 '+dq+'과':'-'}</td>`
         : '');
-      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${esc(o.product)}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
+      return `<tr${bg}><td>${esc(o.order_no)}</td><td>${(() => { const opt = o.option || ''; let pn = o.product || '-'; if (opt && pn.endsWith(`(${opt})`)) pn = pn.slice(0, -(`(${opt})`.length)).trim(); return esc(pn) + (opt ? `<br><span style="color:#888;font-size:11px">ㄴ ${esc(opt)}</span>` : ''); })()}</td>${qtyCells}<td style="text-align:right">${dq>0&&o.refundCut>0?`<span style="text-decoration:line-through;color:#bbb;font-size:10px">${(o.supply+o.refundCut).toLocaleString()}</span><br>`:''}${o.supply.toLocaleString()}원</td></tr>`;
     }).join('');
     const qtyHead = `<th style="text-align:center">수량</th>` + (anyDefect ? `<th style="text-align:center">하자</th>` : ``);
     const html = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>정산명세서_${esc(row.farmName)}_${farmSettleMonth}_${farmSettleHalf}차</title>
@@ -8493,8 +8493,8 @@ export default function AdminClient() {
                             </div>
                             <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:5 }}>
                               {d.missingNow.slice(0, 12).map((m, i) => (
-                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E' }}>
-                                  {m.product} <span style={{ color:'#D97706' }}>· {m.option}</span>
+                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E', lineHeight:1.35 }}>
+                                  {m.product}{m.option && <><br /><span style={{ color:'#D97706' }}>ㄴ {m.option}</span></>}
                                 </span>
                               ))}
                               {d.missingNow.length > 12 && (
@@ -8511,8 +8511,8 @@ export default function AdminClient() {
                             </div>
                             <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:5 }}>
                               {d.missingPast.slice(0, 8).map((m, i) => (
-                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E' }}>
-                                  {m.product} <span style={{ color:'#D97706' }}>· {m.option}</span> <b>{m.qty}개</b>
+                                <span key={i} style={{ fontSize:11, background:'#fff', border:'1px solid #FDE68A', borderRadius:6, padding:'3px 8px', color:'#92400E', lineHeight:1.35 }}>
+                                  {m.product} <b>{m.qty}개</b>{m.option && <><br /><span style={{ color:'#D97706' }}>ㄴ {m.option}</span></>}
                                 </span>
                               ))}
                               {d.missingPast.length > 8 && (
@@ -13746,7 +13746,17 @@ export default function AdminClient() {
                               return (
                               <tr key={i} style={dq > 0 ? { background:'#FFF7ED' } : undefined}>
                                 <td className="adm-mono" style={{ textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.order_no}>{o.order_no}</td>
-                                <td style={{ textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={o.product}>{o.product}</td>
+                                <td style={{ textAlign:'left', overflow:'hidden' }} title={o.product}>
+                                  {(() => {
+                                    const opt = o.option || '';
+                                    let pn = o.product || '-';
+                                    if (opt && pn.endsWith(`(${opt})`)) pn = pn.slice(0, -(`(${opt})`.length)).trim();
+                                    return (<div style={{ lineHeight:1.35 }}>
+                                      <div style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pn}</div>
+                                      {opt && <div className="adm-muted" style={{ fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>ㄴ {opt}</div>}
+                                    </div>);
+                                  })()}
+                                </td>
                                 <td className="adm-num">{o.qty}개</td>
                                 {anyDefect && <td className="adm-num" style={{ color: dq > 0 ? '#DC2626' : '#CBD5E1', fontWeight: dq > 0 ? 700 : 400, fontSize:12 }}>{dq > 0 ? `${o.origQty}과중 ${dq}과` : '-'}</td>}
                                 <td className="adm-num" style={{ fontWeight:600 }}>{dq > 0 && o.refundCut > 0 ? <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', lineHeight:1.2 }}><span style={{ textDecoration:'line-through', color:'#CBD5E1', fontWeight:400, fontSize:11 }}>{fmtPrice(o.supply + o.refundCut)}</span><span>{fmtPrice(o.supply)}원</span></div> : `${fmtPrice(o.supply)}원`}</td>
