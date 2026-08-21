@@ -340,18 +340,26 @@ export default function ProductClient() {
       if (star >= 1 && star <= 5) openReviewModal(star);
       else if (sp.get('review') === '1') openReviewModal();
     }
-    /* 해당 섹션(후기/문의)으로 스크롤 — 이미지가 뒤늦게 로드되며 레이아웃이 밀리므로
-       자리가 잡힐 때까지 여러 번 보정. 단 목표에 도달/통과했으면 멈춰 사용자를 끌어당기지 않음. */
+    /* 해당 섹션(후기/문의)으로 부드럽게 미끄러지듯 스크롤.
+       native behavior:'smooth'가 환경에 따라 즉시 이동으로 동작해서, 직접 프레임 단위로 이징 처리.
+       매 프레임 섹션 위치를 다시 읽어, 이미지가 뒤늦게 로드되며 밀려도 그대로 따라가 안착한다. */
     const targetIdx = tabParam === 'qna' ? 3 : 2;
-    const settle = () => {
-      const el = document.getElementById(SECTION_IDS[targetIdx]);
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;      // 뷰포트 기준 섹션 상단
-      if (top <= 104 + 40) return;                     // 이미 도달/통과 → 보정 중단
-      window.scrollTo({ top: window.scrollY + top - 104, behavior: 'smooth' });  // 항상 부드럽게
+    const targetId = SECTION_IDS[targetIdx];
+    const OFFSET = 104;   // 헤더 + sticky 탭바 보정
+    let raf = 0, frames = 0, cancelled = false;
+    const chase = () => {
+      if (cancelled) return;
+      const el = document.getElementById(targetId);
+      if (el) {
+        const delta = el.getBoundingClientRect().top - OFFSET;   // 남은 거리
+        if (Math.abs(delta) <= 1.5 || frames >= 150) return;     // 도착 or 안전상한 → 종료
+        window.scrollBy(0, delta * 0.15);                        // 남은 거리의 15%씩 → easeOut 글라이드
+      }
+      frames++;
+      raf = requestAnimationFrame(chase);
     };
-    const timers = [250, 1000, 1800].map(t => window.setTimeout(settle, t));
-    return () => { timers.forEach(clearTimeout); };
+    const startT = window.setTimeout(() => { raf = requestAnimationFrame(chase); }, 150);
+    return () => { cancelled = true; clearTimeout(startT); cancelAnimationFrame(raf); };
   }, [product?.id]);
 
   /* 어드민 여부 */
