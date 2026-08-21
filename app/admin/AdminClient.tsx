@@ -1300,14 +1300,14 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             {targetMode === 'select' && (
               <div style={{ border:'1px solid #E2E8F0', borderRadius:10, overflow:'hidden', marginBottom:8 }}>
                 <div style={{ padding:'10px 12px', borderBottom:'1px solid #E2E8F0', background:'#F8FAFC', display:'flex', gap:8, alignItems:'center' }}>
-                  <input type="text" className="adm-input-text" placeholder="이름·아이디(이메일)·전화번호 검색"
-                    style={{ flex:1 }} value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                   <label style={{ display:'flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>
                     <input type="checkbox"
                       checked={filteredForSelect.length > 0 && selectedIds.size === filteredForSelect.length}
                       onChange={toggleSelectAll} />
                     전체선택
                   </label>
+                  <input type="text" className="adm-input-text" placeholder="이름·아이디(이메일)·전화번호 검색"
+                    style={{ flex:1 }} value={memberSearch} onChange={e => setMemberSearch(e.target.value)} />
                 </div>
                 <div style={{ maxHeight:240, overflowY:'auto' }}>
                   {membersLoading ? (
