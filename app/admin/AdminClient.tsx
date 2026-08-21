@@ -2621,6 +2621,7 @@ export default function AdminClient() {
   const [surveyTypeFilter, setSurveyTypeFilter] = useState('');
   const [surveySearch, setSurveySearch] = useState('');
   const [surveyPage, setSurveyPage] = useState(1);
+  const [surveyPageSize, setSurveyPageSize] = useState(20);
   const [surveyDetail, setSurveyDetail] = useState<AdminSurveyResult | null>(null);
 
   /* ── 친구 추천 ── */
@@ -14019,10 +14020,9 @@ export default function AdminClient() {
                     }
                     return true;
                   });
-                  const PAGE_SIZE = 20;
-                  const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+                  const totalPages = Math.max(1, Math.ceil(shown.length / surveyPageSize));
                   const page = Math.min(surveyPage, totalPages);
-                  const pageRows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+                  const pageRows = shown.slice((page - 1) * surveyPageSize, page * surveyPageSize);
                   const genderTxt = (g: string | null) => g === 'male' ? '남성' : g === 'female' ? '여성' : (g === 'none' || !g) ? '미응답' : g;
                   const ageTxt = (a: string | null) => !a ? '—' : a.endsWith('plus') ? a.replace('plus', '') + '대 이상' : a.replace('s', '대');
                   return (
@@ -14079,14 +14079,8 @@ export default function AdminClient() {
                         </>
                       )}
                     </div>
-                    {totalPages > 1 && (
-                      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14, flexWrap:'wrap' }}>
-                        <button className="adm-btn adm-btn-outline" disabled={page <= 1} onClick={() => setSurveyPage(page - 1)}>이전</button>
-                        <span className="adm-muted" style={{ fontSize:13 }}>{page} / {totalPages}</span>
-                        <button className="adm-btn adm-btn-outline" disabled={page >= totalPages} onClick={() => setSurveyPage(page + 1)}>다음</button>
-                        <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {shown.length}건</span>
-                      </div>
-                    )}
+                    <Pager page={page} pageSize={surveyPageSize} total={shown.length}
+                      onPage={setSurveyPage} onPageSize={(n) => { setSurveyPageSize(n); setSurveyPage(1); }} />
                     </>
                   );
                 })()}
