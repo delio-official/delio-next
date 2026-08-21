@@ -61,3 +61,8 @@ export function gaBeginCheckout(items: Item[], value: number) {
 export function gaPurchase(transactionId: string, items: Item[], value: number) {
   gaEvent('purchase', { transaction_id: transactionId, currency: 'KRW', value, items: items.map(toGaItem) });
 }
+
+/** 스크롤 깊이 (25/50/75/90% 도달 시) — GA4 표준 scroll 이벤트 형식 */
+export function gaScroll(percent: number) {
+  gaEvent('scroll', { percent_scrolled: percent });
+}
