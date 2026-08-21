@@ -3296,8 +3296,9 @@ export default function AdminClient() {
     /* 품절·재고 임박 상품 + 지난 회차 브랜드 정산 미완료 (알림 바용, 비동기 후 병합) */
     void (async () => {
       const sb = createClient();
-      /* ① 재고관리 켠 옵션 중 재고 5개 이하(품절 포함) — 판매중 상품만 */
-      const LOW_STOCK = 5;
+      /* ① 재고관리 켠 옵션 중 재고 기준 이하(품절 포함) — 판매중 상품만. 기준은 설정값(기본 5) */
+      const { data: lstRow } = await sb.from('site_settings').select('value').eq('key', 'low_stock_threshold').maybeSingle();
+      const LOW_STOCK = Math.max(0, parseInt((lstRow as { value?: string } | null)?.value || '') || 5);
       const { data: lowOpts } = await sb
         .from('product_options')
         .select('product_id, products!inner(is_active)')
@@ -3561,6 +3562,9 @@ export default function AdminClient() {
   async function loadProducts() {
     setProductsLoading(true);
     const supabase = createClient();
+    /* 재고 임박 기준(설정값 · 기본 5) — 알림바와 동일 기준 */
+    const { data: lstRow } = await supabase.from('site_settings').select('value').eq('key', 'low_stock_threshold').maybeSingle();
+    const LOW_STOCK = Math.max(0, parseInt((lstRow as { value?: string } | null)?.value || '') || 5);
     const { data } = await supabase
       .from('products')
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock, manage_stock)')
@@ -3573,8 +3577,8 @@ export default function AdminClient() {
       const managed = opts.filter(o => o.manage_stock !== false);
       const hasUnlimited = opts.length > managed.length;
       const total_stock = (!hasUnlimited && managed.length > 0) ? managed.reduce((s, o) => s + (o.stock || 0), 0) : null;
-      /* 재고 임박: 판매중 상품 중 재고관리 켠 옵션이 5개 이하(품절 포함) — 알림 바 LOW_STOCK와 동일 기준 */
-      const low_stock = !!p.is_active && managed.some(o => (o.stock || 0) <= 5);
+      /* 재고 임박: 판매중 상품 중 재고관리 켠 옵션이 기준 이하(품절 포함) — 알림 바 LOW_STOCK와 동일 기준 */
+      const low_stock = !!p.is_active && managed.some(o => (o.stock || 0) <= LOW_STOCK);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { product_options: _po, ...rest } = p;
       return { ...rest, total_stock, low_stock };
@@ -14693,6 +14697,16 @@ export default function AdminClient() {
                         </div>
                       </div>
                     ))}
+                    <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
+                      <label className="adm-label">재고 임박 알림 기준</label>
+                      <div className="adm-flex-center-gap">
+                        <input type="number" min={0} step={1} className="adm-input-text" style={{ width:130, textAlign:'left' }}
+                          value={siteSettings.low_stock_threshold ?? ''} placeholder="5"
+                          onChange={e => setSiteSettings(prev => ({ ...prev, low_stock_threshold: e.target.value }))} />
+                        <span className="adm-muted">개 이하</span>
+                      </div>
+                      <span className="adm-muted" style={{ fontSize:11 }}>재고가 이 개수 이하인 판매중 상품을 대시보드 상단·상품목록에 <b>재고 임박</b>으로 표시합니다. (비우면 5개)</span>
+                    </div>
                     <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                       <label className="adm-label" style={{ margin:0 }}>상단 배송안내 탭 노출</label>
                       <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
