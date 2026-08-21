@@ -5808,8 +5808,10 @@ export default function AdminClient() {
     const byHour = Object.entries(hourMap).map(([h, count]) => ({ h: Number(h), count }));
     // 연령대(취향진단)
     const AGE_ORDER = ['10대', '20대', '30대', '40대', '50대 이상'];
+    /* 취향진단 저장값('20s'·'50plus' 등)을 '20대'·'50대 이상' 형태로 변환 */
+    const ageLabelMkt = (a: string) => a.endsWith('plus') ? a.replace('plus', '').replace('s', '') + '대 이상' : a.replace('s', '대');
     const ageMap: Record<string, number> = {};
-    (svRes.data || []).forEach((r: { age_group: string|null }) => { if (r.age_group) ageMap[r.age_group] = (ageMap[r.age_group] || 0) + 1; });
+    (svRes.data || []).forEach((r: { age_group: string|null }) => { if (r.age_group) { const k = ageLabelMkt(r.age_group); ageMap[k] = (ageMap[k] || 0) + 1; } });
     const byAge = AGE_ORDER.filter(a => ageMap[a]).map(a => ({ label: a, n: ageMap[a] }));
     const byAgeFinal = byAge.length ? byAge : Object.entries(ageMap).map(([label, n]) => ({ label, n }));
     // 쿠폰
@@ -14345,7 +14347,7 @@ export default function AdminClient() {
 
                     {/* ── 검색어 통계 (설정에서 이동) ── */}
                     <div className="adm-card" style={{ marginBottom:16 }}>
-                      <div className="adm-card-head">
+                      <div className="adm-card-head" style={{ borderBottom:'none' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
                           <span className="adm-card-title">검색어 통계</span>
                           <div className="adm-btn-group">
@@ -14487,9 +14489,9 @@ export default function AdminClient() {
                                 </div>
                               );
                             })}
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:4 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:16, marginTop:4, flexWrap:'wrap' }}>
                               <span className="adm-muted" style={{ fontSize:11 }}>헤더 검색창 및 검색 페이지에 표시됩니다 · 빈 칸은 건너뜁니다</span>
-                              <button className="adm-btn adm-btn-primary" style={{ fontSize:13 }} onClick={savePopularKeywords}>저장</button>
+                              <button className="adm-btn adm-btn-primary" style={{ fontSize:13, flexShrink:0 }} onClick={savePopularKeywords}>저장</button>
                             </div>
                           </div>
                         </div>
