@@ -14007,6 +14007,10 @@ export default function AdminClient() {
                     {(surveySearch || surveyTypeFilter) &&
                       <button className="adm-btn adm-btn-outline" onClick={() => { setSurveySearch(''); setSurveyTypeFilter(''); setSurveyPage(1); }}>초기화</button>}
                   </div>
+                  <div className="adm-toolbar-right">
+                    <AdmSelect value={String(surveyPageSize)} onChange={v => { setSurveyPageSize(Number(v)); setSurveyPage(1); }}
+                      options={[10,20,30,50,100].map(n => ({ value:String(n), label:`${n}개씩` }))} />
+                  </div>
                 </div>
 
                 {/* 응답 목록 */}
@@ -14079,8 +14083,14 @@ export default function AdminClient() {
                         </>
                       )}
                     </div>
-                    <Pager page={page} pageSize={surveyPageSize} total={shown.length}
-                      onPage={setSurveyPage} onPageSize={(n) => { setSurveyPageSize(n); setSurveyPage(1); }} />
+                    {totalPages > 1 && (
+                      <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:8, marginTop:14, flexWrap:'wrap' }}>
+                        <button className="adm-btn adm-btn-outline" disabled={page <= 1} onClick={() => setSurveyPage(page - 1)}>이전</button>
+                        <span className="adm-muted" style={{ fontSize:13 }}>{page} / {totalPages}</span>
+                        <button className="adm-btn adm-btn-outline" disabled={page >= totalPages} onClick={() => setSurveyPage(page + 1)}>다음</button>
+                        <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>총 {shown.length}건</span>
+                      </div>
+                    )}
                     </>
                   );
                 })()}
