@@ -144,7 +144,16 @@ export default function SectionCuration({ sec, items, buckets }: {
                   <div key={it.id} draggable
                     onDragStart={() => { dragIdx.current = idx; }}
                     onDragOver={e => e.preventDefault()}
-                    onDrop={() => { const from = dragIdx.current; dragIdx.current = null; if (from == null || from === idx) return; setCurIds(p => { const a = [...p]; const [m] = a.splice(from, 1); a.splice(idx, 0, m); return a; }); }}
+                    onDrop={() => {
+                      const from = dragIdx.current; dragIdx.current = null;
+                      if (from == null || from === idx) return;
+                      /* 화면 목록(selected) 순서를 기준으로 id 배열을 재정렬한 뒤 저장 배열에 반영.
+                         (인덱스가 아니라 id로 옮겨, 비활성·삭제 상품이 섞여 길이가 달라도 안 틀어짐) */
+                      const orderedIds = selected.map(s => s.id);
+                      const [m] = orderedIds.splice(from, 1);
+                      orderedIds.splice(idx, 0, m);
+                      setCurIds(p => { const hidden = p.filter(id => !orderedIds.includes(id)); return [...orderedIds, ...hidden]; });
+                    }}
                     onDragEnd={() => { dragIdx.current = null; }}
                     style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderBottom: idx < selected.length - 1 ? '1px solid #F1F5F9' : 'none', cursor: 'grab' }}>
                     <span style={{ color: '#B8B8B8', fontSize: 14, letterSpacing: '-2px', flexShrink: 0, userSelect: 'none' }}>⠿⠿</span>
