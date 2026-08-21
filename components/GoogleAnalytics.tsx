@@ -23,7 +23,7 @@ function ScrollDepthTracker() {
   const pathname = usePathname();
   useEffect(() => {
     if (!GA_ID) return;
-    const thresholds = [25, 50, 75, 90];
+    const thresholds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     const fired = new Set<number>();
     let ticking = false;
     const check = () => {
