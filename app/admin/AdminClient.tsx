@@ -2095,7 +2095,7 @@ export default function AdminClient() {
   const [farmsLoading, setFarmsLoading] = useState(false);
   const [editingFarm, setEditingFarm] = useState<AdminFarm | null>(null);
   const [farmSaving, setFarmSaving] = useState(false);
-  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
+  const [farmForm, setFarmForm] = useState({ name: '', farmer_name: '', region: '', items: [] as string[], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', account_holder: '', thumbnail_url: '', logo_url: '', landing_images: [] as string[] });
   /* 브랜드 운영 메모(누적) — 회원 메모와 동일 구조. 수정 모드에서만 사용 */
   const [farmMemo, setFarmMemo] = useState('');
   const [farmMemoSaving, setFarmMemoSaving] = useState(false);
@@ -2769,7 +2769,7 @@ export default function AdminClient() {
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
-  const [farmBankMap, setFarmBankMap] = useState<Record<string, { bank_name: string; bank_account: string }>>({});
+  const [farmBankMap, setFarmBankMap] = useState<Record<string, { bank_name: string; bank_account: string; account_holder: string }>>({});
   const [farmSettleSearch, setFarmSettleSearch] = useState('');
   const [farmSettleStatus, setFarmSettleStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [selFarmSettle, setSelFarmSettle] = useState<Set<string>>(new Set());
@@ -2812,9 +2812,9 @@ export default function AdminClient() {
     (paidData || []).forEach((p: { farm_id: string; paid_at: string|null; invoice_received: boolean|null }) => { paidMap[p.farm_id] = { paidAt: p.paid_at || '', invoice: !!p.invoice_received }; });
     setFarmSettlePaid(paidMap);
     // 지급계좌 (브랜드 관리 등록 계좌)
-    const { data: bankData } = await supabase.from('farm_bank_info').select('farm_id, bank_name, bank_account');
-    const bankMap: Record<string, { bank_name: string; bank_account: string }> = {};
-    (bankData as { farm_id: string; bank_name: string|null; bank_account: string|null }[] | null || []).forEach(b => { bankMap[b.farm_id] = { bank_name: b.bank_name || '', bank_account: b.bank_account || '' }; });
+    const { data: bankData } = await supabase.from('farm_bank_info').select('farm_id, bank_name, bank_account, account_holder');
+    const bankMap: Record<string, { bank_name: string; bank_account: string; account_holder: string }> = {};
+    (bankData as { farm_id: string; bank_name: string|null; bank_account: string|null; account_holder: string|null }[] | null || []).forEach(b => { bankMap[b.farm_id] = { bank_name: b.bank_name || '', bank_account: b.bank_account || '', account_holder: b.account_holder || '' }; });
     setFarmBankMap(bankMap);
     // 구매확정 주문 상품항목 (구매확정일 기준 반차 범위)
     const { data } = await supabase
@@ -3839,12 +3839,12 @@ export default function AdminClient() {
     setFarmMemo('');
     if (farm) {
       setEditingFarm(farm);
-      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: '', bank_account: '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
+      setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: '', bank_account: '', account_holder: '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
       loadFarmMemos(farm.id);
       loadFarmBank(farm.id);
     } else {
       setEditingFarm(null);
-      setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', thumbnail_url: '', logo_url: '', landing_images: [] });
+      setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', account_holder: '', thumbnail_url: '', logo_url: '', landing_images: [] });
       setFarmMemos([]);
     }
     setFarmModal(true);
@@ -3854,8 +3854,8 @@ export default function AdminClient() {
   async function loadFarmBank(farmId: string) {
     const supabase = createClient();
     const { data } = await supabase.from('farm_bank_info')
-      .select('bank_name, bank_account').eq('farm_id', farmId).maybeSingle();
-    setFarmForm(p => ({ ...p, bank_name: data?.bank_name || '', bank_account: data?.bank_account || '' }));
+      .select('bank_name, bank_account, account_holder').eq('farm_id', farmId).maybeSingle();
+    setFarmForm(p => ({ ...p, bank_name: data?.bank_name || '', bank_account: data?.bank_account || '', account_holder: (data as { account_holder?: string | null } | null)?.account_holder || '' }));
   }
 
   /* ===== 브랜드 운영 메모 (최신이 위로 쌓임) ===== */
@@ -3908,11 +3908,11 @@ export default function AdminClient() {
     }
 
     /* 은행정보는 farms가 아니라 관리자 전용 테이블에 저장 (farms는 고객도 조회 가능) */
-    const bn = farmForm.bank_name.trim(), ba = farmForm.bank_account.trim();
+    const bn = farmForm.bank_name.trim(), ba = farmForm.bank_account.trim(), ah = farmForm.account_holder.trim();
     if (farmId) {
-      if (bn || ba) {
+      if (bn || ba || ah) {
         const { error: bErr } = await supabase.from('farm_bank_info')
-          .upsert({ farm_id: farmId, bank_name: bn || null, bank_account: ba || null, updated_at: new Date().toISOString() }, { onConflict: 'farm_id' });
+          .upsert({ farm_id: farmId, bank_name: bn || null, bank_account: ba || null, account_holder: ah || null, updated_at: new Date().toISOString() }, { onConflict: 'farm_id' });
         if (bErr) alert('은행정보 저장 실패: ' + bErr.message);
       } else {
         await supabase.from('farm_bank_info').delete().eq('farm_id', farmId);
@@ -8769,6 +8769,11 @@ export default function AdminClient() {
                   <label className="adm-label">계좌번호 <span className="adm-required">*</span> <span style={{ fontWeight:400, color:'#94A3B8' }}>(관리자만 열람)</span></label>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 123456-01-234567"
                     value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">예금주 <span className="adm-required">*</span></label>
+                  <input type="text" className="adm-input-text adm-input-full" placeholder="예: 홍길동"
+                    value={farmForm.account_holder} onChange={e => setFarmForm(p => ({ ...p, account_holder: e.target.value }))} />
                 </div>
               </div>
               </div>
@@ -13681,7 +13686,7 @@ export default function AdminClient() {
             const meta = r.farmId ? farmSettlePaid[r.farmId] : undefined;
             const bank = r.farmId ? farmBankMap[r.farmId] : undefined;
             const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
-            const acctStr = bank ? `${bank.bank_name} ${bank.bank_account}` : '';
+            const acctStr = bank ? `${bank.bank_name} ${bank.bank_account}${bank.account_holder ? ` (예금주 ${bank.account_holder})` : ''}` : '';
             return (
               <div className="adm-modal-bg open" onClick={() => setSelectedFarmSettle(null)}>
                 <div className="adm-modal" style={{ maxWidth:640, width:'95vw', maxHeight:'92vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
