@@ -136,7 +136,7 @@ export default function SectionCuration({ sec, items, buckets }: {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* 선택됨 (드래그로 순서변경 · 삭제만) */}
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-            <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>선택된 항목 ({selected.length}) <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 6 }}>· 드래그로 순서변경</span></div>
+            <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>선택된 항목 ({selected.length}) <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 6 }}>· 드래그로 두 항목 자리 맞바꾸기</span></div>
             <div style={{ ...box, padding: 8, height: 260, overflowY: 'auto' }}>
               {selected.length === 0
                 ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>오른쪽에서 항목을 추가하세요</div>
@@ -147,11 +147,11 @@ export default function SectionCuration({ sec, items, buckets }: {
                     onDrop={() => {
                       const from = dragIdx.current; dragIdx.current = null;
                       if (from == null || from === idx) return;
-                      /* 화면 목록(selected) 순서를 기준으로 id 배열을 재정렬한 뒤 저장 배열에 반영.
-                         (인덱스가 아니라 id로 옮겨, 비활성·삭제 상품이 섞여 길이가 달라도 안 틀어짐) */
+                      /* 두 자리 맞바꾸기(swap): 끌어온 항목(from)과 놓은 항목(idx)의 위치만 서로 교환.
+                         id 기준으로 처리해 비활성·삭제 상품이 섞여도 안 틀어짐. */
                       const orderedIds = selected.map(s => s.id);
-                      const [m] = orderedIds.splice(from, 1);
-                      orderedIds.splice(idx, 0, m);
+                      if (from >= orderedIds.length || idx >= orderedIds.length) return;
+                      [orderedIds[from], orderedIds[idx]] = [orderedIds[idx], orderedIds[from]];
                       setCurIds(p => { const hidden = p.filter(id => !orderedIds.includes(id)); return [...orderedIds, ...hidden]; });
                     }}
                     onDragEnd={() => { dragIdx.current = null; }}
