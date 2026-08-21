@@ -15555,7 +15555,7 @@ export default function AdminClient() {
               <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'6px 16px' }}>
                 {rows.map(([l, v, copyable], i) => (
                   <div key={l} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderTop: i ? '1px solid #EEF2F6' : 'none' }}>
-                    <span style={{ fontSize:12, color:'#94A3B8', width:64, flexShrink:0 }}>{l}</span>
+                    <span style={{ fontSize:11, color:'#94A3B8', width:64, flexShrink:0 }}>{l}</span>
                     <span style={{ fontSize:13, fontWeight:600, flex:1, wordBreak:'break-all' }}>{v || '-'}</span>
                     {copyable && v && copyBtn(l, v)}
                   </div>
