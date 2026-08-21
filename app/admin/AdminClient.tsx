@@ -2522,6 +2522,7 @@ export default function AdminClient() {
   const [selectedInquiry, setSelectedInquiry] = useState<FarmInquiry | null>(null);
   const [inquiryTpl, setInquiryTpl] = useState<'general'|'accept'|'reject'>('general');
   const [inquiryReply, setInquiryReply] = useState('');
+  const [inquiryTplSel, setInquiryTplSel] = useState('');   // 회신문구 즐겨찾기 선택(인덱스)
   const [inquiryStatusSel, setInquiryStatusSel] = useState<'pending'|'done'|'rejected'>('pending');
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -6642,17 +6643,34 @@ export default function AdminClient() {
     setSiteSettings(prev => ({ ...prev, inquiry_reply_templates: value }));
     return true;
   }
+  function applyInquiryTpl() {
+    const list = getInquiryTpls(); const i = Number(inquiryTplSel);
+    if (!inquiryTplSel || !list[i]) { alert('불러올 문구를 선택하세요.'); return; }
+    setInquiryReply(list[i].text);
+  }
   async function addInquiryTpl() {
     const text = inquiryReply.trim();
     if (!text) { alert('저장할 문구를 먼저 입력하세요.'); return; }
-    const name = window.prompt('즐겨찾기 이름을 입력하세요 (예: 수락-기본, 거절-정중)');
+    const name = window.prompt('문구 이름을 입력하세요 (예: 수락-기본, 거절-정중)');
     if (!name || !name.trim()) return;
-    const ok = await saveInquiryTplList([...getInquiryTpls(), { name: name.trim(), text }]);
-    if (ok) alert('즐겨찾기에 저장했습니다. 앞으로 모든 문의에서 불러올 수 있어요.');
+    const list = [...getInquiryTpls(), { name: name.trim(), text }];
+    if (await saveInquiryTplList(list)) { setInquiryTplSel(String(list.length - 1)); alert('문구를 저장했습니다. 앞으로 모든 문의에서 불러올 수 있어요.'); }
   }
-  async function deleteInquiryTpl(idx: number) {
-    if (!confirm('이 즐겨찾기 문구를 삭제할까요?')) return;
-    await saveInquiryTplList(getInquiryTpls().filter((_, i) => i !== idx));
+  async function updateInquiryTpl() {
+    const list = getInquiryTpls(); const i = Number(inquiryTplSel);
+    if (!inquiryTplSel || !list[i]) { alert('수정할 문구를 먼저 선택하세요.'); return; }
+    const text = inquiryReply.trim();
+    if (!text) { alert('내용이 비어 있습니다.'); return; }
+    const name = window.prompt('이름 (그대로 두려면 그대로 확인)', list[i].name);
+    if (name === null) return;
+    list[i] = { name: name.trim() || list[i].name, text };
+    if (await saveInquiryTplList(list)) alert('수정했습니다.');
+  }
+  async function deleteInquiryTplSel() {
+    const list = getInquiryTpls(); const i = Number(inquiryTplSel);
+    if (!inquiryTplSel || !list[i]) { alert('삭제할 문구를 먼저 선택하세요.'); return; }
+    if (!confirm(`"${list[i].name}" 문구를 삭제할까요?`)) return;
+    if (await saveInquiryTplList(list.filter((_, idx) => idx !== i))) setInquiryTplSel('');
   }
 
   /* 입점문의 연락 템플릿 (수동 발송용) */
@@ -15579,24 +15597,20 @@ export default function AdminClient() {
                   );
                 })}
               </div>
-              {getInquiryTpls().length > 0 && (
-                <div style={{ marginBottom:10 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>즐겨찾기 문구 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 클릭=불러오기 · × 삭제)</span></div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {getInquiryTpls().map((t, i) => (
-                      <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:999, padding:'4px 10px', fontSize:12, fontWeight:600 }}>
-                        <button type="button" onClick={() => setInquiryReply(t.text)} title={t.text} style={{ background:'none', border:'none', color:'#2563EB', cursor:'pointer', padding:0, fontWeight:600 }}>{t.name}</button>
-                        <button type="button" onClick={() => deleteInquiryTpl(i)} aria-label="삭제" style={{ background:'none', border:'none', color:'#94A3B8', cursor:'pointer', padding:0, fontSize:13, lineHeight:1 }}>×</button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* 저장된 문구(모든 문의 공용) — 불러오기/현재내용저장/수정/삭제 */}
+              <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>저장된 문구 <span style={{ fontWeight:400, color:'#94A3B8' }}>(자주 쓰는 회신을 저장·불러오기)</span></div>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10, alignItems:'center' }}>
+                <AdmSelect value={inquiryTplSel} onChange={setInquiryTplSel} placeholder="선택 안함" style={{ minWidth:180, flex:1 }}
+                  options={[{ value:'', label:'선택 안함' }, ...getInquiryTpls().map((t, i) => ({ value:String(i), label:t.name }))]} />
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={applyInquiryTpl}>불러오기</button>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={addInquiryTpl}>현재 내용 저장</button>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={updateInquiryTpl}>수정</button>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={deleteInquiryTplSel}>삭제</button>
+              </div>
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
                 placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요." />
               <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:6 }}>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={addInquiryTpl}>⭐ 즐겨찾기 저장</button>
                 <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={saveInquiryReply}>이 문의에 저장</button>
               </div>
             </div>
