@@ -15599,13 +15599,15 @@ export default function AdminClient() {
               </div>
               {/* 저장된 문구(모든 문의 공용) — 불러오기/현재내용저장/수정/삭제 */}
               <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>저장된 문구 <span style={{ fontWeight:400, color:'#94A3B8' }}>(자주 쓰는 회신을 저장·불러오기)</span></div>
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10, alignItems:'center' }}>
-                <AdmSelect value={inquiryTplSel} onChange={setInquiryTplSel} placeholder="선택 안함" style={{ minWidth:180, flex:1 }}
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:10 }}>
+                <AdmSelect value={inquiryTplSel} onChange={setInquiryTplSel} placeholder="선택 안함" style={{ width:'100%' }}
                   options={[{ value:'', label:'선택 안함' }, ...getInquiryTpls().map((t, i) => ({ value:String(i), label:t.name }))]} />
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={applyInquiryTpl}>불러오기</button>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={addInquiryTpl}>현재 내용 저장</button>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={updateInquiryTpl}>수정</button>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12, color:'#DC2626', borderColor:'#FCA5A5' }} onClick={deleteInquiryTplSel}>삭제</button>
+                <div style={{ display:'flex', gap:6, flexWrap:'nowrap' }}>
+                  <button className="adm-btn adm-btn-outline" style={{ fontSize:12, whiteSpace:'nowrap' }} onClick={applyInquiryTpl}>불러오기</button>
+                  <button className="adm-btn adm-btn-outline" style={{ fontSize:12, whiteSpace:'nowrap' }} onClick={addInquiryTpl}>현재 내용 저장</button>
+                  <button className="adm-btn adm-btn-outline" style={{ fontSize:12, whiteSpace:'nowrap' }} onClick={updateInquiryTpl}>수정</button>
+                  <button className="adm-btn adm-btn-outline" style={{ fontSize:12, whiteSpace:'nowrap', color:'#DC2626', borderColor:'#FCA5A5' }} onClick={deleteInquiryTplSel}>삭제</button>
+                </div>
               </div>
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
