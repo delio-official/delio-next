@@ -62,7 +62,8 @@ export function gaPurchase(transactionId: string, items: Item[], value: number) 
   gaEvent('purchase', { transaction_id: transactionId, currency: 'KRW', value, items: items.map(toGaItem) });
 }
 
-/** 스크롤 깊이 (25/50/75/90% 도달 시) — GA4 표준 scroll 이벤트 형식 */
+/** 스크롤 깊이 — GA4 이벤트 목록에 '25% Scroll'처럼 %별로 각각 뜨도록 이벤트 이름을 나눠 전송.
+ *  (percent_scrolled 파라미터도 함께 보내 탐색/필터에도 사용 가능) */
 export function gaScroll(percent: number) {
-  gaEvent('scroll', { percent_scrolled: percent });
+  gaEvent(`${percent}% Scroll`, { percent_scrolled: percent });
 }
