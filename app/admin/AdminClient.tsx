@@ -5954,7 +5954,10 @@ export default function AdminClient() {
 
     const statusMap: Record<string, { count: number; amount: number }> = {};
     paidData.forEach(o => { if (!statusMap[o.status]) statusMap[o.status] = { count: 0, amount: 0 }; statusMap[o.status].count++; statusMap[o.status].amount += isCancel(o.status) ? (o.final_amount || 0) : netAmt(o); });
-    const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => b.amount - a.amount);
+    /* 주문 플로우 흐름 순서로 표시 (결제완료→배송준비중→배송중→배송완료→구매확정→취소→환불) */
+    const STATUS_FLOW = ['paid','preparing','shipped','delivered','confirmed','cancelled','refunding','refunded','pending','expired'];
+    const flowIdx = (s: string) => { const i = STATUS_FLOW.indexOf(s); return i < 0 ? 99 : i; };
+    const byStatus = Object.entries(statusMap).map(([status, v]) => ({ status, ...v })).sort((a, b) => flowIdx(a.status) - flowIdx(b.status));
 
     const methodMap: Record<string, { count: number; amount: number }> = {};
     validOrders.forEach(o => { const m = o.payment_method || '기타'; if (!methodMap[m]) methodMap[m] = { count: 0, amount: 0 }; methodMap[m].count++; methodMap[m].amount += netAmt(o); });
@@ -13529,7 +13532,7 @@ export default function AdminClient() {
                         <thead><tr><th>구분</th><th className="adm-num">주문수</th><th className="adm-num">매출</th><th className="adm-num">비중</th></tr></thead>
                         <tbody>
                           {(() => { const nt = (settlementData.newAmount + settlementData.repeatAmount) || 1;
-                            return ([['재구매 고객', settlementData.repeatCount, settlementData.repeatAmount], ['신규 고객', settlementData.newCount, settlementData.newAmount]] as [string, number, number][]).map(([lb, cnt, amt]) => (
+                            return ([['신규 고객', settlementData.newCount, settlementData.newAmount], ['재구매 고객', settlementData.repeatCount, settlementData.repeatAmount]] as [string, number, number][]).map(([lb, cnt, amt]) => (
                               <tr key={lb}>
                                 <td style={{ fontWeight:500 }}>{lb}</td>
                                 <td className="adm-num">{cnt}건</td>
