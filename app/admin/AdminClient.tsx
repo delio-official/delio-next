@@ -8160,7 +8160,7 @@ export default function AdminClient() {
                   <div style={{ fontSize:13, fontWeight:600 }}>노출 여부</div>
                   <div className="adm-muted" style={{ fontSize:11, marginTop:2 }}>비활성 시 고객 페이지에 표시되지 않습니다</div>
                 </div>
-                <AdmToggle on={faqForm.is_active} onChange={v => setFaqForm(f => ({ ...f, is_active: v }))} />
+                <AdmToggle on={faqForm.is_active} onChange={v => setFaqForm(f => ({ ...f, is_active: v }))} color="#3b82f6" />
               </div>
             </div>
             <div className="adm-modal-foot">
