@@ -6614,21 +6614,10 @@ export default function AdminClient() {
     if (!selectedInquiry) return;
     const status = inquiryStatusSel;
     const supabase = createClient();
-    const { error } = await supabase.from('farm_inquiries').update({ status }).eq('id', selectedInquiry.id);
+    const { error } = await supabase.from('farm_inquiries').update({ status, reply: inquiryReply }).eq('id', selectedInquiry.id);
     if (error) { alert('저장 실패: ' + error.message + '\n(RLS 권한 문제일 수 있습니다)'); return; }
-    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status } : i));
+    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, status, reply: inquiryReply } : i));
     setSelectedInquiry(null);
-  }
-
-  /* 회신 문구만 저장 (모달 유지) */
-  async function saveInquiryReply() {
-    if (!selectedInquiry) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('farm_inquiries').update({ reply: inquiryReply }).eq('id', selectedInquiry.id);
-    if (error) { alert('문구 저장 실패: ' + error.message); return; }
-    setInquiries(prev => prev.map(i => i.id === selectedInquiry.id ? { ...i, reply: inquiryReply } : i));
-    setSelectedInquiry(prev => prev ? { ...prev, reply: inquiryReply } : prev);
-    alert('회신 문구를 저장했습니다.');
   }
 
   /* 회신 문구 즐겨찾기 (site_settings.inquiry_reply_templates 에 JSON 저장 — 모든 문의 공용) */
@@ -15612,9 +15601,6 @@ export default function AdminClient() {
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
                 placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요." />
-              <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:6 }}>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={saveInquiryReply}>이 문의에 저장</button>
-              </div>
             </div>
 
             {/* 처리 상태 */}
