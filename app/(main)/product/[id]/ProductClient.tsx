@@ -1224,16 +1224,17 @@ export default function ProductClient() {
     ? reviews.filter(r => r.image_urls && r.image_urls.length > 0)
     : reviews;
   const sortedReviews = [...filteredReviews].sort((a, b) => {
-    /* 베스트 리뷰는 정렬 기준과 무관하게 항상 맨 앞으로 */
+    /* 1) 베스트 리뷰는 정렬 기준·작성자와 무관하게 항상 맨 앞 (최우선) */
     if (!!a.is_best !== !!b.is_best) return a.is_best ? -1 : 1;
+    /* 2) 그다음, 내가 쓴 리뷰 우선 (베스트보다는 아래) */
+    if (user) {
+      const ao = a.user_id === user.id ? 0 : 1, bo = b.user_id === user.id ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+    }
+    /* 3) 정렬 기준 (평점/최신) */
     if (reviewSort === 'rating')  return b.rating - a.rating;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
-  /* 내가 쓴 리뷰는 정렬과 무관하게 항상 최상단 고정 (안정 정렬) */
-  if (user) {
-    sortedReviews.sort((a, b) =>
-      (a.user_id === user.id ? 0 : 1) - (b.user_id === user.id ? 0 : 1));
-  }
   const reviewTotalPages = Math.max(1, Math.ceil(sortedReviews.length / REVIEWS_PER_PAGE));
   const safeReviewPage = Math.min(Math.max(0, reviewPage), reviewTotalPages - 1);
   const pagedReviews = sortedReviews.slice(safeReviewPage * REVIEWS_PER_PAGE, (safeReviewPage + 1) * REVIEWS_PER_PAGE);
