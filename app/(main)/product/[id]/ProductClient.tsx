@@ -343,15 +343,14 @@ export default function ProductClient() {
     /* 해당 섹션(후기/문의)으로 스크롤 — 이미지가 뒤늦게 로드되며 레이아웃이 밀리므로
        자리가 잡힐 때까지 여러 번 보정. 단 목표에 도달/통과했으면 멈춰 사용자를 끌어당기지 않음. */
     const targetIdx = tabParam === 'qna' ? 3 : 2;
-    const settle = (behavior: ScrollBehavior) => {
+    const settle = () => {
       const el = document.getElementById(SECTION_IDS[targetIdx]);
       if (!el) return;
       const top = el.getBoundingClientRect().top;      // 뷰포트 기준 섹션 상단
       if (top <= 104 + 40) return;                     // 이미 도달/통과 → 보정 중단
-      window.scrollTo({ top: window.scrollY + top - 104, behavior });
+      window.scrollTo({ top: window.scrollY + top - 104, behavior: 'smooth' });  // 항상 부드럽게
     };
-    const timers = [200, 600, 1100, 1700, 2400].map((t, k) =>
-      window.setTimeout(() => settle(k === 0 ? 'smooth' : 'auto'), t));
+    const timers = [250, 1000, 1800].map(t => window.setTimeout(settle, t));
     return () => { timers.forEach(clearTimeout); };
   }, [product?.id]);
 
