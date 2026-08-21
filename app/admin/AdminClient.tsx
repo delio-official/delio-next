@@ -14679,9 +14679,9 @@ export default function AdminClient() {
                       <span className="adm-muted" style={{ fontSize:11 }}>상품별 설정 없으면 이 값으로 표시</span>
                     </div>
                     {([
-                      ['ship_fee', '기본 배송비', '3000'],
+                      ['ship_fee', '기본 배송비', '0'],
                       ['free_ship_min', '무료배송 기준금액', '30000'],
-                      ['jeju_extra', '제주·도서산간 추가비', '3000'],
+                      ['jeju_extra', '제주·도서산간 추가비', '0'],
                     ] as [string, string, string][]).map(([key, label, ph]) => (
                       <div className="adm-form-row" key={key} style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                         <label className="adm-label">{label}</label>
@@ -14693,9 +14693,9 @@ export default function AdminClient() {
                         </div>
                       </div>
                     ))}
-                    <div className="adm-form-row" style={{ justifyContent:'flex-start', alignItems:'center', gap:12 }}>
-                      <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
+                    <div className="adm-form-row" style={{ flexDirection:'column', alignItems:'flex-start', gap:6 }}>
                       <label className="adm-label" style={{ margin:0 }}>상단 배송안내 탭 노출</label>
+                      <Toggle defaultOn={siteSettings.show_shipping_tab !== 'false'} onChange={v => setSiteSettings(prev => ({ ...prev, show_shipping_tab: v ? 'true' : 'false' }))} />
                     </div>
                     <div className="adm-muted" style={{ fontSize:11 }}>* 기본 배송비를 <b>0으로 두면 무료배송</b>입니다. (현재 전 상품 무료배송)</div>
                     <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
