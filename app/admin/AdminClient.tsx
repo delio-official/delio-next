@@ -6630,6 +6630,31 @@ export default function AdminClient() {
     alert('회신 문구를 저장했습니다.');
   }
 
+  /* 회신 문구 즐겨찾기 (site_settings.inquiry_reply_templates 에 JSON 저장 — 모든 문의 공용) */
+  function getInquiryTpls(): { name: string; text: string }[] {
+    try { const a = JSON.parse(siteSettings.inquiry_reply_templates || '[]'); return Array.isArray(a) ? a : []; } catch { return []; }
+  }
+  async function saveInquiryTplList(list: { name: string; text: string }[]) {
+    const supabase = createClient();
+    const value = JSON.stringify(list);
+    const { error } = await supabase.from('site_settings').upsert({ key: 'inquiry_reply_templates', value }, { onConflict: 'key' });
+    if (error) { alert('저장 실패: ' + error.message); return false; }
+    setSiteSettings(prev => ({ ...prev, inquiry_reply_templates: value }));
+    return true;
+  }
+  async function addInquiryTpl() {
+    const text = inquiryReply.trim();
+    if (!text) { alert('저장할 문구를 먼저 입력하세요.'); return; }
+    const name = window.prompt('즐겨찾기 이름을 입력하세요 (예: 수락-기본, 거절-정중)');
+    if (!name || !name.trim()) return;
+    const ok = await saveInquiryTplList([...getInquiryTpls(), { name: name.trim(), text }]);
+    if (ok) alert('즐겨찾기에 저장했습니다. 앞으로 모든 문의에서 불러올 수 있어요.');
+  }
+  async function deleteInquiryTpl(idx: number) {
+    if (!confirm('이 즐겨찾기 문구를 삭제할까요?')) return;
+    await saveInquiryTplList(getInquiryTpls().filter((_, i) => i !== idx));
+  }
+
   /* 입점문의 연락 템플릿 (수동 발송용) */
   function inquiryTemplate(kind: 'general'|'accept'|'reject', company: string): string {
     const name = company?.trim() || '담당자';
@@ -6983,7 +7008,7 @@ export default function AdminClient() {
       case 'homesections': loadProducts(); loadFarms(); loadReviews(); loadLounge(); loadFilterTabs(); loadSettings(); loadQgGroups(); break;
       case 'referral':     loadReferrals(); loadReferralCoupons(); break;
       case 'tasteprofile': loadSurveyResults(); loadSurveySettings(); break;
-      case 'inquiry':   loadInquiries(); break;
+      case 'inquiry':   loadInquiries(); loadSettings(); break;   // settings = 회신 문구 즐겨찾기
       case 'productinquiry': loadProductInquiries(); break;
       case 'faq':       loadFaq(); break;
       case 'cs':        loadCsInquiries(); break;
@@ -15554,11 +15579,25 @@ export default function AdminClient() {
                   );
                 })}
               </div>
+              {getInquiryTpls().length > 0 && (
+                <div style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#64748B', marginBottom:6 }}>즐겨찾기 문구 <span style={{ fontWeight:400, color:'#94A3B8' }}>(이름 클릭=불러오기 · × 삭제)</span></div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {getInquiryTpls().map((t, i) => (
+                      <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:999, padding:'4px 10px', fontSize:12, fontWeight:600 }}>
+                        <button type="button" onClick={() => setInquiryReply(t.text)} title={t.text} style={{ background:'none', border:'none', color:'#2563EB', cursor:'pointer', padding:0, fontWeight:600 }}>{t.name}</button>
+                        <button type="button" onClick={() => deleteInquiryTpl(i)} aria-label="삭제" style={{ background:'none', border:'none', color:'#94A3B8', cursor:'pointer', padding:0, fontSize:13, lineHeight:1 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               <textarea className="adm-textarea" rows={5} style={{ width:'100%' }}
                 value={inquiryReply} onChange={e => setInquiryReply(e.target.value)}
                 placeholder="톤을 고르면 기본 문구가 채워집니다. 자유롭게 수정하세요." />
-              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:6 }}>
-                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={saveInquiryReply}>문구 저장</button>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:6, marginTop:6 }}>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={addInquiryTpl}>⭐ 즐겨찾기 저장</button>
+                <button className="adm-btn adm-btn-outline" style={{ fontSize:12 }} onClick={saveInquiryReply}>이 문의에 저장</button>
               </div>
             </div>
 
