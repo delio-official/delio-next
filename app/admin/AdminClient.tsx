@@ -2404,6 +2404,7 @@ export default function AdminClient() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedReview, setSelectedReview] = useState<AdminReview | null>(null);
   const [reviewZoom, setReviewZoom] = useState<string | null>(null); // 리뷰 사진 확대
+  const [proofGallery, setProofGallery] = useState<{ imgs: string[]; idx: number } | null>(null); // 증빙 사진 갤러리(좌우 넘김)
   const [reviewRating, setReviewRating] = useState('');        // '' | '5'..'1'
   const [reviewFarm, setReviewFarm] = useState('');            // '' = 전체 농가, 아니면 farm_id
   /* 리뷰 상태 필터 — 베스트 / 신고됨. 서로 배타적이지 않아 '보는 관점'으로 하나만 고름 */
@@ -13129,7 +13130,7 @@ export default function AdminClient() {
                             <div style={secTitle}>증빙 사진 <span className="adm-muted" style={{ fontWeight:400, fontSize:12 }}>({r.attachments.length}장 · 클릭하면 크게 보기)</span></div>
                             <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                               {r.attachments.map((url, i) => (
-                                <img key={i} src={url} alt={`증빙 ${i + 1}`} onClick={() => window.open(url, '_blank')}
+                                <img key={i} src={url} alt={`증빙 ${i + 1}`} onClick={() => setProofGallery({ imgs: r.attachments as string[], idx: i })}
                                   style={{ width:88, height:88, objectFit:'cover', borderRadius:8, border:'1px solid #EEF2F6', cursor:'pointer' }} />
                               ))}
                             </div>
@@ -15096,6 +15097,38 @@ export default function AdminClient() {
           <img src={reviewZoom} alt="" style={{ maxWidth:'92vw', maxHeight:'92vh', objectFit:'contain', borderRadius:8, boxShadow:'0 12px 48px rgba(0,0,0,0.5)' }} />
         </div>
       )}
+
+      {/* 증빙 사진 갤러리 (좌우로 넘기며 보기) */}
+      {proofGallery && (() => {
+        const { imgs, idx } = proofGallery;
+        const go = (d: number) => setProofGallery(g => g ? { ...g, idx: (g.idx + d + imgs.length) % imgs.length } : g);
+        const navBtn: React.CSSProperties = { position:'absolute', top:'50%', transform:'translateY(-50%)', width:48, height:48, borderRadius:'50%',
+          border:'none', background:'rgba(255,255,255,0.9)', color:'#1A1A1A', fontSize:24, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 4px 16px rgba(0,0,0,0.3)' };
+        return (
+          <div onClick={() => setProofGallery(null)}
+            style={{ position:'fixed', inset:0, zIndex:3000, background:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', padding:24, cursor:'zoom-out' }}>
+            {/* 닫기 */}
+            <button onClick={(e) => { e.stopPropagation(); setProofGallery(null); }}
+              style={{ position:'absolute', top:20, right:24, width:44, height:44, borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.9)', color:'#1A1A1A', fontSize:22, cursor:'pointer' }}>✕</button>
+            {/* 이전/다음 (2장 이상일 때) */}
+            {imgs.length > 1 && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); go(-1); }} style={{ ...navBtn, left:24 }}>‹</button>
+                <button onClick={(e) => { e.stopPropagation(); go(1); }} style={{ ...navBtn, right:24 }}>›</button>
+              </>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imgs[idx]} alt="" onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth:'88vw', maxHeight:'88vh', objectFit:'contain', borderRadius:8, boxShadow:'0 12px 48px rgba(0,0,0,0.5)', cursor:'default' }} />
+            {/* 매수 표시 */}
+            {imgs.length > 1 && (
+              <div style={{ position:'absolute', bottom:24, left:'50%', transform:'translateX(-50%)', color:'#fff', fontSize:13, fontWeight:600, background:'rgba(0,0,0,0.5)', padding:'6px 14px', borderRadius:20 }}>
+                {idx + 1} / {imgs.length}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ===== 회원별 쿠폰 지급 내역 모달 (지급 내역에서 회원 클릭) ===== */}
       {couponLogMember && (() => {
