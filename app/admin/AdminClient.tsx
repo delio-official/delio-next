@@ -13336,31 +13336,6 @@ export default function AdminClient() {
                     </div>
                   </div>
 
-                  {/* 예상 마진 (확정매출 − 상품원가) */}
-                  <div className="adm-card" style={{ marginBottom:16, padding:'14px 18px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-                      <span style={{ fontSize:13, fontWeight:800 }}>예상 마진 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:11 }}>(확정매출 기준 · 상품원가(공급가) 차감)</span></span>
-                      <span style={{ fontSize:18, fontWeight:800, color:'#16A34A' }}>{fmtPrice(settlementData.margin)}원 <span style={{ fontSize:12, color:'#94A3B8' }}>마진율 {settlementData.marginRate.toFixed(1)}%</span></span>
-                    </div>
-                    {(() => {
-                      const conf = settlementData.confirmed || 1;
-                      const costPct = Math.round(settlementData.supplyCost / conf * 100);
-                      const marginPct = Math.max(0, 100 - costPct);
-                      return (
-                        <>
-                          <div style={{ display:'flex', height:14, borderRadius:7, overflow:'hidden', background:'#F1F5F9' }}>
-                            <div style={{ width:`${costPct}%`, background:'#CBD5E1' }} />
-                            <div style={{ width:`${marginPct}%`, background:'#16A34A' }} />
-                          </div>
-                          <div style={{ display:'flex', gap:16, marginTop:8, fontSize:12, flexWrap:'wrap' }}>
-                            <span><span style={{ display:'inline-block', width:9, height:9, borderRadius:2, background:'#CBD5E1', marginRight:5 }} />상품원가 {fmtPrice(settlementData.supplyCost)}원 ({costPct}%)</span>
-                            <span><span style={{ display:'inline-block', width:9, height:9, borderRadius:2, background:'#16A34A', marginRight:5 }} />마진 {fmtPrice(settlementData.margin)}원 ({marginPct}%)</span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-
                   {/* KPI 윗줄 5 */}
                   <div className="adm-kpi-grid adm-kpi-5 adm-kpi-mb16">
                     {[
@@ -13378,23 +13353,7 @@ export default function AdminClient() {
                     ))}
                   </div>
 
-                  {/* KPI 아랫줄 4 */}
-                  <div className="adm-kpi-grid adm-kpi-4 adm-kpi-mb16">
-                    {[
-                      ['예상 마진', `${fmtPrice(settlementData.margin)}원`, '#16A34A', `마진율 ${settlementData.marginRate.toFixed(1)}%`],
-                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '실결제액 ÷ 유효주문(취소·미입금 제외) · 기간 기준'],
-                      ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
-                      ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
-                    ].map(([l, v, c, sub]) => (
-                      <div key={l} className="adm-kpi-card">
-                        <div className="adm-kpi-label">{l}</div>
-                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
-                        {sub && <div className="adm-muted" style={{ fontSize:10, marginTop:2, lineHeight:1.3 }}>{sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 매출 그래프 (일별/월별) — 전기간대비 아래 */}
+                  {/* 매출 그래프 (일별/월별) — 핵심 KPI 아래 */}
                   <div className="adm-card" style={{ marginBottom:16 }}>
                     <div className="adm-card-head" style={{ borderBottom:'none' }}>
                       <span className="adm-card-title">{settlementView === 'daily' ? '일별 매출' : `${settlementMonth.slice(0,4)}년 월별 매출`}</span>
@@ -13488,6 +13447,21 @@ export default function AdminClient() {
                     <div style={{ display:'flex', justifyContent:'flex-end', padding:'4px 16px 0', fontSize:12, color:'#94A3B8' }}>
                       일평균: {settlementData.orderCount > 0 ? fmtPrice(Math.round(settlementData.total / Math.max(settlementData.daily.filter(d => d.amount > 0).length, 1))) : 0}원
                     </div>
+                  </div>
+
+                  {/* KPI 아랫줄 3 (AOV·쿠폰·포인트) — 예상마진은 위 그래프 도넛으로 일원화 */}
+                  <div className="adm-kpi-grid adm-kpi-3 adm-kpi-mb16">
+                    {[
+                      ['객단가(AOV)', `${fmtPrice(settlementData.aov)}원`, '#1A1A1A', '실결제액 ÷ 유효주문(취소·미입금 제외) · 기간 기준'],
+                      ['쿠폰 차감', `-${fmtPrice(settlementData.couponTotal)}원`, '#DC2626', '기간 내 쿠폰 할인 합계'],
+                      ['포인트 사용', `-${fmtPrice(settlementData.pointTotal)}원`, '#DC2626', '기간 내 포인트 사용 합계'],
+                    ].map(([l, v, c, sub]) => (
+                      <div key={l} className="adm-kpi-card">
+                        <div className="adm-kpi-label">{l}</div>
+                        <div className="adm-kpi-value adm-kpi-value-mt" style={{ color: c as string }}>{v}</div>
+                        {sub && <div className="adm-muted" style={{ fontSize:10, marginTop:2, lineHeight:1.3 }}>{sub}</div>}
+                      </div>
+                    ))}
                   </div>
 
                   {/* 주문 상태별 / 결제 수단별 */}
