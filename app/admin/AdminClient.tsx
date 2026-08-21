@@ -12409,8 +12409,6 @@ export default function AdminClient() {
                   <input type="date" className="adm-select" value={inquiryTo} onChange={e => setInquiryTo(e.target.value)} />
                   <input type="text" className="adm-input-text" placeholder="업체·이름·연락처·이메일 검색"
                     value={inquirySearch} onChange={e => setInquirySearch(e.target.value)} />
-                </div>
-                <div className="adm-toolbar-right">
                   {(inquiryFrom || inquiryTo || inquirySearch || inquiryTypeFilter) && <button className="adm-btn adm-btn-outline" onClick={() => { setInquiryFrom(''); setInquiryTo(''); setInquirySearch(''); setInquiryTypeFilter(''); }}>초기화</button>}
                 </div>
               </div>
