@@ -7058,7 +7058,7 @@ export default function AdminClient() {
     return (
       <div className="adm-nav-group">
         <button type="button" className="adm-nav-label" onClick={() => setNavOpen(prev => ({ ...prev, [label]: !open }))}
-          style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', font:'inherit', textAlign:'left' }}>
+          style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', textAlign:'left' }}>
           <span style={{ display:'flex', alignItems:'center', gap:7 }}>
             {label}
             {!open && badge ? <span className="adm-nav-badge">{badge}</span> : null}
