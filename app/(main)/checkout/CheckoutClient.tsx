@@ -602,8 +602,8 @@ export default function CheckoutClient() {
             ...((ordererPhone.trim() || phone.trim()) ? { phoneNumber: ordererPhone.trim() || phone.trim() } : {}),
             ...((ordererEmail.trim() || user.email) ? { email: ordererEmail.trim() || user.email } : {}),
           },
-          // 네이버페이는 PC IFRAME 미지원 → 리다이렉트 방식. 나머지(카드·카카오)는 PC IFRAME 유지
-          windowType: payMethod === 'naver' ? { pc: 'REDIRECTION', mobile: 'REDIRECTION' } : { pc: 'IFRAME', mobile: 'REDIRECTION' },
+          // 네이버페이는 PC에서 IFRAME·REDIRECTION 미지원 → POPUP(팝업)만 가능. 나머지(카드·카카오)는 PC IFRAME 유지
+          windowType: payMethod === 'naver' ? { pc: 'POPUP', mobile: 'REDIRECTION' } : { pc: 'IFRAME', mobile: 'REDIRECTION' },
           // 모바일 REDIRECTION: 결제 후 이 URL로 복귀 → 핸들러가 주문 확정
           redirectUrl: `${window.location.origin}/payment/redirect`,
         });
