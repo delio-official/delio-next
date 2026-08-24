@@ -87,6 +87,9 @@ export default function SiteFooter() {
             <Link href="/privacy" style={{ color:'#444', textDecoration:'none' }}>개인정보처리방침</Link>
             <Link href="/terms" style={{ color:'#444', textDecoration:'none' }}>이용약관</Link>
             <Link href="/refund-policy" style={{ color:'#444', textDecoration:'none' }}>취소/환불정책</Link>
+            {/* 공정거래위원회 사업자정보 확인 (네이버페이 결제형 가입조건 필수) */}
+            <a href={`https://www.ftc.go.kr/bizCommPop.do?wrkr_no=${(cfg.biz_no || '').replace(/[^0-9]/g, '')}`}
+              target="_blank" rel="noreferrer" style={{ color:'#444', textDecoration:'none' }}>사업자정보확인</a>
             <Link href="/faq" style={{ color:'#444', textDecoration:'none' }}>자주 묻는 질문</Link>
           </div>
           <div className="footer-sns" style={{ display:'flex', gap:16, alignItems:'center', color:'#bbb' }}>
