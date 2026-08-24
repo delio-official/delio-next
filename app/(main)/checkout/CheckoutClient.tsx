@@ -46,7 +46,7 @@ function Section({ title, sk, open, onToggle, right, children, mb }: {
 const PAYMENT_METHODS = [
   { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined,  enabled: true  },
   { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: true  },
-  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: true  },
+  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: false },
   { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY',  enabled: false },
   { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined, enabled: true  },
 ] as const;
@@ -80,7 +80,10 @@ export default function CheckoutClient() {
       const { data } = await createClient().from('site_settings').select('key,value').like('key', 'pay_%');
       const map: Record<string, string> = {};
       (data || []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
+      // 네이버페이 검수/테스트용: ?npaytest=1 이 붙으면 (고객에겐 숨겨도) 강제 노출
+      const npayTest = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('npaytest') === '1';
       const vis = PAYMENT_METHODS.filter(m => {
+        if (m.value === 'naver' && npayTest) return true;      // 검수용 강제 노출
         const v = map[`pay_${m.value}`];
         return v !== undefined ? v !== 'false' : m.enabled;   // 설정 있으면 그 값, 없으면 기존 기본값
       });
