@@ -46,7 +46,7 @@ function Section({ title, sk, open, onToggle, right, children, mb }: {
 const PAYMENT_METHODS = [
   { value: 'card',   label: '신용카드',   payMethod: 'CARD',     easyPay: undefined,  enabled: true  },
   { value: 'kakao',  label: '카카오페이', payMethod: 'EASY_PAY', easyPay: 'KAKAOPAY', enabled: true  },
-  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: false },
+  { value: 'naver',  label: '네이버페이', payMethod: 'EASY_PAY', easyPay: 'NAVERPAY', enabled: true  },
   { value: 'toss',   label: '토스페이',   payMethod: 'EASY_PAY', easyPay: 'TOSSPAY',  enabled: false },
   { value: 'vbank',  label: '무통장입금', payMethod: 'VIRTUAL_ACCOUNT', easyPay: undefined, enabled: true  },
 ] as const;
@@ -55,8 +55,10 @@ const VISIBLE_PAYMENT_METHODS = PAYMENT_METHODS.filter(m => m.enabled);
 /* 채널 키 — 결제수단별 분리. 카카오페이는 전용 채널(실연동) 사용.
    채널키는 공개키라 클라 노출 무방(결제 검증은 서버 시크릿으로 수행). */
 const KAKAO_CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAO || 'channel-key-f7a8c262-8438-4a74-9a68-a532cbb1a2f4';
+const NAVER_CHANNEL_KEY = process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_NAVER || 'channel-key-9e2d4419-5454-4eb4-8cc6-ddd9ac9baad5';
 function getChannelKey(method?: string): string {
   if (method === 'kakao') return KAKAO_CHANNEL_KEY;
+  if (method === 'naver') return NAVER_CHANNEL_KEY;
   return process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY || '';
 }
 
@@ -591,6 +593,8 @@ export default function CheckoutClient() {
           ...(selectedMethod.easyPay && {
             easyPay: { easyPayProvider: selectedMethod.easyPay as any },
           }),
+          // 네이버페이 필수: 상품유형(실물). 상품목록(products)은 쿠폰·포인트 할인과 합계 불일치로 거절될 수 있어 필수값만 전달
+          ...(payMethod === 'naver' && { productType: 'PRODUCT_TYPE_REAL' as any }),
           customer: {
             /* PG(이니시스·카카오)에는 결제자(주문자) 이름·연락처를 넘김 — 없으면 수령인으로 폴백.
                이렇게 해야 PG 결제내역이 사이트의 '주문자'와 일치해 조회가 편함 */
