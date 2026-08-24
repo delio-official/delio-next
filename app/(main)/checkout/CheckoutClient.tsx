@@ -77,20 +77,23 @@ export default function CheckoutClient() {
   /* 관리자 설정(site_settings)에서 결제수단 노출 토글 반영 */
   useEffect(() => {
     (async () => {
-      const { data } = await createClient().from('site_settings').select('key,value').like('key', 'pay_%');
+      const { data } = await createClient().from('site_settings').select('key,value').or('key.like.pay_%,key.eq.npay_test_emails');
       const map: Record<string, string> = {};
       (data || []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
-      // 네이버페이 검수/테스트용: ?npaytest=1 이 붙으면 (고객에겐 숨겨도) 강제 노출
+      /* 네이버페이 검수/테스트 노출 조건(둘 중 하나): ① 지정 테스트 계정으로 로그인  ② URL에 ?npaytest=1
+         → 일반 고객에겐 숨겨지고, 지정 계정(또는 파라미터)에게만 노출 (네이버 "특정 계정" 방식) */
       const npayTest = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('npaytest') === '1';
+      const testEmails = (map['npay_test_emails'] || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+      const isNpayTester = npayTest || (!!user?.email && testEmails.includes(user.email.toLowerCase()));
       const vis = PAYMENT_METHODS.filter(m => {
-        if (m.value === 'naver' && npayTest) return true;      // 검수용 강제 노출
+        if (m.value === 'naver' && isNpayTester) return true;  // 테스트 계정/파라미터만 노출
         const v = map[`pay_${m.value}`];
         return v !== undefined ? v !== 'false' : m.enabled;   // 설정 있으면 그 값, 없으면 기존 기본값
       });
       setPayVisible(vis);
       setPayMethod(pm => vis.some(m => m.value === pm) ? pm : (vis[0]?.value || 'card'));
     })();
-  }, []);
+  }, [user?.email]);
   const [loading, setLoading]     = useState(false);
   const [isMobile, setIsMobile]   = useState(false);
   useEffect(() => {
