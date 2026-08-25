@@ -599,8 +599,18 @@ export default function CheckoutClient() {
           ...(selectedMethod.easyPay && {
             easyPay: { easyPayProvider: selectedMethod.easyPay as any },
           }),
-          // 네이버페이 필수: 상품유형(실물). 상품목록(products)은 쿠폰·포인트 할인과 합계 불일치로 거절될 수 있어 필수값만 전달
-          ...(payMethod === 'naver' && { productType: 'PRODUCT_TYPE_REAL' as any }),
+          // 네이버페이 필수: 상품유형(실물) + 상품정보(productItems). 포트원 products가 네이버 productItems(이름·개수·분류)로 전달됨.
+          // productItems는 금액이 아닌 상품 '정보'(FDS용)라 쿠폰·포인트 할인과 무관. 결제 총액은 totalAmount로 별도 처리.
+          ...(payMethod === 'naver' && {
+            productType: 'PRODUCT_TYPE_REAL' as any,
+            products: items.map(i => ({
+              id: String(i.id),
+              name: i.name,
+              code: String(i.id),
+              amount: i.price,
+              quantity: i.quantity ?? 1,
+            })),
+          }),
           customer: {
             /* PG(이니시스·카카오)에는 결제자(주문자) 이름·연락처를 넘김 — 없으면 수령인으로 폴백.
                이렇게 해야 PG 결제내역이 사이트의 '주문자'와 일치해 조회가 편함 */
