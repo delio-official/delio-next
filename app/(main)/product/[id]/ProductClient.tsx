@@ -2104,43 +2104,6 @@ export default function ProductClient() {
                   </button>
                 </div>
 
-                {/* ✅ 네이버페이 */}
-                <div style={{ marginTop:16, paddingTop:14 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:11, fontWeight:800, color:'#03C75A',
-                        letterSpacing:'0.04em', marginBottom:2 }}>NAVER</div>
-                      <div style={{ fontSize:11, color:'#555', lineHeight:1.5 }}>
-                        네이버ID로 간편구매<br/>네이버페이
-                      </div>
-                    </div>
-                    <button onClick={() => showToast('네이버페이 연동은 준비 중입니다.')}
-                      style={{ display:'flex', alignItems:'center', gap:7,
-                        background:'#03C75A', color:'#fff', border:'none',
-                        borderRadius:6, padding:'13px 22px', fontSize:15, fontWeight:700,
-                        cursor:'pointer', whiteSpace:'nowrap' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="12" fill="#fff"/>
-                        <text x="12" y="17" textAnchor="middle" fontSize="13"
-                          fontWeight="900" fill="#03C75A" fontFamily="Arial,sans-serif">N</text>
-                      </svg>
-                      pay 구매
-                    </button>
-                  </div>
-                  <div style={{ marginTop:8, display:'flex', alignItems:'center',
-                    justifyContent:'space-between', fontSize:11, color:'#03C75A' }}>
-                    <span>
-                      <b>이벤트</b>{' '}
-                      <span style={{ color:'#555' }}>결제 최대혜택 10% 추가…</span>
-                    </span>
-                    <span style={{ display:'flex', gap:2 }}>
-                      <button style={{ background:'none', border:'1px solid #DDD', borderRadius:3,
-                        width:18, height:18, fontSize:10, cursor:'pointer', color:'#888', padding:0 }}>‹</button>
-                      <button style={{ background:'none', border:'1px solid #DDD', borderRadius:3,
-                        width:18, height:18, fontSize:10, cursor:'pointer', color:'#888', padding:0 }}>›</button>
-                    </span>
-                  </div>
-                </div>
                 </div>{/* /pd-mob-hide (총금액·결제) */}
               </div>
             </div>
