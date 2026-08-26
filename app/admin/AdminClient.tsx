@@ -2148,6 +2148,7 @@ export default function AdminClient() {
   const [pExtraCats, setPExtraCats] = useState<string[]>([]);
   const [pCatAddMajor, setPCatAddMajor] = useState('');   // 추가 카테고리 UI: 선택한 대분류
   const [pCatNewSub, setPCatNewSub] = useState('');       // 추가 카테고리 UI: 직접입력 소분류명
+  const [pCatCustom, setPCatCustom] = useState(false);    // 추가 카테고리 UI: 직접입력 모드 여부
   const [pSaving, setPSaving] = useState(false);
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('amount');
   const [pDiscOn, setPDiscOn] = useState(false); // '할인 판매하기' 체크 → 할인영역 펼침
@@ -4038,7 +4039,7 @@ export default function AdminClient() {
             farm_id: data.farm_id, sort_order: data.sort_order || 0,
             seller_score: data.seller_score || null,
           });
-          setPCatAddMajor(''); setPCatNewSub('');
+          setPCatAddMajor(''); setPCatNewSub(''); setPCatCustom(false);
           // 다중 카테고리: 이 상품이 속한 모든 카테고리 로드 → 대표(data.category) 제외분 = 추가 카테고리
           supabase.from('product_categories').select('category').eq('product_id', p.id)
             .then(({ data: pcs }) => {
@@ -4077,7 +4078,7 @@ export default function AdminClient() {
       setPDiscOn(false); setPDiscAmount(''); setPDiscMode('amount');  // 신규는 할인 접힘, 기본 단위 = 원
       setPSupPurchase(0); setPSupShip(0);
       setPForm({ ...PRODUCT_EMPTY });
-      setPExtraCats([]); setPCatAddMajor(''); setPCatNewSub('');   // 다중 카테고리 초기화
+      setPExtraCats([]); setPCatAddMajor(''); setPCatNewSub(''); setPCatCustom(false);   // 다중 카테고리 초기화
       setPOptions([]);  // 신규는 옵션 없는 단품(무제한)으로 시작 — 재고 수량을 입력하면 자동으로 재고 관리 켜짐
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
@@ -7615,7 +7616,7 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%' }} value={pForm.short_desc || ''}
                     onChange={e => setPForm(f => ({ ...f, short_desc: e.target.value }))} placeholder="상품 카드에 표시되는 짧은 설명" />
                 </div>
-                <div>
+                <div style={{ gridColumn:'1 / -1' }}>
                   <label className="adm-label">SKU <span style={{ fontWeight:400, color:'#94A3B8' }}>(자동생성 · 내부코드)</span></label>
                   <input className="adm-input-text" style={{ width:'100%', background:'#F1F5F9', color:'#64748B', cursor:'default' }}
                     value={pForm.sku} readOnly tabIndex={-1} placeholder="저장 시 자동 생성됩니다" />
@@ -7646,8 +7647,8 @@ export default function AdminClient() {
                   })()}
                 </div>
                 {/* ── 추가 카테고리 (다중 노출) — 대표 카테고리는 그대로 두고 다른 카테고리에도 함께 노출 ── */}
-                <div style={{ gridColumn:'1 / -1' }}>
-                  <label className="adm-label">추가 카테고리 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 이 카테고리들에도 함께 노출됩니다)</span></label>
+                <div>
+                  <label className="adm-label">추가 카테고리 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 함께 노출)</span></label>
                   {(() => {
                     const catLabel = (v: string) => {
                       const t = catTabsAll.find(x => x.tab_value === v);
@@ -7656,8 +7657,14 @@ export default function AdminClient() {
                       return t.label;
                     };
                     const addSubs = subCatsOf(pCatAddMajor);
+                    /* 소분류 드롭다운에서 값 선택 시 처리 (기존 카테고리 방식과 동일한 2단 드롭다운) */
+                    const handleSubPick = async (v: string) => {
+                      if (v === '__major__') { addExtraCat(pCatAddMajor); return; }       // 대분류 직속
+                      if (v === '__custom__') { setPCatCustom(true); setPCatNewSub(''); return; } // 직접입력 모드
+                      if (v) addExtraCat(v);                                              // 기존 소분류
+                    };
                     return (
-                      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                         {/* 현재 추가된 카테고리 칩 */}
                         {pExtraCats.length > 0 && (
                           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
@@ -7670,42 +7677,43 @@ export default function AdminClient() {
                             ))}
                           </div>
                         )}
-                        {/* 추가 UI: 대분류 선택 → (대분류 직속 추가 / 소분류 선택 / 직접입력 새 소분류) */}
-                        <div style={{ display:'flex', flexDirection:'column', gap:8, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:10 }}>
-                          <AdmSelect style={{ width:'100%' }} value={pCatAddMajor}
-                            onChange={v => setPCatAddMajor(v)}
-                            options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
-                          {pCatAddMajor && (
-                            <>
-                              <button type="button" onClick={() => addExtraCat(pCatAddMajor)}
-                                style={{ alignSelf:'flex-start', border:'1px solid #C7D2FE', background:'#fff', color:'#4338CA', fontSize:12, fontWeight:700, borderRadius:6, padding:'6px 10px', cursor:'pointer' }}>
-                                ＋ 이 대분류(직속)에 추가
-                              </button>
-                              {addSubs.length > 0 && (
-                                <AdmSelect style={{ width:'100%' }} value=""
-                                  placeholder="기존 소분류 선택 → 추가"
-                                  onChange={v => { if (v) addExtraCat(v); }}
-                                  options={[{ value:'', label:'기존 소분류 선택 → 추가' }, ...addSubs.map(s => ({ value:s.tab_value, label:s.label }))]} />
-                              )}
-                              <div style={{ display:'flex', gap:6 }}>
-                                <input className="adm-input-text" style={{ flex:1 }} value={pCatNewSub}
-                                  onChange={e => setPCatNewSub(e.target.value)}
-                                  placeholder="새 소분류 직접입력 (예: 델리오추천)"
-                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); } }} />
-                                <button type="button"
-                                  onClick={async () => {
-                                    const nm = pCatNewSub.trim();
-                                    if (!nm) return;
-                                    const slug = await createSubCategory(pCatAddMajor, nm);
-                                    if (slug) { addExtraCat(slug); setPCatNewSub(''); }
-                                  }}
-                                  style={{ border:'none', background:'#4338CA', color:'#fff', fontSize:12, fontWeight:700, borderRadius:6, padding:'0 14px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                                  ＋ 만들어 추가
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        {/* 대분류 → 소분류 2단 드롭다운 (대표 카테고리와 동일한 방식) */}
+                        <AdmSelect style={{ width:'100%' }} value={pCatAddMajor}
+                          onChange={v => { setPCatAddMajor(v); setPCatCustom(false); setPCatNewSub(''); }}
+                          options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
+                        {pCatAddMajor && !pCatCustom && (
+                          <AdmSelect style={{ width:'100%' }} value=""
+                            placeholder="소분류 선택 → 추가"
+                            onChange={handleSubPick}
+                            options={[
+                              { value:'', label:'소분류 선택 → 추가' },
+                              { value:'__major__', label:'전체 (대분류 직속)' },
+                              ...addSubs.map(s => ({ value:s.tab_value, label:s.label })),
+                              { value:'__custom__', label:'＋ 직접입력 (새 소분류 만들기)' },
+                            ]} />
+                        )}
+                        {pCatAddMajor && pCatCustom && (
+                          <div style={{ display:'flex', gap:6 }}>
+                            <input className="adm-input-text" style={{ flex:1 }} value={pCatNewSub} autoFocus
+                              onChange={e => setPCatNewSub(e.target.value)}
+                              placeholder="새 소분류명 입력 (예: 델리오추천)"
+                              onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} />
+                            <button type="button"
+                              onClick={async () => {
+                                const nm = pCatNewSub.trim();
+                                if (!nm) return;
+                                const slug = await createSubCategory(pCatAddMajor, nm);
+                                if (slug) { addExtraCat(slug); setPCatNewSub(''); setPCatCustom(false); }
+                              }}
+                              style={{ border:'none', background:'#4338CA', color:'#fff', fontSize:12, fontWeight:700, borderRadius:6, padding:'0 14px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                              추가
+                            </button>
+                            <button type="button" onClick={() => { setPCatCustom(false); setPCatNewSub(''); }}
+                              style={{ border:'1px solid #E2E8F0', background:'#fff', color:'#64748B', fontSize:12, fontWeight:700, borderRadius:6, padding:'0 12px', cursor:'pointer' }}>
+                              취소
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
