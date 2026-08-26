@@ -558,6 +558,12 @@ export default function CheckoutClient() {
         router.push(`/order-complete?order=${order.order_no}&vbank=1`);
         return;
       } else {
+        /* 네이버페이 최소 결제금액 10원 — 적립금·쿠폰으로 10원 미만이 되면 결제창 호출 전 차단 (Npay 검수 요건) */
+        if (payMethod === 'naver' && total < 10) {
+          alert('네이버페이는 최소 결제금액이 10원입니다.\n적립금·쿠폰 사용을 조정하시거나 다른 결제수단을 이용해주세요.');
+          setLoading(false); submittingRef.current = false;
+          return;
+        }
         /* ── 포트원 결제창 호출 ── */
         const storeId    = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
         const channelKey = getChannelKey(payMethod);
