@@ -2144,6 +2144,10 @@ export default function AdminClient() {
     seller_score: null,
   };
   const [pForm, setPForm] = useState({ ...PRODUCT_EMPTY });
+  /* 다중 카테고리 — pForm.category(대표) 외에 추가로 속할 카테고리들(대표 제외) */
+  const [pExtraCats, setPExtraCats] = useState<string[]>([]);
+  const [pCatAddMajor, setPCatAddMajor] = useState('');   // 추가 카테고리 UI: 선택한 대분류
+  const [pCatNewSub, setPCatNewSub] = useState('');       // 추가 카테고리 UI: 직접입력 소분류명
   const [pSaving, setPSaving] = useState(false);
   const [pDiscMode, setPDiscMode] = useState<'rate'|'amount'>('amount');
   const [pDiscOn, setPDiscOn] = useState(false); // '할인 판매하기' 체크 → 할인영역 펼침
@@ -3774,6 +3778,28 @@ export default function AdminClient() {
     /* 리로드 없이 화면 state에만 추가 → 깜빡임 없음. 소분류면 상위 아코디언 펼친 채 유지 */
     if (data) setFilterTabs(prev => [...prev, data as FilterTab]);
   }
+  /* 다중 카테고리 — 직접입력으로 새 소분류 생성 후 tab_value 반환 (상품 폼 추가 카테고리용) */
+  async function createSubCategory(parent: string, label: string): Promise<string | null> {
+    const nm = label.trim();
+    if (!nm) return null;
+    const slug = genCatSlug();
+    const maxOrder = filterTabs.reduce((m, t) => Math.max(m, t.sort_order), 0);
+    const { data, error } = await createClient().from('filter_tabs').insert({
+      tab_type: 'category', tab_value: slug, label: nm,
+      emoji: '', bg: '#F5F5F5', sort_order: maxOrder + 10, is_active: true,
+      show_in_home: false, show_in_category: true, show_in_shortcut: false, parent,
+    }).select().single();
+    if (error) { alert('카테고리 생성 실패: ' + error.message); return null; }
+    if (data) setFilterTabs(prev => [...prev, data as FilterTab]);
+    return slug;
+  }
+  /* 추가 카테고리 목록에 넣기 (대표와 중복 방지) */
+  function addExtraCat(v: string) {
+    if (!v || v === pForm.category) return;
+    setPExtraCats(prev => prev.includes(v) ? prev : [...prev, v]);
+  }
+  function removeExtraCat(v: string) { setPExtraCats(prev => prev.filter(x => x !== v)); }
+
   async function deleteCategory(t: FilterTab) {
     const subCount = filterTabs.filter(x => x.parent === t.tab_value).length;
     if (!confirm(`'${t.label}' 삭제할까요?${subCount ? ` (소분류 ${subCount}개도 함께 정리하세요)` : ''}`)) return;
@@ -4012,6 +4038,13 @@ export default function AdminClient() {
             farm_id: data.farm_id, sort_order: data.sort_order || 0,
             seller_score: data.seller_score || null,
           });
+          setPCatAddMajor(''); setPCatNewSub('');
+          // 다중 카테고리: 이 상품이 속한 모든 카테고리 로드 → 대표(data.category) 제외분 = 추가 카테고리
+          supabase.from('product_categories').select('category').eq('product_id', p.id)
+            .then(({ data: pcs }) => {
+              const primary = data.category;
+              setPExtraCats(((pcs || []) as { category: string }[]).map(r => r.category).filter(c => c && c !== primary));
+            });
           setProductModal(true);
         }
       });
@@ -4044,6 +4077,7 @@ export default function AdminClient() {
       setPDiscOn(false); setPDiscAmount(''); setPDiscMode('amount');  // 신규는 할인 접힘, 기본 단위 = 원
       setPSupPurchase(0); setPSupShip(0);
       setPForm({ ...PRODUCT_EMPTY });
+      setPExtraCats([]); setPCatAddMajor(''); setPCatNewSub('');   // 다중 카테고리 초기화
       setPOptions([]);  // 신규는 옵션 없는 단품(무제한)으로 시작 — 재고 수량을 입력하면 자동으로 재고 관리 켜짐
       setProductModal(true);
       // 기본 카테고리 기준 SKU 자동 생성
@@ -4163,6 +4197,18 @@ export default function AdminClient() {
     }
     detailUploadsRef.current = [];
     setDraftImages(null); setDraftInfo(null);
+
+    // ── 다중 카테고리 저장 (product_categories = 대표 + 추가 카테고리 전체 동기화) ──
+    if (productId) {
+      const allCats = Array.from(new Set([payload.category, ...pExtraCats].filter(Boolean)));
+      const { error: pcDelErr } = await supabase.from('product_categories').delete().eq('product_id', productId);
+      if (pcDelErr) console.error('카테고리 동기화(기존 삭제) 오류:', pcDelErr);
+      if (allCats.length) {
+        const { error: pcInsErr } = await supabase.from('product_categories')
+          .insert(allCats.map(c => ({ product_id: productId, category: c })));
+        if (pcInsErr) console.error('카테고리 동기화(추가) 오류:', pcInsErr);
+      }
+    }
 
     setPSaving(false);
     setProductModal(false);
@@ -7595,6 +7641,71 @@ export default function AdminClient() {
                             onChange={v => setCat(v || majorVal)}
                             options={[{ value:'', label:'전체 (대분류 직속)' }, ...subs.map(s => ({ value:s.tab_value, label:s.label }))]} />
                         )}
+                      </div>
+                    );
+                  })()}
+                </div>
+                {/* ── 추가 카테고리 (다중 노출) — 대표 카테고리는 그대로 두고 다른 카테고리에도 함께 노출 ── */}
+                <div style={{ gridColumn:'1 / -1' }}>
+                  <label className="adm-label">추가 카테고리 <span style={{ fontWeight:400, color:'#94A3B8' }}>(선택 · 이 카테고리들에도 함께 노출됩니다)</span></label>
+                  {(() => {
+                    const catLabel = (v: string) => {
+                      const t = catTabsAll.find(x => x.tab_value === v);
+                      if (!t) return v;
+                      if (t.parent) { const par = catTabsAll.find(x => x.tab_value === t.parent); return `${par ? par.label + ' > ' : ''}${t.label}`; }
+                      return t.label;
+                    };
+                    const addSubs = subCatsOf(pCatAddMajor);
+                    return (
+                      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                        {/* 현재 추가된 카테고리 칩 */}
+                        {pExtraCats.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                            {pExtraCats.map(v => (
+                              <span key={v} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#EEF2FF', color:'#4338CA', fontSize:12, fontWeight:700, padding:'5px 8px 5px 10px', borderRadius:6 }}>
+                                {catLabel(v)}
+                                <button type="button" onClick={() => removeExtraCat(v)}
+                                  style={{ border:'none', background:'transparent', color:'#6366F1', cursor:'pointer', fontSize:14, lineHeight:1, padding:0 }}>×</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* 추가 UI: 대분류 선택 → (대분류 직속 추가 / 소분류 선택 / 직접입력 새 소분류) */}
+                        <div style={{ display:'flex', flexDirection:'column', gap:8, background:'#F8FAFC', border:'1px solid #E2E8F0', borderRadius:8, padding:10 }}>
+                          <AdmSelect style={{ width:'100%' }} value={pCatAddMajor}
+                            onChange={v => setPCatAddMajor(v)}
+                            options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
+                          {pCatAddMajor && (
+                            <>
+                              <button type="button" onClick={() => addExtraCat(pCatAddMajor)}
+                                style={{ alignSelf:'flex-start', border:'1px solid #C7D2FE', background:'#fff', color:'#4338CA', fontSize:12, fontWeight:700, borderRadius:6, padding:'6px 10px', cursor:'pointer' }}>
+                                ＋ 이 대분류(직속)에 추가
+                              </button>
+                              {addSubs.length > 0 && (
+                                <AdmSelect style={{ width:'100%' }} value=""
+                                  placeholder="기존 소분류 선택 → 추가"
+                                  onChange={v => { if (v) addExtraCat(v); }}
+                                  options={[{ value:'', label:'기존 소분류 선택 → 추가' }, ...addSubs.map(s => ({ value:s.tab_value, label:s.label }))]} />
+                              )}
+                              <div style={{ display:'flex', gap:6 }}>
+                                <input className="adm-input-text" style={{ flex:1 }} value={pCatNewSub}
+                                  onChange={e => setPCatNewSub(e.target.value)}
+                                  placeholder="새 소분류 직접입력 (예: 델리오추천)"
+                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); } }} />
+                                <button type="button"
+                                  onClick={async () => {
+                                    const nm = pCatNewSub.trim();
+                                    if (!nm) return;
+                                    const slug = await createSubCategory(pCatAddMajor, nm);
+                                    if (slug) { addExtraCat(slug); setPCatNewSub(''); }
+                                  }}
+                                  style={{ border:'none', background:'#4338CA', color:'#fff', fontSize:12, fontWeight:700, borderRadius:6, padding:'0 14px', cursor:'pointer', whiteSpace:'nowrap' }}>
+                                  ＋ 만들어 추가
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                   })()}

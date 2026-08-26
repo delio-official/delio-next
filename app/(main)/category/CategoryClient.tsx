@@ -253,12 +253,18 @@ export default function CategoryClient() {
 
     if (catParam) {
       const row = catRows.find(t => t.tab_value === catParam);
-      if (row && !row.parent) {
-        // 대분류 선택 → 자신 + 소분류 상품 전부
-        const subVals = catRows.filter(t => t.parent === catParam).map(t => t.tab_value);
-        q = q.in('category', [catParam, ...subVals]);
+      // 대분류 선택 → 자신 + 소분류 전부, 소분류 선택 → 자신만
+      const cats = (row && !row.parent)
+        ? [catParam, ...catRows.filter(t => t.parent === catParam).map(t => t.tab_value)]
+        : [catParam];
+      // 다중 카테고리: product_categories(junction)에서 이 카테고리에 속한 상품 id 수집
+      const { data: pcRows } = await supabase.from('product_categories').select('product_id').in('category', cats);
+      const ids = Array.from(new Set(((pcRows as { product_id: string }[] | null) || []).map(r => r.product_id)));
+      if (ids.length) {
+        q = q.in('id', ids);
       } else {
-        q = q.eq('category', catParam);
+        // junction 비어있는 구(舊) 데이터 방어 → 상품의 대표 카테고리 기준 폴백
+        q = q.in('category', cats);
       }
     }
     if (originParam) q = q.eq('origin', originParam);
