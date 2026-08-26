@@ -3709,9 +3709,11 @@ export default function AdminClient() {
     const next = [...group];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
+    // 낙관적 업데이트: 리로드 없이 state의 sort_order만 갱신 → 깜빡임·스크롤 이동 방지
+    const orderMap = new Map(next.map((t, i) => [t.id, (i + 1) * 10]));
+    setFilterTabs(prev => prev.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t));
     const supabase = createClient();
     await Promise.all(next.map((t, i) => supabase.from('filter_tabs').update({ sort_order: (i + 1) * 10 }).eq('id', t.id)));
-    loadFilterTabs();
   }
   async function reorderMenus(draggedId: string, targetId: string) {
     if (draggedId === targetId) return;
@@ -3724,9 +3726,11 @@ export default function AdminClient() {
     const next = [...group];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
+    // 낙관적 업데이트: 리로드 없이 state의 sort_order만 갱신 → 깜빡임·스크롤 이동 방지
+    const orderMap = new Map(next.map((t, i) => [t.id, (i + 1) * 10]));
+    setMenus(prev => prev.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t));
     const supabase = createClient();
     await Promise.all(next.map((t, i) => supabase.from('menu_items').update({ sort_order: (i + 1) * 10 }).eq('id', t.id)));
-    loadMenus();
   }
 
   /* ========== 상단 메뉴 관리 (menu_items) ========== */
