@@ -57,9 +57,11 @@ export function gaBeginCheckout(items: Item[], value: number) {
   gaEvent('begin_checkout', { currency: 'KRW', value, items: items.map(toGaItem) });
 }
 
-/** 결제 완료 */
+/** 결제 완료
+ *  event_id(=주문번호)를 함께 전송 → GTM의 Meta 서버 CAPI 태그가 브라우저 Pixel eventID와
+ *  동일한 값으로 event_id를 매핑해 Deduplication 할 수 있게 노출. */
 export function gaPurchase(transactionId: string, items: Item[], value: number) {
-  gaEvent('purchase', { transaction_id: transactionId, currency: 'KRW', value, items: items.map(toGaItem) });
+  gaEvent('purchase', { transaction_id: transactionId, event_id: transactionId, currency: 'KRW', value, items: items.map(toGaItem) });
 }
 
 /** 스크롤 깊이 — GA4 이벤트 목록에 '25% Scroll'처럼 %별로 각각 뜨도록 이벤트 이름을 나눠 전송.

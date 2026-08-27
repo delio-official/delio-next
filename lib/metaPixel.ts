@@ -49,9 +49,11 @@ export function fbInitiateCheckout(items: Item[], value: number) {
   });
 }
 
-/** 구매 완료 → Purchase (주문 금액 + KRW 전달) */
+/** 구매 완료 → Purchase (주문 금액 + KRW 전달)
+ *  eventID(=주문번호)를 4번째 인자로 전달 → 서버 CAPI event_id와 동일하게 맞춰
+ *  Meta가 브라우저·서버 중복 이벤트를 Deduplication 하도록 함. */
 export function fbPurchase(orderNo: string, items: Item[], value: number) {
-  fbq()?.('track', 'Purchase', {
+  const params = {
     content_ids: items.map(i => i.id),
     content_type: 'product',
     contents: items.map(i => ({ id: i.id, quantity: i.quantity ?? 1 })),
@@ -59,5 +61,8 @@ export function fbPurchase(orderNo: string, items: Item[], value: number) {
     value,
     currency: 'KRW',
     order_id: orderNo,
-  });
+  };
+  // 주문번호가 있으면 eventID로 전달(빈 값 방어) — 서버 CAPI event_id와 일치시켜 중복 제거
+  if (orderNo) fbq()?.('track', 'Purchase', params, { eventID: orderNo });
+  else fbq()?.('track', 'Purchase', params);
 }
