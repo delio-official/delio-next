@@ -575,7 +575,12 @@ export default function CheckoutClient() {
 
         const PortOne = await import('@portone/browser-sdk/v2');
         const selectedMethod = PAYMENT_METHODS.find(m => m.value === payMethod)!;
-        const pid = `delio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        /* 결제 ID = 표시 주문번호와 동일하게(ORD-YYYYMMDD-8hex). DB order_no DEFAULT와 같은 포맷 →
+           finalize에서 order_no로 그대로 사용 → 네이버 merchantPayKey = 화면 주문번호 일치 */
+        const _now = new Date();
+        const _ymd = `${_now.getFullYear()}${String(_now.getMonth() + 1).padStart(2, '0')}${String(_now.getDate()).padStart(2, '0')}`;
+        const _rand8 = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+        const pid = `ORD-${_ymd}-${_rand8}`;
 
         /* 결제창 호출 전, 주문 데이터를 서버에 임시 저장 (웹훅이 브라우저 없이도 주문 확정 가능)
            + 서버 검증(포인트 불가 쿠폰+포인트 등). 실패하면 결제 진행 중단. */

@@ -105,7 +105,12 @@ export async function finalizeOrder(
     payment_method:  orderData.payMethod,
     paid_at:         new Date().toISOString(),
   };
-  if (!bypass) insertRow.portone_payment_id = paymentId;
+  if (!bypass) {
+    insertRow.portone_payment_id = paymentId;
+    // 결제 ID가 주문번호 포맷이면 order_no로 그대로 사용 → 화면 주문번호 = 네이버 merchantPayKey 일치
+    // (구 'delio-' 형식 등은 DB DEFAULT(ORD-…)로 자동 채번 유지)
+    if (/^ORD-\d{8}-[0-9a-f]+$/i.test(paymentId)) insertRow.order_no = paymentId;
+  }
 
   const { data: order, error: orderError } = await supabase
     .from('orders').insert(insertRow).select().single();
