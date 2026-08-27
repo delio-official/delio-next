@@ -82,7 +82,16 @@ export default function CheckoutClient() {
       (data || []).forEach((r: { key: string; value: string }) => { map[r.key] = r.value; });
       /* 네이버페이 검수/테스트 노출 조건(둘 중 하나): ① 지정 테스트 계정으로 로그인  ② URL에 ?npaytest=1
          → 일반 고객에겐 숨겨지고, 지정 계정(또는 파라미터)에게만 노출 (네이버 "특정 계정" 방식) */
-      const npayTest = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('npaytest') === '1';
+      /* ?npaytest=1 은 한 번 방문하면 그 기기에 저장(localStorage)해 이후 로그인·페이지이동과 무관하게 유지
+         → 네이버페이 검수자가 모바일에서 파라미터 없이 이동해도 결제수단이 계속 노출됨 */
+      let npayTest = false;
+      if (typeof window !== 'undefined') {
+        const fromUrl = new URLSearchParams(window.location.search).get('npaytest') === '1';
+        try {
+          if (fromUrl) localStorage.setItem('npaytest', '1');
+          npayTest = fromUrl || localStorage.getItem('npaytest') === '1';
+        } catch { npayTest = fromUrl; }
+      }
       const testEmails = (map['npay_test_emails'] || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
       const isNpayTester = npayTest || (!!user?.email && testEmails.includes(user.email.toLowerCase()));
       const vis = PAYMENT_METHODS.filter(m => {
