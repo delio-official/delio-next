@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
     {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, ...(amount != null ? { amount } : {}) }),
+      // 관리자 취소/환불 → 요청자 = ADMIN(가맹점 관리자) → Npay cancelRequester=2
+      body: JSON.stringify({ reason, requester: 'ADMIN', ...(amount != null ? { amount } : {}) }),
     }
   );
 

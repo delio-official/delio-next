@@ -609,6 +609,8 @@ export default function CheckoutClient() {
           // productItems는 금액이 아닌 상품 '정보'(FDS용)라 쿠폰·포인트 할인과 무관. 결제 총액은 totalAmount로 별도 처리.
           ...(payMethod === 'naver' && {
             productType: 'PRODUCT_TYPE_REAL' as any,
+            // 농산물(신선 과일·채소)은 부가세 면세 → 결제금액 전액을 면세로 전달 (Npay taxExScopeAmount)
+            taxFreeAmount: total,
             products: items.map(i => ({
               id: String(i.id),
               name: i.name,
@@ -616,6 +618,19 @@ export default function CheckoutClient() {
               amount: i.price,
               quantity: i.quantity ?? 1,
             })),
+            // 네이버페이 상품 분류: 일반 배송 실물상품 → categoryType=PRODUCT, categoryId=GENERAL
+            // uid=상품 고유 id(가맹점 상품 구별값). bypass.naverpay.productItems가 Npay productItems로 전달됨.
+            bypass: {
+              naverpay: {
+                productItems: items.map(i => ({
+                  categoryType: 'PRODUCT',
+                  categoryId: 'GENERAL',
+                  uid: String(i.id),
+                  name: i.name,
+                  count: i.quantity ?? 1,
+                })),
+              },
+            } as any,
           }),
           customer: {
             /* PG(이니시스·카카오)에는 결제자(주문자) 이름·연락처를 넘김 — 없으면 수령인으로 폴백.

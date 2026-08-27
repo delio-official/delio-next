@@ -39,7 +39,8 @@ export async function POST(req: Request) {
     const pres = await fetch(`https://api.portone.io/payments/${encodeURIComponent(order.portone_payment_id)}/cancel`, {
       method: 'POST',
       headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason: '고객 주문취소' }),
+      // 취소 사유 = 고객이 고른 사유 그대로, 요청자 = CUSTOMER(구매자) → Npay cancelRequester=1
+      body: JSON.stringify({ reason: reason || '고객 주문취소', requester: 'CUSTOMER' }),
     });
     const pj = await pres.json().catch(() => ({}));
     if (!pres.ok && pj?.type !== 'PAYMENT_ALREADY_CANCELLED') {

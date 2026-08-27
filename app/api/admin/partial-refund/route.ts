@@ -92,7 +92,7 @@ export async function POST(req: Request) {
     const res = await fetch(`https://api.portone.io/payments/${encodeURIComponent(pid)}/cancel`, {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, amount: delta }),
+      body: JSON.stringify({ reason, requester: 'ADMIN', amount: delta }),
     });
     if (!res.ok) pgErr = await res.json().catch(() => ({}));
   }

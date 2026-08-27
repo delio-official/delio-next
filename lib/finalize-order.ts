@@ -134,7 +134,7 @@ export async function finalizeOrder(
           await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`, {
             method: 'POST',
             headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: '재고 부족으로 인한 자동 취소' }),
+            body: JSON.stringify({ reason: '재고 부족으로 인한 자동 취소', requester: 'ADMIN' }),
           }).catch(() => {});
         }
       }
