@@ -53,6 +53,11 @@ export default function PaymentRedirectClient() {
            모바일은 결제창으로 이동했다 이 페이지로 돌아오므로 여기서 쏴야 Meta/GA에 Purchase가 집계됨.
            eventID(주문번호)로 중복제거되므로 서버 CAPI와도 안전하게 dedup됨. */
         if (typeof data.amount === 'number' && Array.isArray(data.items)) {
+          /* 이 페이지는 갓 로드돼 픽셀(fbq)·gtag가 아직 로딩 중일 수 있음 → 준비될 때까지 최대 2.5초 대기 후 발화 */
+          const w = window as unknown as { fbq?: unknown; gtag?: unknown };
+          for (let i = 0; i < 25 && !(typeof w.fbq === 'function' && typeof w.gtag === 'function'); i++) {
+            await new Promise(r => setTimeout(r, 100));
+          }
           try { gaPurchase(data.orderNo, data.items, data.amount); } catch { /* 추적 실패는 주문에 영향 없음 */ }
           try { fbPurchase(data.orderNo, data.items, data.amount); } catch { /* noop */ }
         }
