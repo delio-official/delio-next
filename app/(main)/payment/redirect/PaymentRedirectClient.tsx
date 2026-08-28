@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { clearCart } from '@/lib/cart';
+import { gaPurchase } from '@/lib/gtag';
+import { fbPurchase } from '@/lib/metaPixel';
 
 /* 모바일 REDIRECTION 결제 복귀 핸들러.
    포트원이 redirectUrl로 paymentId(+실패 시 code/message)를 붙여 돌려보냄.
@@ -47,6 +49,13 @@ export default function PaymentRedirectClient() {
           return;
         }
         clearCart();
+        /* 모바일 결제(REDIRECTION) 복귀 시에도 구매 전환 이벤트 발화 — 데스크톱은 CheckoutClient에서 발화하지만
+           모바일은 결제창으로 이동했다 이 페이지로 돌아오므로 여기서 쏴야 Meta/GA에 Purchase가 집계됨.
+           eventID(주문번호)로 중복제거되므로 서버 CAPI와도 안전하게 dedup됨. */
+        if (typeof data.amount === 'number' && Array.isArray(data.items)) {
+          try { gaPurchase(data.orderNo, data.items, data.amount); } catch { /* 추적 실패는 주문에 영향 없음 */ }
+          try { fbPurchase(data.orderNo, data.items, data.amount); } catch { /* noop */ }
+        }
         router.replace(`/order-complete?order=${data.orderNo}&point=${data.earnedPoint}`);
       } catch {
         alert('결제 확인 중 오류가 발생했습니다. 마이페이지에서 주문 내역을 확인해주세요.');

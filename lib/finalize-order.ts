@@ -23,6 +23,9 @@ export interface FinalizeResult {
   alreadyDone?: boolean;
   error?: string;
   status?: number;
+  /* 전환 추적용(모바일 redirect 복귀에서 Purchase 픽셀·GA 발화에 사용) */
+  amount?: number;
+  items?: { id: string; name: string; price: number; quantity: number }[];
 }
 
 /**
@@ -37,11 +40,15 @@ export async function finalizeOrder(
   const bypass = opts.bypass ?? false;
   const supabase = createAdminSupabaseClient();
 
+  /* 전환 추적용 상품·금액(모바일 redirect 복귀에서 Purchase 픽셀·GA 발화에 사용) */
+  const trackItems = orderData.items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }));
+  const trackAmount = orderData.totalAmount;
+
   /* 멱등성: 이미 이 결제로 주문이 있으면 스킵 */
   if (!bypass && paymentId) {
     const { data: existing } = await supabase
       .from('orders').select('order_no').eq('portone_payment_id', paymentId).maybeSingle();
-    if (existing) return { success: true, orderNo: existing.order_no, alreadyDone: true };
+    if (existing) return { success: true, orderNo: existing.order_no, alreadyDone: true, amount: trackAmount, items: trackItems };
   }
 
   /* 포트원 재조회 검증 */
@@ -120,7 +127,7 @@ export async function finalizeOrder(
     if (orderError && (orderError as { code?: string }).code === '23505') {
       const { data: existing } = await supabase
         .from('orders').select('order_no').eq('portone_payment_id', paymentId).maybeSingle();
-      if (existing) return { success: true, orderNo: existing.order_no, alreadyDone: true };
+      if (existing) return { success: true, orderNo: existing.order_no, alreadyDone: true, amount: trackAmount, items: trackItems };
     }
     const oe = orderError as { message?: string; code?: string; details?: string; hint?: string } | null;
     console.error('[finalize] order insert error:', JSON.stringify(oe));
@@ -237,5 +244,5 @@ export async function finalizeOrder(
     } catch { /* noop */ }
   }
 
-  return { success: true, orderNo: order.order_no, earnedPoint: earned };
+  return { success: true, orderNo: order.order_no, earnedPoint: earned, amount: trackAmount, items: trackItems };
 }
