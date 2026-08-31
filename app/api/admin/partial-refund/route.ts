@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, final_amount, partial_refund_amount, portone_payment_id, status')
+    .select('id, user_id, final_amount, partial_refund_amount, portone_payment_id, status, payment_method')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
   /* refunded/cancelled 여부는 아래에서 '카드가 실제로 전액 취소됐는지'까지 확인 후 판단한다.
@@ -89,10 +89,13 @@ export async function POST(req: Request) {
   /* 카드 부분취소 — 딱 delta 만큼만. 성공/실패는 이어지는 재조회로 '실제 반영'을 확인한다(문구 추측 금지). */
   let pgErr: unknown = null;
   if (pid) {
+    // 네이버페이는 결제 시 전액 면세로 승인됨 → 부분취소도 취소금액 전액을 면세로 전달해야 함
+    // (안 하면 '취소 과세금액이 취소 가능 과세금액(0) 초과' 오류). 당사 전 상품 면세.
+    const isNaver = order.payment_method === 'naver';
     const res = await fetch(`https://api.portone.io/payments/${encodeURIComponent(pid)}/cancel`, {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reason, requester: 'ADMIN', amount: delta }),
+      body: JSON.stringify({ reason, requester: 'ADMIN', amount: delta, ...(isNaver ? { taxFreeAmount: delta } : {}) }),
     });
     if (!res.ok) pgErr = await res.json().catch(() => ({}));
   }
