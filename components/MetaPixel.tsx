@@ -36,6 +36,9 @@ export default function MetaPixel() {
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
+          /* 자동 이벤트 감지 OFF — Meta가 가격/'구매' 버튼을 보고 페이지마다 Purchase를
+             자동 발화하는 것을 차단. 우리가 코드로 명시한 이벤트만 집계되게 함(init 전에 설정). */
+          fbq('set', 'autoConfig', false, '${PIXEL_ID}');
           fbq('init', '${PIXEL_ID}');
           fbq('track', 'PageView');
         `}
