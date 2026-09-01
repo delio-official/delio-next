@@ -36,6 +36,10 @@ export default function MetaPixel() {
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
+          /* autoConfig OFF (init 전 필수) — fbevents.js의 자동 버튼/페이지 스캔·자동 이벤트 감지
+             (SubscribedButtonClick, 가격/구매버튼 보고 자동 Purchase 등)를 차단.
+             우리가 코드로 명시한 이벤트만 집계. 브라우저 지시라 Meta 전파와 무관하게 즉시 적용. */
+          fbq('set', 'autoConfig', false, '${PIXEL_ID}');
           fbq('init', '${PIXEL_ID}');
           fbq('track', 'PageView');
         `}
