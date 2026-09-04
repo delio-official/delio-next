@@ -1124,8 +1124,8 @@
     .lounge-date-badge small { font-size: 9px; color: #9A9A9A; font-weight: 600; }
     .lounge-section .lounge-card-meta { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 8px; }
     .lounge-section .lounge-card-cat { font-size: 13.5px; font-weight: 700; color: var(--color-accent); white-space: nowrap; flex-shrink: 0; }
-    /* 카테고리와 부제 사이 얇은 구분선 (레퍼런스: 월간 과일 | 수박의 기준을…) */
-    .lounge-section .lounge-card-cat + .lounge-card-sub::before { content: ''; display: inline-block; width: 1px; height: 11px; background: #DCDCDC; margin-right: 8px; vertical-align: -1px; }
+    /* 카테고리와 부제(뱃지) 사이 얇은 구분선 — 뱃지 배경 밖 별도 요소로(뱃지 안에 넣으면 뱃지색이 구분선까지 덮음) */
+    .lounge-section .lounge-card-divider { display: inline-block; width: 1px; height: 11px; background: #DCDCDC; flex-shrink: 0; align-self: center; }
     .lounge-section .lounge-card-sub { font-size: 13.5px; color: #9A9A9A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     /* 모바일: 홈 라운지 섹션만 온브릭스 스토리식 가로 스크롤 (/lounge 전체보기는 review.css 세로 그리드 유지)
        ※ 데스크톱 규칙보다 아래에 두어야 같은 특이도에서 모바일 값이 적용됨 */

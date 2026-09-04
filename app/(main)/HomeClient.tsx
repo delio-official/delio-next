@@ -1213,7 +1213,14 @@ export default function HomeClient() {
                     </div>
                     <div className="lounge-card-meta">
                       <span className="lounge-card-cat">{LOUNGE_CAT[post.filter] || post.filter}</span>
-                      {parseBadges(post.badge).map((b, i) => <span key={i} className="lounge-card-sub" style={{ background:b.c, color:'#fff', borderRadius:4, padding:'1px 6px' }}>{b.t}</span>)}
+                      {(() => {
+                        const bs = parseBadges(post.badge);
+                        if (bs.length === 0) return null;
+                        return (<>
+                          <span className="lounge-card-divider" aria-hidden />
+                          {bs.map((b, i) => <span key={i} className="lounge-card-sub" style={{ background:b.c, color:'#fff', borderRadius:4, padding:'1px 6px' }}>{b.t}</span>)}
+                        </>);
+                      })()}
                     </div>
                     <div className="lounge-card-title">{post.title}</div>
                   </Link>
