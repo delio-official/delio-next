@@ -7,7 +7,9 @@ export function splitBadges(badge?: string | null): string[] {
 
 export type BadgeItem = { t: string; c: string };
 
-const DEFAULT_BADGE_COLOR = '#1A1A1A';
+/* 색상 미지정(레거시 badge_color=null) 뱃지의 기본색.
+   관리자(AdminClient BADGE_DEFAULT_COLOR)와 동일하게 맞춰야 관리자=사이트 색이 일치함. */
+const DEFAULT_BADGE_COLOR = '#CB1D11';
 
 /** 뱃지 값을 [{텍스트, 색상}] 배열로 파싱.
  *  - 신규 포맷: JSON 배열 [{"t":"당일수확","c":"#CB1D11"}, ...] → 각 뱃지 개별 색상
