@@ -48,9 +48,9 @@ interface ProductInquiry {
   id: string;
   user_id: string | null;
   category: string;
-  content: string;
+  content: string;   // 남의 비밀글이면 서버가 '' 로 마스킹해서 내려줌
   is_private: boolean;
-  password?: string | null;
+  has_password?: boolean;   // 비번 유무만(비번 값은 클라로 안 옴)
   answer: string | null;
   answered_at: string | null;
   created_at: string;
@@ -139,6 +139,7 @@ export default function ProductClient() {
   const [expandedInq, setExpandedInq] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState<Record<string, string>>({});
   const [unlockedInq, setUnlockedInq] = useState<Set<string>>(new Set());
+  const [unlockedContent, setUnlockedContent] = useState<Record<string, string>>({});  // 비번 통과 시 서버가 준 내용
   const [editInqId, setEditInqId] = useState<string | null>(null);
   const [editInqText, setEditInqText] = useState('');
   const [sections,      setSections]      = useState<DetailSection[]>([]);
@@ -271,14 +272,10 @@ export default function ProductClient() {
 
   /* Q&A 탭 진입 시 최신 데이터 로드 (갱신된 목록을 반환 → 등록 직후 페이지 계산에 사용) */
   const refreshInquiries = useCallback(async (): Promise<ProductInquiry[]> => {
-    const { data } = await createClient()
-      .from('product_inquiries')
-      .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
-      .eq('product_id', id)
-      .order('created_at', { ascending: true })
-      .limit(100);
-    const list = (data as unknown as ProductInquiry[]) || [];
-    if (data) setInquiries(list);
+    /* 서버 sanitize 경유 — 남의 비밀글 내용/비번은 내려오지 않음 */
+    const j = await fetch(`/api/product-inquiries?productId=${id}`).then(r => r.json()).catch(() => null);
+    const list = (j?.inquiries as ProductInquiry[]) || [];
+    setInquiries(list);
     return list;
   }, [id]); // eslint-disable-line
 
@@ -388,11 +385,8 @@ export default function ProductClient() {
             .select('*').eq('product_id', id).order('sort_order'),
           supabase.from('product_detail_sections')
             .select('*').eq('product_id', id).eq('section_type', 'info_content').maybeSingle(),
-          supabase.from('product_inquiries')
-            .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
-            .eq('product_id', id)
-            .order('created_at', { ascending: true })
-            .limit(100),
+          /* Q&A는 서버 sanitize 경유(남의 비밀글 내용/비번 미전송) */
+          fetch(`/api/product-inquiries?productId=${id}`).then(r => r.json()).then(j => ({ data: j.inquiries })).catch(() => ({ data: [] })),
         ]);
 
       if (!prod) { router.push('/'); return; }
@@ -1162,6 +1156,20 @@ export default function ProductClient() {
     setInquiries(prev => prev.filter(x => x.id !== id));
     setExpandedInq(null);
     showToast('문의가 삭제되었습니다.');
+  }
+
+  /* 비밀글 잠금해제 — 서버에서 비번 대조(맞으면 내용 반환). 비번은 서버에서만 확인 */
+  async function unlockInquiry(qid: string) {
+    const j = await fetch('/api/product-inquiries/unlock', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: qid, password: pwInput[qid] || '' }),
+    }).then(r => r.json()).catch(() => null);
+    if (j?.ok) {
+      setUnlockedContent(prev => ({ ...prev, [qid]: j.content ?? '' }));
+      setUnlockedInq(prev => new Set([...prev, qid]));
+    } else {
+      alert('비밀번호가 틀렸습니다.');
+    }
   }
 
   /* ── 본인 문의 수정 (인라인) ── */
@@ -2810,32 +2818,18 @@ export default function ProductClient() {
                             </span>
                           </div>
                         </div>
-                        {isExpanded && isLocked && !isUnlocked && q.password && !isMe && !isAdmin && (
+                        {isExpanded && isLocked && !isUnlocked && q.has_password && !isMe && !isAdmin && (
                           <div style={{ background:'#FAFAF8', borderBottom:'1px solid #E8E8E6', padding:'16px 20px' }}>
                             <div style={{ fontSize:13, color:'#555', marginBottom:10 }}>🔒 비밀 문의입니다. 비밀번호를 입력하세요.</div>
                             <div style={{ display:'flex', gap:8 }}>
                               <input type="password" placeholder="비밀번호" maxLength={20}
                                 value={pwInput[q.id] || ''}
                                 onChange={e => setPwInput(prev => ({ ...prev, [q.id]: e.target.value }))}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') {
-                                    if (pwInput[q.id] === q.password) {
-                                      setUnlockedInq(prev => new Set([...prev, q.id]));
-                                    } else {
-                                      alert('비밀번호가 틀렸습니다.');
-                                    }
-                                  }
-                                }}
+                                onKeyDown={e => { if (e.key === 'Enter') unlockInquiry(q.id); }}
                                 style={{ flex:1, minWidth:0, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
                               <button
                                 style={{ flexShrink:0, whiteSpace:'nowrap', height:36, padding:'0 16px', background:'#1A1A1A', color:'#fff', border:'none', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer' }}
-                                onClick={() => {
-                                  if (pwInput[q.id] === q.password) {
-                                    setUnlockedInq(prev => new Set([...prev, q.id]));
-                                  } else {
-                                    alert('비밀번호가 틀렸습니다.');
-                                  }
-                                }}>확인</button>
+                                onClick={() => unlockInquiry(q.id)}>확인</button>
                             </div>
                           </div>
                         )}
@@ -2855,7 +2849,7 @@ export default function ProductClient() {
                               </div>
                             ) : (
                               <div style={{ fontSize:13, color:'#333', lineHeight:1.8, marginBottom: q.answer ? 16 : 0, whiteSpace:'pre-wrap' }}>
-                                {q.content}
+                                {unlockedContent[q.id] ?? q.content}
                               </div>
                             )}
                             {/* 답변 */}
