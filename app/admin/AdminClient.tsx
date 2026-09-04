@@ -9863,8 +9863,8 @@ export default function AdminClient() {
                               </td>}
 
                               {/* 상품 — 한 주문에 여러 품목이면 '외 N건'으로 접지 않고 전부 펼쳐 표시 (정산 대조용) */}
-                              <td style={{ whiteSpace:'normal', textAlign:'left' }}>
-                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'left', whiteSpace:'normal' }}>
+                              <td style={{ whiteSpace:'normal', textAlign:'center' }}>
+                                <div style={{ lineHeight:1.4, width:'100%', minWidth:0, textAlign:'center', whiteSpace:'normal' }}>
                                   {g.items.length > 0 ? g.items.map((it, idx) => {
                                     const io = it.option_label || '';
                                     let inm = it.product_name || '상품';
