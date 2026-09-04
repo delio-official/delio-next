@@ -141,15 +141,6 @@ body { background: #fff; }
   color: #999;
 }
 
-/* 스켈레톤 */
-.event-card-skeleton {
-  border-radius: 12px;
-  aspect-ratio: 1.6 / 1;
-  background: #F0F0EE;
-  animation: ev-pulse 1.2s ease-in-out infinite alternate;
-}
-@keyframes ev-pulse { from { opacity: 1; } to { opacity: 0.5; } }
-
 /* ══════════════════════════════════
    반응형
 ══════════════════════════════════ */
