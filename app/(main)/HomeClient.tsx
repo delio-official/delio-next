@@ -36,6 +36,7 @@ interface LoungePost {
   emoji: string;
   title: string;
   badge: string;
+  badge_color: string | null;
   date: string;
   filter: string;
   thumbnail_url: string | null;
@@ -713,7 +714,7 @@ export default function HomeClient() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'lounge');
       if (cfg.count === 0) { setLoungePosts([]); setLoungeLoaded(true); return; }
-      const cols = 'id,bg,emoji,title,badge,date,filter,thumbnail_url';
+      const cols = 'id,bg,emoji,title,badge,badge_color,date,filter,thumbnail_url';
 
       let rows: LoungePost[] = [];
       if (cfg.mode === 'manual') {
@@ -1214,7 +1215,7 @@ export default function HomeClient() {
                     <div className="lounge-card-meta">
                       <span className="lounge-card-cat">{LOUNGE_CAT[post.filter] || post.filter}</span>
                       {(() => {
-                        const bs = parseBadges(post.badge);
+                        const bs = parseBadges(post.badge, post.badge_color);
                         if (bs.length === 0) return null;
                         return (<>
                           <span className="lounge-card-divider" aria-hidden />
