@@ -3757,7 +3757,7 @@ export default function AdminClient() {
     else setMenus(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
   }
   async function deleteMenu(id: string) {
-    if (!confirm('이 메뉴를 삭제할까요? (하위 링크도 함께 삭제됩니다)')) return;
+    if (!confirm('이 메뉴를 삭제할까요? (소분류도 함께 삭제됩니다)')) return;
     const sb = createClient();
     await sb.from('menu_items').delete().eq('parent', id); // 하위 링크 먼저
     await sb.from('menu_items').delete().eq('id', id);
@@ -10189,13 +10189,13 @@ export default function AdminClient() {
                       <div key={g.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, opacity: g.is_active ? 1 : 0.55 }}>
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                           <span style={{ fontSize:11, fontWeight:800, color:'#2563EB' }}>메뉴 그룹</span>
-                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(g.id); return n; }); addMenu({ parent:g.id, label:'새 링크', href:'/' }); }} style={addMiniSt} title="하위 추가">+ 하위</button>
+                          <button type="button" onClick={() => { setOpenMegaCat(p => { const n = new Set(p); n.add(g.id); return n; }); addMenu({ parent:g.id, label:'새 링크', href:'/' }); }} style={addMiniSt} title="소분류 추가">+ 소분류</button>
                         </div>
                         <div style={rowSt} onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', g.id); dragRow.current = null; }}>
                           <button type="button" onClick={() => toggleMegaCat(g.id)} style={caretSt} title={open ? '접기' : '펼치기'}>{open ? '▼' : '▶'}</button>
                           <span draggable onDragStart={() => { dragRow.current = g.id; }} onDragEnd={() => { dragRow.current = null; }} style={handleSt} title="드래그로 순서 변경">⠿⠿</span>
                           {mText(g)}
-                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0, width:48, textAlign:'right', whiteSpace:'nowrap' }}>하위 {subs.length}</span>
+                          <span style={{ fontSize:11, color:'#94A3B8', flexShrink:0, width:48, textAlign:'right', whiteSpace:'nowrap' }}>소분류 {subs.length}</span>
                           <AdmToggle on={g.is_active} color="#2563EB" onChange={v => updateMenu(g.id, { is_active: v }, false)} title="노출" />
                           <button type="button" onClick={() => deleteMenu(g.id)} style={delSt}>삭제</button>
                         </div>
