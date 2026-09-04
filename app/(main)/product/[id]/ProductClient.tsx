@@ -2777,7 +2777,8 @@ export default function ProductClient() {
                     const isLocked = q.is_private;
                     const isExpanded = expandedInq === q.id;
                     const isUnlocked = unlockedInq.has(q.id);
-                    const canView = !q.is_private || isUnlocked || isAdmin || isMe || (q.is_private && !q.password);
+                    /* 비밀글은 작성자(isMe)·관리자·비번해제(isUnlocked)만 열람. 비번 없는 비밀글도 타인에겐 숨김 */
+                    const canView = !q.is_private || isUnlocked || isAdmin || isMe;
                     return (
                       <div key={q.id}>
                         <div className="qna-row" style={{ cursor: 'pointer' }}
