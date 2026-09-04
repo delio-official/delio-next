@@ -80,10 +80,10 @@ function ProductPreviewCard(p: PreviewProps) {
       <div style={{ padding:'10px 6px 12px', display:'flex', flexDirection:'column', flex:1 }}>
         {/* 뱃지 — 모바일 카드는 스토어에서 숨김 */}
         {!mob && (
-          <div style={{ height:22, display:'flex', alignItems:'center', gap:4, marginBottom:6 }}>
-            {p.isNew  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>NEW</span>}
-            {p.isBest && <span style={{ fontSize:11, fontWeight:800, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff' }}>인기</span>}
-            {parseBadges(p.badge, p.badgeColor).map((b, i) => <span key={`b${i}`} style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:b.c, color:'#fff' }}>{b.t}</span>)}
+          <div style={{ minHeight:22, display:'flex', flexWrap:'wrap', alignItems:'center', gap:4, rowGap:4, marginBottom:6 }}>
+            {p.isNew  && <span style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>NEW</span>}
+            {p.isBest && <span style={{ fontSize:11, fontWeight:800, padding:'2px 6px', borderRadius:4, background:'#1A1A1A', color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>인기</span>}
+            {parseBadges(p.badge, p.badgeColor).map((b, i) => <span key={`b${i}`} style={{ fontSize:11, fontWeight:700, padding:'2px 6px', borderRadius:4, background:b.c, color:'#fff', whiteSpace:'nowrap', flexShrink:0 }}>{b.t}</span>)}
           </div>
         )}
         <div style={{ fontSize: mob ? 14 : 17, fontWeight:600, color:'#1A1A1A', lineHeight:1.4,
