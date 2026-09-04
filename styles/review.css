@@ -204,14 +204,13 @@ body { background: #fff; }
     flex-direction: column;
     align-items: flex-start;
   }
-  /* 모바일: 필터가 한 줄 넘치면 가로 슬라이드 대신 다음 줄로 줄바꿈(아래로) */
-  .lounge-filters-row { overflow-x: visible; }
+  /* 모바일: 필터가 한 줄 넘치면 가로 슬라이드 대신 다음 줄로 줄바꿈(아래로) + 중앙정렬 */
+  .lounge-filters-row { overflow-x: visible; justify-content: center; }
   .lounge-filters {
     flex-wrap: wrap;
     row-gap: 8px;
-    justify-content: flex-start;
+    justify-content: center;
   }
-  .lounge-filters-row { justify-content: flex-start; }
 }
 
 /* ===== 페이지네이션 ===== */
