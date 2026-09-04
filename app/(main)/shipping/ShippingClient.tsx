@@ -31,15 +31,15 @@ export default function ShippingClient() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={cfg.img} alt="배송안내" style={{ width: '100%', display: 'block' }} />
 
-        {/* 상단 탭 전환 (좌: 델리오 프레쉬센터 / 우: 산지직송) */}
+        {/* 상단 탭 전환 (좌: 델리오 프레쉬센터 / 우: 산지직송) — 탭 시 회색 하이라이트 박스 제거 */}
         <button type="button" aria-label="델리오 프레쉬센터(자사배송)" onClick={() => setTab('own')}
-          style={{ position: 'absolute', left: '4%', top: `${cfg.tabTop}%`, width: '46%', height: '4.5%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }} />
+          style={{ position: 'absolute', left: '4%', top: `${cfg.tabTop}%`, width: '46%', height: '4.5%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent', outline: 'none', appearance: 'none' }} />
         <button type="button" aria-label="산지직송" onClick={() => setTab('dawn')}
-          style={{ position: 'absolute', left: '50%', top: `${cfg.tabTop}%`, width: '46%', height: '4.5%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }} />
+          style={{ position: 'absolute', left: '50%', top: `${cfg.tabTop}%`, width: '46%', height: '4.5%', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent', outline: 'none', appearance: 'none' }} />
 
         {/* 지금 주문하기 → 해당 상품목록 */}
         <Link href={cfg.order} aria-label="지금 주문하기"
-          style={{ position: 'absolute', left: '22%', top: `${cfg.orderTop}%`, width: '56%', height: '3.4%', cursor: 'pointer' }} />
+          style={{ position: 'absolute', left: '22%', top: `${cfg.orderTop}%`, width: '56%', height: '3.4%', cursor: 'pointer', WebkitTapHighlightColor: 'transparent', outline: 'none' }} />
       </div>
     </div>
   );
