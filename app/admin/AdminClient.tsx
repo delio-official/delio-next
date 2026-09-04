@@ -10141,6 +10141,11 @@ export default function AdminClient() {
                       const addMiniSt: React.CSSProperties = { flexShrink:0, fontSize:11, fontWeight:700, color:'#475569', background:'#fff', border:'1px dashed #C4C4C4', borderRadius:6, padding:'4px 9px', cursor:'pointer', whiteSpace:'nowrap' };
                       return (
                     <>
+                    {/* 카테고리 섹션 헤더 — 추가 버튼 우측 상단 */}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                      <span style={{ fontSize:13, fontWeight:800, color:'#334155' }}>카테고리</span>
+                      <button type="button" onClick={() => addCategory(null)} style={addMiniSt}>+ 카테고리 추가</button>
+                    </div>
                     {/* 카테고리 대분류 컬럼 */}
                     {majors.map(m => {
                       const subs = filterTabs.filter(s => s.parent===m.tab_value).sort((a,b)=>a.sort_order-b.sort_order);
@@ -10177,8 +10182,11 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
-                    <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:14 }}>
-                      <button type="button" onClick={() => addCategory(null)} style={addMiniSt}>+ 카테고리 추가</button>
+                    <div style={{ marginBottom:14 }} />
+                    {/* 메뉴 그룹 섹션 헤더 — 추가 버튼 우측 상단 */}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                      <span style={{ fontSize:13, fontWeight:800, color:'#334155' }}>메뉴 그룹</span>
+                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addMiniSt}>+ 메뉴 그룹 추가</button>
                     </div>
                     {/* 메뉴 그룹 컬럼 */}
                     {megaGroups.map(g => {
@@ -10214,9 +10222,6 @@ export default function AdminClient() {
                       </div>
                       );
                     })}
-                    <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                      <button type="button" onClick={() => addMenu({ show_in_mega:true, parent:null, label:'새 메뉴 그룹', href:'/' })} style={addMiniSt}>+ 메뉴 그룹 추가</button>
-                    </div>
                     </>
                       );
                     })()}
