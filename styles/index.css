@@ -1143,10 +1143,14 @@
         box-shadow: 0 2px 10px rgba(0,0,0,.05);
       }
       .lounge-section .lounge-card:hover { transform: none; }
-      .lounge-section .lounge-card-img { aspect-ratio: 1.6/1; margin-bottom: 0; font-size: 60px; border-radius: 0 !important; }
-      .lounge-section .lounge-card-meta { gap: 7px; margin: 10px 12px 2px; }
+      /* 상단 모서리 둥글게(카드 상단과 맞춤) */
+      .lounge-section .lounge-card-img { aspect-ratio: 1.6/1; margin-bottom: 0; font-size: 60px; border-radius: 14px 14px 0 0 !important; }
+      /* 제목-뱃지 간격 살짝 축소(하단 마진 2→0) */
+      .lounge-section .lounge-card-meta { gap: 7px; margin: 10px 12px 0; }
       .lounge-section .lounge-card-cat, .lounge-section .lounge-card-sub { font-size: 12px; }
       .lounge-section .lounge-card-title { font-size: 15.5px; margin: 0 12px 12px; text-align: left; }
+      /* 섹션 제목("델리오 라운지") 살짝 축소(모바일 공통 25px → 22px, 라운지만) */
+      .lounge-section .g-title-main > span { font-size: 22px; }
     }
     .lounge-more-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; max-width: 460px; margin: 0 auto; padding: 16px; border: 1.5px solid #E0E0DC; border-radius: 8px; background: #fff; font-size: 16px; font-weight: 600; color: var(--color-ink); cursor: pointer; text-decoration: none; }
 

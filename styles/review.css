@@ -194,7 +194,8 @@ body { background: #fff; }
     gap: 16px;
   }
 }
-@media (max-width: 560px) {
+@media (max-width: 768px) {
+  /* 모바일: 1열 세로 나열(아래로 스크롤). 홈 라운지(≤768px 1열)와 브레이크포인트 통일 */
   .lounge-grid {
     grid-template-columns: 1fr;
     gap: 20px;
