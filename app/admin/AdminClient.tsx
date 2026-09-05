@@ -2491,7 +2491,7 @@ export default function AdminClient() {
   const [pointSubtab, setPointSubtab] = useState<'members' | 'history'>('members'); // 회원별 포인트 / 전체 내역
   const [earnSaving, setEarnSaving] = useState(false);
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
-  const [pointLogs, setPointLogs] = useState<{ id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null; grade?: string|null } | null }[]>([]);
+  const [pointLogs, setPointLogs] = useState<{ id: string; user_id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null; grade?: string|null } | null }[]>([]);
   const [pointLogFrom, setPointLogFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
   const [pointLogTo, setPointLogTo] = useState<string>(() => ymd(new Date()));
   const [plType, setPlType] = useState<'all'|'earn'|'use'>('all');
@@ -6761,7 +6761,7 @@ export default function AdminClient() {
     const t = to ?? pointLogTo;
     const supabase = createClient();
     let q = supabase.from('point_logs')
-      .select('id, amount, created_at, description, profiles:user_id(name, email, grade)')
+      .select('id, user_id, amount, created_at, description, profiles:user_id(name, email, grade)')
       .order('created_at', { ascending: false }).limit(500);
     if (f) q = q.gte('created_at', new Date(`${f}T00:00:00`).toISOString());
     if (t) q = q.lte('created_at', new Date(`${t}T23:59:59`).toISOString());
@@ -6774,6 +6774,12 @@ export default function AdminClient() {
     setPointHistLoading(true);
     setPointHistLogs([]);
     const supabase = createClient();
+    // 전체 내역에서 열 때는 잔액 정보가 없으므로 profiles에서 최신 잔액을 보정
+    if (m.point_balance == null) {
+      const { data: prof } = await supabase.from('profiles')
+        .select('point_balance').eq('id', m.id).maybeSingle();
+      if (prof) setPointHistMember({ ...m, point_balance: (prof as { point_balance: number }).point_balance });
+    }
     const { data } = await supabase.from('point_logs')
       .select('id, amount, created_at, description')
       .eq('user_id', m.id)
@@ -11062,7 +11068,8 @@ export default function AdminClient() {
                           {filteredPointLogs.length === 0 ? (
                             <tr><td colSpan={5} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>해당 조건의 포인트 내역이 없습니다.</td></tr>
                           ) : pagedPointLogs.map(l => (
-                            <tr key={l.id}>
+                            <tr key={l.id} style={l.user_id ? { cursor:'pointer' } : undefined}
+                              onClick={l.user_id ? () => openPointHistory({ id: l.user_id, name: l.profiles?.name || '-', email: l.profiles?.email || '', point_balance: null } as unknown as AdminProfile) : undefined}>
                               <td className="adm-muted">{fmtDate(l.created_at)}</td>
                               <td>{l.profiles?.name || '-'} <span className="adm-muted" style={{ fontSize:12 }}>{l.profiles?.email || ''}</span></td>
                               <td>
