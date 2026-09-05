@@ -10252,7 +10252,7 @@ export default function AdminClient() {
                       <button className="adm-btn adm-btn-outline" onClick={() => addMenu({ show_in_header:true, parent:null, label:'새 메뉴', href:'/' })}>+ 메뉴 추가</button>
                     </div></div>
                     {navItems.map(m => (
-                      <div key={m.id} className="adm-card" style={{ padding:'10px 14px', marginBottom:8, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}
+                      <div key={m.id} className="adm-card" style={{ padding:'14px 16px', marginBottom:12, display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}
                         onDragOver={e => e.preventDefault()} onDrop={() => { reorderMenus(dragRow.current || '', m.id); dragRow.current = null; }}>
                         <span draggable onDragStart={() => { dragRow.current = m.id; }} onDragEnd={() => { dragRow.current = null; }} style={{ cursor:'grab', color:'#B8B8B8', fontSize:15, letterSpacing:'-2px', flexShrink:0, userSelect:'none' }} title="드래그로 순서 변경">⠿⠿</span>
                         {mIn(m,'label','메뉴명','1 1 120px')}
