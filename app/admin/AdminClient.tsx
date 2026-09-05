@@ -2366,6 +2366,9 @@ export default function AdminClient() {
   const [qgTitleEdit, setQgTitleEdit] = useState<{ id: number; val: string } | null>(null); // 가이드 제목 인라인 수정
   const [qgProdSearch, setQgProdSearch] = useState('');
   const qgProdDragIdx = useRef<number | null>(null); // 담긴 상품 드래그 순서변경
+  const [qgDirty, setQgDirty] = useState(false);   // 저장 안 된 변경 있음
+  const [qgSaving, setQgSaving] = useState(false);
+  const [qgSavedMsg, setQgSavedMsg] = useState('');
   /* 섹션관리 상단 카드 접기/펼치기 */
   /* 메인페이지 섹션관리 접기/펼치기 기본값 — 메인섹션 노출·바로가기 필탭만 펼침, 나머지 닫힘 */
   const [secOpen, setSecOpen] = useState<{ toggles: boolean; links: boolean; qg: boolean }>({ toggles: true, links: true, qg: false });
@@ -3609,32 +3612,45 @@ export default function AdminClient() {
     const title = qgNewTitle.trim();
     if (!title) { alert('가이드 제목을 입력하세요. (예: 부모님 선물 BEST)'); return; }
     const nextOrder = qgGroups.length ? Math.max(...qgGroups.map(g => g.sort_order)) + 1 : 0;
-    const { error } = await createClient().from('quickguide_groups').insert({ title, sort_order: nextOrder });
+    // 새 가이드는 즉시 생성하되, 리로드 없이 로컬 state에 추가해 저장 안 된 다른 편집 내용을 보존
+    const { data, error } = await createClient().from('quickguide_groups')
+      .insert({ title, sort_order: nextOrder }).select('id, title, product_ids, sort_order, is_active').single();
     if (error) { alert('추가 실패: ' + error.message); return; }
-    setQgNewTitle(''); loadQgGroups();
+    setQgNewTitle('');
+    if (data) setQgGroups(prev => [...prev, data as QGGroup]);
+    else loadQgGroups();
   }
-  async function updateQgGroup(id: number, patch: Partial<QGGroup>) {
-    setQgGroups(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g));  // 낙관적
-    const { error } = await createClient().from('quickguide_groups').update(patch).eq('id', id);
-    if (error) { alert('저장 실패: ' + error.message); loadQgGroups(); }
+  // 필드 편집(제목·노출·상품·순서)은 로컬 state에만 반영 → '저장' 눌러야 DB 반영
+  function updateQgGroup(id: number, patch: Partial<QGGroup>) {
+    setQgGroups(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g));
+    setQgDirty(true);
   }
   async function deleteQgGroup(g: QGGroup) {
     if (!confirm(`'${g.title}' 가이드를 삭제할까요?`)) return;
     if (qgPickerId === g.id) setQgPickerId(null);
+    // 삭제는 즉시 반영(구조 변경)하되 리로드 없이 로컬에서 제거해 저장 안 된 편집 보존
     const { error } = await createClient().from('quickguide_groups').delete().eq('id', g.id);
     if (error) { alert('삭제 실패: ' + error.message); return; }
-    loadQgGroups();
+    setQgGroups(prev => prev.filter(x => x.id !== g.id));
   }
-  async function reorderQgGroups(draggedId: number, targetId: number) {
+  function reorderQgGroups(draggedId: number, targetId: number) {
     if (draggedId === targetId) return;
     const arr = [...qgGroups];
     const from = arr.findIndex(g => g.id === draggedId), to = arr.findIndex(g => g.id === targetId);
     if (from < 0 || to < 0) return;
     const [moved] = arr.splice(from, 1); arr.splice(to, 0, moved);
-    setQgGroups(arr.map((g, i) => ({ ...g, sort_order: i })));
+    setQgGroups(arr.map((g, i) => ({ ...g, sort_order: i })));  // 로컬만
+    setQgDirty(true);
+  }
+  /* 퀵가이드 편집 내용(제목·노출·상품·순서) 일괄 저장 */
+  async function saveQgGroups() {
+    setQgSaving(true);
     const supabase = createClient();
-    await Promise.all(arr.map((g, i) => supabase.from('quickguide_groups').update({ sort_order: i }).eq('id', g.id)));
-    loadQgGroups();
+    const rows = qgGroups.map(g => ({ id: g.id, title: g.title, product_ids: g.product_ids, is_active: g.is_active, sort_order: g.sort_order }));
+    const { error } = await supabase.from('quickguide_groups').upsert(rows, { onConflict: 'id' });
+    setQgSaving(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setQgDirty(false); setQgSavedMsg('저장됐어요 ✓'); setTimeout(() => setQgSavedMsg(''), 2500);
   }
   function openFtModal(t?: FilterTab, preset?: Partial<typeof FT_EMPTY>) {
     if (t) {
@@ -12023,14 +12039,25 @@ export default function AdminClient() {
 
               {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
-                <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', marginBottom: secOpen.qg ? 12 : 0 }}>
-                  <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.qg ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
-                  <div>
-                    <span className="adm-card-title">퀵 가이드</span>
-                    {secOpen.qg
-                      ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다.</div>
-                      : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 가이드 {qgGroups.length}개</span>}
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom: secOpen.qg ? 12 : 0 }}>
+                  <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', flex:1, minWidth:0 }}>
+                    <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.qg ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
+                    <div>
+                      <span className="adm-card-title">퀵 가이드</span>
+                      {secOpen.qg
+                        ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다. <b style={{ color:'#475569' }}>제목·노출·상품·순서 변경은 ‘저장’을 눌러야 반영됩니다.</b></div>
+                        : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 가이드 {qgGroups.length}개{qgDirty ? ' · 저장 안 됨' : ''}</span>}
+                    </div>
                   </div>
+                  {secOpen.qg && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {qgSavedMsg && <span style={{ fontSize:12, color:'#16A34A', fontWeight:700 }}>{qgSavedMsg}</span>}
+                      <button onClick={saveQgGroups} disabled={qgSaving || !qgDirty}
+                        style={{ fontSize:13, fontWeight:700, color:'#fff', background: qgDirty ? '#2563EB' : '#CBD5E1', border:'none', borderRadius:7, padding:'8px 16px', cursor: qgDirty && !qgSaving ? 'pointer' : 'default', opacity: qgSaving ? 0.6 : 1 }}>
+                        {qgSaving ? '저장 중…' : '저장'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {secOpen.qg && (<>
                 {/* 새 가이드 추가 */}
