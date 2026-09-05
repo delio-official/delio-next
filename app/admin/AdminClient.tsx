@@ -15908,8 +15908,8 @@ export default function AdminClient() {
               </div>
             </div>
 
-            {/* 푸터 — 상단 실선 제거 */}
-            <div className="adm-modal-foot" style={{ borderTop:'none', background:'#fff', margin:'0 -28px', padding:'14px 28px 14px' }}>
+            {/* 푸터 — 처리상태 섹션 위로 겹치지 않도록 sticky 해제(정적 배치) */}
+            <div className="adm-modal-foot" style={{ position:'static', borderTop:'none', background:'#fff', margin:'0 -28px', padding:'14px 28px 0' }}>
               <button className="adm-btn adm-btn-outline" onClick={() => setSelectedInquiry(null)}>닫기</button>
               <button className="adm-btn adm-btn-primary" onClick={saveInquiryDetail}>저장</button>
             </div>
