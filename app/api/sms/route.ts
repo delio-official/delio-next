@@ -85,33 +85,56 @@ export async function POST(req: NextRequest) {
 
   const result = await solapiRes.json().catch(() => ({}));
 
+  /* ── 부분 실패 집계 ──
+     솔라피 send-many는 접수(등록) 결과를 groupInfo.count(registeredSuccess/Failed)와
+     failedMessageList로 알려준다. 이 시점 실패 = 번호오류·차단 등 '접수 거부' 건.
+     (통신사 최종 배송실패는 접수 후 비동기라 웹훅 없이는 알 수 없음) */
+  const total = targets.length;
+  const failedList: { to?: string; statusMessage?: string; statusCode?: string; reason?: string }[] =
+    Array.isArray(result?.failedMessageList) ? result.failedMessageList : [];
+  const giFailed = Number(result?.groupInfo?.count?.registeredFailed);
+  const failedCount = solapiRes.ok
+    ? (failedList.length || (Number.isFinite(giFailed) ? giFailed : 0))
+    : total;                          // 요청 자체 실패면 전건 실패
+  const successCount = Math.max(0, total - failedCount);
+  const allFailed = successCount === 0;
+  const partialFail = !allFailed && failedCount > 0;
+  const chargeCost = unit * successCount;   // 성공 건만 과금
+
+  const failReasons = failedList.slice(0, 8)
+    .map(f => `· ${f.to || '-'}: ${f.statusMessage || f.reason || f.statusCode || '실패'}`).join('\n');
+  const errorMsg = allFailed
+    ? (result?.error?.message || failReasons || JSON.stringify(result))
+    : (partialFail ? `일부 접수 실패 ${failedCount}/${total}건${failReasons ? `\n${failReasons}` : ''}` : null);
+
   /* ── Supabase에 발송 이력 저장 ── */
   try {
     const supabase = await createServerSupabaseClient();
     await supabase.from('sms_logs').insert({
       message:       finalText,
-      target_count:  targets.length,
+      target_count:  total,
       msg_type:      isLms ? 'LMS' : 'SMS',
       msg_kind:      kind,
-      cost:          solapiRes.ok ? cost : 0,
+      cost:          allFailed ? 0 : chargeCost,
       scheduled_at:  schedDate,
-      status:        !solapiRes.ok ? 'failed' : (schedDate ? 'reserved' : 'sent'),
-      error_msg:     solapiRes.ok ? null : (result?.error?.message || JSON.stringify(result)),
+      status:        allFailed ? 'failed' : (schedDate ? 'reserved' : 'sent'),
+      error_msg:     errorMsg,                 // 부분 실패 시에도 사유 기록(상태는 완료 유지)
     });
   } catch { /* 로그 저장 실패는 무시 */ }
 
-  if (!solapiRes.ok) {
+  if (!solapiRes.ok || allFailed) {
     return NextResponse.json(
-      { error: result?.error?.message || '발송 실패', detail: result },
+      { error: result?.error?.message || failReasons || '발송 실패', detail: result },
       { status: 502 },
     );
   }
 
   return NextResponse.json({
     success: true,
-    sent: targets.length,
+    sent: successCount,
+    failed: failedCount,
     type: isLms ? 'LMS' : 'SMS',
     reserved: !!schedDate,
-    cost,
+    cost: chargeCost,
   });
 }

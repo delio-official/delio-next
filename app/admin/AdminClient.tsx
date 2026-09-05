@@ -1171,7 +1171,10 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
     setSending(false);
     if (!res.ok) { alert('발송 실패: ' + (data.error || '알 수 없는 오류')); }
     else {
-      alert(data.reserved ? `✅ ${data.sent}명에게 예약 완료` : `✅ ${data.sent}명에게 ${data.type} 발송 완료`);
+      const failNote = data.failed ? `\n⚠️ ${data.failed}명은 접수 실패(번호오류·차단 등)로 제외됐어요.` : '';
+      alert(data.reserved
+        ? `✅ ${data.sent}명에게 예약 완료${failNote}`
+        : `✅ ${data.sent}명에게 ${data.type} 발송 완료${failNote}`);
       setSmsText(''); setSelectedIds(new Set()); setReserveOn(false); setReserveAt('');
       loadSmsLogs(); loadSmsStats();
     }
@@ -1200,6 +1203,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const dispStatus = (log: typeof smsLogs[number]) => {
     if (log.status === 'failed') return { label:'실패', color:'#DC2626' };
     if (log.status === 'reserved' && log.scheduled_at && new Date(log.scheduled_at).getTime() > nowMs) return { label:'예약', color:'#2563EB' };
+    if (log.error_msg) return { label:'일부 실패', color:'#EA580C' };  // 완료됐지만 일부 접수 실패
     return { label:'완료', color:'#16A34A' };
   };
   const dispWhen = (log: typeof smsLogs[number]) => (log.status === 'reserved' && log.scheduled_at) ? log.scheduled_at : log.created_at;
@@ -1380,22 +1384,9 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 
           {/* 실시간 미리보기 (작성하는 그대로 · 줄바꿈 유지) */}
           <aside style={{ flex:'0 0 360px', position:'sticky', top:16, alignSelf:'flex-start' }}>
-            <div className="adm-label" style={{ marginBottom:8 }}>실시간 미리보기</div>
-            <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px' }}>
-              <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 8px' }} />
-              <div style={{ background:'#F2F3F5', borderRadius:22, padding:'12px 10px', minHeight:150 }}>
-                <div style={{ fontSize:10, color:'#8A8F98', marginBottom:10, textAlign:'center', fontWeight:600 }}>문자 메시지 · 델리오</div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
-                  <div style={{ fontSize:10, color:'#8A8F98', margin:'0 0 4px 4px' }}>델리오</div>
-                  <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-word', whiteSpace:'pre-wrap', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', width:'100%', boxSizing:'border-box' }}>
-                    {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
-                    {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
-                    {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>{AD_OPTOUT}</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="adm-muted" style={{ fontSize:11, marginTop:8, textAlign:'center' }}>{msgType} · {byteCount.toLocaleString()}byte · {targetCount.toLocaleString()}명</div>
+            <div className="adm-label" style={{ marginBottom:12 }}>실시간 미리보기</div>
+            <SmsPhonePreview smsKind={smsKind} smsText={smsText} adOptout={AD_OPTOUT} />
+            <div className="adm-muted" style={{ fontSize:11, marginTop:12, textAlign:'center' }}>{msgType} · {byteCount.toLocaleString()}byte · {targetCount.toLocaleString()}명</div>
           </aside>
           </div>
         </div>
@@ -1459,21 +1450,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:340, maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>SMS 미리보기</div>
 
-            {/* 폰 목업 */}
-            <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px', margin:'0 auto', width:250 }}>
-              <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 8px' }} />
-              <div style={{ background:'#F2F3F5', borderRadius:22, padding:'12px 10px', minHeight:150 }}>
-                <div style={{ fontSize:10, color:'#8A8F98', marginBottom:10, textAlign:'center', fontWeight:600 }}>문자 메시지 · 델리오</div>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
-                  <div style={{ fontSize:10, color:'#8A8F98', margin:'0 0 4px 4px' }}>델리오</div>
-                  <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-all', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', whiteSpace:'pre-wrap' }}>
-                    {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
-                    {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
-                    {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>{AD_OPTOUT}</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* 폰 목업 — 실시간 미리보기와 동일 컴포넌트 사용(같게 보이도록) */}
+            <SmsPhonePreview smsKind={smsKind} smsText={smsText} adOptout={AD_OPTOUT} />
 
             {/* 상세 */}
             <div style={{ marginTop:18, border:'1px solid #EEF2F6', borderRadius:12, overflow:'hidden' }}>
@@ -1552,6 +1530,26 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
         </div>
         );
       })()}
+    </div>
+  );
+}
+
+/* 문자 미리보기 폰 목업 — 실시간 미리보기·발송확인 모달 공통 (두 곳이 똑같이 보이도록 단일 컴포넌트) */
+function SmsPhonePreview({ smsKind, smsText, adOptout }: { smsKind: 'ad'|'notice'; smsText: string; adOptout: string }) {
+  return (
+    <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px', width:260, maxWidth:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+      <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 12px' }} />
+      <div style={{ background:'#F2F3F5', borderRadius:22, padding:'12px 10px', minHeight:150 }}>
+        <div style={{ fontSize:10, color:'#8A8F98', marginBottom:12, textAlign:'center', fontWeight:600 }}>문자 메시지 · 델리오</div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
+          <div style={{ fontSize:10, color:'#8A8F98', margin:'0 0 6px 4px' }}>델리오</div>
+          <div style={{ background:'#fff', borderRadius:'4px 16px 16px 16px', padding:'11px 13px', fontSize:13, lineHeight:1.65, color:'#111', wordBreak:'break-word', whiteSpace:'pre-wrap', boxShadow:'0 1px 2px rgba(0,0,0,0.08)', width:'100%', boxSizing:'border-box' }}>
+            {smsKind === 'ad' && <span style={{ color:'#DC2626', fontWeight:700 }}>(광고) </span>}
+            {smsText || <span style={{ color:'#B0B4BB' }}>메시지를 입력하세요</span>}
+            {smsKind === 'ad' && <span style={{ display:'block', marginTop:8, color:'#8A8F98', fontSize:11 }}>{adOptout}</span>}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
