@@ -8902,7 +8902,18 @@ export default function AdminClient() {
                     value={farmForm.bank_account} onChange={e => setFarmForm(p => ({ ...p, bank_account: e.target.value }))} />
                 </div>
                 <div className="adm-form-row">
-                  <label className="adm-label">예금주 <span className="adm-required">*</span></label>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                    <label className="adm-label" style={{ marginBottom:0 }}>예금주 <span className="adm-required">*</span></label>
+                    <button type="button"
+                      onClick={() => setFarmForm(p => ({ ...p, account_holder: p.farmer_name.trim() }))}
+                      disabled={!farmForm.farmer_name.trim()}
+                      style={{ fontSize:11, fontWeight:600, borderRadius:6, padding:'3px 9px', whiteSpace:'nowrap',
+                        color: farmForm.farmer_name.trim() ? '#2563EB' : '#B0B0B0',
+                        background:'#fff', border:`1px solid ${farmForm.farmer_name.trim() ? '#BFD3F5' : '#E5E5E1'}`,
+                        cursor: farmForm.farmer_name.trim() ? 'pointer' : 'not-allowed' }}>
+                      대표자명과 동일
+                    </button>
+                  </div>
                   <input type="text" className="adm-input-text adm-input-full" placeholder="예: 홍길동"
                     value={farmForm.account_holder} onChange={e => setFarmForm(p => ({ ...p, account_holder: e.target.value }))} />
                 </div>
