@@ -8737,13 +8737,14 @@ export default function AdminClient() {
                     <div className="adm-card" style={{ marginBottom:12 }}>
                       <div className="adm-card-head" style={{ borderBottom:'none' }}><span className="adm-card-title">인기 상품 TOP 5</span></div>
                       <table className="adm-table adm-table-clean" style={{ marginTop:4 }}>
-                        <thead><tr><th>상품명</th><th>옵션</th><th>주문 건수</th><th>매출액</th><th>마진액</th></tr></thead>
+                        <thead><tr><th style={{ width:40, textAlign:'center' }}>순위</th><th>상품명</th><th>옵션</th><th>주문 건수</th><th>매출액</th><th>마진액</th></tr></thead>
                         <tbody>
                           {d.topProducts.length === 0
-                            ? <tr><td colSpan={5} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>판매 없음</td></tr>
+                            ? <tr><td colSpan={6} style={{ textAlign:'center', color:'#94A3B8', padding:'20px 0' }}>판매 없음</td></tr>
                             : d.topProducts.map((r, i) => (
                               <tr key={r.name + r.option}>
-                                <td><span style={{ fontWeight:800, color:'#CBD5E1', marginRight:6 }}>{i + 1}</span>{r.name}</td>
+                                <td style={{ textAlign:'center', fontWeight:800, color:'#CBD5E1' }}>{i + 1}</td>
+                                <td>{r.name}</td>
                                 <td className="adm-muted">{r.option || '-'}</td>
                                 <td className="adm-mono">{r.orders.toLocaleString()}건</td>
                                 <td className="adm-mono" style={{ fontWeight:600 }}>{fmtPrice(r.amount)}원</td>
