@@ -1447,7 +1447,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
       {preview && (
         <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center' }}
           onClick={() => setPreview(false)}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:340, maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:380, maxWidth:'92vw', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>SMS 미리보기</div>
 
             {/* 폰 목업 — 실시간 미리보기와 동일 컴포넌트 사용(같게 보이도록) */}
@@ -1537,9 +1537,9 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 /* 문자 미리보기 폰 목업 — 실시간 미리보기·발송확인 모달 공통 (두 곳이 똑같이 보이도록 단일 컴포넌트) */
 function SmsPhonePreview({ smsKind, smsText, adOptout }: { smsKind: 'ad'|'notice'; smsText: string; adOptout: string }) {
   return (
-    <div style={{ background:'#111', borderRadius:30, padding:'10px 10px 16px', width:260, maxWidth:'100%', margin:'0 auto', boxSizing:'border-box' }}>
-      <div style={{ height:5, width:70, background:'#333', borderRadius:99, margin:'0 auto 12px' }} />
-      <div style={{ background:'#F2F3F5', borderRadius:22, padding:'12px 10px', minHeight:150 }}>
+    <div style={{ background:'#111', borderRadius:34, padding:'14px 12px 20px', width:320, maxWidth:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+      <div style={{ height:6, width:84, background:'#333', borderRadius:99, margin:'0 auto 14px' }} />
+      <div style={{ background:'#F2F3F5', borderRadius:24, padding:'14px 12px', minHeight:190 }}>
         <div style={{ fontSize:10, color:'#8A8F98', marginBottom:12, textAlign:'center', fontWeight:600 }}>문자 메시지 · 델리오</div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start' }}>
           <div style={{ fontSize:10, color:'#8A8F98', margin:'0 0 6px 4px' }}>델리오</div>
