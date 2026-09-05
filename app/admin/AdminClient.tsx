@@ -15041,9 +15041,20 @@ export default function AdminClient() {
                       const its = o.order_items || [];
                       const first = its[0] as ({ product_name: string; option_label?: string | null } | undefined);
                       /* 주문관리처럼 상품명 / ㄴ옵션 2줄 분리 (상품명 끝에 (옵션)이 붙어 있으면 떼어냄) */
-                      const opt = first?.option_label || '';
+                      let opt = first?.option_label || '';
                       let pname = first?.product_name || '(상품 정보 없음)';
-                      if (opt && pname.endsWith(`(${opt})`)) pname = pname.slice(0, -(`(${opt})`.length)).trim();
+                      if (opt && pname.endsWith(`(${opt})`)) {
+                        pname = pname.slice(0, -(`(${opt})`.length)).trim();
+                      } else if (!opt && pname.endsWith(')')) {
+                        /* 구 주문: option_label 없이 상품명 끝에 (옵션)이 붙은 경우 → 괄호 안을 옵션으로 분리 (중첩 괄호 대응) */
+                        let depth = 0, openIdx = -1;
+                        for (let k = pname.length - 1; k >= 0; k--) {
+                          const ch = pname[k];
+                          if (ch === ')') depth++;
+                          else if (ch === '(') { depth--; if (depth === 0) { openIdx = k; break; } }
+                        }
+                        if (openIdx > 0) { opt = pname.slice(openIdx + 1, -1).trim(); pname = pname.slice(0, openIdx).trim(); }
+                      }
                       const extra = its.length > 1 ? ` 외 ${its.length - 1}건` : '';
                       return (
                       <div key={o.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 14px', borderBottom: i < memberOrders.length-1 ? '1px solid #F0F0F0' : 'none', fontSize:13 }}>
