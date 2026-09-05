@@ -1046,6 +1046,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const [logsLoading,  setLogsLoading]  = useState(false);
   const [smsFrom, setSmsFrom] = useState('');
   const [smsTo, setSmsTo] = useState('');
+  const [smsLogDetail, setSmsLogDetail] = useState<typeof smsLogs[number] | null>(null); // 발송이력 상세 모달
   // KPI 집계 (전체 이력 기준)
   const [statCount,      setStatCount]      = useState(0);
   const [statCost,       setStatCost]       = useState(0);
@@ -1433,7 +1434,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                   ) : smsLogs.map(log => {
                     const st = dispStatus(log);
                     return (
-                      <tr key={log.id}>
+                      <tr key={log.id} style={{ cursor:'pointer' }} onClick={() => setSmsLogDetail(log)}>
                         <td>{kindLabel(log.msg_kind)}</td>
                         <td>{log.msg_type}</td>
                         <td style={{ textAlign:'center', maxWidth:320, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</td>
@@ -1500,6 +1501,57 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
           </div>
         </div>
       )}
+
+      {/* 발송 이력 상세 모달 — 긴 내용 전체 보기 */}
+      {smsLogDetail && (() => {
+        const log = smsLogDetail;
+        const st = dispStatus(log);
+        return (
+        <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => setSmsLogDetail(null)}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:520, maxWidth:'100%', maxHeight:'90vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>발송 내역 상세</div>
+              <button onClick={() => setSmsLogDetail(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8', lineHeight:1 }}>×</button>
+            </div>
+
+            {/* 요약 */}
+            <div style={{ border:'1px solid #EEF2F6', borderRadius:12, overflow:'hidden', marginBottom:14 }}>
+              {[
+                ['종류', kindLabel(log.msg_kind)],
+                ['유형', log.msg_type],
+                ['대상', `${(log.target_count || 0).toLocaleString()}명`],
+                ['금액', `${(log.cost || 0).toLocaleString()}원`],
+                ['상태', st.label],
+                ['발송일시', new Date(dispWhen(log)).toLocaleString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })],
+              ].map(([l, v], i) => (
+                <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'10px 14px', fontSize:13, borderTop: i ? '1px solid #F1F5F9' : 'none' }}>
+                  <span style={{ color:'#64748B' }}>{l}</span>
+                  <span style={{ fontWeight:600, color: l === '상태' ? st.color : '#1A1A1A' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 전체 내용 */}
+            <div className="adm-label" style={{ marginBottom:6 }}>메시지 내용</div>
+            <div style={{ background:'#F8FAFC', border:'1px solid #EEF2F6', borderRadius:10, padding:'12px 14px', fontSize:13, lineHeight:1.7, color:'#1A1A1A', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+              {log.message}
+            </div>
+
+            {log.error_msg && (<>
+              <div className="adm-label" style={{ marginTop:14, marginBottom:6, color:'#DC2626' }}>실패 사유</div>
+              <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'12px 14px', fontSize:12, lineHeight:1.6, color:'#B91C1C', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                {log.error_msg}
+              </div>
+            </>)}
+
+            <div style={{ marginTop:18, display:'flex', justifyContent:'flex-end' }}>
+              <button className="adm-btn adm-btn-outline" onClick={() => setSmsLogDetail(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </div>
   );
 }
