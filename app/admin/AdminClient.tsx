@@ -3323,15 +3323,16 @@ export default function AdminClient() {
       const from = info.from.toISOString(), to = info.to.toISOString();
       const { data: settleItems } = await sb
         .from('order_items')
-        .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id)')
+        .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id, farms(is_own))')
         .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
         .eq('orders.status', 'confirmed')
         .not('orders.order_no', 'like', 'TEST%')
         .limit(10000);
       const salesFarms = new Set<string>();
       (settleItems as Record<string, unknown>[] | null || []).forEach(r => {
-        const fid = (r.products as { farm_id: string | null } | null)?.farm_id;
-        if (fid) salesFarms.add(fid);
+        const prod = r.products as { farm_id: string | null; farms: { is_own?: boolean } | null } | null;
+        if (prod?.farms?.is_own) return;   // 자사(델리오)는 정산 대상 아님 — 목록과 동일하게 제외
+        if (prod?.farm_id) salesFarms.add(prod.farm_id);
       });
       const { data: paidRows } = await sb
         .from('farm_settlements').select('farm_id').eq('period', info.key).eq('status', 'paid');
