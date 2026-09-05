@@ -1384,7 +1384,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 
           {/* 실시간 미리보기 (작성하는 그대로 · 줄바꿈 유지) */}
           <aside style={{ flex:'0 0 360px', position:'sticky', top:16, alignSelf:'flex-start' }}>
-            <div className="adm-label" style={{ marginBottom:12 }}>실시간 미리보기</div>
+            <div className="adm-label" style={{ marginTop:10, marginBottom:12 }}>실시간 미리보기</div>
             <SmsPhonePreview smsKind={smsKind} smsText={smsText} adOptout={AD_OPTOUT} />
             <div className="adm-muted" style={{ fontSize:11, marginTop:12, textAlign:'center' }}>{msgType} · {byteCount.toLocaleString()}byte · {targetCount.toLocaleString()}명</div>
           </aside>
