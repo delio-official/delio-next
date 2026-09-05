@@ -8935,12 +8935,12 @@ export default function AdminClient() {
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); }}>
                     {farmForm.thumbnail_url ? (
-                      <div style={{ position:'relative', width:130, height:96 }}>
-                        <img src={farmForm.thumbnail_url} alt="" style={{ width:130, height:96, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
+                      <div style={{ position:'relative', width:110, height:110 }}>
+                        <img src={farmForm.thumbnail_url} alt="" style={{ width:110, height:110, objectFit:'cover', borderRadius:8, border:'1px solid #E2E8F0' }} />
                         <button type="button" onClick={() => setFarmForm(p => ({ ...p, thumbnail_url:'' }))} style={{ position:'absolute', top:-7, right:-7, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,.6)', color:'#fff', border:'none', cursor:'pointer', fontSize:12, lineHeight:1 }}>✕</button>
                       </div>
                     ) : (
-                      <label style={{ width:130, height:96, border:'1px solid #E2E8F0', borderRadius:8, background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:12, gap:5 }}>
+                      <label style={{ width:110, height:110, border:'1px solid #E2E8F0', borderRadius:8, background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:12, gap:5 }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         <span>썸네일</span>
                         <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, thumbnail_url: url })); e.target.value=''; }} />
@@ -8956,12 +8956,12 @@ export default function AdminClient() {
                     onDragOver={e => e.preventDefault()}
                     onDrop={async e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (!f || !f.type.startsWith('image/')) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); }}>
                     {farmForm.logo_url ? (
-                      <div style={{ position:'relative', width:80, height:80 }}>
-                        <img src={farmForm.logo_url} alt="" style={{ width:80, height:80, objectFit:'cover', borderRadius:'50%', border:'1px solid #E2E8F0' }} />
+                      <div style={{ position:'relative', width:110, height:110 }}>
+                        <img src={farmForm.logo_url} alt="" style={{ width:110, height:110, objectFit:'cover', borderRadius:'50%', border:'1px solid #E2E8F0' }} />
                         <button type="button" onClick={() => setFarmForm(p => ({ ...p, logo_url:'' }))} style={{ position:'absolute', top:-7, right:-7, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,.6)', color:'#fff', border:'none', cursor:'pointer', fontSize:12, lineHeight:1 }}>✕</button>
                       </div>
                     ) : (
-                      <label style={{ width:80, height:80, border:'1px solid #E2E8F0', borderRadius:'50%', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:11, gap:3, textAlign:'center' }}>
+                      <label style={{ width:110, height:110, border:'1px solid #E2E8F0', borderRadius:'50%', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#94A3B8', fontSize:11, gap:3, textAlign:'center' }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                         <span>로고</span>
                         <input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; if (!f) return; setFarmImgUploading(true); const url = await uploadProductImage(f); setFarmImgUploading(false); if (url) setFarmForm(p => ({ ...p, logo_url: url })); e.target.value=''; }} />
