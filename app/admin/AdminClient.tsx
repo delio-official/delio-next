@@ -15065,9 +15065,12 @@ export default function AdminClient() {
                 <div className="adm-detail-col" style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   <div style={{ background:'#F8FAFC', borderRadius:8, padding:'10px 14px', fontSize:13, textAlign:'left' }}>
                     <div><span style={{ color:'#64748B' }}>작성자</span> {selectedReview.profiles?.name || '익명'} <span style={{ color:'#94A3B8', fontSize:11 }}>{selectedReview.profiles?.email}</span></div>
-                    <div style={{ marginTop:4 }}>
-                      <span style={{ color:'#64748B' }}>상품</span> {selectedReview.products?.name || '-'}
-                      {reviewOrder?.option_label && <div style={{ color:'#94A3B8', fontSize:12, marginTop:3 }}>ㄴ {reviewOrder.option_label}</div>}
+                    <div style={{ marginTop:4, display:'flex', gap:6 }}>
+                      <span style={{ color:'#64748B', flexShrink:0 }}>상품</span>
+                      <div style={{ minWidth:0 }}>
+                        <div>{selectedReview.products?.name || '-'}</div>
+                        {reviewOrder?.option_label && <div style={{ color:'#94A3B8', fontSize:12, marginTop:3 }}>ㄴ {reviewOrder.option_label}</div>}
+                      </div>
                     </div>
                     <div style={{ marginTop:4, display:'flex', alignItems:'center', gap:6 }}><span style={{ color:'#64748B' }}>작성일</span>
                       {reviewEdit
