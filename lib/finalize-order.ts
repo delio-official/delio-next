@@ -39,6 +39,21 @@ export async function finalizeOrder(
 ): Promise<FinalizeResult> {
   const bypass = opts.bypass ?? false;
   const supabase = createAdminSupabaseClient();
+  const apiSecret = process.env.PORTONE_API_SECRET;
+
+  /* 결제는 승인(PAID)됐으나 가맹점 주문 생성이 실패/거부될 때 승인된 결제를 자동 취소한다.
+     (네이버페이 보안검수 권고: 금액검증 실패 등으로 가맹점 주문이 실패하면 결제취소 API 호출.
+      미취소 시 PG는 정상결제로 간주하므로 변조금액 결제가 방치될 수 있음) */
+  const autoCancelPayment = async (reason: string) => {
+    if (bypass || !paymentId || !apiSecret) return;
+    try {
+      await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`, {
+        method: 'POST',
+        headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, requester: 'ADMIN' }),
+      });
+    } catch { /* 취소 API 실패는 로깅만(주기적 점검으로 보완) */ }
+  };
 
   /* 전환 추적용 상품·금액(모바일 redirect 복귀에서 Purchase 픽셀·GA 발화에 사용) */
   const trackItems = orderData.items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity }));
@@ -53,7 +68,6 @@ export async function finalizeOrder(
 
   /* 포트원 재조회 검증 */
   if (!bypass) {
-    const apiSecret = process.env.PORTONE_API_SECRET;
     if (!apiSecret) return { success: false, error: '포트원 API 시크릿 미설정', status: 503 };
     const portoneRes = await fetch(
       `https://api.portone.io/payments/${encodeURIComponent(paymentId)}`,
@@ -67,6 +81,9 @@ export async function finalizeOrder(
     const payment = await portoneRes.json();
     if (payment.status !== 'PAID') return { success: false, error: `결제 미완료 (status: ${payment.status})`, status: 400 };
     if (payment.amount?.total !== orderData.totalAmount) {
+      /* [네이버페이 보안검수 권고] 금액 변조/불일치로 주문을 만들지 않을 때, 승인된 결제를 즉시 자동 취소 */
+      await autoCancelPayment('결제금액 불일치(검증 실패)로 인한 자동 취소');
+      console.error(`[finalize] amount mismatch → auto-cancel: expected ${orderData.totalAmount}, actual ${payment.amount?.total}, paymentId ${paymentId}`);
       return { success: false, error: `결제금액 불일치 (expected: ${orderData.totalAmount}, actual: ${payment.amount?.total})`, status: 400 };
     }
   }
@@ -83,6 +100,8 @@ export async function finalizeOrder(
       .from('user_coupons').select('coupons(allow_point)').eq('id', orderData.userCouponId).maybeSingle();
     const allowPoint = (uc?.coupons as { allow_point?: boolean } | null)?.allow_point;
     if (allowPoint === false) {
+      /* 결제는 승인됐으나 서버 정책상 주문 거부 → 승인 결제 자동 취소 */
+      await autoCancelPayment('쿠폰·포인트 동시사용 불가 정책 위반으로 인한 자동 취소');
       return { success: false, error: '이 쿠폰은 포인트와 함께 사용할 수 없습니다.', status: 400 };
     }
   }
@@ -131,6 +150,8 @@ export async function finalizeOrder(
     }
     const oe = orderError as { message?: string; code?: string; details?: string; hint?: string } | null;
     console.error('[finalize] order insert error:', JSON.stringify(oe));
+    /* 결제는 승인됐으나 주문 저장 실패 → 승인 결제 자동 취소(방치 방지) */
+    await autoCancelPayment('주문 저장 실패로 인한 자동 취소');
     return { success: false, error: `주문 저장 실패: ${oe?.message || ''}${oe?.code ? ` (${oe.code})` : ''}${oe?.details ? ` · ${oe.details}` : ''}`, status: 500 };
   }
 
@@ -140,16 +161,7 @@ export async function finalizeOrder(
     const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
     if (decErr) {
       // 이미 승인된 결제면 자동 환불
-      if (!bypass && paymentId) {
-        const apiSecret = process.env.PORTONE_API_SECRET;
-        if (apiSecret) {
-          await fetch(`https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`, {
-            method: 'POST',
-            headers: { Authorization: `PortOne ${apiSecret}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: '재고 부족으로 인한 자동 취소', requester: 'ADMIN' }),
-          }).catch(() => {});
-        }
-      }
+      await autoCancelPayment('재고 부족으로 인한 자동 취소');
       // 쿠폰/포인트는 아직 미처리(아래에서 처리 전)이므로 주문만 삭제하면 됨
       await supabase.from('orders').delete().eq('id', order.id);
       console.error('[finalize] out of stock, order rolled back:', decErr.message);
