@@ -1469,9 +1469,9 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               ))}
             </div>
 
-            <div style={{ display:'flex', gap:8, marginTop:16 }}>
-              <button className="adm-btn adm-btn-outline" style={{ flex:1 }} onClick={() => setPreview(false)}>취소</button>
-              <button className="adm-btn adm-btn-primary" style={{ flex:1 }} onClick={() => { setPreview(false); sendSms(); }}
+            <div style={{ display:'flex', gap:8, marginTop:16, justifyContent:'center' }}>
+              <button className="adm-btn adm-btn-outline" style={{ minWidth:110, textAlign:'center' }} onClick={() => setPreview(false)}>취소</button>
+              <button className="adm-btn adm-btn-primary" style={{ minWidth:130, textAlign:'center' }} onClick={() => { setPreview(false); sendSms(); }}
                 disabled={sending || !smsText.trim() || targetCount === 0}>
                 {sending ? '처리 중...' : `발송하기 (${targetCount}명)`}
               </button>
