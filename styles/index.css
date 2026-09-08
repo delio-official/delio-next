@@ -1149,8 +1149,8 @@
       .lounge-section .lounge-card-meta { gap: 7px; margin: 10px 12px 0; }
       .lounge-section .lounge-card-cat, .lounge-section .lounge-card-sub { font-size: 12px; }
       .lounge-section .lounge-card-title { font-size: 15.5px; margin: 0 12px 12px; text-align: left; }
-      /* 섹션 제목("델리오 라운지") 살짝 축소(모바일 공통 25px → 22px, 라운지만) */
-      .lounge-section .g-title-main > span { font-size: 22px; }
+      /* 섹션 제목("델리오 라운지") — 모바일에서 살짝 키움(22 → 24px, 라운지만) */
+      .lounge-section .g-title-main > span { font-size: 24px; }
     }
     .lounge-more-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; max-width: 460px; margin: 0 auto; padding: 16px; border: 1.5px solid #E0E0DC; border-radius: 8px; background: #fff; font-size: 16px; font-weight: 600; color: var(--color-ink); cursor: pointer; text-decoration: none; }
 
