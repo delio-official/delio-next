@@ -4401,7 +4401,7 @@ export default function AdminClient() {
       .from('profiles')
       .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo, provider, marketing_sms')
       .order('created_at', { ascending: false })
-      .limit(300);
+      .limit(10000);   // 전체 회원 로드 — 검색이 전 회원 대상으로 동작 (최근 300만 로드하던 문제 해결)
     setMembers((data as AdminProfile[]) || []);
     setMembersLoading(false);
     /* 이번달 탈퇴 수 */
