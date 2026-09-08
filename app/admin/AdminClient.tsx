@@ -2350,6 +2350,7 @@ export default function AdminClient() {
 
   /* ── 주문 ── */
   const [orders, setOrders] = useState<Order[]>([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);  // 대시보드 '최근 주문 현황' 전용(주문관리 미방문 시에도 표시)
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailStatus, setDetailStatus] = useState<string>(''); // 상세 모달에서 선택한(미저장) 주문 상태
@@ -3329,6 +3330,29 @@ export default function AdminClient() {
     ORDER_STAGES.forEach((st, i) => { counts[st.key] = stageRes[i]?.count || 0; });
     setStageCounts(counts);
     setDashRefreshedAt(new Date());
+
+    /* '최근 주문 현황' 목록 — orders 상태(주문관리 전용)와 별개로 최신 8건 로드.
+       주문관리 탭을 한 번도 안 열어도 대시보드에 최근 주문이 뜨도록 별도 조회. */
+    void (async () => {
+      const { data: recentRaw } = await supabase
+        .from('orders')
+        .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier))),profiles:user_id(name,email)')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      const flat = ((recentRaw as Record<string, unknown>[]) || []).map(o => ({
+        ...o,
+        account_name: (o.profiles as { name?: string } | null)?.name ?? null,
+        account_email: (o.profiles as { email?: string } | null)?.email ?? null,
+        order_items: ((o.order_items as Record<string, unknown>[]) || []).map(item => {
+          const prod = item.products as Record<string, unknown> | null;
+          const farm = prod?.farms as Record<string, unknown> | null;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { products: _p, ...rest } = item;
+          return { ...rest, farm_id: (item.farm_id as string) ?? prod?.farm_id ?? null, farm_name: farm?.name ?? null, carrier: farm?.carrier ?? null };
+        }),
+      }));
+      setRecentOrders(flat as unknown as Order[]);
+    })();
 
     /* 취소·반품·교환 / 판매지연 (대시보드 카드) */
     const twoDaysAgo = new Date(Date.now() - 2 * 86400000).toISOString();
@@ -9754,7 +9778,7 @@ export default function AdminClient() {
                   <div className="adm-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div className="adm-card-head"><span className="adm-card-title">최근 주문 현황</span></div>
                     <div className="adm-pending-list" style={{ flex: 1 }}>
-                      {orders.slice(0, 5).map(o => (
+                      {recentOrders.slice(0, 5).map(o => (
                         <div key={o.id} className="adm-pending-row" style={{ cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }} onClick={() => { go('orders'); setSelectedOrder(o); setTrackingInput({ courier: o.courier || '', tracking_number: o.tracking_number || '' }); setFarmTracking({}); }}>
                           <span className="adm-muted" style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{o.recipient}</span>
                           <span className={`adm-badge ${STATUS_BADGE_CLS[o.status] || 'badge-wait'}`} style={{ flexShrink:0 }}>
@@ -9762,7 +9786,7 @@ export default function AdminClient() {
                           </span>
                         </div>
                       ))}
-                      {orders.length === 0 && <div className="adm-muted" style={{ padding:'20px 0', fontSize:13, textAlign:'center', width:'100%' }}>주문 없음</div>}
+                      {recentOrders.length === 0 && <div className="adm-muted" style={{ padding:'20px 0', fontSize:13, textAlign:'center', width:'100%' }}>주문 없음</div>}
                     </div>
                   </div>
                 </div>
