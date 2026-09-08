@@ -2854,9 +2854,9 @@ export default function ProductClient() {
                                 {unlockedContent[q.id] ?? q.content}
                               </div>
                             ) : null}
-                            {/* 답변 */}
+                            {/* 답변 — 위에 본문이 있을 때만 구분선/여백(본문 생략 시 빈 줄 방지) */}
                             {q.answer && (
-                              <div style={{ borderTop:'1px solid #E8E8E6', paddingTop:14 }}>
+                              <div style={(editInqId === q.id || q.is_private || (q.content && q.content.length > 60)) ? { borderTop:'1px solid #E8E8E6', paddingTop:14 } : undefined}>
                                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
                                   <span style={{ fontSize:12, fontWeight:700, background:'#1A1A1A', color:'#fff', borderRadius:4, padding:'2px 8px' }}>답변</span>
                                   {q.answered_at && (
