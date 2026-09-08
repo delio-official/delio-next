@@ -2847,11 +2847,13 @@ export default function ProductClient() {
                                     style={{ fontSize:12, color:'#fff', background:'#1A1A1A', border:'none', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontWeight:600 }}>저장</button>
                                 </div>
                               </div>
-                            ) : (
+                            ) : (q.is_private || (q.content && q.content.length > 60) || !q.answer) ? (
+                              /* 본문 표시: 비밀글(미리보기 가려짐)·긴 내용(미리보기 잘림)·답변대기일 때만.
+                                 공개+답변완료 문의는 미리보기 줄과 중복이므로 본문 생략(답변만 노출). */
                               <div style={{ fontSize:13, color:'#333', lineHeight:1.8, marginBottom: q.answer ? 16 : 0, whiteSpace:'pre-wrap' }}>
                                 {unlockedContent[q.id] ?? q.content}
                               </div>
-                            )}
+                            ) : null}
                             {/* 답변 */}
                             {q.answer && (
                               <div style={{ borderTop:'1px solid #E8E8E6', paddingTop:14 }}>
