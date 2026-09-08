@@ -449,9 +449,10 @@ input, select, textarea { font-family: inherit; }
     flex: 0 0 auto;
     min-width: fit-content;
     text-align: center;
-    font-size: 13px !important;
+    font-size: 14px !important;
     font-weight: 500 !important;
-    padding: 11px 8px 12px !important;
+    /* 하단 border(2px)까지 감안해 위·아래 여백 균형(위 13 = 아래 11+2) → 글자 수직 중앙 */
+    padding: 13px 8px 11px !important;
     color: #1A1A1A !important;
     border-bottom: 2px solid transparent;
   }
