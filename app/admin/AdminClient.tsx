@@ -11989,7 +11989,14 @@ export default function AdminClient() {
                           <tr key={p.id}>
                             <td>{p.title}</td>
                             <td>{loungeCatLabel(p.filter)}</td>
-                            <td>{p.badge ? <span className="adm-badge" style={{ background: (p as { badge_color?: string | null }).badge_color || BADGE_DEFAULT_COLOR, color:'#fff' }}>{p.badge}</span> : '-'}</td>
+                            <td>{(() => {
+                              const bs = parseBadges(p.badge, (p as { badge_color?: string | null }).badge_color);
+                              return bs.length ? (
+                                <span style={{ display:'inline-flex', gap:4, flexWrap:'wrap', justifyContent:'center' }}>
+                                  {bs.map((b, i) => <span key={i} className="adm-badge" style={{ background:b.c, color:'#fff' }}>{b.t}</span>)}
+                                </span>
+                              ) : '-';
+                            })()}</td>
                             <td style={{ fontWeight:700 }}>{(p.view_count || 0).toLocaleString()}</td>
                             <td className="adm-muted">{fmtDateShort(p.date || p.created_at)}</td>
                             <td>
