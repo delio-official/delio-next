@@ -247,6 +247,14 @@ export default function SurveyClient() {
   const [sharingInsta, setSharingInsta] = useState(false);
   const [savingImg, setSavingImg] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
+  /* 모바일 여부 — 인트로/인포 화면을 세로 중앙 대신 위로 정렬(헤더에 밀려 내려가 보이는 문제) */
+  const [isMobileView, setIsMobileView] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobileView(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check, { passive: true });
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   /* 공유 링크(?r=key)로 들어오면 결과 화면을 바로 표시 (처음부터 다시 안 하게) */
   useEffect(() => {
@@ -452,7 +460,7 @@ export default function SurveyClient() {
   // ════════ INTRO ════════
   if (phase === 'intro') {
     return (
-      <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#F4EFE6 0%,#EDE8DC 100%)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px', textAlign:'center' }}>
+      <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#F4EFE6 0%,#EDE8DC 100%)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent: isMobileView ? 'flex-start' : 'center', padding: isMobileView ? '28px 20px 40px' : '40px 20px', textAlign:'center' }}>
         <div style={{ fontSize:72, marginBottom:20 }}>🍑</div>
         <p style={{ fontSize:12, letterSpacing:3, color:'#A08060', fontWeight:700, marginBottom:12 }}>DELI'O</p>
         <h1 style={{ fontSize:'clamp(24px,5vw,38px)', fontWeight:800, lineHeight:1.3, marginBottom:16, color:'#1A1A1A' }}>
@@ -477,7 +485,7 @@ export default function SurveyClient() {
   if (phase === 'info') {
     const S: React.CSSProperties = { padding:'12px 16px', border:'1.5px solid #EBEBEB', borderRadius:10, fontSize:14, width:'100%', outline:'none', background:'#fff', fontFamily:'inherit', cursor:'pointer', appearance:'none', WebkitAppearance:'none' };
     return (
-      <div style={{ minHeight:'100vh', background:'#FAFAF8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'40px 20px' }}>
+      <div style={{ minHeight:'100vh', background:'#FAFAF8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent: isMobileView ? 'flex-start' : 'center', padding: isMobileView ? '28px 20px 40px' : '40px 20px' }}>
         <div style={{ width:'100%', maxWidth:420 }}>
           <p style={{ fontSize:12, letterSpacing:2, color:'#888', fontWeight:700, marginBottom:8 }}>STEP 0 / 11</p>
           <h2 style={{ fontSize:22, fontWeight:800, marginBottom:6 }}>시작 전,<br />간단히 알려주세요 👋</h2>
