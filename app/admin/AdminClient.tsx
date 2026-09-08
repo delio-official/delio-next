@@ -1558,17 +1558,21 @@ function SmsPhonePreview({ smsKind, smsText, adOptout }: { smsKind: 'ad'|'notice
 function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; values: number[] } }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(560);
+  const [height, setHeight] = useState(200);
 
-  /* ResizeObserver로 컨테이너 너비만 추적 — 높이는 SVG를 100%로 채워 카드 높이에 맞춘다
-     (높이를 JS로 측정해 되먹이면 무한 확대 루프가 생기므로 CSS 스케일로 처리) */
+  /* ResizeObserver로 컨테이너 너비·높이 추적 → viewBox를 실제 픽셀 크기와 1:1로 맞춰
+     preserveAspectRatio="none"에서도 그래프/점이 눌리지 않도록 한다.
+     (SVG는 height:100%로 컨테이너를 채울 뿐 부모 높이를 늘리지 않으므로 되먹임 루프 없음) */
   useEffect(() => {
     if (!ref.current) return;
     const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setWidth(w);
+      const r = entries[0]?.contentRect;
+      if (r?.width && r.width > 0) setWidth(r.width);
+      if (r?.height && r.height > 0) setHeight(r.height);
     });
     ro.observe(ref.current);
     setWidth(ref.current.clientWidth || 560);
+    setHeight(ref.current.clientHeight || 200);
     return () => ro.disconnect();
   }, []);
 
@@ -1584,7 +1588,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     );
   }
 
-  const H   = 200;   // viewBox 좌표 기준값(고정). 실제 표시 높이는 SVG height:100%로 카드에 맞춰 스케일
+  const H   = height > 0 ? height : 200;   // 실측 높이 = viewBox 높이 → 세로 왜곡 없음(1:1)
   const PAD = { top: 28, right: 16, bottom: 4, left: 44 };
   const cw  = width - PAD.left - PAD.right;
   const ch  = H - PAD.top - PAD.bottom;
@@ -3478,10 +3482,10 @@ export default function AdminClient() {
     // ── 매출 추이 차트 (주간=이번주 월~일 / 월간=이번달 1~말일) ──
     const dkey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const cNow = new Date();
-    const weekMon = new Date(cNow); weekMon.setDate(cNow.getDate() - ((cNow.getDay()+6)%7)); weekMon.setHours(0,0,0,0);
+    const weekAgo = new Date(cNow); weekAgo.setDate(cNow.getDate() - 6); weekAgo.setHours(0,0,0,0); // 최근 7일 시작(오늘 포함 7일)
     const monthFirst = new Date(cNow.getFullYear(), cNow.getMonth(), 1);
     const monthLast  = new Date(cNow.getFullYear(), cNow.getMonth()+1, 0);
-    const fetchStart = weekMon < monthFirst ? weekMon : monthFirst; // 둘 중 이른 날짜부터 조회
+    const fetchStart = weekAgo < monthFirst ? weekAgo : monthFirst; // 둘 중 이른 날짜부터 조회
     const { data: chartOrders } = await supabase
       .from('orders')
       .select('final_amount, created_at')
@@ -3494,9 +3498,9 @@ export default function AdminClient() {
       dayMap[key] = (dayMap[key] || 0) + o.final_amount;
     });
 
-    // 주간: 이번주 월요일~일요일 (7일)
+    // 주간: 최근 7일 — 제일 왼쪽=일주일 전, 제일 오른쪽=오늘
     const labelsW: string[] = [], valuesW: number[] = [];
-    for (let i = 0; i < 7; i++) { const d = new Date(weekMon); d.setDate(weekMon.getDate()+i); labelsW.push(`${d.getMonth()+1}/${d.getDate()}`); valuesW.push(dayMap[dkey(d)] || 0); }
+    for (let i = 6; i >= 0; i--) { const d = new Date(cNow); d.setDate(cNow.getDate()-i); d.setHours(0,0,0,0); labelsW.push(`${d.getMonth()+1}/${d.getDate()}`); valuesW.push(dayMap[dkey(d)] || 0); }
     // 월간: 이번달 1일~말일
     const labelsM: string[] = [], valuesM: number[] = [];
     for (let d = new Date(monthFirst); d <= monthLast; d.setDate(d.getDate()+1)) { labelsM.push(`${d.getMonth()+1}/${d.getDate()}`); valuesM.push(dayMap[dkey(d)] || 0); }
