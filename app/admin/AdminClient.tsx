@@ -2755,6 +2755,15 @@ export default function AdminClient() {
 
   /* ── 사이트 설정 ── */
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({ pick_count: '6' });
+  /* 메인 섹션 노출 토글 — 저장 눌러야 반영(지연저장). draft에 변경분만 담고 저장 시 일괄 upsert */
+  const [secTogDraft, setSecTogDraft] = useState<Record<string, boolean>>({});
+  const [secTogSaving, setSecTogSaving] = useState(false);
+  const [secTogSaved, setSecTogSaved] = useState('');
+  const SEC_TOGGLE_KEYS = ['sec_topbanner','sec_pick','sec_quickguide','sec_brand','sec_midbanner','sec_review','sec_lounge','sec_survey'] as const;
+  /* 바로가기 필탭 — 노출 토글·순서는 저장 눌러야 반영(추가/수정/삭제는 모달 즉시반영 유지) */
+  const [linksDirty, setLinksDirty] = useState(false);
+  const [linksSaving, setLinksSaving] = useState(false);
+  const [linksSaved, setLinksSaved] = useState('');
   const [navOpen, setNavOpen] = useState<Record<string, boolean>>({});
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPw, setAdminPw] = useState('');
@@ -3650,7 +3659,34 @@ export default function AdminClient() {
   async function loadFilterTabs() {
     setFtLoading(true);
     setFilterTabs(await loadAllTabs());
+    setLinksDirty(false); // DB에서 새로 읽음 = 미저장 변경 없음
     setFtLoading(false);
+  }
+  /* 바로가기 필탭: 링크끼리 순서 재배치(로컬만, 저장 눌러야 DB 반영) */
+  function reorderLinksLocal(draggedId: string, targetId: string) {
+    if (!draggedId || draggedId === targetId) return;
+    const links = filterTabs.filter(t => t.tab_type === 'link').sort((a, b) => a.sort_order - b.sort_order);
+    const from = links.findIndex(t => t.id === draggedId);
+    const to   = links.findIndex(t => t.id === targetId);
+    if (from < 0 || to < 0) return;
+    const next = [...links];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const orderMap = new Map(next.map((t, i) => [t.id, (i + 1) * 10]));
+    setFilterTabs(prev => prev.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t));
+    setLinksDirty(true);
+  }
+  /* 바로가기 필탭: 노출 토글·순서 일괄 저장 */
+  async function saveLinks() {
+    setLinksSaving(true);
+    const links = filterTabs.filter(t => t.tab_type === 'link');
+    const supabase = createClient();
+    const results = await Promise.all(links.map(t =>
+      supabase.from('filter_tabs').update({ show_in_home: t.show_in_home, sort_order: t.sort_order }).eq('id', t.id)));
+    setLinksSaving(false);
+    const err = results.find(r => r.error);
+    if (err?.error) { alert('저장 실패: ' + err.error.message); return; }
+    setLinksDirty(false); setLinksSaved('저장됐어요 ✓'); setTimeout(() => setLinksSaved(''), 2500);
   }
 
   /* ===== 퀵가이드 그룹 (제목 + 지정 상품) ===== */
@@ -3701,6 +3737,21 @@ export default function AdminClient() {
     setQgSaving(false);
     if (error) { alert('저장 실패: ' + error.message); return; }
     setQgDirty(false); setQgSavedMsg('저장됐어요 ✓'); setTimeout(() => setQgSavedMsg(''), 2500);
+  }
+  /* 메인 섹션 노출 토글 — 현재값(토글 화면값) 기준 */
+  const secTogVal = (k: string) => secTogDraft[k] ?? (siteSettings[k] !== 'false');
+  const secTogDirty = SEC_TOGGLE_KEYS.some(k => (k in secTogDraft) && secTogDraft[k] !== (siteSettings[k] !== 'false'));
+  async function saveSecToggles() {
+    const changed = SEC_TOGGLE_KEYS.filter(k => (k in secTogDraft) && secTogDraft[k] !== (siteSettings[k] !== 'false'));
+    if (changed.length === 0) return;
+    setSecTogSaving(true);
+    const rows = changed.map(k => ({ key: k, value: secTogDraft[k] ? 'true' : 'false' }));
+    const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
+    setSecTogSaving(false);
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    setSiteSettings(prev => { const n = { ...prev }; changed.forEach(k => { n[k] = secTogDraft[k] ? 'true' : 'false'; }); return n; });
+    setSecTogDraft({});
+    setSecTogSaved('저장됐어요 ✓'); setTimeout(() => setSecTogSaved(''), 2500);
   }
   function openFtModal(t?: FilterTab, preset?: Partial<typeof FT_EMPTY>) {
     if (t) {
@@ -12018,12 +12069,24 @@ export default function AdminClient() {
           {panel === 'homesections' && (
             <div className="adm-content">
               <div className="adm-card" style={{ marginBottom: 16, padding:'16px 18px' }}>
-                <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none' }}>
-                  <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: secOpen.toggles ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
-                  <span className="adm-card-title">메인 섹션 노출</span>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+                  <div onClick={() => setSecOpen(s => ({ ...s, toggles: !s.toggles }))} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', userSelect:'none', flex:1, minWidth:0 }}>
+                    <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', transform: secOpen.toggles ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
+                    <span className="adm-card-title">메인 섹션 노출</span>
+                    {!secOpen.toggles && secTogDirty && <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 저장 안 됨</span>}
+                  </div>
+                  {secOpen.toggles && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {secTogSaved && <span style={{ fontSize:12, color:'#16A34A', fontWeight:700 }}>{secTogSaved}</span>}
+                      <button onClick={saveSecToggles} disabled={secTogSaving || !secTogDirty}
+                        style={{ fontSize:13, fontWeight:700, color:'#fff', background: secTogDirty ? '#2563EB' : '#CBD5E1', border:'none', borderRadius:7, padding:'8px 16px', cursor: secTogDirty && !secTogSaving ? 'pointer' : 'default', opacity: secTogSaving ? 0.6 : 1 }}>
+                        {secTogSaving ? '저장 중…' : '저장'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {secOpen.toggles && (<>
-                <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'10px 2px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시)</div>
+                <div style={{ fontSize:11.5, fontWeight:400, color:'#94A3B8', textAlign:'left', margin:'10px 2px 12px' }}>끄면 해당 섹션이 메인 페이지에서 완전히 숨겨집니다. (켜져 있으면 비었을 때 ‘준비중’ 표시) · 변경 후 <b style={{ color:'#475569' }}>저장</b>을 눌러야 반영됩니다.</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'14px 32px', padding:'2px 2px 4px' }}>
                   {([
                     ['sec_topbanner','상단 배너'],
@@ -12037,8 +12100,8 @@ export default function AdminClient() {
                   ] as const).map(([key, label]) => (
                     <div key={key} style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <span style={{ fontSize:13, fontWeight:600, color:'#334155', whiteSpace:'nowrap' }}>{label}</span>
-                      <Toggle defaultOn={siteSettings[key] !== 'false'}
-                        onChange={v => { setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' })); createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' }); }} />
+                      <Toggle defaultOn={secTogVal(key)}
+                        onChange={v => setSecTogDraft(prev => ({ ...prev, [key]: v }))} />
                     </div>
                   ))}
                 </div>
@@ -12048,16 +12111,25 @@ export default function AdminClient() {
               {/* ── 바로가기 필탭 (메인배너 바로 아래 링크 줄) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, marginBottom: secOpen.links ? 12 : 0 }}>
-                  <div onClick={() => setSecOpen(s => ({ ...s, links: !s.links }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none' }}>
+                  <div onClick={() => setSecOpen(s => ({ ...s, links: !s.links }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', flex:1, minWidth:0 }}>
                     <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.links ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                     <div>
                       <span className="adm-card-title">바로가기 필탭</span>
                       {secOpen.links
-                        ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. (이름·URL 직접 입력)</div>
-                        : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 링크 {filterTabs.filter(t => t.tab_type==='link').length}개</span>}
+                        ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>메인배너 바로 아래 링크 버튼 줄. 누르면 지정한 페이지로 이동합니다. <b style={{ color:'#475569' }}>노출·순서 변경은 ‘저장’을 눌러야 반영</b>됩니다. (추가·수정·삭제는 즉시 반영)</div>
+                        : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 링크 {filterTabs.filter(t => t.tab_type==='link').length}개{linksDirty ? ' · 저장 안 됨' : ''}</span>}
                     </div>
                   </div>
-                  {secOpen.links && <button className="adm-btn adm-btn-primary" style={{ flexShrink:0 }} onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>}
+                  {secOpen.links && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {linksSaved && <span style={{ fontSize:12, color:'#16A34A', fontWeight:700 }}>{linksSaved}</span>}
+                      <button onClick={saveLinks} disabled={linksSaving || !linksDirty}
+                        style={{ fontSize:13, fontWeight:700, color:'#fff', background: linksDirty ? '#2563EB' : '#CBD5E1', border:'none', borderRadius:7, padding:'8px 16px', cursor: linksDirty && !linksSaving ? 'pointer' : 'default', opacity: linksSaving ? 0.6 : 1 }}>
+                        {linksSaving ? '저장 중…' : '저장'}
+                      </button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => openFtModal(undefined, { tab_type:'link', show_in_home:true })}>+ 바로가기 추가</button>
+                    </div>
+                  )}
                 </div>
                 {secOpen.links && (() => {
                   const links = filterTabs.filter(t => t.tab_type==='link').sort((a,b)=>a.sort_order-b.sort_order);
@@ -12067,13 +12139,13 @@ export default function AdminClient() {
                       {links.map(t => (
                         <div key={t.id} draggable
                           onDragStart={() => { dragRow.current = t.id; }} onDragEnd={() => { dragRow.current = null; }}
-                          onDragOver={e => e.preventDefault()} onDrop={() => { reorderFilterTabs(dragRow.current || '', t.id); dragRow.current = null; }}
+                          onDragOver={e => e.preventDefault()} onDrop={() => { reorderLinksLocal(dragRow.current || '', t.id); dragRow.current = null; }}
                           style={{ display:'flex', alignItems:'center', gap:10, border:'1px solid #E2E8F0', borderRadius:8, padding:'10px 12px', background:'#fff', cursor:'grab', opacity:t.is_active?1:0.55 }}>
                           <span className="adm-muted" style={{ display:'inline-flex' }}><DragHandle /></span>
                           <span style={{ fontSize:13, fontWeight:700 }}>{t.label}</span>
                           <span className="adm-muted" style={{ fontSize:12 }}>· {t.tab_value || '/'}</span>
                           <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:8 }}>
-                            <AdmToggle on={!!t.show_in_home} onChange={v => updateFt(t.id, { show_in_home: v })} title="노출" />
+                            <AdmToggle on={!!t.show_in_home} onChange={v => { setFilterTabs(prev => prev.map(x => x.id === t.id ? { ...x, show_in_home: v } : x)); setLinksDirty(true); }} title="노출" />
                             <button className="adm-row-btn" onClick={() => openFtModal(t)}>수정</button>
                             <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFilterTab(t)}>삭제</button>
                           </div>

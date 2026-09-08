@@ -23,6 +23,7 @@ export default function SectionCuration({ sec, items, buckets }: {
   const [bucket, setBucket] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [baseline, setBaseline] = useState(''); // 마지막 저장(로드) 시점 스냅샷 — 변경 여부 판별용
   const [msg, setMsg] = useState('');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false); // 접기/펼치기 (기본 접힘)
@@ -36,9 +37,11 @@ export default function SectionCuration({ sec, items, buckets }: {
       const map: Record<string, string> = {};
       ((data as { key: string; value: string }[]) || []).forEach(r => { map[r.key] = r.value; });
       const cfg = parseSectionConfig(map, sec);
+      const initMap = hasBuckets ? parseBucketMap(map[`${sec}_ids`] || '') : null;
       setMode(cfg.mode); setCount(cfg.count);
-      if (hasBuckets) setIdsMap(parseBucketMap(map[`${sec}_ids`] || ''));
+      if (hasBuckets) setIdsMap(initMap!);
       else setIds(cfg.ids);
+      setBaseline(JSON.stringify({ mode: cfg.mode, count: cfg.count, v: hasBuckets ? initMap : cfg.ids }));
       setLoaded(true);
     })();
   }, [sec]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -52,6 +55,10 @@ export default function SectionCuration({ sec, items, buckets }: {
     else setIds(fn);
   };
 
+  /* 변경 여부 — 로드/저장 시점 스냅샷과 현재 상태 비교 */
+  const snapshot = JSON.stringify({ mode, count, v: hasBuckets ? idsMap : ids });
+  const dirty = loaded && snapshot !== baseline;
+
   async function save() {
     setSaving(true);
     const supabase = createClient();
@@ -62,6 +69,7 @@ export default function SectionCuration({ sec, items, buckets }: {
       { key: meta.countKey, value: String(count) },
     ];
     await supabase.from('site_settings').upsert(rows, { onConflict: 'key' });
+    setBaseline(snapshot); // 저장 완료 → 현재 상태를 새 기준으로
     setSaving(false); setMsg('저장됐어요 ✓'); setTimeout(() => setMsg(''), 2500);
   }
 
@@ -88,8 +96,8 @@ export default function SectionCuration({ sec, items, buckets }: {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
           {msg && <span style={{ fontSize: 12, color: '#16A34A', fontWeight: 700 }}>{msg}</span>}
-          {open && <button onClick={save} disabled={saving}
-            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: '#2563EB', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+          {open && <button onClick={save} disabled={saving || !dirty}
+            style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: dirty ? '#2563EB' : '#CBD5E1', border: 'none', borderRadius: 7, padding: '8px 16px', cursor: dirty && !saving ? 'pointer' : 'default', opacity: saving ? 0.6 : 1 }}>
             {saving ? '저장 중…' : '저장'}
           </button>}
         </div>
