@@ -151,6 +151,10 @@ body { background: #fff; }
   font-size: 12px;
   color: var(--color-ink-mute);
 }
+/* 모바일: 라운지 목록 카드의 작성일 숨김(뱃지 옆 날짜 노출 안 함) */
+@media (max-width: 768px) {
+  .lounge-card-date { display: none; }
+}
 
 /* ===== 리스트 뷰 ===== */
 .lounge-list {
