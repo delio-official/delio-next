@@ -1558,21 +1558,17 @@ function SmsPhonePreview({ smsKind, smsText, adOptout }: { smsKind: 'ad'|'notice
 function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; values: number[] } }) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(560);
-  const [height, setHeight] = useState(200);
 
-  /* ResizeObserver로 컨테이너 너비·높이 추적 → viewBox를 실제 픽셀 크기와 1:1로 맞춰
-     preserveAspectRatio="none"에서도 그래프/점이 눌리지 않도록 한다.
-     (SVG는 height:100%로 컨테이너를 채울 뿐 부모 높이를 늘리지 않으므로 되먹임 루프 없음) */
+  /* 너비만 측정. 높이는 고정(H)으로 두고 SVG도 H px로 렌더 → viewBox와 1:1이라 세로 왜곡 없음.
+     (높이를 측정해 viewBox에 되먹이면 SVG 고유높이가 커지며 무한 확대 루프가 생기므로 금지) */
   useEffect(() => {
     if (!ref.current) return;
     const ro = new ResizeObserver(entries => {
-      const r = entries[0]?.contentRect;
-      if (r?.width && r.width > 0) setWidth(r.width);
-      if (r?.height && r.height > 0) setHeight(r.height);
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setWidth(w);
     });
     ro.observe(ref.current);
     setWidth(ref.current.clientWidth || 560);
-    setHeight(ref.current.clientHeight || 200);
     return () => ro.disconnect();
   }, []);
 
@@ -1588,7 +1584,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     );
   }
 
-  const H   = height > 0 ? height : 200;   // 실측 높이 = viewBox 높이 → 세로 왜곡 없음(1:1)
+  const H   = 220;   // 고정 높이(px). SVG도 정확히 H px로 렌더 → viewBox와 1:1이라 왜곡 없음
   const PAD = { top: 28, right: 16, bottom: 4, left: 44 };
   const cw  = width - PAD.left - PAD.right;
   const ch  = H - PAD.top - PAD.bottom;
@@ -1647,7 +1643,7 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     `</g>`
   ).join('');
 
-  const svgStr = `<svg width="100%" height="100%" viewBox="0 0 ${width} ${H}" preserveAspectRatio="none" overflow="visible">` +
+  const svgStr = `<svg viewBox="0 0 ${width} ${H}" preserveAspectRatio="none" overflow="visible" style="display:block;width:100%;height:${H}px">` +
     `<defs><linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0%" stop-color="#3B82F6" stop-opacity="0.18"/>` +
     `<stop offset="100%" stop-color="#3B82F6" stop-opacity="0.01"/>` +
@@ -1663,9 +1659,9 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
   const visibleLbs = lbs.filter((_, i) => i % step === 0 || i === n - 1);
 
   return (
-    <div style={{ overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <div ref={ref} className="adm-chart" dangerouslySetInnerHTML={{ __html: svgStr }} />
+    <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', height: H }}>
+        <div ref={ref} className="adm-chart" style={{ height: H, minHeight: 0, flex: 'none' }} dangerouslySetInnerHTML={{ __html: svgStr }} />
         {/* Y축 금액 라벨 (HTML — 왜곡 없음) */}
         {yTicks.map(t => (
           <span key={t.lbl + t.topPct} style={{ position:'absolute', top:`${t.topPct}%`, left:0, width:PAD.left - 8, textAlign:'right', transform:'translateY(-50%)', fontSize:10, color:'#94A3B8', whiteSpace:'nowrap', pointerEvents:'none' }}>{t.lbl}</span>
