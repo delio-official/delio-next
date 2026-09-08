@@ -1593,13 +1593,16 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
   const n   = vals.length;
   const xStep = n > 1 ? cw / (n - 1) : cw;
 
-  let gridLines = '', yLabels = '';
+  /* 그리드선은 SVG로, Y축 금액 라벨은 SVG 밖 HTML 오버레이로 분리
+     (preserveAspectRatio="none" 때문에 SVG 내부 텍스트가 세로로 눌리는 현상 방지) */
+  let gridLines = '';
+  const yTicks: { lbl: string; topPct: number }[] = [];
   for (let i = 0; i <= 4; i++) {
     const y   = PAD.top + ch - (ch * i / 4);
     const val = Math.round(range * i / 4);
     const lbl = val >= 10000 ? (val / 10000).toFixed(0) + '만' : val.toLocaleString();
     gridLines += `<line x1="${PAD.left}" y1="${y}" x2="${width - PAD.right}" y2="${y}" stroke="#E2E8F0" stroke-width="1"/>`;
-    yLabels   += `<text x="${PAD.left - 8}" y="${y + 4}" text-anchor="end" font-size="10" fill="#94A3B8">${lbl}</text>`;
+    yTicks.push({ lbl, topPct: (y / H) * 100 });
   }
 
   const pts = vals.map((v, i) => ({
@@ -1607,15 +1610,32 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     y: PAD.top + ch - (v / range * ch),
     v,
   }));
-  const areaPath = [
-    `M ${pts[0].x} ${pts[0].y}`,
-    ...pts.slice(1).map(p => `L ${p.x} ${p.y}`),
-    `L ${pts[n-1].x} ${PAD.top + ch}`,
-    `L ${pts[0].x}   ${PAD.top + ch}`,
-    'Z',
-  ].join(' ');
-  const linePath = [`M ${pts[0].x} ${pts[0].y}`, ...pts.slice(1).map(p => `L ${p.x} ${p.y}`)].join(' ');
-  const circles  = pts.map((p, i) =>
+
+  /* 오늘 이후(미래) 날짜는 값이 0으로 채워져 있어도 선/영역/점을 그리지 않는다.
+     라벨(M/D)을 올해 날짜로 해석해 '오늘 이하'인 마지막 인덱스까지만 그림. */
+  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+  const curYear = today0.getFullYear();
+  let cutoff = n - 1;
+  {
+    let last = -1;
+    for (let i = 0; i < n; i++) {
+      const mm = (lbs[i] || '').split('/');
+      if (mm.length === 2) {
+        const dt = new Date(curYear, Number(mm[0]) - 1, Number(mm[1]));
+        if (!isNaN(dt.getTime()) && dt.getTime() <= today0.getTime()) last = i;
+      }
+    }
+    if (last >= 0) cutoff = last;
+  }
+  const lp = pts.slice(0, cutoff + 1);   // 오늘까지의 점들
+
+  const areaPath = lp.length > 1
+    ? [`M ${lp[0].x} ${lp[0].y}`, ...lp.slice(1).map(p => `L ${p.x} ${p.y}`), `L ${lp[lp.length-1].x} ${PAD.top + ch}`, `L ${lp[0].x} ${PAD.top + ch}`, 'Z'].join(' ')
+    : '';
+  const linePath = lp.length > 1
+    ? [`M ${lp[0].x} ${lp[0].y}`, ...lp.slice(1).map(p => `L ${p.x} ${p.y}`)].join(' ')
+    : '';
+  const circles  = lp.map((p, i) =>
     `<g class="adm-chart-point">` +
     `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#fff" stroke="#3B82F6" stroke-width="2.2"/>` +
     `<circle cx="${p.x}" cy="${p.y}" r="10" fill="transparent"/>` +
@@ -1628,9 +1648,9 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
     `<stop offset="0%" stop-color="#3B82F6" stop-opacity="0.18"/>` +
     `<stop offset="100%" stop-color="#3B82F6" stop-opacity="0.01"/>` +
     `</linearGradient></defs>` +
-    gridLines + yLabels +
-    `<path d="${areaPath}" fill="url(#lineAreaGrad)"/>` +
-    `<path d="${linePath}" fill="none" stroke="#3B82F6" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>` +
+    gridLines +
+    (areaPath ? `<path d="${areaPath}" fill="url(#lineAreaGrad)"/>` : '') +
+    (linePath ? `<path d="${linePath}" fill="none" stroke="#3B82F6" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>` : '') +
     circles + `</svg>`;
 
   /* 라벨은 최대 7개만 표시 (간격 균등) */
@@ -1640,7 +1660,13 @@ function SalesChart({ data }: { days: '7'|'30'; data?: { labels: string[]; value
 
   return (
     <div style={{ overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div ref={ref} className="adm-chart" dangerouslySetInnerHTML={{ __html: svgStr }} />
+      <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div ref={ref} className="adm-chart" dangerouslySetInnerHTML={{ __html: svgStr }} />
+        {/* Y축 금액 라벨 (HTML — 왜곡 없음) */}
+        {yTicks.map(t => (
+          <span key={t.lbl + t.topPct} style={{ position:'absolute', top:`${t.topPct}%`, left:0, width:PAD.left - 8, textAlign:'right', transform:'translateY(-50%)', fontSize:10, color:'#94A3B8', whiteSpace:'nowrap', pointerEvents:'none' }}>{t.lbl}</span>
+        ))}
+      </div>
       <div style={{ display:'flex', justifyContent:'space-between', paddingLeft:44, paddingRight:16, marginTop:4 }}>
         {visibleLbs.map(l => <span key={l} style={{ fontSize:10, color:'#94A3B8', whiteSpace:'nowrap' }}>{l}</span>)}
       </div>
