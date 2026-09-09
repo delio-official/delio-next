@@ -160,8 +160,15 @@ export default function CheckoutClient() {
   }
   function openAddAddr() { setAddrEditing(null); setAddrForm({ ...EMPTY_ADDR }); setAddrFormModal(true); }
   function openEditAddr(a: Addr) { setAddrEditing(a); setAddrForm({ label:a.label, recipient:a.recipient, phone:a.phone, zipcode:a.zipcode, address1:a.address1, address2:a.address2 || '', is_default:a.is_default, delivery_request:a.delivery_request || '' }); setAddrFormModal(true); }
+  /* 연락처 형식 검증 — 숫자만 9~11자리·0으로 시작(휴대폰/일반전화). "010"처럼 미완성 번호 차단 */
+  function isValidPhone(p: string) {
+    const d = (p || '').replace(/\D/g, '');
+    return d.length >= 9 && d.length <= 11 && d.startsWith('0');
+  }
+
   async function saveAddr() {
     if (!addrForm.recipient.trim() || !addrForm.phone.trim() || !addrForm.address1.trim()) { alert('필수 항목을 입력해주세요.'); return; }
+    if (!isValidPhone(addrForm.phone)) { alert('연락처를 정확히 입력해주세요.\n(예: 010-1234-5678)'); return; }
     const supabase = createClient();
     const makeDefault = addrForm.is_default || savedAddresses.length === 0;
     const payload = { label:addrForm.label, recipient:addrForm.recipient, phone:addrForm.phone, zipcode:addrForm.zipcode, address1:addrForm.address1, address2:addrForm.address2, delivery_request:addrForm.delivery_request };
@@ -370,6 +377,10 @@ export default function CheckoutClient() {
     if (!user) { router.push('/login'); return; }
     if (!recipient.trim() || !phone.trim() || !addr1.trim()) {
       alert('배송지 정보를 모두 입력해주세요.'); return;
+    }
+    /* 받는 분 연락처 형식 검증 — "010"처럼 미완성 번호로 주문되는 것 차단(배송·알림톡 발송에 필요) */
+    if (!isValidPhone(phone)) {
+      alert('받는 분 연락처를 정확히 입력해주세요.\n(예: 010-1234-5678)'); return;
     }
     /* 프로필에 저장된 번호가 없으면(소셜 최초주문 등) 알림 받을 '본인' 연락처 필수.
        받는 사람(배송지) 번호와 별개 — 선물 주문이어도 주문자 본인 번호를 확보한다. */
