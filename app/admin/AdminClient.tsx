@@ -5884,11 +5884,14 @@ export default function AdminClient() {
     if (adminPw.length < 8) { alert('비밀번호는 8자 이상이어야 합니다.'); return; }
     if (adminPw !== adminPw2) { alert('비밀번호 확인이 일치하지 않습니다.'); return; }
     setAdminPwSaving(true);
-    const { error } = await createClient().auth.updateUser({ password: adminPw });
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: adminPw });
+    if (error) { setAdminPwSaving(false); alert('변경 실패: ' + error.message); return; }
+    /* 비밀번호 변경 시 다른 기기/브라우저 세션은 즉시 로그아웃(현재 창은 유지) */
+    try { await supabase.auth.signOut({ scope: 'others' }); } catch { /* 실패해도 변경 자체는 완료 */ }
     setAdminPwSaving(false);
-    if (error) { alert('변경 실패: ' + error.message); return; }
     setAdminPw(''); setAdminPw2('');
-    alert('비밀번호가 변경되었습니다.');
+    alert('비밀번호가 변경되었습니다.\n다른 기기·브라우저의 로그인은 모두 로그아웃되었습니다.');
   }
 
   /* ========== 포인트 적립 설정 ========== */
