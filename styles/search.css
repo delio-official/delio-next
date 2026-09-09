@@ -94,6 +94,22 @@
 .search-result-count { font-size: 14px; color: var(--color-ink-mute); white-space: nowrap; flex-shrink: 0; }
 .search-filter-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .search-no-result-sub { margin-top: var(--space-2); }
+
+/* 모바일: 필터 칩을 한 줄로(줄바꿈 없이) + 좌우 스와이프(가로 스크롤). 개수 텍스트 아래 전체폭 배치 */
+@media (max-width: 768px) {
+  .search-result-header { flex-direction: column; align-items: stretch; gap: 12px; }
+  .search-filter-wrap {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;               /* Firefox */
+    margin: 0 -16px;                     /* 좌우 컨테이너 여백까지 스크롤 영역 확장 */
+    padding: 0 16px 2px;
+  }
+  .search-filter-wrap::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
+  .search-filter-wrap .filter-chip-sm { flex: 0 0 auto; }    /* 칩이 줄어들지 않게 */
+}
 .sort-sheet-title { font-size: var(--fs-body); font-weight: 700; margin-bottom: var(--space-4); }
 .fruit-filter-title { font-size: var(--fs-body); font-weight: 700; margin-bottom: var(--space-5); }
 .filter-range-mute { font-size: var(--fs-caption); color: var(--color-ink-mute); }
