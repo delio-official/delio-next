@@ -380,7 +380,7 @@ function QuickGuide() {
             <span className="qg-card-tag" style={{ visibility:'hidden' }}>·</span>
           )}
           <div className="qg-card-name">{p.name}</div>
-          {p.short_desc && <div className="qg-card-desc">{p.short_desc}</div>}
+          <div className="qg-card-desc">{p.short_desc || ' '}</div>{/* 설명 없어도 칸 유지(정렬) */}
           {p.discount_rate > 0 && (
             <div className="qg-card-discrow"><span className="qg-card-original">{p.price.toLocaleString()}원</span></div>
           )}
