@@ -5108,7 +5108,7 @@ export default function AdminClient() {
       supabase.from('reviews')
         .select('id, product_id, user_id, rating, content, is_best, image_urls, taste, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id, seller_score)')
         .order('created_at', { ascending: false })
-        .limit(100),
+        .limit(5000),   // 전체 로드 — KPI·브랜드/상태 필터가 전 리뷰 대상으로 동작(최신 100개만 로드하던 문제 해결)
       supabase.from('review_reports')
         .select('id, review_id, reason, created_at, status')
         .order('created_at', { ascending: false })
