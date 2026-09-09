@@ -12227,7 +12227,7 @@ export default function AdminClient() {
                   <div onClick={() => setSecOpen(s => ({ ...s, qg: !s.qg }))} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer', userSelect:'none', flex:1, minWidth:0 }}>
                     <span style={{ fontSize:12, color:'#94A3B8', display:'inline-block', marginTop:3, transform: secOpen.qg ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>▶</span>
                     <div>
-                      <span className="adm-card-title">퀵 가이드</span>
+                      <span className="adm-card-title" style={{ fontSize:14, fontWeight:800 }}>퀵 가이드</span>
                       {secOpen.qg
                         ? <div className="adm-muted" style={{ fontSize:12, marginTop:4 }}>가이드 제목을 만들고 상품을 담으면, 메인 퀵가이드에 그 제목이 탭으로 뜨고 클릭 시 담은 상품이 노출됩니다. <b style={{ color:'#475569' }}>제목·노출·상품·순서 변경은 ‘저장’을 눌러야 반영됩니다.</b></div>
                         : <span className="adm-muted" style={{ fontSize:12, marginLeft:8 }}>· 가이드 {qgGroups.length}개{qgDirty ? ' · 저장 안 됨' : ''}</span>}
