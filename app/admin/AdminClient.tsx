@@ -9311,7 +9311,8 @@ export default function AdminClient() {
                   ['주문자(결제자)', selectedOrder.orderer_name || selectedOrder.recipient],
                   ['수령인', selectedOrder.recipient],
                   ['로그인 계정', selectedOrder.account_name ? `${selectedOrder.account_name}${selectedOrder.account_email ? ` · ${selectedOrder.account_email}` : ''}` : '비회원'],
-                  ['연락처', selectedOrder.phone],
+                  ['수령인 연락처', selectedOrder.phone || '-'],
+                  ['주문자 연락처', selectedOrder.orderer_phone || '-'],
                 ] as [string, React.ReactNode][] },
                 { title:'배송 정보', rows: [
                   ['배송지', `${selectedOrder.address1}${selectedOrder.address2 ? ' ' + selectedOrder.address2 : ''}`],
