@@ -1022,7 +1022,7 @@ export default function HomeClient() {
                                     <div className="rating-stars" role="link" title="후기 보기"
                                       style={{ cursor:'pointer' }}
                                       onClick={e => { e.stopPropagation(); router.push(`/product/${p.id}?tab=review`); }}>
-                                      <StarRating rating={p.avg_rating} size={12} />
+                                      <SingleStar size={12} />
                                       <span>{p.avg_rating.toFixed(1)} ({p.review_count.toLocaleString()})</span>
                                     </div>
                                   </div>
