@@ -3782,10 +3782,15 @@ export default function AdminClient() {
   async function saveQgGroups() {
     setQgSaving(true);
     const supabase = createClient();
-    const rows = qgGroups.map(g => ({ id: g.id, title: g.title, product_ids: g.product_ids, is_active: g.is_active, sort_order: g.sort_order }));
-    const { error } = await supabase.from('quickguide_groups').upsert(rows, { onConflict: 'id' });
+    /* id가 GENERATED ALWAYS IDENTITY라 upsert(=INSERT)는 id 명시로 거부됨.
+       모든 행이 이미 존재하므로 행별 UPDATE로 저장한다. */
+    const results = await Promise.all(qgGroups.map(g =>
+      supabase.from('quickguide_groups')
+        .update({ title: g.title, product_ids: g.product_ids, is_active: g.is_active, sort_order: g.sort_order })
+        .eq('id', g.id)));
     setQgSaving(false);
-    if (error) { alert('저장 실패: ' + error.message); return; }
+    const err = results.find(r => r.error);
+    if (err?.error) { alert('저장 실패: ' + err.error.message); return; }
     setQgDirty(false); setQgSavedMsg('저장됐어요 ✓'); setTimeout(() => setQgSavedMsg(''), 2500);
   }
   /* 메인 섹션 노출 토글 — 현재값(토글 화면값) 기준 */
