@@ -7848,19 +7848,7 @@ export default function AdminClient() {
                     };
                     return (
                       <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                        {/* 현재 추가된 카테고리 칩 */}
-                        {pExtraCats.length > 0 && (
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                            {pExtraCats.map(v => (
-                              <span key={v} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#EEF2FF', color:'#4338CA', fontSize:12, fontWeight:700, padding:'5px 8px 5px 10px', borderRadius:6 }}>
-                                {catLabel(v)}
-                                <button type="button" onClick={() => removeExtraCat(v)}
-                                  style={{ border:'none', background:'transparent', color:'#6366F1', cursor:'pointer', fontSize:14, lineHeight:1, padding:0 }}>×</button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {/* 대분류 → 소분류 2단 드롭다운 (대표 카테고리와 동일한 방식) */}
+                        {/* 대분류 → 소분류 2단 드롭다운 (좌측 대표 카테고리와 첫 줄 정렬 — 드롭다운을 맨 위로) */}
                         <AdmSelect style={{ width:'100%' }} value={pCatAddMajor}
                           onChange={v => { setPCatAddMajor(v); setPCatCustom(false); setPCatNewSub(''); }}
                           options={[{ value:'', label:'대분류 선택' }, ...majorCats.map(m => ({ value:m.tab_value, label:m.label }))]} />
@@ -7895,6 +7883,18 @@ export default function AdminClient() {
                               style={{ border:'1px solid #E2E8F0', background:'#fff', color:'#64748B', fontSize:12, fontWeight:700, borderRadius:6, padding:'0 12px', cursor:'pointer' }}>
                               취소
                             </button>
+                          </div>
+                        )}
+                        {/* 선택된 추가 카테고리 칩 — 드롭다운 아래로 이동 */}
+                        {pExtraCats.length > 0 && (
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                            {pExtraCats.map(v => (
+                              <span key={v} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#EEF2FF', color:'#4338CA', fontSize:12, fontWeight:700, padding:'5px 8px 5px 10px', borderRadius:6 }}>
+                                {catLabel(v)}
+                                <button type="button" onClick={() => removeExtraCat(v)}
+                                  style={{ border:'none', background:'transparent', color:'#6366F1', cursor:'pointer', fontSize:14, lineHeight:1, padding:0 }}>×</button>
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
