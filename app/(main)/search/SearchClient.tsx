@@ -168,13 +168,25 @@ export default function SearchClient() {
   /* ── 정렬 / 필터 상태 ── */
   const [sortOpen, setSortOpen] = useState(false);
   const [fruitOpen, setFruitOpen] = useState(false);
-  /* 시트(정렬·과일필터) 열릴 때 뒤 배경 스크롤 잠금 */
+  /* 시트(정렬·과일필터) 열릴 때 뒤 배경 스크롤 잠금.
+     모바일(iOS 포함)은 body overflow:hidden만으론 터치 스크롤이 안 막히므로
+     position:fixed로 문서를 고정하고 스크롤 위치를 보존·복원한다. */
   useEffect(() => {
-    if (sortOpen || fruitOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
-    }
+    if (!(sortOpen || fruitOpen)) return;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const prev = { position: body.style.position, top: body.style.top, width: body.style.width, overflow: body.style.overflow };
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      body.style.overflow = prev.overflow;
+      window.scrollTo(0, scrollY);
+    };
   }, [sortOpen, fruitOpen]);
   const [currentSort, setCurrentSort] = useState('');
   const [filters, setFilters] = useState({
