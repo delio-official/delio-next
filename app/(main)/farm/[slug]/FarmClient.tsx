@@ -109,7 +109,7 @@ function FarmProductCard({ p }: { p: Product }) {
           ))}
         </div>
         <div className="product-card-name">{p.name}</div>
-        {p.short_desc && <div className="product-card-desc">{p.short_desc}</div>}
+        <div className="product-card-desc">{p.short_desc || ' '}</div>{/* 설명 없어도 칸 유지(정렬) */}
         <div className="price-block">
           {p.discount_rate > 0 && (
             <div className="price-top-row"><span className="price-original">{fmtPrice(p.price)}원</span></div>

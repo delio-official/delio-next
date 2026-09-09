@@ -1018,6 +1018,11 @@ input, select, textarea { font-family: inherit; }
   font-size: 13px;
   color: var(--color-ink-mute);
   margin-bottom: var(--space-2);
+  line-height: 1.4;
+  min-height: 1.4em;            /* 설명 없어도 1줄 높이 예약 → 카드 간 가격 위치 정렬 */
+  white-space: nowrap;          /* 1줄로 통일(길면 … 처리) */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .product-brix-wrap {
   height: 22px;
