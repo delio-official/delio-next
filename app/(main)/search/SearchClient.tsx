@@ -124,11 +124,7 @@ function SearchProductCard({ p }: { p: Product }) {
             <span className="price-current">{fmtPrice(p.discounted_price ?? p.price)}원</span>
           </div>
         </div>
-        <div>
-          <span className={`product-delivery-tag${p.is_dawn ? ' farm' : ''}`}>
-            {p.is_dawn ? '산지직송' : '자사배송'}
-          </span>
-        </div>
+        {/* 배송 뱃지는 이미지 위(.product-card-delivery)에만 표기 — 가격 하단 중복 제거 */}
         {p.review_count > 0 && (
           <div className="product-rating-row">
             <div className="rating-stars" onClick={handleReviewClick}
@@ -172,6 +168,14 @@ export default function SearchClient() {
   /* ── 정렬 / 필터 상태 ── */
   const [sortOpen, setSortOpen] = useState(false);
   const [fruitOpen, setFruitOpen] = useState(false);
+  /* 시트(정렬·과일필터) 열릴 때 뒤 배경 스크롤 잠금 */
+  useEffect(() => {
+    if (sortOpen || fruitOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [sortOpen, fruitOpen]);
   const [currentSort, setCurrentSort] = useState('');
   const [filters, setFilters] = useState({
     delivery: false, best: false, discount: false, highRating: false,
@@ -447,7 +451,7 @@ export default function SearchClient() {
                 </svg>
                 {sortLabel}
               </button>
-              <button className={`filter-chip-sm${hasFruitFilter ? ' active' : ''}`} onClick={openFruitFilter}>🍊 과일 필터</button>
+              <button className={`filter-chip-sm${hasFruitFilter ? ' active' : ''}`} onClick={openFruitFilter}>과일 필터</button>
               <button className={`filter-chip-sm${filters.best ? ' active' : ''}`} onClick={() => toggleFilter('best')}>베스트</button>
               <button className={`filter-chip-sm${filters.discount ? ' active' : ''}`} onClick={() => toggleFilter('discount')}>할인중</button>
               <button className={`filter-chip-sm${filters.highRating ? ' active' : ''}`} onClick={() => toggleFilter('highRating')}>평점 4.8+</button>
@@ -505,9 +509,9 @@ export default function SearchClient() {
       <div className={`overlay-bg${fruitOpen ? ' show' : ''}`} onClick={() => setFruitOpen(false)} />
       <div className={`fruit-filter-sheet${fruitOpen ? ' open' : ''}`}>
         <div className="sort-sheet-handle" />
-        <h3 className="fruit-filter-title">🍊 과일 특화 필터</h3>
+        <h3 className="fruit-filter-title">과일 특화 필터</h3>
 
-        <p className="filter-section-title">🍯 당도 최소 단계 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(맛 프로파일)</span></p>
+        <p className="filter-section-title">당도 최소 단계 <span style={{ fontWeight:400, color:'#94A3B8', fontSize:12 }}>(맛 프로파일)</span></p>
         <div className="filter-range">
           <span className="filter-range-mute">무관</span>
           <input
@@ -520,7 +524,7 @@ export default function SearchClient() {
           </span>
         </div>
 
-        <p className="filter-section-title">😌 신맛 낮은 상품만</p>
+        <p className="filter-section-title">신맛 낮은 상품만</p>
         <div className="filter-sour-wrap">
           {[{ v: 0, l: '전체' }, { v: 1, l: '신맛 거의 없음' }, { v: 2, l: '신맛 적음' }].map(({ v, l }) => (
             <button
@@ -531,7 +535,7 @@ export default function SearchClient() {
           ))}
         </div>
 
-        <p className="filter-section-title">💰 가격 범위</p>
+        <p className="filter-section-title">가격 범위</p>
         <div className="price-range-row">
           <input type="number" className="price-input" placeholder="최솟값"
             value={pendingFruit.priceMin}
@@ -545,7 +549,7 @@ export default function SearchClient() {
           <span className="price-range-unit">원</span>
         </div>
 
-        <p className="filter-section-title">🚀 배송 방법</p>
+        <p className="filter-section-title">배송 방법</p>
         <div className="fruit-filter-chips fruit-filter-chips-mb">
           {[{ v: 'all', l: '전체' }, { v: 'dawn', l: '산지직송' }, { v: 'normal', l: '자사배송' }].map(({ v, l }) => (
             <button
