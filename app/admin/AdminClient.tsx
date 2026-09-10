@@ -3698,7 +3698,7 @@ export default function AdminClient() {
       .from('products')
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock, manage_stock)')
       .order('sort_order')
-      .limit(200);
+      .limit(5000);
     /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용).
        단품(옵션 0개)·재고 무한(manage_stock=false) 옵션 보유 시 → null = 재고 N/A(품절 아님) */
     const flat = (data || []).map((p: Record<string, unknown>) => {
