@@ -301,7 +301,7 @@ export default function Header() {
                         <>
                           <div className="mega-col">
                             <div className="mega-col-title">브랜드 소개관</div>
-                            <Link href="/brand" className="mega-link">브랜드 소개</Link>
+                            <Link href="/brand-intro" className="mega-link">브랜드 소개</Link>
                             <Link href="/farms" className="mega-link">파트너 농가</Link>
                           </div>
                           <div className="mega-col mega-col-last">

@@ -24,8 +24,8 @@ const CAT_DATA = [
   {
     icon: '🏪', bg: '#E8EAF6', name: '브랜드 소개관',
     subs: [
-      { label: '브랜드 소개', href: '/brand' },
-      { label: '파트너농가', href: '/brand' },
+      { label: '브랜드 소개', href: '/brand-intro' },
+      { label: '파트너농가', href: '/farms' },
     ],
   },
   {
@@ -40,7 +40,7 @@ const CAT_DATA = [
 
 const SHORTCUTS_FALLBACK = [
   { icon: '✨', bg: '#F5F0FF', label: '신상품',     href: '/category?new=true' },
-  { icon: '🏪', bg: '#E8EAF6', label: '브랜드소개관', href: '/brand' },
+  { icon: '🏪', bg: '#E8EAF6', label: '브랜드소개관', href: '/brand-intro' },
   { icon: '🎉', bg: '#FFF0F5', label: '이벤트',     href: '/event' },
   { icon: '📖', bg: '#EEF4FF', label: '라운지',     href: '/lounge' },
   { icon: '🔍', bg: '#F0FFF4', label: '취향진단',   href: '/survey' },
