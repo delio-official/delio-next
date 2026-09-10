@@ -989,10 +989,21 @@ function ImageDrop({ url, onFile, onClear, uploading = false, height = 120, plac
   );
 }
 
+/* DB 시각(ISO·UTC) → 입력칸용 한국(브라우저 로컬) 시각 'YYYY-MM-DDTHH:mm'.
+   문자열을 slice로 자르면 UTC 그대로라 9시간(날짜는 하루) 어긋나고, 그대로 다시 저장하면 실제로 당겨짐. */
+function isoToLocalDT(s?: string | null): string {
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function isoToLocalDate(s?: string | null): string { return isoToLocalDT(s).slice(0, 10); }
+
 /* 문자열 날짜 → datetime-local 입력값(YYYY-MM-DDTHH:mm). 레거시 "2026.05.30"도 변환 */
 function toDateTimeLocal(s: string): string {
   if (!s) return '';
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return isoToLocalDT(s) || s.slice(0, 16);
   const m = s.match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
   return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}T00:00` : '';
 }
@@ -5240,10 +5251,10 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data } = await supabase
       .from('lounge_posts')
-      .select('id, filter, title, badge, date, is_active, sort_order, view_count, created_at')
+      .select('id, filter, title, badge, badge_color, date, is_active, sort_order, view_count, created_at')
       .order('sort_order')
       .order('created_at', { ascending: false });
-    setLoungePosts((data as AdminLoungePost[]) || []);
+    setLoungePosts((data as unknown as AdminLoungePost[]) || []);
     setLoungeLoading(false);
     loadLoungeCategories();
   }
@@ -5632,8 +5643,8 @@ export default function AdminClient() {
         name: p.name || '', title: p.title || '', link_url: p.link_url || '/',
         width: p.width || 400, position: p.position || 'center',
         is_active: p.is_active, show_today_close: p.show_today_close !== false,
-        starts_at: p.starts_at ? p.starts_at.slice(0, 16) : '',
-        ends_at:   p.ends_at   ? p.ends_at.slice(0, 16)   : '',
+        starts_at: isoToLocalDT(p.starts_at),
+        ends_at:   isoToLocalDT(p.ends_at),
       });
       setPpImgUrl(p.image_url || '');
       setPpImgUrlMobile(p.image_url_mobile || '');
@@ -5748,7 +5759,7 @@ export default function AdminClient() {
     if (b) {
       setEditingBanner(b);
       setBnForm({ type: b.type, name: b.name || '', link_url: b.link_url, is_active: b.is_active,
-        starts_at: b.starts_at ? b.starts_at.slice(0,10) : '', ends_at: b.ends_at ? b.ends_at.slice(0,10) : '' });
+        starts_at: isoToLocalDate(b.starts_at), ends_at: isoToLocalDate(b.ends_at) });
       setBnImgUrl(b.image_url || '');
       setBnImgUrlMobile(b.image_url_mobile || '');
     } else {
@@ -5837,11 +5848,10 @@ export default function AdminClient() {
     }
   }
 
-  /* 포인트 적립 설정 저장 — 구매 기본 적립률·리뷰 적립 P (site_settings) */
+  /* 포인트 적립 설정 저장 — 리뷰 적립 P (site_settings). 구매 적립률은 멤버십 등급별 적립률 사용 */
   async function saveEarnSettings() {
     setEarnSaving(true);
     const rows = [
-      { key: 'point_rate',         value: String(siteSettings.point_rate ?? '1') },
       { key: 'review_point_text',  value: String(siteSettings.review_point_text ?? '50') },
       { key: 'review_point_photo', value: String(siteSettings.review_point_photo ?? '150') },
     ];
@@ -6780,10 +6790,15 @@ export default function AdminClient() {
   }
 
   /* ========== 라운지 CRUD ========== */
-  function openLoungeModal(post?: AdminLoungePost) {
+  async function openLoungeModal(post?: AdminLoungePost) {
     if (post) {
-      setEditingLounge(post);
-      setLoungeForm({ filter: post.filter, title: post.title, badge: post.badge || '', badge_color: (post as { badge_color?: string | null }).badge_color || BADGE_DEFAULT_COLOR, date: toDateTimeLocal(post.date || ''), thumbnail_url: post.thumbnail_url || '', image_url: post.image_url || '', content: post.content || '', is_active: post.is_active, sort_order: post.sort_order });
+      /* 목록에는 썸네일·본문이미지·내용이 없으므로 수정 전 해당 글 전체를 다시 불러온다.
+         (목록 데이터로 폼을 채우면 빈 칸이 그대로 저장돼 기존 이미지·본문이 지워짐) */
+      const { data: full, error } = await createClient().from('lounge_posts').select('*').eq('id', post.id).maybeSingle();
+      if (error || !full) { alert('게시물을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+      const p = full as AdminLoungePost & { badge_color?: string | null };
+      setEditingLounge(p);
+      setLoungeForm({ filter: p.filter, title: p.title, badge: p.badge || '', badge_color: p.badge_color || BADGE_DEFAULT_COLOR, date: toDateTimeLocal(p.date || ''), thumbnail_url: p.thumbnail_url || '', image_url: p.image_url || '', content: p.content || '', is_active: p.is_active, sort_order: p.sort_order });
     } else {
       setEditingLounge(null);
       setLoungeForm({ filter: loungeCats[0]?.slug || 'recipe', title: '', badge: '', badge_color: BADGE_DEFAULT_COLOR, date: '', thumbnail_url: '', image_url: '', content: '', is_active: true, sort_order: 0 });
@@ -7160,8 +7175,8 @@ export default function AdminClient() {
         thumbnail_url: ev.thumbnail_url || '',
         image_url: ev.image_url || '',
         content: ev.content || '',
-        starts_at: ev.starts_at ? ev.starts_at.slice(0, 16) : '',
-        ends_at:   ev.ends_at   ? ev.ends_at.slice(0, 16)   : '',
+        starts_at: isoToLocalDT(ev.starts_at),
+        ends_at:   isoToLocalDT(ev.ends_at),
         is_active: ev.is_active,
       });
     } else {
@@ -7194,7 +7209,7 @@ export default function AdminClient() {
     if (!evForm.title.trim()) { alert('이벤트명을 입력하세요.'); return; }
     // 즉시 활성화 체크 시 날짜를 비워도 "지금부터 ~ 무기한"으로 자동 설정
     const immediate = evForm.is_active;
-    const startsRaw = evForm.starts_at || (immediate ? new Date().toISOString().slice(0, 16) : '');
+    const startsRaw = evForm.starts_at || (immediate ? isoToLocalDT(new Date().toISOString()) : '');
     const endsRaw   = evForm.ends_at   || (immediate ? '2099-12-31T23:59' : '');
     if (!startsRaw) { alert('시작일을 입력하세요. (또는 "즉시 활성화"를 체크하면 지금부터 노출됩니다)'); return; }
     if (!endsRaw)   { alert('종료일을 입력하세요. (또는 "즉시 활성화"를 체크하면 무기한 노출됩니다)'); return; }
@@ -7719,8 +7734,8 @@ export default function AdminClient() {
     if (evStatusFilter !== 'all' && getEventStatus(ev) !== evStatusFilter) return false;
     if (evSearch.trim() && !(ev.title || '').toLowerCase().includes(evSearch.trim().toLowerCase())) return false;
     /* 기간 겹침: 이벤트 기간이 선택한 날짜 범위와 겹치면 표시 */
-    if (evFrom && ev.ends_at && ev.ends_at.slice(0,10) < evFrom) return false;
-    if (evTo && ev.starts_at && ev.starts_at.slice(0,10) > evTo) return false;
+    if (evFrom && ev.ends_at && isoToLocalDate(ev.ends_at) < evFrom) return false;
+    if (evTo && ev.starts_at && isoToLocalDate(ev.starts_at) > evTo) return false;
     return true;
   });
 
@@ -10940,8 +10955,16 @@ export default function AdminClient() {
                   <div className="adm-card" style={{ marginBottom:24, padding:'18px 20px' }}>
                     {/* PC 3칸 가로 · 모바일 세로(adm-kpi-3 반응형) */}
                     <div className="adm-kpi-grid adm-kpi-3" style={{ marginTop:0, marginBottom:0 }}>
+                      {/* 구매 적립률은 멤버십 등급별 적립률로만 적용됨(주문 적립·상품페이지 표시 동일) → 여기서는 안내만 */}
+                      <div style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', flexDirection:'column', gap:10 }}>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>구매 적립</div>
+                          <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4, minHeight:16 }}>회원 등급별 적립률로 적용됩니다</div>
+                        </div>
+                        <button type="button" className="adm-btn adm-btn-outline" style={{ justifyContent:'center' }}
+                          onClick={() => setCouponTab('tab-membership')}>멤버십 관리에서 설정 →</button>
+                      </div>
                       {([
-                        { label:'구매 적립', sub:'기본(비기너) 기준 · 등급별은 멤버십 탭', key:'point_rate', def:'1', unit:'%', step:0.5 },
                         { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
                         { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
                       ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
@@ -11327,7 +11350,7 @@ export default function AdminClient() {
                         {list.map(b => {
                           const period = (!b.starts_at && !b.ends_at)
                             ? '상시 노출'
-                            : `${b.starts_at ? b.starts_at.slice(0,10) : '즉시'} ~ ${b.ends_at ? b.ends_at.slice(0,10) : '상시'}`;
+                            : `${b.starts_at ? isoToLocalDate(b.starts_at) : '즉시'} ~ ${b.ends_at ? isoToLocalDate(b.ends_at) : '상시'}`;
                           return (
                           <div key={b.id} className="adm-card" draggable
                             onDragStart={() => { dragRow.current = b.id; }}

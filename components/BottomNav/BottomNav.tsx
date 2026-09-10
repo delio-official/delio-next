@@ -99,11 +99,15 @@ function BottomNavInner() {
   useEffect(() => {
     createClient()
       .from('banners')
-      .select('image_url, image_url_mobile, link_url, sort_order')
+      .select('image_url, image_url_mobile, link_url, sort_order, starts_at, ends_at')
       .eq('type', 'cat_promo').eq('is_active', true)
-      .order('sort_order').limit(1)
+      .order('sort_order')
       .then(({ data }) => {
-        const b = data?.[0] as { image_url: string | null; image_url_mobile: string | null; link_url: string } | undefined;
+        /* 노출 기간(시작 전·종료 후 제외) 반영 후 첫 1장 */
+        const now = Date.now();
+        type CP = { image_url: string | null; image_url_mobile: string | null; link_url: string; starts_at?: string | null; ends_at?: string | null };
+        const b = ((data || []) as CP[]).find(x =>
+          (!x.starts_at || new Date(x.starts_at).getTime() <= now) && (!x.ends_at || new Date(x.ends_at).getTime() >= now));
         const img = b?.image_url_mobile || b?.image_url;
         if (img) setCatPromo({ image: img, link: b!.link_url || '/' });
       });

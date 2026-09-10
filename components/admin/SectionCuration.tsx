@@ -68,9 +68,12 @@ export default function SectionCuration({ sec, items, buckets }: {
       { key: `${sec}_ids`, value: idsValue },
       { key: meta.countKey, value: String(count) },
     ];
-    await supabase.from('site_settings').upsert(rows, { onConflict: 'key' });
+    const { error } = await supabase.from('site_settings').upsert(rows, { onConflict: 'key' });
+    setSaving(false);
+    /* 실패하면 성공 표시 없이 알림 → 버튼은 파란색(미저장) 그대로 남아 다시 시도 가능 */
+    if (error) { alert('저장 실패: ' + error.message + '\n잠시 후 다시 시도해주세요.'); return; }
     setBaseline(snapshot); // 저장 완료 → 현재 상태를 새 기준으로
-    setSaving(false); setMsg('저장됐어요 ✓'); setTimeout(() => setMsg(''), 2500);
+    setMsg('저장됐어요 ✓'); setTimeout(() => setMsg(''), 2500);
   }
 
   /* 버킷이면 후보를 현재 카테고리 상품으로 제한 */

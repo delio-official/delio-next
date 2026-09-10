@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 
 /* 포트원 V2 결제 취소(환불) — 관리자 환불 승인 시 호출.
    중요: '취소 실패'를 응답 문구로 추측해서 성공 처리하지 않는다(카드 미취소인데 DB만 환불완료되는 사고 방지).
@@ -29,13 +30,30 @@ export async function POST(req: NextRequest) {
 
   const auth = { Authorization: `PortOne ${apiSecret}` };
 
+  /* 네이버페이는 결제 시 전액 면세로 승인됨 → 부분취소 시 취소금액 전액을 면세(taxFreeAmount)로 넘겨야 함.
+     (안 넘기면 '취소 과세금액이 취소 가능 과세금액(0) 초과'로 실패) 당사 전 상품 면세.
+     전액취소(amount 생략)는 PG가 알아서 처리하므로 부분취소일 때만 필요. */
+  let isNaver = false;
+  if (amount != null) {
+    try {
+      const admin = createAdminSupabaseClient();
+      const { data: ord } = await admin.from('orders').select('payment_method')
+        .eq('portone_payment_id', paymentId).maybeSingle();
+      isNaver = (ord as { payment_method?: string } | null)?.payment_method === 'naver';
+    } catch { /* 조회 실패 시 과세 기본값으로 진행 */ }
+  }
+
   const res = await fetch(
     `https://api.portone.io/payments/${encodeURIComponent(paymentId)}/cancel`,
     {
       method: 'POST',
       headers: { ...auth, 'Content-Type': 'application/json' },
       // 관리자 취소/환불 → 요청자 = ADMIN(가맹점 관리자) → Npay cancelRequester=2
-      body: JSON.stringify({ reason, requester: 'ADMIN', ...(amount != null ? { amount } : {}) }),
+      body: JSON.stringify({
+        reason, requester: 'ADMIN',
+        ...(amount != null ? { amount } : {}),
+        ...(amount != null && isNaver ? { taxFreeAmount: amount } : {}),
+      }),
     }
   );
 

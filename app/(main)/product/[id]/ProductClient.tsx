@@ -466,7 +466,7 @@ export default function ProductClient() {
       const { data: settingRows } = await supabase
         .from('site_settings')
         .select('key, value')
-        .in('key', ['dispatch_cutoff', 'cs_phone', 'signup_coupon', 'point_rate']);
+        .in('key', ['dispatch_cutoff', 'cs_phone', 'signup_coupon']);
       (settingRows || []).forEach((s: { key: string; value: string }) => {
         if (s.key === 'dispatch_cutoff' && s.value) setSiteDispatchCutoff(s.value);
         if (s.key === 'cs_phone'        && s.value) setCsPhone(s.value);
@@ -805,7 +805,12 @@ export default function ProductClient() {
         const { data: prof } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle();
         grade = normalizeGrade((prof as { grade?: string } | null)?.grade);
       }
-      const { data: tier } = await supabase.from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
+      const [{ data: tier }, { data: pe }] = await Promise.all([
+        supabase.from('membership_tiers').select('*').eq('grade', grade).maybeSingle(),
+        supabase.from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle(),
+      ]);
+      /* 관리자가 포인트 시스템을 끄면 실제 적립이 0이므로 표시도 0 (주문 적립 로직과 동일 기준) */
+      if ((pe as { value?: string } | null)?.value === 'false') { setPointRate(0); return; }
       const t = (tier as MembershipTier | null) ?? DEFAULT_TIERS.find(x => x.grade === grade)!;
       setPointRate(effectiveRate(t));
     })();
@@ -1892,7 +1897,7 @@ export default function ProductClient() {
                   <tr>
                     <th>포인트</th>
                     <td style={{ color:'#1A1A1A', fontWeight:700 }}>
-                      {pointRate}% ({fmtPrice(Math.round(basePrice * pointRate / 100))}원)
+                      {pointRate > 0 ? `${pointRate}% (${fmtPrice(Math.round(basePrice * pointRate / 100))}원)` : '적립 없음'}
                     </td>
                   </tr>
                 </tbody>

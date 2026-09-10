@@ -28,6 +28,14 @@ interface Banner {
   link_url: string;
   sort_order: number;
 }
+/* 배너 노출 기간 — 시작 전이거나 종료가 지난 배너는 숨김(비어 있으면 제한 없음) */
+interface BannerPeriod { starts_at?: string | null; ends_at?: string | null }
+function inBannerPeriod(b: BannerPeriod): boolean {
+  const now = Date.now();
+  if (b.starts_at && new Date(b.starts_at).getTime() > now) return false;
+  if (b.ends_at && new Date(b.ends_at).getTime() < now) return false;
+  return true;
+}
 
 /* ===== 라운지 포스트 인터페이스 ===== */
 interface LoungePost {
@@ -136,9 +144,12 @@ function MainBanner() {
 
   useEffect(() => {
     createClient()
-      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
+      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order,starts_at,ends_at')
       .eq('type', 'main').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { setSlides(data || []); setReady(true); (data || []).forEach((b: Banner) => bumpBanner(b.id, 'view')); });
+      .then(({ data }) => {
+        const list = ((data || []) as (Banner & BannerPeriod)[]).filter(inBannerPeriod);  // 노출 기간 반영
+        setSlides(list); setReady(true); list.forEach(b => bumpBanner(b.id, 'view'));
+      });
   }, []);
 
   const CLONES = 2;
@@ -528,9 +539,12 @@ function MidBanner() {
 
   useEffect(() => {
     createClient()
-      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order')
+      .from('banners').select('id,image_url,image_url_mobile,link_url,sort_order,starts_at,ends_at')
       .eq('type', 'mid').eq('is_active', true).order('sort_order')
-      .then(({ data }) => { setSlides(data || []); setReady(true); (data || []).forEach((b: Banner) => bumpBanner(b.id, 'view')); });
+      .then(({ data }) => {
+        const list = ((data || []) as (Banner & BannerPeriod)[]).filter(inBannerPeriod);  // 노출 기간 반영
+        setSlides(list); setReady(true); list.forEach(b => bumpBanner(b.id, 'view'));
+      });
   }, []);
 
   const CLONES = 2;
