@@ -23,6 +23,9 @@ function ScrollDepthTracker() {
   const pathname = usePathname();
   useEffect(() => {
     if (!GA_ID) return;
+    /* 결제 흐름(체크아웃·결제완료 리다이렉트)에서는 스크롤 추적 제외 —
+       입력하며 당연히 스크롤하는 화면이라 스크롤률 데이터가 의미 없음 */
+    if (pathname?.startsWith('/checkout') || pathname?.startsWith('/payment')) return;
     const thresholds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     const fired = new Set<number>();
     let ticking = false;
