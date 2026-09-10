@@ -4579,7 +4579,7 @@ export default function AdminClient() {
 
   async function changeMemberGrade(memberId: string, grade: string) {
     const supabase = createClient();
-    /* 수동 변경 = 잠금 → 분기 자동 재산정에서 제외 */
+    /* 수동 변경 = 잠금 → '이번 분기'만 유지, 다음 분기 재산정 때 잠금 해제 후 구매 실적으로 자동 산정 (lib/membership-server) */
     const { error } = await supabase.from('profiles')
       .update({ grade, grade_locked: true, grade_updated_at: new Date().toISOString() }).eq('id', memberId);
     if (!error) {
@@ -4796,7 +4796,16 @@ export default function AdminClient() {
   }
 
   async function revokeReferralReward(r: AdminReferral) {
-    if (!confirm(`${r.referrer?.name || '추천인'}의 리워드를 철회하시겠습니까?\n지급된 5,000원 쿠폰(미사용분)이 회수되고 추천 상태가 초기화됩니다.`)) return;
+    const referrerName = r.referrer?.name || '추천인';
+    const referredName = r.referred?.name || '피추천인';
+    if (!confirm(
+      `추천 보상을 철회하시겠습니까?\n\n` +
+      `아래 두 사람의 5,000원 쿠폰 중 아직 사용하지 않은 쿠폰이 모두 회수됩니다.\n` +
+      `· 추천인 ${referrerName} — 추천 보상 쿠폰\n` +
+      `· 피추천인 ${referredName} — 가입 쿠폰\n\n` +
+      `※ 이미 사용한 쿠폰은 회수되지 않습니다.\n` +
+      `※ 회수된 쿠폰은 다시 지급되지 않으며, 고객에게 따로 알림이 가지 않습니다.`
+    )) return;
     const supabase = createClient();
     /* 쿠폰 회수 + 발급이력 삭제 + 추천 상태 초기화 (SECURITY DEFINER RPC) */
     const { error } = await supabase.rpc('revoke_referral_reward', { p_referral_id: r.id });
@@ -5987,7 +5996,7 @@ export default function AdminClient() {
     await createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' });
   }
   async function recalcGradesNow() {
-    if (!confirm('전체 회원 등급을 분기 누적 구매(금액·횟수) 기준으로 재산정합니다.\n수동 변경(잠금)된 회원은 제외됩니다. 진행할까요?')) return;
+    if (!confirm('전체 회원 등급을 분기 누적 구매(금액·횟수) 기준으로 재산정합니다.\n이번 분기에 관리자가 직접 등급을 바꾼 회원은 제외됩니다(지난 분기 이전 변경분은 다시 자동 산정). 진행할까요?')) return;
     setRecalcRunning(true);
     let data: { ok?: boolean; updated?: number; error?: string } = {};
     try {
@@ -11086,7 +11095,7 @@ export default function AdminClient() {
                         {recalcRunning ? '재산정 중...' : '지금 재산정'}
                       </button>
                       <span className="adm-muted" style={{ fontSize:12 }}>
-                        마지막 재산정: {siteSettings.membership_last_recalc || '없음'} · 수동 변경(잠금) 회원은 제외
+                        마지막 재산정: {siteSettings.membership_last_recalc || '없음'} · 이번 분기 수동 변경 회원은 제외
                       </span>
                     </div>
 
@@ -15251,7 +15260,8 @@ export default function AdminClient() {
                   ))}
                 </div>
                 <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.5 }}>
-                  분기 누적 구매로 자동 산정됩니다. 수동 변경 후 <b>저장</b> 시 잠금 처리되어 자동 재산정에서 제외됩니다.
+                  분기 누적 구매로 자동 산정됩니다. 직접 바꾼 뒤 <b>저장</b>하면 그 등급이 <b>이번 분기 말까지</b> 유지되고,
+                  다음 분기 재산정일({(() => { const d = new Date(); return `${((Math.floor(d.getMonth() / 3) + 1) * 3) % 12 + 1}월 1일`; })()})부터 다시 구매 실적으로 자동 산정됩니다.
                 </div>
               </div>
 

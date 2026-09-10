@@ -32,6 +32,13 @@ function birthMonth(birth: string | null | undefined): string | null {
   return null;
 }
 
+/** 한국시간 기준 이번 분기 시작 시각 (1·4·7·10월 1일 00:00 KST) */
+export function kstQuarterStart(now: Date = new Date()): Date {
+  const k = new Date(now.getTime() + 9 * 3600000);
+  const qMonth = Math.floor(k.getUTCMonth() / 3) * 3;
+  return new Date(Date.UTC(k.getUTCFullYear(), qMonth, 1) - 9 * 3600000);
+}
+
 /* ── 등급 재산정 ───────────────────────────────────────────── */
 export async function recalcAllGrades(): Promise<{ updated: number }> {
   const admin = createAdminSupabaseClient();
@@ -55,17 +62,25 @@ export async function recalcAllGrades(): Promise<{ updated: number }> {
     agg[o.user_id] = a;
   });
 
-  const { data: profs } = await admin.from('profiles').select('id, grade, grade_locked').limit(100000);
+  const { data: profs } = await admin.from('profiles').select('id, grade, grade_locked, grade_updated_at').limit(100000);
+  const qStart = kstQuarterStart().getTime();
   let updated = 0;
-  for (const p of (profs || []) as { id: string; grade: string | null; grade_locked: boolean | null }[]) {
-    if (p.grade_locked) continue;
+  for (const p of (profs || []) as { id: string; grade: string | null; grade_locked: boolean | null; grade_updated_at: string | null }[]) {
+    /* 관리자 수동 지정 등급은 '지정한 분기' 동안만 유지.
+       다음 분기가 되면 잠금을 풀고 구매 실적으로 다시 산정(충족 못하면 내려가고, 넘으면 올라감) */
+    if (p.grade_locked && p.grade_updated_at && new Date(p.grade_updated_at).getTime() >= qStart) continue;
+    const unlock = !!p.grade_locked;
     const s = agg[p.id] || { amount: 0, count: 0 };
     const newGrade = computeGrade(s.amount, s.count, tiers);
-    if (normalizeGrade(p.grade) !== newGrade) {
+    const changed = normalizeGrade(p.grade) !== newGrade;
+    if (changed || unlock) {
       await admin.from('profiles')
-        .update({ grade: newGrade, grade_updated_at: new Date().toISOString() })
+        .update({
+          ...(changed ? { grade: newGrade, grade_updated_at: new Date().toISOString() } : {}),
+          ...(unlock ? { grade_locked: false } : {}),
+        })
         .eq('id', p.id);
-      updated++;
+      if (changed) updated++;
     }
   }
 
