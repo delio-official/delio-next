@@ -60,6 +60,7 @@ interface PickProduct {
   id: string; name: string; price: number; discounted_price: number;
   discount_rate: number; brix: number | null; is_dawn: boolean;
   is_new: boolean; is_best: boolean;
+  badge: string | null; badge_color: string | null;
   avg_rating: number; review_count: number; short_desc: string | null;
   thumbnail_url: string | null; category: string;
   soldout?: boolean;
@@ -1015,8 +1016,12 @@ export default function HomeClient() {
                                   {p.is_dawn ? '산지직송' : '자사배송'}
                                 </span>
                                 <div className="product-brix-wrap">
+                                  {/* NEW · 인기 · 직접 입력 뱃지 — 켠 것은 모두 표시 (카테고리 카드와 동일) */}
                                   {p.is_new  && <span className="product-badge badge-new">NEW</span>}
-                                  {p.is_best && !p.is_new && <span className="product-badge badge-best">인기</span>}
+                                  {p.is_best && <span className="product-badge badge-best">인기</span>}
+                                  {parseBadges(p.badge, p.badge_color).map((b, i) => (
+                                    <span key={`b${i}`} className="product-badge" style={{ background: b.c, color: '#fff' }}>{b.t}</span>
+                                  ))}
                                 </div>
                                 <div className="product-card-name">{p.name}</div>
                                 <div className="product-card-desc">{p.short_desc || ' '}</div>{/* 설명 없어도 칸 유지(정렬) */}
