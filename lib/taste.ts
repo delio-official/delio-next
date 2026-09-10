@@ -23,7 +23,7 @@ export const TASTE_AXES: AxisDef[] = [
   { key:'sweet',   label:'당도', icon:'🍯', hex:'#E8632B', bg:'#FFF3EC', sellerSet:true,
     levels:['거의 안 달아요','살짝 달아요','적당히 달아요','달아요','매우 달아요'] },
   { key:'sour',    label:'산도', icon:'🍋', hex:'#C99A06', bg:'#FBF6E3', sellerSet:true,
-    levels:['거의 안 셔요','살짝 셔요','적당해요','새콤해요','많이 셔요'] },
+    levels:['안셔요','거의 안셔요','적당해요','살짝 셔요','많이 셔요'] },
   { key:'juice',   label:'과즙', icon:'💧', hex:'#2E8FD6', bg:'#EAF4FC', sellerSet:true,
     levels:['적은 편','약간 있어요','적당해요','풍부해요','매우 풍부해요'] },
   { key:'texture', label:'식감', icon:'🥗', hex:'#3E9B5F', bg:'#EDF7F0', sellerSet:true,
