@@ -57,7 +57,7 @@ export default function LoginClient() {
   return (
     <div className="login-wrap" style={{ justifyContent:'flex-start' }}>
       <div className="login-box">
-        <h1 className="login-title">로그인</h1>
+        <h1 className="login-title login-title-main">로그인</h1>
 
         {/* ── 간편 로그인 (맨 위 · 가로 버튼) ── */}
         <div className="sns-nudge-wrap">

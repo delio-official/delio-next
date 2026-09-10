@@ -132,8 +132,8 @@ body { background: #fff; }
 .mega-dropdown-inner-container { padding-top: 0; padding-bottom: 0; }
 .login-input-pw { margin-bottom: 6px; }
 
-/* 모바일: 로그인 제목 숨기고 그만큼 위로 (간편로그인부터 바로 보이게) */
+/* 모바일: 로그인 페이지 제목만 숨기고 그만큼 위로 (찾기 페이지 제목은 유지) */
 @media (max-width: 768px) {
-  .login-title { display: none; }
+  .login-title-main { display: none; }
   .login-wrap { padding-top: 20px; }
 }
