@@ -78,18 +78,14 @@ body { background: #fff; }
     .sns-nudge-wrap { display: flex; justify-content: center; margin: 2px 0 12px; }
     .sns-nudge {
       position: relative; display: inline-block;
-      background: var(--color-accent); color: #fff;
+      background: #fff; color: #374151;
       font-size: 12.5px; font-weight: 800; letter-spacing: -0.2px;
       padding: 7px 15px; border-radius: 999px;
-      box-shadow: 0 6px 16px rgba(203,29,17,0.28);
+      border: 1px solid #E5E7EB;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       transform-origin: center bottom;
       animation: snsNudgeBoing 1.8s ease-in-out infinite;
       will-change: transform;
-    }
-    .sns-nudge::after {   /* 아래쪽 꼬리 — 간편로그인 아이콘을 가리킴 */
-      content: ''; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
-      border-left: 6px solid transparent; border-right: 6px solid transparent;
-      border-top: 6px solid var(--color-accent);
     }
     @keyframes snsNudgeBoing {
       0%   { transform: translateY(0) scale(1); }
