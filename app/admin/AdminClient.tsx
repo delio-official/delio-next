@@ -1058,6 +1058,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const [smsFrom, setSmsFrom] = useState('');
   const [smsTo, setSmsTo] = useState('');
   const [smsLogDetail, setSmsLogDetail] = useState<typeof smsLogs[number] | null>(null); // 발송이력 상세 모달
+  const [cancellingSms, setCancellingSms] = useState<string | null>(null);                  // 예약 취소 처리 중인 이력 id
   // KPI 집계 (전체 이력 기준)
   const [statCount,      setStatCount]      = useState(0);
   const [statCost,       setStatCost]       = useState(0);
@@ -1085,7 +1086,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 
   async function loadSmsStats() {
     const supabase = createClient();
-    const { data } = await supabase.from('sms_logs').select('cost, created_at, status').neq('status', 'failed').limit(10000);
+    const { data } = await supabase.from('sms_logs').select('cost, created_at, status').not('status', 'in', '(failed,cancelled)').limit(10000);
     const rows = (data || []) as { cost: number|null; created_at: string; status: string }[];
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     let cc = 0, ct = 0, mc = 0, mt = 0;
@@ -1094,6 +1095,24 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
       if (new Date(r.created_at) >= monthStart) { mc++; mt += r.cost || 0; }
     }
     setStatCount(cc); setStatCost(ct); setStatMonthCount(mc); setStatMonthCost(mt);
+  }
+
+  /* 예약 문자 취소 — 솔라피 예약 취소 후 이력 '예약취소'로 변경 */
+  async function cancelReservedSms(log: typeof smsLogs[number]) {
+    if (cancellingSms) return;
+    const when = log.scheduled_at ? new Date(log.scheduled_at).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    if (!confirm(`${when} 예약된 문자(${(log.target_count || 0).toLocaleString()}명)를 취소할까요?
+취소하면 발송되지 않고 비용도 청구되지 않습니다.`)) return;
+    setCancellingSms(log.id);
+    try {
+      const res = await fetch('/api/sms/cancel', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ logId: log.id }) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok) { alert('예약 취소 실패: ' + (j.error || res.status)); return; }
+      setSmsLogs(prev => prev.map(l => l.id === log.id ? { ...l, status: 'cancelled', cost: 0 } : l));
+      setSmsLogDetail(d => (d && d.id === log.id ? { ...d, status: 'cancelled', cost: 0 } : d));
+      loadSmsStats();
+      alert('예약이 취소되었습니다.');
+    } finally { setCancellingSms(null); }
   }
 
   async function loadTemplates() {
@@ -1213,6 +1232,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const nowMs = Date.now();
   const dispStatus = (log: typeof smsLogs[number]) => {
     if (log.status === 'failed') return { label:'실패', color:'#DC2626' };
+    if (log.status === 'cancelled') return { label:'예약취소', color:'#94A3B8' };
     if (log.status === 'reserved' && log.scheduled_at && new Date(log.scheduled_at).getTime() > nowMs) return { label:'예약', color:'#2563EB' };
     if (log.error_msg) return { label:'일부 실패', color:'#EA580C' };  // 완료됐지만 일부 접수 실패
     return { label:'완료', color:'#16A34A' };
@@ -1442,7 +1462,16 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
                         <td style={{ textAlign:'center', maxWidth:320, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.message}</td>
                         <td>{(log.target_count || 0).toLocaleString()}명</td>
                         <td>{(log.cost || 0).toLocaleString()}원</td>
-                        <td><span style={{ fontWeight:600, color: st.color }}>{st.label}</span></td>
+                        <td>
+                          <span style={{ fontWeight:600, color: st.color }}>{st.label}</span>
+                          {st.label === '예약' && (
+                            <button className="adm-btn adm-btn-outline" style={{ marginLeft:8, padding:'3px 8px', fontSize:11, height:'auto', color:'#DC2626', borderColor:'#FECACA' }}
+                              disabled={cancellingSms === log.id}
+                              onClick={e => { e.stopPropagation(); cancelReservedSms(log); }}>
+                              {cancellingSms === log.id ? '취소 중…' : '예약 취소'}
+                            </button>
+                          )}
+                        </td>
                         <td className="adm-muted">{new Date(dispWhen(log)).toLocaleString('ko-KR', { year:'2-digit', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
                       </tr>
                     );
@@ -1534,7 +1563,13 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               </div>
             </>)}
 
-            <div style={{ marginTop:18, display:'flex', justifyContent:'flex-end' }}>
+            <div style={{ marginTop:18, display:'flex', justifyContent:'flex-end', gap:8 }}>
+              {st.label === '예약' && (
+                <button className="adm-btn adm-btn-outline" style={{ color:'#DC2626', borderColor:'#FECACA' }}
+                  disabled={cancellingSms === log.id} onClick={() => cancelReservedSms(log)}>
+                  {cancellingSms === log.id ? '취소 중…' : '예약 취소'}
+                </button>
+              )}
               <button className="adm-btn adm-btn-outline" onClick={() => setSmsLogDetail(null)}>닫기</button>
             </div>
           </div>
@@ -5995,7 +6030,7 @@ export default function AdminClient() {
       supabase.from('banners').select('view_count, click_count'),
       supabase.from('coupons').select('id, name, is_active'),
       supabase.from('user_coupons').select('coupon_id, is_used').limit(10000),
-      supabase.from('sms_logs').select('target_count, created_at').gte('created_at', pStartISO).limit(2000),
+      supabase.from('sms_logs').select('target_count, created_at').neq('status', 'cancelled').gte('created_at', pStartISO).limit(2000),
       supabase.from('survey_results').select('age_group').limit(5000),
     ]);
     const orders = (oRes.data || []) as { user_id: string|null; final_amount: number; status: string; created_at: string }[];

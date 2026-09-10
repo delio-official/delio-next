@@ -74,7 +74,8 @@ export async function POST(req: NextRequest) {
   const payload: Record<string, unknown> = { messages };
   if (schedDate) payload.scheduledDate = new Date(schedDate).toISOString();
 
-  const solapiRes = await fetch('https://api.solapi.com/messages/v4/send-many', {
+  /* send-many 는 scheduledDate(예약)를 받지 않음(ValidationError) → 예약 가능한 send-many/detail 사용. 응답 형식 동일 */
+  const solapiRes = await fetch('https://api.solapi.com/messages/v4/send-many/detail', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
