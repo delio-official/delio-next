@@ -97,12 +97,8 @@ body { background: #fff; }
       border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid #fff;
     }
     @keyframes snsNudgeBoing {
-      0%   { transform: translateY(0) scale(1); }
-      15%  { transform: translateY(-9px) scale(1.06); }
-      32%  { transform: translateY(0) scale(1); }
-      46%  { transform: translateY(-5px) scale(1.03); }
-      60%  { transform: translateY(0) scale(1); }
-      100% { transform: translateY(0) scale(1); }
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(-5px) scale(1.03); }
     }
 
     .sns-icon-row {
