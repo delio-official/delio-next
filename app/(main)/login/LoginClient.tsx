@@ -131,6 +131,10 @@ export default function LoginClient() {
 
         <div className="login-divider"><span>간편 로그인</span></div>
 
+        <div className="sns-nudge-wrap">
+          <span className="sns-nudge">⚡ 3초 만에 간편 가입!</span>
+        </div>
+
         <div className="sns-icon-row">
           {/* 네이버 */}
           <button className="sns-circle sns-naver-btn" onClick={() => signInWithNaver(nextUrl)} title="네이버로 로그인">
