@@ -71,6 +71,27 @@ export default function LoginClient() {
       <div className="login-box">
         <h1 className="login-title">로그인</h1>
 
+        {/* ── 간편 로그인 (맨 위 · 가로 버튼) ── */}
+        <div className="sns-nudge-wrap">
+          <span className="sns-nudge">⚡ 3초 만에 간편 가입!</span>
+        </div>
+        <div className="sns-full-row">
+          <button className="sns-full sns-full-kakao" onClick={() => signInWithKakao(nextUrl)}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+              <path d="M12 4C6.48 4 2 7.58 2 12c0 2.96 1.78 5.56 4.5 7.06l-.77 3.44 3.9-2.44c.75.14 1.53.22 2.37.22 5.52 0 10-3.58 10-8S17.52 4 12 4z" fill="#3C1E1E"/>
+            </svg>
+            카카오톡으로 계속하기
+          </button>
+          <button className="sns-full sns-full-naver" onClick={() => signInWithNaver(nextUrl)}>
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="#ffffff"/>
+            </svg>
+            네이버로 계속하기
+          </button>
+        </div>
+
+        <div className="login-divider"><span>또는 이메일로 로그인</span></div>
+
         <input
           type="text"
           className="login-input"
@@ -128,27 +149,6 @@ export default function LoginClient() {
         <Link href={`/signup${nextUrl && nextUrl !== '/' ? `?next=${encodeURIComponent(nextUrl)}` : ''}`} className="login-btn login-btn-outline">
           회원가입
         </Link>
-
-        <div className="login-divider"><span>간편 로그인</span></div>
-
-        <div className="sns-nudge-wrap">
-          <span className="sns-nudge">⚡ 3초 만에 간편 가입!</span>
-        </div>
-
-        <div className="sns-icon-row">
-          {/* 네이버 */}
-          <button className="sns-circle sns-naver-btn" onClick={() => signInWithNaver(nextUrl)} title="네이버로 로그인">
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
-              <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z" fill="#ffffff"/>
-            </svg>
-          </button>
-          {/* 카카오 */}
-          <button className="sns-circle sns-kakao-btn" onClick={() => signInWithKakao(nextUrl)} title="카카오로 로그인">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
-              <path d="M12 4C6.48 4 2 7.58 2 12c0 2.96 1.78 5.56 4.5 7.06l-.77 3.44 3.9-2.44c.75.14 1.53.22 2.37.22 5.52 0 10-3.58 10-8S17.52 4 12 4z" fill="#3C1E1E"/>
-            </svg>
-          </button>
-        </div>
       </div>
     </div>
   );

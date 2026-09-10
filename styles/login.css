@@ -101,6 +101,19 @@ body { background: #fff; }
       50%      { transform: translateY(-5px) scale(1.03); }
     }
 
+    /* 간편 로그인 가로 버튼 (맨 위) */
+    .sns-full-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .sns-full {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; height: 52px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .sns-full:hover { opacity: 0.9; }
+    .sns-full:active { transform: scale(0.99); }
+    .sns-full-kakao { background: #FEE500; color: #3C1E1E; }
+    .sns-full-naver { background: #03C75A; color: #fff; }
+
     .sns-icon-row {
       display: flex; align-items: center; justify-content: center; gap: 16px;
       margin-bottom: 10px;
