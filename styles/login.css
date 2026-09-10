@@ -84,18 +84,26 @@ body { background: #fff; }
       border: 1px solid #E5E7EB;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       transform-origin: center bottom;
-      animation: snsNudgeBoing 1.8s ease-in-out infinite;
+      animation: snsNudgeBoing 1.4s ease-in-out infinite;
       will-change: transform;
+    }
+    /* 말풍선 꼬리 — 회색 테두리(바깥) + 흰색(안쪽) 두 겹 */
+    .sns-nudge::before {
+      content: ''; position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%);
+      border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid #E5E7EB;
+    }
+    .sns-nudge::after {
+      content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+      border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid #fff;
     }
     @keyframes snsNudgeBoing {
       0%   { transform: translateY(0) scale(1); }
-      18%  { transform: translateY(-8px) scale(1.05); }
-      36%  { transform: translateY(0) scale(1); }
-      50%  { transform: translateY(-4px) scale(1.02); }
-      64%  { transform: translateY(0) scale(1); }
+      15%  { transform: translateY(-9px) scale(1.06); }
+      32%  { transform: translateY(0) scale(1); }
+      46%  { transform: translateY(-5px) scale(1.03); }
+      60%  { transform: translateY(0) scale(1); }
       100% { transform: translateY(0) scale(1); }
     }
-    @media (prefers-reduced-motion: reduce) { .sns-nudge { animation: none; } }
 
     .sns-icon-row {
       display: flex; align-items: center; justify-content: center; gap: 16px;
