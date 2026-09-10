@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createHmac, randomBytes } from 'crypto';
+import { isAdNightKst, AD_NIGHT_MSG } from '@/lib/ad-night';
 
 /* ── 건당 단가(원) — Solapi 웹 표준단가 ── */
 const SMS_COST = 18;
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
   const cost  = unit * targets.length;
   // 예약: 미래 시각이면 예약, 아니면 즉시
   const schedDate = scheduledAt && new Date(scheduledAt).getTime() > Date.now() ? scheduledAt : null;
+  // 광고성 야간(21~08시 KST) 발송·예약 차단 — 화면 우회 대비 서버에서도 거부
+  if (kind === 'ad' && isAdNightKst(schedDate ? new Date(schedDate) : new Date())) {
+    return NextResponse.json({ error: `${AD_NIGHT_MSG}\n오전 8시 이후로 예약해 주세요.` }, { status: 400 });
+  }
 
   /* ── Solapi 전송 ── */
   const messages = targets.map(to => ({ to, from: fromNum, text: finalText }));

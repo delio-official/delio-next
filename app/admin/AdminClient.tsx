@@ -11,6 +11,7 @@ import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 import { parseBadges } from '@/lib/badges';
+import { isAdNightKst, nextKst9am, AD_NIGHT_MSG } from '@/lib/ad-night';
 import BadgeTagsInput from '@/components/BadgeTagsInput';
 import { BANK_LINE, BANK_HOLDER } from '@/lib/company';
 import { SELLER_AXES, TASTE_AXES, axisLevelLabel, toLevel, type ReviewTaste } from '@/lib/taste';
@@ -1059,6 +1060,8 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const [smsTo, setSmsTo] = useState('');
   const [smsLogDetail, setSmsLogDetail] = useState<typeof smsLogs[number] | null>(null); // 발송이력 상세 모달
   const [cancellingSms, setCancellingSms] = useState<string | null>(null);                  // 예약 취소 처리 중인 이력 id
+  const [nowTick, setNowTick] = useState(() => Date.now());                                 // 야간 차단 판정용 현재시각(30초마다 갱신)
+  useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 30000); return () => clearInterval(t); }, []);
   // KPI 집계 (전체 이력 기준)
   const [statCount,      setStatCount]      = useState(0);
   const [statCost,       setStatCost]       = useState(0);
@@ -1193,6 +1196,10 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
       if (!reserveAt || new Date(reserveAt).getTime() <= Date.now()) { alert('예약 시각을 현재 이후로 설정하세요.'); return; }
       scheduledAt = new Date(reserveAt).toISOString();
     }
+    if (smsKind === 'ad' && isAdNightKst(scheduledAt ? new Date(scheduledAt) : new Date())) {
+      alert(`${AD_NIGHT_MSG}
+오전 8시 이후로 예약해 주세요.`); return;
+    }
     const verb = scheduledAt ? '예약' : '발송';
     if (!confirm(`${targets.length}명에게 ${verb}하시겠습니까?`)) return;
     setSending(true);
@@ -1228,6 +1235,17 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
   const GRADE_OPTS: [string, string][] = [
     ['beginner','비기너만'], ['taster','테이스터만'], ['buyer','바이어만'], ['master','마스터만'], ['high','바이어·마스터 이상'],
   ];
+  /* 광고성 야간(21~08시 KST) 차단 — 즉시발송은 지금, 예약은 예약시각 기준 */
+  const sendAtDate = reserveOn && reserveAt ? new Date(reserveAt) : new Date(nowTick);
+  const nightBlocked = smsKind === 'ad' && !isNaN(sendAtDate.getTime()) && isAdNightKst(sendAtDate);
+  const suggest9 = nightBlocked ? nextKst9am(sendAtDate) : null;
+  const suggest9Label = suggest9 ? (() => {
+    const k = new Date(suggest9.getTime() + 9 * 3600000);
+    const t = new Date(nowTick + 9 * 3600000);
+    const sameDay = (a: Date, c: Date) => a.getUTCFullYear() === c.getUTCFullYear() && a.getUTCMonth() === c.getUTCMonth() && a.getUTCDate() === c.getUTCDate();
+    const tmr = new Date(t.getTime() + 86400000);
+    return sameDay(k, t) ? '오늘 오전 9시' : sameDay(k, tmr) ? '내일 오전 9시' : `${k.getUTCMonth() + 1}/${k.getUTCDate()} 오전 9시`;
+  })() : '';
   const kindLabel = (k: string|null) => k === 'notice' ? '안내성' : '광고성';
   const nowMs = Date.now();
   const dispStatus = (log: typeof smsLogs[number]) => {
@@ -1406,8 +1424,24 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
               )}
             </div>
 
+            {nightBlocked && (
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap',
+                background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'12px 14px', marginTop:4 }}>
+                <div style={{ fontSize:13, color:'#B91C1C', lineHeight:1.6 }}>
+                  <b>{reserveOn && reserveAt ? '예약 시각이 야간입니다.' : '지금은 광고 문자 발송 불가 시간입니다.'}</b><br />
+                  {AD_NIGHT_MSG} 오전 8시 이후로 예약해 주세요.
+                </div>
+                {suggest9 && (
+                  <button className="adm-btn adm-btn-outline" style={{ whiteSpace:'nowrap', color:'#B91C1C', borderColor:'#FCA5A5', background:'#fff' }}
+                    onClick={() => { setReserveOn(true); setReserveAt(isoToLocalDT(suggest9.toISOString())); }}>
+                    {suggest9Label}로 예약
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="adm-form-actions" style={{ justifyContent:'flex-end' }}>
-              <button className="adm-btn adm-btn-primary" onClick={() => setPreview(true)} disabled={sending || !smsText.trim() || targetCount === 0}>
+              <button className="adm-btn adm-btn-primary" onClick={() => setPreview(true)} disabled={sending || !smsText.trim() || targetCount === 0 || nightBlocked}>
                 {sending ? '처리 중...' : (reserveOn ? `예약 확인 (${targetCount}명)` : `발송 확인 (${targetCount}명)`)}
               </button>
             </div>
@@ -1512,7 +1546,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
             <div style={{ display:'flex', gap:8, marginTop:16 }}>
               <button className="adm-btn adm-btn-outline" style={{ flex:1, justifyContent:'center' }} onClick={() => setPreview(false)}>취소</button>
               <button className="adm-btn adm-btn-primary" style={{ flex:1, justifyContent:'center' }} onClick={() => { setPreview(false); sendSms(); }}
-                disabled={sending || !smsText.trim() || targetCount === 0}>
+                disabled={sending || !smsText.trim() || targetCount === 0 || nightBlocked}>
                 {sending ? '처리 중...' : `발송하기 (${targetCount}명)`}
               </button>
             </div>
