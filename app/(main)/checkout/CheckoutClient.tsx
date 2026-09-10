@@ -541,7 +541,8 @@ export default function CheckoutClient() {
             user_id: user.id, status: 'pending', buyer_grade: vbankGrade,
             total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
             coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
-            used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
+            /* 적립은 입금확인 시 등급별 적립률로 지급(/api/admin/vbank-paid) → 그 전엔 0 */
+            used_coupon_id: coupon?.ucId || null, earned_point: 0,
             recipient, phone, zipcode, address1: addr1, address2: addr2,
             orderer_name: ordererName.trim() || null, orderer_phone: ordererPhone.trim() || null,
             delivery_type: 'parcel', delivery_memo: memo,

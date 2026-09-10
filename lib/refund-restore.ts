@@ -11,7 +11,7 @@ export async function restoreOrderCouponPoint(
 ): Promise<{ ok: boolean; restored: boolean; already?: boolean; error?: string; refundedPoint?: number; clawback?: number; couponRestored?: boolean }> {
   const { data: order } = await admin
     .from('orders')
-    .select('id, user_id, point_used, earned_point, used_coupon_id, refund_restored')
+    .select('id, user_id, point_used, earned_point, used_coupon_id, refund_restored, paid_at')
     .eq('id', orderId).maybeSingle();
   if (!order) return { ok: false, restored: false, error: '주문 없음' };
   if (order.refund_restored) return { ok: true, restored: false, already: true };
@@ -23,7 +23,8 @@ export async function restoreOrderCouponPoint(
   if (!marked) return { ok: true, restored: false, already: true };
 
   const pointUsed = order.point_used || 0;
-  const earned = order.earned_point || 0;
+  /* 결제(입금) 전 취소 — 무통장 입금대기 등 paid_at 없는 주문은 적립이 지급된 적 없으므로 회수하지 않는다 */
+  const earned = order.paid_at ? (order.earned_point || 0) : 0;
   let couponRestored = false;
 
   /* 쿠폰 복원 — 이미 만료된 쿠폰이면 복원일+7일로 되살림, 아직 유효하면 원래 만료일 유지.

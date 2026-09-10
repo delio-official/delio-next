@@ -6359,6 +6359,29 @@ export default function AdminClient() {
     }
   }
 
+  /* 무통장 입금대기(pending) → 결제 이후 단계 전환 = 입금확인.
+     서버에서 상태전환 + 결제일 기록 + 구매 적립(등급별 적립률) 1회 처리 → 지급된 포인트 합계 반환 */
+  async function confirmVbankPaid(ids: string[], status: string): Promise<number> {
+    if (ids.length === 0 || !['paid', 'preparing', 'shipped', 'delivered', 'confirmed'].includes(status)) return 0;
+    try {
+      const r = await fetch('/api/admin/vbank-paid', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: ids, status }),
+      });
+      const j = await r.json().catch(() => ({}));
+      const granted = (j?.granted || []) as { id: string; earned: number }[];
+      if (granted.length) {
+        const nowIso = new Date().toISOString();
+        const byId = new Map(granted.map(g => [g.id, g.earned]));
+        const patch = (o: Order): Order => byId.has(o.id)
+          ? { ...o, paid_at: (o as { paid_at?: string | null }).paid_at || nowIso, earned_point: byId.get(o.id) } as Order : o;
+        setOrders(prev => prev.map(patch));
+        setSelectedOrder(s => (s ? patch(s) : s));
+      }
+      return granted.reduce((s, g) => s + (g.earned || 0), 0);
+    } catch { return 0; }
+  }
+
   /* ========== 주문 상태 변경 ========== */
   async function updateOrderStatus(orderId: string, newStatus: string) {
     if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭 무시(일괄취소는 await 순차라 영향 없음)
@@ -6397,11 +6420,17 @@ export default function AdminClient() {
       }
     }
 
+    /* 입금대기 → 결제 이후 단계면 입금확인 처리(결제일·구매 적립) 먼저 */
+    const curOrd = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+    let vbankEarned = 0;
+    if (curOrd?.status === 'pending' && !isVoid) vbankEarned = await confirmVbankPaid([orderId], newStatus);
+
     const supabase = createClient();
     const { error } = await supabase
       .from('orders')
       .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}), ...(newStatus === 'confirmed' ? { confirmed_at: new Date().toISOString() } : {}) })
       .eq('id', orderId);
+    if (!error && vbankEarned > 0) alert(`입금확인 처리: 구매 적립 ${vbankEarned.toLocaleString()}P 지급`);
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
@@ -6574,6 +6603,8 @@ export default function AdminClient() {
     const ids = [...selOrders];
     if (ids.length === 0) return;
     if (!confirm(`선택한 ${ids.length}건을 '배송준비' 상태로 변경할까요?`)) return;
+    /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
+    await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'preparing');
     const supabase = createClient();
     const { error } = await supabase.from('orders').update({ status: 'preparing' }).in('id', ids);
     if (error) { alert('변경 실패: ' + error.message); return; }
@@ -6611,6 +6642,8 @@ export default function AdminClient() {
     const ids = [...selOrders];
     if (ids.length === 0) return;
     if (!confirm(`선택한 ${ids.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`)) return;
+    /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
+    await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'shipped');
     const supabase = createClient();
     const { error } = await supabase.from('orders').update({ status: 'shipped' }).in('id', ids);
     if (error) { alert('변경 실패: ' + error.message); return; }
