@@ -18,13 +18,12 @@ export default function LoginClient() {
   const [pw, setPw] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [remember, setRemember] = useState(false);   // 아이디 저장
   const [keepLogin, setKeepLogin] = useState(true);   // 로그인 유지
 
-  /* 저장된 아이디 불러오기 */
+  /* 저장된 아이디 불러오기 (아이디는 항상 기억) */
   useEffect(() => {
     const saved = localStorage.getItem('delio_saved_email');
-    if (saved) { setEmail(saved); setRemember(true); }
+    if (saved) setEmail(saved);
   }, []);
 
   /* 로그인 진입 시 약 2틱(~150px) 아래로 살짝 — 로그인 박스를 화면 중앙 쪽으로.
@@ -54,9 +53,8 @@ export default function LoginClient() {
       setError(err.message === 'BLOCKED' ? BLOCKED_MSG : '이메일 또는 비밀번호를 확인해주세요.');
       return;
     }
-    /* 아이디 저장 */
-    if (remember) localStorage.setItem('delio_saved_email', email.trim());
-    else localStorage.removeItem('delio_saved_email');
+    /* 아이디는 항상 저장(편의) — 별도 토글 없음 */
+    localStorage.setItem('delio_saved_email', email.trim());
     /* 로그인 유지: 해제 시 브라우저 종료하면 자동 로그아웃 (세션 단위) */
     if (keepLogin) localStorage.removeItem('delio_session_only');
     else localStorage.setItem('delio_session_only', '1');
@@ -112,18 +110,18 @@ export default function LoginClient() {
           autoComplete="current-password"
         />
 
-        {/* 아이디 저장 / 로그인 유지 */}
-        <div style={{ display:'flex', gap:18, margin:'2px 2px 10px', fontSize:14, color:'#555' }}>
-          <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
-            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-              style={{ width:15, height:15, accentColor:'#1A1A1A', cursor:'pointer' }} />
-            아이디 저장
-          </label>
-          <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+        {/* 로그인 유지 + 아이디·비밀번호 찾기 (한 줄) */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, margin:'2px 2px 10px', fontSize:14, color:'#555' }}>
+          <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', flexShrink:0 }}>
             <input type="checkbox" checked={keepLogin} onChange={e => setKeepLogin(e.target.checked)}
               style={{ width:15, height:15, accentColor:'#1A1A1A', cursor:'pointer' }} />
             로그인 유지
           </label>
+          <div className="login-find-row" style={{ margin:0 }}>
+            <Link href="/find-id">아이디 찾기</Link>
+            <span className="login-find-sep">|</span>
+            <Link href="/find-password">비밀번호 찾기</Link>
+          </div>
         </div>
 
         {error && (
@@ -131,12 +129,6 @@ export default function LoginClient() {
             {error}
           </p>
         )}
-
-        <div className="login-find-row">
-          <Link href="/find-id">아이디 찾기</Link>
-          <span className="login-find-sep">|</span>
-          <Link href="/find-password">비밀번호 찾기</Link>
-        </div>
 
         <button
           className="login-btn login-btn-solid"
