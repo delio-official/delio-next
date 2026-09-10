@@ -83,9 +83,7 @@ body { background: #fff; }
       padding: 7px 15px; border-radius: 999px;
       border: 1px solid #E5E7EB;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      transform-origin: center bottom;
       animation: snsNudgeBoing 1.4s ease-in-out infinite;
-      will-change: transform;
     }
     /* 말풍선 꼬리 — 회색 테두리(바깥) + 흰색(안쪽) 두 겹 */
     .sns-nudge::before {
@@ -97,8 +95,8 @@ body { background: #fff; }
       border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 7px solid #fff;
     }
     @keyframes snsNudgeBoing {
-      0%, 100% { transform: translateY(0) scale(1); }
-      50%      { transform: translateY(-5px) scale(1.03); }
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-5px); }
     }
 
     /* 간편 로그인 가로 버튼 (맨 위) */
