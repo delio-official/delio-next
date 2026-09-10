@@ -55,7 +55,7 @@ export default function LoginClient() {
   }
 
   return (
-    <div className="login-wrap" style={{ justifyContent:'flex-start', paddingTop:'6vh' }}>
+    <div className="login-wrap" style={{ justifyContent:'flex-start' }}>
       <div className="login-box">
         <h1 className="login-title">로그인</h1>
 
