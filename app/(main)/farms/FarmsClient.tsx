@@ -33,6 +33,7 @@ export default function FarmsClient() {
         .from('farms')
         .select('id, slug, name, region, farm_type, items, intro, thumbnail_url')
         .eq('is_own', false) // 자사센터(델리오) 제외 — 파트너농가만 노출
+        .is('deleted_at', null) // 숨김 삭제 브랜드 제외
         .order('name');
       setFarms((data as Farm[]) || []);
       setLoading(false);

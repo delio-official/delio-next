@@ -373,7 +373,7 @@ export default function ProductClient() {
 
       const [{ data: prod }, { data: opts }, { data: revs }, { data: secs }, { data: infoSec }, { data: inqs }] =
         await Promise.all([
-          supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('id', id).single(),
+          supabase.from('products').select(PRODUCT_PUBLIC_COLS).eq('id', id).is('deleted_at', null).single(),   // 숨김 삭제 상품 = 없는 상품
           supabase.from('product_options').select('*').eq('product_id', id).order('sort_order'),
           supabase.from('reviews')
             .select('*, profiles(name)')

@@ -750,9 +750,10 @@ export default function MypageClient() {
 
       // 관심상품 미리보기용 위시리스트 프리로드 (모바일 메뉴 하단)
       const { data: wishData } = await supabase.from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,product_options(stock))')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock))')
         .eq('user_id', user!.id).limit(20);
-      setWishlist(((wishData as unknown as WishItem[]) || []).map(w => ({
+      /* 판매중지 상품은 고객에게 조회되지 않아 products 가 비어 옴 → 숨김 삭제 상품과 함께 제외 */
+      setWishlist(((wishData as unknown as WishItem[]) || []).filter(w => w.products && !(w.products as { deleted_at?: string | null }).deleted_at).map(w => ({
         ...w,
         products: w.products
           ? (withSoldout(w.products as unknown as Record<string, unknown>) as unknown as WishItem['products'])
@@ -770,7 +771,8 @@ export default function MypageClient() {
         const { data } = await createClient()
           .from('products')
           .select('id,name,price,discounted_price,discount_rate,thumbnail_url,avg_rating,review_count,category,is_dawn,is_new,is_best,short_desc')
-          .in('id', ids);
+          .in('id', ids)
+          .is('deleted_at', null);   // 숨김 삭제 상품 제외
         const map = new Map(((data || []) as unknown as RecentProduct[]).map(d => [d.id, d]));
         setRecentProducts(ids.map(id => map.get(id)).filter(Boolean) as RecentProduct[]);
       } catch { setRecentProducts([]); }
@@ -1073,19 +1075,20 @@ export default function MypageClient() {
       const supabase = createClient();
       const [{ data }, { data: farmData }] = await Promise.all([
         supabase.from('wishlist')
-          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,product_options(stock))')
+          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock))')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
-          .select('id, farms(id,slug,name,region,farm_type,items,intro,thumbnail_url,hero_image_url,logo_url)')
+          .select('id, farms(id,slug,name,region,farm_type,items,intro,thumbnail_url,hero_image_url,logo_url,deleted_at)')
           .eq('user_id', user!.id).limit(40),
       ]);
-      setWishlist(((data as unknown as WishItem[]) || []).map(w => ({
+      /* 판매중지 상품은 고객에게 조회되지 않아 products 가 비어 옴 → 숨김 삭제 상품과 함께 제외(전부 빠지면 '찜한 상품 없음' 안내) */
+      setWishlist(((data as unknown as WishItem[]) || []).filter(w => w.products && !(w.products as { deleted_at?: string | null }).deleted_at).map(w => ({
         ...w,
         products: w.products
           ? (withSoldout(w.products as unknown as Record<string, unknown>) as unknown as WishItem['products'])
           : null,
       })));
-      setFarmWishlist((farmData as unknown as typeof farmWishlist) || []);
+      setFarmWishlist(((farmData as unknown as typeof farmWishlist) || []).filter(fw => !(fw.farms as { deleted_at?: string | null } | null)?.deleted_at));   // 숨김 삭제 브랜드 제외
       setWishLoading(false);
     }
     loadWish();

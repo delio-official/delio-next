@@ -293,6 +293,7 @@ interface AdminFarm {
   landing_images: string[] | null;
   created_at: string;
   is_own?: boolean;           // 자사센터(델리오) 여부
+  deleted_at?: string | null; // 숨김 삭제 — 브랜드 관리 목록에선 숨기고, 지난 주문·리뷰·정산 조회용으로만 남김
   wish_count?: number;
   product_count?: number;
   active_count?: number;
@@ -3768,6 +3769,7 @@ export default function AdminClient() {
     const { data } = await supabase
       .from('products')
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock, manage_stock)')
+      .is('deleted_at', null)   // 숨김 삭제된 상품 제외
       .order('sort_order')
       .limit(5000);
     /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용).
@@ -3932,7 +3934,7 @@ export default function AdminClient() {
     const supabase = createClient();
     if (t.tab_type === 'category') {
       // 이 카테고리를 쓰는 상품 수 확인
-      const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category', t.tab_value);
+      const { count } = await supabase.from('products').select('id', { count: 'exact', head: true }).eq('category', t.tab_value).is('deleted_at', null);
       const n = count || 0;
       if (n > 0) {
         if (!confirm(`'${t.label}' 카테고리를 쓰는 상품 ${n}개가 있습니다.\n삭제하면 해당 상품들의 카테고리가 '기타'로 변경됩니다. 계속할까요?`)) return;
@@ -4072,9 +4074,9 @@ export default function AdminClient() {
     setFarmsLoading(true);
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
-      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at, is_own').order('name'),
+      supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at, is_own, deleted_at').order('name'),
       supabase.from('farm_wishlist').select('farm_id').limit(10000),
-      supabase.from('products').select('farm_id, is_active, review_count, avg_rating').limit(10000),
+      supabase.from('products').select('farm_id, is_active, review_count, avg_rating').is('deleted_at', null).limit(10000),
     ]);
     // 농가별 찜(팔로워) 수
     const wishMap: Record<string, number> = {};
@@ -4193,6 +4195,10 @@ export default function AdminClient() {
       if (!error) setFarms(prev => prev.map(f => f.id === editingFarm.id ? { ...f, ...editPayload } : f));
       else { alert('수정 실패: ' + error.message); setFarmSaving(false); return; }
     } else {
+      /* 같은 주소(slug)가 이미 있으면(같은 이름 브랜드·숨김 삭제된 옛 브랜드 포함) 뒤에 -2, -3… 을 붙여 겹치지 않게 */
+      const { data: taken } = await supabase.from('farms').select('slug').like('slug', `${slug}%`);
+      const used = new Set(((taken as { slug: string | null }[] | null) || []).map(r => r.slug));
+      if (used.has(slug)) { let n = 2; while (used.has(`${slug}-${n}`)) n++; slug = `${slug}-${n}`; }
       const { data, error } = await supabase.from('farms').insert({ ...payload, slug }).select().single();
       if (!error && data) { farmId = (data as AdminFarm).id; setFarms(prev => [...prev, data as AdminFarm]); setFarmList(prev => [...prev, { id: (data as AdminFarm).id, name: (data as AdminFarm).name }]); }
       else { alert('등록 실패: ' + (error?.message || '')); setFarmSaving(false); return; }
@@ -4219,17 +4225,44 @@ export default function AdminClient() {
     ...farms.flatMap(f => f.items || []),
   ])].sort();
 
-  async function deleteFarm(id: string) {
-    if (!confirm('이 브랜드를 삭제하시겠습니까? 연결된 상품의 브랜드 정보도 해제됩니다.')) return;
+  /* 브랜드 삭제
+     · 자사 브랜드는 삭제 불가
+     · 아직 삭제 안 된 상품이 연결돼 있으면 삭제 불가(상품 먼저 삭제·이동 안내) — DB도 상품 연결 브랜드 삭제를 거부함
+     · 판매 이력이나 숨김 삭제된 상품이 있으면 '숨김 삭제'(deleted_at) — 지난 주문·정산에서는 브랜드명 그대로
+     · 아무 기록 없으면 완전 삭제(운영 메모·정산 계좌·정산 기록·브랜드 찜 함께 삭제), 실패 시 오류 표시 */
+  async function deleteFarm(f: { id: string; name: string; is_own?: boolean | null }) {
     const supabase = createClient();
-    await supabase.from('farms').delete().eq('id', id);
-    setFarms(prev => prev.filter(f => f.id !== id));
+    if (f.is_own) { alert('자사 브랜드는 삭제할 수 없습니다.'); return; }
+    const [liveRes, anyRes, soldRes] = await Promise.all([
+      supabase.from('products').select('id', { count: 'exact', head: true }).eq('farm_id', f.id).is('deleted_at', null),
+      supabase.from('products').select('id', { count: 'exact', head: true }).eq('farm_id', f.id),
+      supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('farm_id', f.id),
+    ]);
+    if (liveRes.error || anyRes.error || soldRes.error) { alert('연결된 상품·주문을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+    const live = liveRes.count || 0, anyProd = anyRes.count || 0, sold = soldRes.count || 0;
+    if (live > 0) {
+      alert(`'${f.name}' 브랜드에 연결된 상품이 ${live}개 있어 삭제할 수 없습니다.\n\n상품 관리에서 이 브랜드 상품을 먼저 삭제하거나 다른 브랜드로 옮긴 뒤 다시 시도하세요.\n(잠시 판매만 멈추려면 상품을 '판매중지'하면 됩니다)`);
+      return;
+    }
+    if (sold > 0 || anyProd > 0) {
+      if (!confirm(`'${f.name}' 브랜드를 삭제할까요?\n\n· 판매 이력이 있어 기록 보존을 위해 '숨김 삭제'합니다.\n· 브랜드 관리 목록과 고객 화면(브랜드관 등)에서 사라지고, 지난 주문·정산 기록은 그대로 남습니다.`)) return;
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('farms').update({ deleted_at: now }).eq('id', f.id);
+      if (error) { alert('삭제 실패: ' + error.message); return; }
+      setFarms(prev => prev.map(x => x.id === f.id ? { ...x, deleted_at: now } : x));
+      return;
+    } else {
+      if (!confirm(`'${f.name}' 브랜드를 완전히 삭제할까요?\n\n· 판매 이력이 없어 운영 메모·정산 계좌·브랜드 찜까지 함께 영구 삭제됩니다.\n· 되돌릴 수 없습니다.`)) return;
+      const { error } = await supabase.from('farms').delete().eq('id', f.id);
+      if (error) { alert('삭제 실패: ' + error.message + '\n(아무것도 삭제되지 않았습니다)'); return; }
+    }
+    setFarms(prev => prev.filter(x => x.id !== f.id));
   }
 
   async function loadFarmList() {
     if (farmList.length > 0) return;
     const supabase = createClient();
-    const { data } = await supabase.from('farms').select('id, name, is_own').order('name');
+    const { data } = await supabase.from('farms').select('id, name, is_own').is('deleted_at', null).order('name');
     setFarmList((data as AdminFarmSimple[]) || []);
   }
 
@@ -4517,16 +4550,23 @@ export default function AdminClient() {
     await supabase.from('products').update({ is_active: !p.is_active }).eq('id', p.id);
     setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_active: !x.is_active } : x));
   }
+  /* 상품 삭제
+     · 판매 이력 있음 → '숨김 삭제'(deleted_at + 판매중지): 관리자 목록·고객 화면에서 사라지고 주문·매출·정산 기록은 보존
+       (주문 상품이 상품을 참조하고 있어 DB가 완전 삭제를 거부함 — 예전엔 옵션 등을 먼저 지운 뒤 실패해 옵션만 날아갈 수 있었음)
+     · 판매 이력 없음 → 완전 삭제(상품 한 줄만 지우면 옵션·상세정보·카테고리·문의·찜은 DB가 함께 삭제, 실패 시 아무것도 안 지워짐) */
   async function deleteProduct(p: { id: string; name: string }): Promise<boolean> {
-    if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n· 옵션·상세정보·리뷰·찜·상품문의가 함께 삭제됩니다.\n· 주문 내역은 그대로 보존됩니다(상품명·금액 기록 유지 → 매출·정산 영향 없음).`)) return false;
     const supabase = createClient();
-    // 자식 데이터 먼저 정리(참조 차단 방지) 후 상품 삭제.
-    // 주문(order_items)은 FK가 ON DELETE SET NULL 이라 자동으로 링크만 끊기고 기록은 남음.
-    await supabase.from('product_options').delete().eq('product_id', p.id);
-    await supabase.from('product_detail_sections').delete().eq('product_id', p.id);
-    await supabase.from('product_inquiries').delete().eq('product_id', p.id);
-    const { error } = await supabase.from('products').delete().eq('id', p.id);
-    if (error) { alert('삭제 실패: ' + error.message); return false; }
+    const { count: sold, error: cntErr } = await supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('product_id', p.id);
+    if (cntErr) { alert('판매 이력을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.\n' + cntErr.message); return false; }
+    if ((sold || 0) > 0) {
+      if (!confirm(`'${p.name}' 상품을 삭제할까요?\n\n· 판매 이력(주문 상품 ${sold}건)이 있어 기록 보존을 위해 '숨김 삭제'합니다.\n· 관리자 상품 목록과 고객 화면에서 사라지고, 주문·매출·정산 기록은 그대로 남습니다.`)) return false;
+      const { error } = await supabase.from('products').update({ deleted_at: new Date().toISOString(), is_active: false }).eq('id', p.id);
+      if (error) { alert('삭제 실패: ' + error.message); return false; }
+    } else {
+      if (!confirm(`'${p.name}' 상품을 완전히 삭제할까요?\n\n· 판매 이력이 없는 상품이라 옵션·상세정보·상품문의·찜까지 함께 영구 삭제됩니다.\n· 되돌릴 수 없습니다.`)) return false;
+      const { error } = await supabase.from('products').delete().eq('id', p.id);
+      if (error) { alert('삭제 실패: ' + error.message + '\n(아무것도 삭제되지 않았습니다)'); return false; }
+    }
     setProducts(prev => prev.filter(x => x.id !== p.id));
     return true;
   }
@@ -10158,7 +10198,7 @@ export default function AdminClient() {
                   <AdmSelect value={orderStatusFilter} onChange={v => { setOrderStatusFilter(v); setOrderPage(1); setSelOrders(new Set()); }}
                     options={[{ value:'', label:'전체' }, ...Object.entries(STATUS_LABEL).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={orderFarmFilter} onChange={v => { setOrderFarmFilter(v); setOrderPage(1); }}
-                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label: f.deleted_at ? `${f.name} (삭제됨)` : f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="주문번호 · 주문자 · 수령인 · 계정 · 연락처 검색"
                     value={orderSearch} onChange={e => { setOrderSearch(e.target.value); setOrderPage(1); }} />
                   <button
@@ -10432,7 +10472,7 @@ export default function AdminClient() {
                   <AdmSelect value={productCatFilter} onChange={v => { setProductCatFilter(v); setProductPage(1); }}
                     options={[{ value:'', label:'전체 카테고리' }, ...Object.entries(catOptions).map(([v, l]) => ({ value:v, label:l as string }))]} />
                   <AdmSelect value={productBrandFilter} onChange={v => { setProductBrandFilter(v); setProductPage(1); }}
-                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.filter(f => !f.deleted_at).map(f => ({ value:f.id, label:f.name }))]} />
                   <input type="text" className="adm-input-text" placeholder="브랜드명·상품명 검색"
                     value={productSearch} onChange={e => { setProductSearch(e.target.value); setProductPage(1); }} />
                 </div>
@@ -10731,9 +10771,10 @@ export default function AdminClient() {
           {/* ===== 농가 관리 ===== */}
           {panel === 'farms' && (() => {
             /* 품목 탭 — 농가들이 실제 취급하는 품목 모음. 복수 품목 농가는 각 품목 탭에 모두 노출 */
-            const farmItems = [...new Set(farms.flatMap(f => f.items || []))].sort();
+            const liveFarms = farms.filter(f => !f.deleted_at);   // 숨김 삭제 브랜드 제외
+            const farmItems = [...new Set(liveFarms.flatMap(f => f.items || []))].sort();
             const kw = farmListSearch.trim().toLowerCase();
-            const filteredFarms = farms.filter(f => {
+            const filteredFarms = liveFarms.filter(f => {
               if (farmTypeFilter && !(f.items || []).includes(farmTypeFilter)) return false;
               if (!kw) return true;
               return [f.name, f.farmer_name || '', ...(f.items || [])]
@@ -10772,7 +10813,7 @@ export default function AdminClient() {
                       <thead><tr><th>브랜드명</th><th>대표자</th><th>지역</th><th>취급 품목</th><th>택배사</th><th className="adm-num">상품</th><th className="adm-num">리뷰</th><th className="adm-num">찜</th><th>관리</th></tr></thead>
                       <tbody>
                         {filteredFarms.length === 0 ? (
-                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{farms.length === 0 ? '등록된 브랜드 없음' : '조건에 맞는 브랜드 없음'}</td></tr>
+                          <tr><td colSpan={9} style={{ textAlign:'center', padding:'40px 0', color:'#94A3B8' }}>{liveFarms.length === 0 ? '등록된 브랜드 없음' : '조건에 맞는 브랜드 없음'}</td></tr>
                         ) : pagedFarms.map(f => (
                           <tr key={f.id}>
                             <td><strong>{f.name}</strong></td>
@@ -10786,7 +10827,7 @@ export default function AdminClient() {
                             <td style={{ display:'flex', gap:6 }}>
                               <button className="adm-row-btn" onClick={() => openFarmModal(f)}>수정</button>
                               <button className="adm-row-btn" onClick={() => openFarmDetail(f)}>분석</button>
-                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFarm(f.id)}>삭제</button>
+                              <button className="adm-row-btn adm-row-btn-danger" onClick={() => deleteFarm(f)}>삭제</button>
                             </td>
                           </tr>
                         ))}
@@ -10883,7 +10924,7 @@ export default function AdminClient() {
                   <AdmSelect value={reviewRating} onChange={v => { setReviewRating(v); setReviewPage(1); }}
                     options={[{ value:'', label:'전체 별점' }, ...['5','4','3','2','1'].map(s => ({ value:s, label:`${s}점` }))]} />
                   <AdmSelect value={reviewFarm} onChange={v => { setReviewFarm(v); setReviewPage(1); }}
-                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label:f.name }))]} />
+                    options={[{ value:'', label:'전체 브랜드' }, ...farms.map(f => ({ value:f.id, label: f.deleted_at ? `${f.name} (삭제됨)` : f.name }))]} />
                   <AdmSelect value={reviewAnswered} onChange={v => { setReviewAnswered(v as 'all'|'unanswered'|'answered'); setReviewPage(1); }}
                     options={[{ value:'all', label:'답변상태 전체' }, { value:'unanswered', label:'미답변' }, { value:'answered', label:'답변완료' }]} />
                   <AdmSelect value={reviewFlag} onChange={v => { setReviewFlag(v as ''|'best'|'reported'); setReviewPage(1); }}
@@ -12581,7 +12622,7 @@ export default function AdminClient() {
                 </>)}
               </div>
 
-              <SectionCuration sec="brand" items={farms.map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
+              <SectionCuration sec="brand" items={farms.filter(f => !f.deleted_at).map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
               <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
               <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
             </div>

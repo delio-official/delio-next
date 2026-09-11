@@ -207,9 +207,9 @@ export default function FarmClient() {
       // 슬러그가 한글이면 URL 인코딩될 수 있어 디코딩해서 조회 (없으면 원본으로도 재시도)
       let decoded = slug;
       try { decoded = decodeURIComponent(slug); } catch { /* keep raw */ }
-      let { data: farmData } = await supabase.from('farms').select('*').eq('slug', decoded).maybeSingle();
+      let { data: farmData } = await supabase.from('farms').select('*').eq('slug', decoded).is('deleted_at', null).maybeSingle();   // 숨김 삭제 브랜드 = 없는 브랜드
       if (!farmData && decoded !== slug) {
-        ({ data: farmData } = await supabase.from('farms').select('*').eq('slug', slug).maybeSingle());
+        ({ data: farmData } = await supabase.from('farms').select('*').eq('slug', slug).is('deleted_at', null).maybeSingle());
       }
       if (!farmData) { router.push('/category?origin=domestic'); return; }
       setFarm(farmData as Farm);

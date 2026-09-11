@@ -11,9 +11,9 @@ const getFarm = cache(async (slug: string) => {
     const admin = createAdminSupabaseClient();
     const dec = (() => { try { return decodeURIComponent(slug); } catch { return slug; } })();
     const cols = 'name, thumbnail_url, logo_url';
-    let { data } = await admin.from('farms').select(cols).eq('slug', dec).maybeSingle();
+    let { data } = await admin.from('farms').select(cols).eq('slug', dec).is('deleted_at', null).maybeSingle();
     if (!data && dec !== slug) {
-      ({ data } = await admin.from('farms').select(cols).eq('slug', slug).maybeSingle());
+      ({ data } = await admin.from('farms').select(cols).eq('slug', slug).is('deleted_at', null).maybeSingle());
     }
     return data as { name: string; thumbnail_url: string | null; logo_url: string | null } | null;
   } catch { return null; }

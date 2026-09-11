@@ -13,6 +13,7 @@ const getProduct = cache(async (id: string) => {
       .from('products')
       .select('name, short_desc, thumbnail_url, price, discounted_price, avg_rating, review_count, is_active')
       .eq('id', id)
+      .is('deleted_at', null)   // 숨김 삭제 상품은 메타·구조화 데이터 미생성
       .maybeSingle();
     return data as {
       name: string; short_desc: string | null; thumbnail_url: string | null;

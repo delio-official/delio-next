@@ -22,8 +22,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const admin = createAdminSupabaseClient();
     const [prod, farm, ev, lounge] = await Promise.all([
-      admin.from('products').select('id, created_at').eq('is_active', true).limit(3000),
-      admin.from('farms').select('slug').not('slug', 'is', null).limit(500),
+      admin.from('products').select('id, created_at').eq('is_active', true).is('deleted_at', null).limit(3000),
+      admin.from('farms').select('slug').not('slug', 'is', null).is('deleted_at', null).limit(500),
       admin.from('events').select('slug').eq('is_active', true).not('slug', 'is', null).limit(500),
       admin.from('lounge_posts').select('id').limit(1000),
     ]);
