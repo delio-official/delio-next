@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getCart, saveCart, removeFromCart, updateQty, freshIdx, type CartItem } from '@/lib/cart';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { createClient } from '@/lib/supabase';
+import { refreshCartPrices } from '@/lib/cart-price';
 import { useAuth } from '@/hooks/useAuth';
 import { getOrderPrefs, setOrderPrefs } from '@/lib/orderPrefs';
 import '@/styles/cart.css';
@@ -87,27 +88,9 @@ export default function CartClient() {
     return () => window.removeEventListener('cartUpdated', load);
   }, []);
 
-  /* 담을 때 저장된 썸네일/상품명 스냅샷을 라이브 상품정보로 갱신 (사진 교체 반영) */
+  /* 담을 때 저장된 가격·상품명·사진을 현재 상품정보로 갱신 (가격 변경·사진 교체 반영, 결제 서버검증과 같은 규칙) */
   useEffect(() => {
-    (async () => {
-      const cart = getCart();
-      if (cart.length === 0) return;
-      const ids = [...new Set(cart.map(i => i.id))];
-      const { data } = await createClient().from('products').select('id,thumbnail_url,name').in('id', ids);
-      if (!data) return;
-      const map = new Map((data as { id: string; thumbnail_url: string | null; name: string }[]).map(p => [p.id, p]));
-      let changed = false;
-      const next = cart.map(it => {
-        const p = map.get(it.id);
-        if (!p) return it;
-        const patch: Partial<CartItem> = {};
-        if (p.thumbnail_url && p.thumbnail_url !== it.thumbnail) patch.thumbnail = p.thumbnail_url;
-        if (p.name && p.name !== it.name) patch.name = p.name;
-        if (Object.keys(patch).length) { changed = true; return { ...it, ...patch }; }
-        return it;
-      });
-      if (changed) { saveCart(next); setItems(next); }
-    })();
+    refreshCartPrices().then(next => { if (next) setItems(next); }).catch(() => {});
   }, []);
 
   /* 보유 쿠폰 + 적립금 로드 + 저장된 선택(prefs) 복원 */

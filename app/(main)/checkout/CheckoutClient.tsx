@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart, clearCart, type CartItem } from '@/lib/cart';
+import { refreshCartPrices } from '@/lib/cart-price';
 import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
 import { fbInitiateCheckout, fbPurchase } from '@/lib/metaPixel';
 import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
@@ -195,6 +196,8 @@ export default function CheckoutClient() {
     const cart = getCart();
     if (cart.length === 0) { router.push('/cart'); return; }
     setItems(cart);
+    /* 담은 뒤 바뀐 가격(할인 종료·옵션 추가금 변경 등)을 현재가로 갱신 — 결제 서버검증과 같은 규칙 */
+    refreshCartPrices().then(next => { if (next) setItems(next); }).catch(() => {});
   }, [router]);
 
   /* 배송지 선택 → 주문 배송정보 반영 */
@@ -445,157 +448,33 @@ export default function CheckoutClient() {
           thumbnail: i.thumbnail,
           options:   i.options,
           stockOptionId: i.stockOptionId,
+          optionIds: i.optionId ? i.optionId.split(',').filter(Boolean) : null,   // 서버 가격검증(옵션 추가금)
         })),
       };
 
-      /* total이 0(적립금·쿠폰으로 전액 차감)이면 결제창 없이 바로 주문 완료 */
-      if (bypass || total <= 0) {
-        /* ── 개발 bypass: 결제창 스킵, 클라이언트에서 직접 저장 ── */
-        const supabase = createClient();
-        const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
-
-        /* 재고 차감을 '주문 생성 전'에 — 부족하면 주문 자체를 만들지 않음(유령 주문 방지) */
-        {
-          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
-          if (decErr) {
-            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
-            setLoading(false);
-            return;
-          }
-        }
-
-        const { data: order, error: orderErr } = await supabase
-          .from('orders')
-          .insert({
-            user_id: user.id, status: 'paid',
-            total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
-            coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
-            used_coupon_id: coupon?.ucId || null, earned_point: Math.floor(total * 0.01),
-            recipient, phone, zipcode, address1: addr1, address2: addr2,
-            orderer_name: ordererName.trim() || null, orderer_phone: ordererPhone.trim() || null,
-            delivery_type: 'parcel', delivery_memo: memo,
-            payment_method: payMethod, paid_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (orderErr || !order) {
-          await supabase.rpc('restore_stocks', { p_items: stockItems }); // 주문 저장 실패 → 차감분 복원
-          alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`);
+      /* 결제창 없는 주문 — 0원(적립금·쿠폰 전액 차감) · 무통장입금.
+         금액 검증·재고 차감·주문 저장·쿠폰 사용·포인트 차감은 모두 서버가 처리(/api/orders/create). */
+      if (bypass || total <= 0 || payMethod === 'vbank') {
+        const mode = (bypass || total <= 0) ? 'free' : 'vbank';
+        const res = await fetch('/api/orders/create', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, orderData }),
+        }).catch(() => null);
+        const j = res ? await res.json().catch(() => null) : null;
+        if (!res || !res.ok || !j?.ok) {
+          alert(j?.error || '주문 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
           setLoading(false);
           return;
         }
-
-        await supabase.from('order_items').insert(
-          items.map(i => ({
-            order_id: order.id, product_id: i.id,
-            product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
-            option_label: i.options || null, option_id: i.stockOptionId || null,
-            quantity: i.quantity ?? 1,
-            subtotal: i.price * (i.quantity ?? 1),
-            thumbnail_url: i.thumbnail || null,
-          }))
-        );
-
-        // 쿠폰 사용 처리
-        if (coupon) {
-          await supabase.from('user_coupons').update({ is_used: true, used_at: new Date().toISOString() }).eq('id', coupon.ucId);
-        }
-        // 포인트: 사용분 차감 + 적립분 추가
-        const earned = Math.floor(total * 0.01);
-        const { data: prof } = await supabase.from('profiles').select('point_balance').eq('id', user.id).single();
-        if (prof) {
-          const newBalance = (prof.point_balance || 0) - appliedPoint + earned;
-          await supabase.from('profiles').update({ point_balance: Math.max(0, newBalance) }).eq('id', user.id);
-          /* 포인트 원장(point_logs) 기록 */
-          try {
-            const logs: { user_id: string; amount: number; description: string }[] = [];
-            if (appliedPoint > 0) logs.push({ user_id: user.id, amount: -appliedPoint, description: '주문 사용' });
-            if (earned > 0)       logs.push({ user_id: user.id, amount: earned,        description: '구매 적립' });
-            if (logs.length) await supabase.from('point_logs').insert(logs);
-          } catch { /* 원장 기록 실패는 무시 */ }
-        }
-
-        clearCart(); clearOrderPrefs();
-        // 주문 완료 알림톡 발송 (비동기, 실패해도 주문은 정상 처리)
-        fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'order_complete',
-            phone: (ordererPhone.trim() || phone.trim()),
-            recipient: ordererName.trim() || recipient.trim(),   // 주문자에게 가므로 주문자 이름
-            orderNo: order.order_no,
-            orderDate: new Date().toLocaleDateString('ko-KR'),
-            productName: items[0].name + (items.length > 1 ? ` 외 ${items.length - 1}건` : ''),
-            amount: `${total.toLocaleString()}원`,
-          }),
-        }).catch(() => {});
-        gaPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
-        fbPurchase(order.order_no, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
-        await persistOrdererPhone();
-        router.push(`/order-complete?order=${order.order_no}&point=${Math.floor(total * 0.01)}`);
-        return;
-      } else if (payMethod === 'vbank') {
-        /* ── 무통장입금: 결제창 없이 '입금대기(pending)' 주문 생성 + 계좌 안내 (관리자 수동 입금확인) ── */
-        const supabase = createClient();
-        const stockItems = items.map(i => ({ optionId: i.stockOptionId || null, qty: i.quantity ?? 1 }));
-
-        /* 재고 차감을 '주문 생성 전'에 (무통장도 즉시 선점). 부족하면 주문 자체를 만들지 않음 */
-        {
-          const { error: decErr } = await supabase.rpc('decrement_stocks', { p_items: stockItems });
-          if (decErr) {
-            alert('죄송합니다. 방금 재고가 소진되어 주문할 수 없습니다.');
-            setLoading(false);
-            return;
-          }
-        }
-
-        /* 주문 시점 회원 등급 스냅샷 */
-        let vbankGrade: string | null = null;
-        try { const { data: pf } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle(); vbankGrade = (pf as { grade?: string | null } | null)?.grade ?? null; } catch { /* 무시 */ }
-        const { data: order, error: orderErr } = await supabase
-          .from('orders')
-          .insert({
-            user_id: user.id, status: 'pending', buyer_grade: vbankGrade,
-            total_amount: subtotal, discount_amount: couponDisc + appliedPoint,
-            coupon_discount: couponDisc, point_used: appliedPoint, final_amount: total,
-            /* 적립은 입금확인 시 등급별 적립률로 지급(/api/admin/vbank-paid) → 그 전엔 0 */
-            used_coupon_id: coupon?.ucId || null, earned_point: 0,
-            recipient, phone, zipcode, address1: addr1, address2: addr2,
-            orderer_name: ordererName.trim() || null, orderer_phone: ordererPhone.trim() || null,
-            delivery_type: 'parcel', delivery_memo: memo,
-            payment_method: 'vbank', paid_at: null,
-          })
-          .select()
-          .single();
-        if (orderErr || !order) {
-          await supabase.rpc('restore_stocks', { p_items: stockItems }); // 주문 저장 실패 → 차감분 복원
-          alert(`주문 저장 실패: ${orderErr?.message || '알 수 없는 오류'}`);
-          setLoading(false);
-          return;
-        }
-        await supabase.from('order_items').insert(
-          items.map(i => ({
-            order_id: order.id, product_id: i.id,
-            product_name: i.name + (i.options ? ` (${i.options})` : ''), unit_price: i.price,
-            option_label: i.options || null, option_id: i.stockOptionId || null,
-            quantity: i.quantity ?? 1, subtotal: i.price * (i.quantity ?? 1),
-            thumbnail_url: i.thumbnail || null,
-          }))
-        );
-        // 쿠폰·포인트 선점 (입금 미완료 취소 시 기존 취소 로직이 복원). 적립은 입금확인(결제완료) 시 지급.
-        if (coupon) await supabase.from('user_coupons').update({ is_used: true, used_at: new Date().toISOString() }).eq('id', coupon.ucId);
-        if (appliedPoint > 0) {
-          const { data: prof } = await supabase.from('profiles').select('point_balance').eq('id', user.id).single();
-          if (prof) {
-            await supabase.from('profiles').update({ point_balance: Math.max(0, (prof.point_balance || 0) - appliedPoint) }).eq('id', user.id);
-            try { await supabase.from('point_logs').insert([{ user_id: user.id, amount: -appliedPoint, description: '주문 사용' }]); } catch { /* 무시 */ }
-          }
-        }
         clearCart(); clearOrderPrefs();
         await persistOrdererPhone();
-        router.push(`/order-complete?order=${order.order_no}&vbank=1`);
+        if (mode === 'free') {
+          gaPurchase(j.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
+          fbPurchase(j.orderNo, items.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity ?? 1 })), total);
+          router.push(`/order-complete?order=${j.orderNo}&point=0`);
+        } else {
+          router.push(`/order-complete?order=${j.orderNo}&vbank=1`);
+        }
         return;
       } else {
         /* 네이버페이 최소 결제금액 10원 — 적립금·쿠폰으로 10원 미만이 되면 결제창 호출 전 차단 (Npay 검수 요건) */
