@@ -351,6 +351,14 @@ export default function MypageClient() {
   myRefundReqs.forEach(r => {
     if (r.order_id && (r.status === 'pending' || r.status === 'processing')) activeReqByOrder.set(r.order_id, r);
   });
+  /* 가장 최근 신청이 반려(취소 거절·환불 불가)된 주문 → 주문 카드에 결과·사유 표시 (목록은 최신순) */
+  const rejectedReqByOrder = new Map<string, MyRefundReq>();
+  const seenReqOrders = new Set<string>();
+  myRefundReqs.forEach(r => {
+    if (!r.order_id || seenReqOrders.has(r.order_id)) return;
+    seenReqOrders.add(r.order_id);
+    if (r.status === 'rejected') rejectedReqByOrder.set(r.order_id, r);
+  });
 
   /* 반려/보류된 신청 → 같은 주문·유형으로 다시 신청 */
   async function submitReq() {
@@ -2563,6 +2571,18 @@ export default function MypageClient() {
                             {isExpanded ? '접기' : `외 ${hiddenCount}개 상품 더보기`}
                           </button>
                         )}
+
+                        {/* 가장 최근 취소·환불 신청이 반려된 경우 — 결과·사유 안내 (관리자 거절/환불 불가 사유) */}
+                        {(() => {
+                          const rj = rejectedReqByOrder.get(o.id);
+                          if (!rj || ['cancelled', 'refunded'].includes(o.status)) return null;
+                          return (
+                            <div style={{ marginTop:4, padding:'10px 12px', background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:8, fontSize:12.5, lineHeight:1.6, color:'#991B1B' }}>
+                              <strong>{rj.type === 'cancel' ? '취소' : '환불'} 요청이 반려되었어요</strong>
+                              {rj.reject_reason ? <div style={{ marginTop:2, wordBreak:'keep-all' }}>사유: {rj.reject_reason}</div> : null}
+                            </div>
+                          );
+                        })()}
 
                         {/* 하단: 상태별 버튼 (오늘의집 플로우) */}
                         <div style={{ paddingTop:12, marginTop:4 }}>
