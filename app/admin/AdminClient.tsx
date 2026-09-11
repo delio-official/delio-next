@@ -4976,7 +4976,7 @@ export default function AdminClient() {
     if (newStatus === 'completed' && req.order_id) {
       const ord = orders.find(o => o.id === req.order_id);
       if (ord) {
-        const refundedAmt = isPartial ? (req.refund_amount || 0) : (ord.final_amount || 0);
+        const refundedAmt = isPartial ? (req.refund_amount || 0) : Math.max(0, (ord.final_amount || 0) - (ord.partial_refund_amount || 0));   // 전액 승인은 이미 부분환불한 금액 제외
         /* 취소·환불 = 결제 관련 → 주문자(계정)에게만 발송 */
         notifyOrderPhones([ord.orderer_phone || ord.phone], {
           type: 'order_cancelled', name: ord.orderer_name || ord.recipient, recipient: ord.orderer_name || ord.recipient,
@@ -6548,7 +6548,10 @@ export default function AdminClient() {
           notifyOrderPhones([vo.orderer_phone || vo.phone], {
             type: 'order_cancelled', name: vo.orderer_name || vo.recipient, recipient: vo.orderer_name || vo.recipient, orderNo: vo.order_no,
             cancelledAt: new Date().toLocaleString('ko-KR'),
-            refundAmount: `${(vo.final_amount || 0).toLocaleString()}원`,
+            /* 입금 전(무통장 입금대기·만료) 취소는 돌려줄 돈 없음 / 부분환불 뒤 전체환불은 남은 금액만 */
+            refundAmount: (['pending', 'expired'].includes(vo.status) || (vo.status === 'cancelled' && !(vo as { paid_at?: string | null }).paid_at))
+              ? '없음 (입금 전 취소)'
+              : `${Math.max(0, (vo.final_amount || 0) - (vo.partial_refund_amount || 0)).toLocaleString()}원`,
           });
         }
         /* 이 주문에 걸린 고객 환불/취소 신청(pending·processing)도 함께 완료 처리 — '유령 미처리' 방지 */

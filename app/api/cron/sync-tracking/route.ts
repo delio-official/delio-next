@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { fetchLastStatusCode, mapTrackerCodeToOrderStatus, ORDER_STATUS_RANK, getTrackerToken } from '@/lib/tracker';
 import { applyTrackingStatusByItems } from '@/lib/order-shipping';
-import { notifyAlimtalk } from '@/lib/sms';
+import { notifyAlimtalkBoth, kstDateTime } from '@/lib/sms';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const { data: orders, error } = await admin
     .from('orders')
-    .select('id, status, courier, tracking_number, phone, recipient, order_no, order_items(product_name)')
+    .select('id, status, courier, tracking_number, phone, recipient, orderer_phone, orderer_name, order_no, order_items(product_name)')
     .in('status', ['paid', 'preparing', 'shipped'])
     .not('courier', 'is', null)
     .not('tracking_number', 'is', null)
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
   let advanced = 0, delivered = 0, checked = 0;
   for (const o of (orders || []) as Array<{
     id: string; status: string; courier: string | null; tracking_number: string | null;
-    phone: string | null; recipient: string | null; order_no: string | null;
+    phone: string | null; recipient: string | null; orderer_phone: string | null; orderer_name: string | null; order_no: string | null;
     order_items?: { product_name: string | null }[];
   }>) {
     if (!o.courier || !o.tracking_number) continue;
@@ -74,14 +74,14 @@ export async function GET(req: NextRequest) {
 
     if (mapped === 'delivered') {
       delivered++;
-      if (o.phone) {
+      if (o.phone || o.orderer_phone) {
         const productName = o.order_items?.[0]?.product_name || '주문 상품';
         try {
-          await notifyAlimtalk('delivery_complete', o.phone, {
-            recipient: o.recipient || '고객',
+          /* 배송 관련 → 수령인 + 주문자(각자 이름), 관리자 수동 배송완료와 동일 */
+          await notifyAlimtalkBoth('delivery_complete', o, {
             orderNo: o.order_no || '',
             productName,
-            completedAt: new Date().toLocaleString('ko-KR'),
+            completedAt: kstDateTime(),
           });
         } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
       }
@@ -117,13 +117,13 @@ export async function GET(req: NextRequest) {
     advanced++;
     for (const o of deliveredOrders) {
       delivered++;
-      if (!o.phone) continue;
+      if (!o.phone && !o.orderer_phone) continue;
       try {
-        await notifyAlimtalk('delivery_complete', o.phone, {
-          recipient: o.recipient || '고객',
+        /* 배송 관련 → 수령인 + 주문자(각자 이름), 관리자 수동 배송완료와 동일 */
+        await notifyAlimtalkBoth('delivery_complete', o, {
           orderNo: o.order_no || '',
           productName: o.productName,
-          completedAt: new Date().toLocaleString('ko-KR'),
+          completedAt: kstDateTime(),
         });
       } catch { /* 알림 실패는 상태 갱신에 영향 없음 */ }
     }

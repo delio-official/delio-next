@@ -505,7 +505,7 @@ export default function CheckoutClient() {
           body: JSON.stringify({
             type: 'order_complete',
             phone: (ordererPhone.trim() || phone.trim()),
-            recipient: recipient.trim(),
+            recipient: ordererName.trim() || recipient.trim(),   // 주문자에게 가므로 주문자 이름
             orderNo: order.order_no,
             orderDate: new Date().toLocaleDateString('ko-KR'),
             productName: items[0].name + (items.length > 1 ? ` 외 ${items.length - 1}건` : ''),
@@ -681,7 +681,7 @@ export default function CheckoutClient() {
             fetch('/api/notify', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'payment_failed', phone: ordPhone,
-                recipient: recipient.trim() || '고객', reason: failMsg, amount: `${total.toLocaleString()}원` }),
+                recipient: ordererName.trim() || recipient.trim() || '고객', reason: failMsg, amount: `${total.toLocaleString()}원` }),
             }).catch(() => {});
           }
           setLoading(false);

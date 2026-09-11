@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
-import { notifyAlimtalk } from '@/lib/sms';
+import { notifyAlimtalk, kstDateTime } from '@/lib/sms';
 
 /* 고객 즉시 주문취소 — 결제완료(paid) 상태(=판매자가 상품준비중으로 바꾸기 전)에서만.
    포트원 결제취소 + 쿠폰·포인트 복원 + 주문 cancelled + 기록용 refund_requests(완료).
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin.from('orders')
-    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id, order_no, recipient, phone, final_amount')
+    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id, order_no, recipient, phone, orderer_name, orderer_phone, final_amount')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
   if (order.user_id !== user.id) return NextResponse.json({ ok: false, error: '본인 주문이 아닙니다' }, { status: 403 });
@@ -98,13 +98,16 @@ export async function POST(req: Request) {
     } catch { /* 기록 실패는 무시 */ }
   }
 
-  /* 주문 취소 알림톡 — 부가 작업이므로 최대 3초만 대기(솔라피 지연이 취소 응답을 막지 않도록) */
-  if (order.phone) {
-    const notify = notifyAlimtalk('order_cancelled', order.phone, {
-      recipient: order.recipient || '',
+  /* 주문 취소 알림톡 — 결제 관련이라 주문자에게(관리자 취소와 동일). 주문자 번호 없는 옛 주문만 수령인 번호.
+     부가 작업이므로 최대 3초만 대기(솔라피 지연이 취소 응답을 막지 않도록) */
+  const cancelTo = order.orderer_phone || order.phone;
+  if (cancelTo) {
+    const notify = notifyAlimtalk('order_cancelled', cancelTo, {
+      recipient: order.orderer_name || order.recipient || '',
       orderNo: order.order_no || '',
-      cancelledAt: new Date().toLocaleString('ko-KR'),
-      refundAmount: `${(order.final_amount || 0).toLocaleString()}원`,
+      cancelledAt: kstDateTime(),
+      /* 무통장 입금 전 취소는 돌려줄 돈이 없음 */
+      refundAmount: order.status === 'pending' ? '없음 (입금 전 취소)' : `${(order.final_amount || 0).toLocaleString()}원`,
     }).catch(() => { /* noop */ });
     await Promise.race([notify, new Promise(r => setTimeout(r, 3000))]);
   }

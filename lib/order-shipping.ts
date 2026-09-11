@@ -22,6 +22,8 @@ export interface DeliveredOrder {
   id: string;
   phone: string | null;
   recipient: string | null;
+  orderer_phone: string | null;
+  orderer_name: string | null;
   order_no: string | null;
   productName: string;
 }
@@ -60,7 +62,7 @@ export async function applyTrackingStatusByItems(
   for (const oid of orderIds) {
     const { data: ord } = await admin
       .from('orders')
-      .select('id, status, phone, recipient, order_no, order_items(ship_status, product_name)')
+      .select('id, status, phone, recipient, orderer_phone, orderer_name, order_no, order_items(ship_status, product_name)')
       .eq('id', oid)
       .single();
     if (!ord) continue;
@@ -87,6 +89,8 @@ export async function applyTrackingStatusByItems(
         id: ord.id as string,
         phone: (ord.phone as string | null) ?? null,
         recipient: (ord.recipient as string | null) ?? null,
+        orderer_phone: (ord.orderer_phone as string | null) ?? null,
+        orderer_name: (ord.orderer_name as string | null) ?? null,
         order_no: (ord.order_no as string | null) ?? null,
         productName: name + (its.length > 1 ? ` 외 ${its.length - 1}건` : ''),
       });

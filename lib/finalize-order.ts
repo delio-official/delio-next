@@ -1,6 +1,6 @@
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
-import { notifyAlimtalk } from '@/lib/sms';
+import { notifyAlimtalk, kstDate } from '@/lib/sms';
 
 export interface OrderData {
   userId: string;
@@ -247,9 +247,9 @@ export async function finalizeOrder(
     const productName = first ? first.name + (orderData.items.length > 1 ? ` 외 ${orderData.items.length - 1}건` : '') : '';
     try {
       await notifyAlimtalk('order_complete', ordererPhone, {
-        recipient: orderData.recipient,
+        recipient: orderData.ordererName || orderData.recipient,   // 주문자에게 가므로 주문자 이름
         orderNo: order.order_no,
-        orderDate: new Date().toLocaleDateString('ko-KR'),
+        orderDate: kstDate(),
         productName,
         amount: `${orderData.totalAmount.toLocaleString()}원`,
       });

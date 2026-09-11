@@ -185,3 +185,27 @@ export async function sendAlimtalk(params: {
   }
 }
 
+
+/** 알림톡용 한국시간 날짜·시각 문자열. 서버(Vercel)는 UTC라 timeZone 지정이 없으면 9시간 이르게 찍힌다. */
+export function kstDateTime(d: Date = new Date()): string {
+  return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+}
+export function kstDate(d: Date = new Date()): string {
+  return d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+}
+
+/** 배송 관련 알림을 수령인·주문자 양쪽에 발송 (서버용) — 각자 본인 이름, 두 번호가 같으면 1통(수령인 이름).
+    관리자 화면의 notifyOrderRoles 와 같은 규칙. 실패는 무시(상태 갱신에 영향 없음). */
+export async function notifyAlimtalkBoth(
+  kind: AlimtalkKind,
+  o: { phone?: string | null; recipient?: string | null; orderer_phone?: string | null; orderer_name?: string | null },
+  d: Record<string, string>,
+): Promise<void> {
+  const norm = (p?: string | null) => (p || '').replace(/[^0-9]/g, '');
+  const rcpPh = norm(o.phone);
+  const ordPh = norm(o.orderer_phone);
+  const rcpName = o.recipient || '고객';
+  const ordName = o.orderer_name || o.recipient || '고객';
+  if (rcpPh) await notifyAlimtalk(kind, rcpPh, { ...d, name: rcpName, recipient: rcpName }).catch(() => false);
+  if (ordPh && ordPh !== rcpPh) await notifyAlimtalk(kind, ordPh, { ...d, name: ordName, recipient: ordName }).catch(() => false);
+}
