@@ -2488,6 +2488,8 @@ export default function AdminClient() {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
   const [selOrders, setSelOrders] = useState<Set<string>>(new Set()); // 주문 일괄선택
+  /* 일괄 발주확인·발송처리 경고창 — 일반 대상이 아닌 상태가 섞였을 때 (N건만 / 모두 / 취소) */
+  const [bulkGuard, setBulkGuard] = useState<{ action: 'preparing' | 'shipped'; okIds: string[]; badIds: string[]; groups: { label: string; count: number; note: string }[] } | null>(null);
   const bulkShipFileRef = useRef<HTMLInputElement>(null); // 엑셀 일괄 발송처리 파일 인풋
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
@@ -6677,11 +6679,55 @@ export default function AdminClient() {
     setSavingTracking(false);
   }
 
-  /* 선택 주문 일괄 배송준비 처리 */
-  async function bulkSetPreparing() {
+  /* ── 일괄 발주확인·발송처리 ──
+     버튼마다 '일반 대상' 상태가 정해져 있고, 그 밖의 상태(취소·환불·배송완료 등)가 섞이면
+     바로 바꾸지 않고 경고창으로 [일반 대상만 / 모두 / 취소]를 고르게 한다. */
+  const BULK_OK_STATUS: Record<'preparing' | 'shipped', string[]> = {
+    preparing: ['pending', 'paid', 'preparing'],   // 발주확인: 입금대기·신규주문 (배송준비중은 그대로라 무해)
+    shipped:   ['paid', 'preparing', 'shipped'],   // 발송처리: 신규주문·배송준비 (배송중은 그대로라 무해)
+  };
+  function bulkWarnGroups(action: 'preparing' | 'shipped', bad: Order[]) {
+    const g = new Map<string, { count: number; note: string }>();
+    const add = (label: string, note: string) => g.set(label, { count: (g.get(label)?.count || 0) + 1, note });
+    for (const o of bad) {
+      const paid = !!(o as { paid_at?: string | null }).paid_at;
+      if ((o.status === 'cancelled' && !paid) || o.status === 'expired') {
+        add('미입금취소·입금기한 만료', action === 'preparing'
+          ? '입금되지 않은 주문입니다. 변경하면 결제일이 찍혀 매출에 결제된 주문처럼 잡히고, 돈을 받지 않고 발송하게 됩니다.'
+          : '입금되지 않은 주문입니다. 돈을 받지 않고 발송하게 됩니다.');
+      }
+      else if (o.status === 'cancelled' || o.status === 'refunded') add('취소·환불', '이미 환불된 주문입니다. 다시 보내면 무료 발송이 되고, 매출·정산에 다시 잡힙니다.');
+      else if (o.status === 'refunding') add('환불처리중', '환불을 진행 중인 주문입니다. 환불과 발송이 함께 진행될 수 있습니다.');
+      else if (o.status === 'pending') add('입금대기', '아직 입금 확인 전입니다. 변경하면 입금된 것으로 처리됩니다(결제일 기록·구매 적립).');
+      else if (o.status === 'shipped') add('배송중', '송장이 들어간 주문입니다. 배송준비로 되돌아갑니다.');
+      else if (o.status === 'delivered') add('배송완료', '배송완료가 취소되고, 7일 자동 구매확정이 다시 계산됩니다.');
+      else if (o.status === 'confirmed') add('구매확정', '구매확정이 풀려 브랜드 정산에서 빠집니다.');
+      else add(STATUS_LABEL[o.status] || o.status, '일반 처리 대상이 아닌 상태입니다.');
+    }
+    return [...g].map(([label, v]) => ({ label, ...v }));
+  }
+  function startBulkStatus(action: 'preparing' | 'shipped') {
     const ids = [...selOrders];
     if (ids.length === 0) return;
-    if (!confirm(`선택한 ${ids.length}건을 '배송준비' 상태로 변경할까요?`)) return;
+    const sel = orders.filter(o => ids.includes(o.id));
+    const okIds = sel.filter(o => BULK_OK_STATUS[action].includes(o.status)).map(o => o.id);
+    const bad = sel.filter(o => !BULK_OK_STATUS[action].includes(o.status));
+    if (bad.length > 0) {
+      setBulkGuard({ action, okIds, badIds: bad.map(o => o.id), groups: bulkWarnGroups(action, bad) });
+      return;
+    }
+    const msg = action === 'preparing'
+      ? `선택한 ${okIds.length}건을 '배송준비' 상태로 변경할까요?`
+      : `선택한 ${okIds.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`;
+    if (!confirm(msg)) return;
+    if (action === 'preparing') doBulkPreparing(okIds); else doBulkShipped(okIds);
+  }
+  function bulkSetPreparing() { startBulkStatus('preparing'); }
+  function bulkSetShipped() { startBulkStatus('shipped'); }
+
+  /* 선택 주문 일괄 배송준비 처리 — 실행부 (확인은 startBulkStatus / 경고창에서) */
+  async function doBulkPreparing(ids: string[]) {
+    if (ids.length === 0) return;
     /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
     await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'preparing');
     const supabase = createClient();
@@ -6717,10 +6763,8 @@ export default function AdminClient() {
   }
 
   /* 선택 주문 일괄 발송처리(배송중으로 변경) — 송장은 인라인/엑셀로 별도 등록 */
-  async function bulkSetShipped() {
-    const ids = [...selOrders];
+  async function doBulkShipped(ids: string[]) {
     if (ids.length === 0) return;
-    if (!confirm(`선택한 ${ids.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`)) return;
     /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
     await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'shipped');
     const supabase = createClient();
@@ -8476,6 +8520,54 @@ export default function AdminClient() {
           </div>
         </div>
       )}
+
+      {/* ===== 일괄 발주확인·발송처리 경고창 ===== */}
+      {bulkGuard && (() => {
+        const g = bulkGuard;
+        const total = g.okIds.length + g.badIds.length;
+        const verb = g.action === 'preparing' ? '발주' : '발송';
+        const run = (ids: string[]) => {
+          setBulkGuard(null);
+          if (g.action === 'preparing') doBulkPreparing(ids); else doBulkShipped(ids);
+        };
+        return (
+          <div className="adm-modal-bg open" onClick={() => setBulkGuard(null)}>
+            <div className="adm-modal" style={{ maxWidth:560, width:'95vw' }} onClick={e => e.stopPropagation()}>
+              <div className="adm-modal-head">
+                <span className="adm-modal-title">⚠️ {g.action === 'preparing' ? '발주확인' : '발송처리'} 전 확인</span>
+              </div>
+              <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                <div style={{ fontSize:14, lineHeight:1.6, color:'#1A1A1A' }}>
+                  선택한 {total}건 중 <b style={{ color:'#DC2626' }}>{g.badIds.length}건은 일반 {verb} 대상이 아닙니다.</b>
+                  {' '}변경하면 모두 ‘{g.action === 'preparing' ? '배송준비중' : '배송중'}’으로 바뀝니다.
+                </div>
+                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
+                  {g.groups.map(x => (
+                    <div key={x.label} style={{ fontSize:13, lineHeight:1.6, color:'#7F1D1D' }}>
+                      <b>· {x.label} {x.count}건</b> — {x.note}
+                    </div>
+                  ))}
+                </div>
+                {g.okIds.length === 0 && (
+                  <div style={{ fontSize:13, color:'#64748B' }}>선택한 주문 중 일반 {verb} 대상은 없습니다.</div>
+                )}
+              </div>
+              <div className="adm-modal-foot" style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                {g.okIds.length > 0 && (
+                  <button className="adm-btn adm-btn-primary" onClick={() => run(g.okIds)}>
+                    {g.okIds.length}건만 변경 ({g.badIds.length}건 제외)
+                  </button>
+                )}
+                <button className="adm-btn adm-btn-outline" style={{ color:'#DC2626', borderColor:'#FCA5A5' }}
+                  onClick={() => run([...g.okIds, ...g.badIds])}>
+                  {g.badIds.length}건 포함 {total}건 모두 변경
+                </button>
+                <button className="adm-btn adm-btn-outline" onClick={() => setBulkGuard(null)}>취소</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== 이벤트 등록/수정 모달 ===== */}
       {eventModal && (
