@@ -4879,6 +4879,17 @@ export default function AdminClient() {
   }
 
   /* 환불 신청 상태 변경 + 주문 상태 연동 */
+  /* 알림 발송용 주문 찾기 — 지금 불러온 주문 목록(주문 관리 조회 기간) → 열린 상세 창 → 없으면 DB에서 직접.
+     주문 관리 기간을 '오늘'·'1주' 등으로 좁혀 둔 채 처리해도 알림이 조용히 빠지지 않게 한다. */
+  async function orderForNotify(id: string): Promise<Order | null> {
+    const hit = orders.find(o => o.id === id) || (selectedOrder?.id === id ? selectedOrder : null);
+    if (hit) return hit;
+    const { data } = await createClient().from('orders')
+      .select('id, order_no, status, paid_at, phone, orderer_phone, recipient, orderer_name, final_amount, partial_refund_amount, order_items(product_name)')
+      .eq('id', id).maybeSingle();
+    return (data as unknown as Order) || null;
+  }
+
   async function updateRefundStatus(req: AdminRefundReq, newStatus: 'processing'|'completed'|'rejected'|'hold', rejectReason?: string) {
     if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭(더블클릭) 무시
     refundBusyRef.current = true;
@@ -4974,7 +4985,7 @@ export default function AdminClient() {
     }
     /* 승인(완료) 시 취소/환불 알림톡 (부분환불은 하자분 금액으로 안내) */
     if (newStatus === 'completed' && req.order_id) {
-      const ord = orders.find(o => o.id === req.order_id);
+      const ord = await orderForNotify(req.order_id);
       if (ord) {
         const refundedAmt = isPartial ? (req.refund_amount || 0) : Math.max(0, (ord.final_amount || 0) - (ord.partial_refund_amount || 0));   // 전액 승인은 이미 부분환불한 금액 제외
         /* 취소·환불 = 결제 관련 → 주문자(계정)에게만 발송 */
@@ -6543,7 +6554,7 @@ export default function AdminClient() {
         } catch { /* 복원 실패해도 상태는 유지 */ }
 
         /* 판매자 직접 취소/환불 → 고객(주문자)에게 취소 안내 알림톡 */
-        const vo = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+        const vo = await orderForNotify(orderId);
         if (vo) {
           notifyOrderPhones([vo.orderer_phone || vo.phone], {
             type: 'order_cancelled', name: vo.orderer_name || vo.recipient, recipient: vo.orderer_name || vo.recipient, orderNo: vo.order_no,
@@ -6565,7 +6576,7 @@ export default function AdminClient() {
       /* 추천 리워드는 첫 구매 배송완료(delivered) 시 DB 트리거가 자동 지급 (5,000원 쿠폰) */
       if (newStatus === 'delivered') {
         // 배송 완료 SMS 발송
-        const deliveredOrder = orders.find(o => o.id === orderId);
+        const deliveredOrder = await orderForNotify(orderId);
         if (deliveredOrder) {
           /* 배송 관련 → 수령인 + 주문자 양쪽(같은 번호면 1회) */
           notifyOrderRoles(deliveredOrder, {
