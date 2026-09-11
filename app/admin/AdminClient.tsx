@@ -4838,7 +4838,8 @@ export default function AdminClient() {
       `· 추천인 ${referrerName} — 추천 보상 쿠폰\n` +
       `· 피추천인 ${referredName} — 가입 쿠폰\n\n` +
       `※ 이미 사용한 쿠폰은 회수되지 않습니다.\n` +
-      `※ 회수된 쿠폰은 다시 지급되지 않으며, 고객에게 따로 알림이 가지 않습니다.`
+      `※ 피추천인 가입 쿠폰은 다시 지급되지 않습니다. 추천인 쿠폰은 피추천인이 이후 다시 주문하면 다시 지급될 수 있습니다.\n` +
+      `※ 고객에게 따로 알림이 가지 않습니다.`
     )) return;
     const supabase = createClient();
     /* 쿠폰 회수 + 발급이력 삭제 + 추천 상태 초기화 (SECURITY DEFINER RPC) */
