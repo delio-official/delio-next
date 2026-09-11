@@ -107,7 +107,7 @@ begin
   if public.is_direct_non_admin() then
     if tg_op = 'INSERT' then
       select valid_days, expires_at into c from public.coupons where id = new.coupon_id;
-      new.is_used := false; new.used_at := null; new.grant_period := null; new.expiry_notified := false;
+      new.is_used := false; new.used_at := null; new.grant_period := ''; new.expiry_notified := false;
       new.issued_at := now();
       new.expires_at := case when c.valid_days is not null then now() + make_interval(days => c.valid_days)
                              else c.expires_at end;
