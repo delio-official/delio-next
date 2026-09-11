@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { maybeSendWelcome } from '@/lib/welcome';
+import { applyCouponValidity } from '@/lib/coupon-validity';
 
 /* 네이버 OAuth 콜백 — 코드교환·프로필조회 후 Supabase 세션 발급(매직링크) */
 export async function GET(request: Request) {
@@ -82,6 +83,7 @@ export async function GET(request: Request) {
           if (!prof?.provider || prof.provider === 'email') patch.provider = 'naver';
           if (Object.keys(patch).length) await admin.from('profiles').update(patch).eq('id', userId);
           await supabase.rpc('grant_signup_coupons');
+          await applyCouponValidity(admin, userId);   // 가입쿠폰 유효기간(일) → 만료일 채움
           await maybeSendWelcome(admin, userId);
         } catch { /* 후처리 실패는 로그인에 영향 없음 */ }
       });
