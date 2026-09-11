@@ -1173,6 +1173,7 @@ export default function ProductClient() {
     if (j?.ok) {
       setUnlockedContent(prev => ({ ...prev, [qid]: j.content ?? '' }));
       setUnlockedInq(prev => new Set([...prev, qid]));
+      if (j.answer) setInquiries(prev => prev.map(x => x.id === qid ? { ...x, answer: j.answer } : x));   // 가려졌던 답변 복원
     } else {
       alert('비밀번호가 틀렸습니다.');
     }
@@ -2801,7 +2802,7 @@ export default function ProductClient() {
                             <span className="qna-cat">{inqCatLabel(q.category)}</span>
                             <span className="qna-user">{maskedName}</span>
                             <span className="qna-datetime">{q.created_at.slice(0,10)}</span>
-                            <span className={`qna-count ${q.answer ? 'done' : 'wait'}`}>{q.answer ? '답변완료' : '답변대기'}</span>
+                            <span className={`qna-count ${(q.answer || q.answered_at) ? 'done' : 'wait'}`}>{(q.answer || q.answered_at) ? '답변완료' : '답변대기'}</span>
                             {isMe && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); deleteInquiry(q.id); }}

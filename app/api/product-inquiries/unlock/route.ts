@@ -11,13 +11,13 @@ export async function POST(req: NextRequest) {
   const admin = createAdminSupabaseClient();
   const { data } = await admin
     .from('product_inquiries')
-    .select('content, is_private, password')
+    .select('content, answer, is_private, password')
     .eq('id', id)
     .maybeSingle();
 
   if (!data || !data.is_private) return NextResponse.json({ ok: false });
   if (data.password && password === String(data.password)) {
-    return NextResponse.json({ ok: true, content: data.content });
+    return NextResponse.json({ ok: true, content: data.content, answer: data.answer ?? null });   // 목록에서 가린 답변도 함께
   }
   return NextResponse.json({ ok: false });
 }

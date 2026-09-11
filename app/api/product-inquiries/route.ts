@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       content: canView ? q.content : '',   // 남의 비밀글 내용 마스킹
       is_private: q.is_private,
       has_password: !!q.password,           // 비번 유무만(비번 값은 미전송)
-      answer: q.answer,
+      answer: canView ? q.answer : null,   // 남의 비밀글은 답변도 가림(답변완료 표시는 answered_at 으로)
       answered_at: q.answered_at,
       created_at: q.created_at,
     };
