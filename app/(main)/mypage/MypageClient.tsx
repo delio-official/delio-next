@@ -349,7 +349,8 @@ export default function MypageClient() {
   /* 진행 중(접수/처리중)인 신청이 있는 주문 → order_id 맵 */
   const activeReqByOrder = new Map<string, MyRefundReq>();
   myRefundReqs.forEach(r => {
-    if (r.order_id && (r.status === 'pending' || r.status === 'processing')) activeReqByOrder.set(r.order_id, r);
+    /* 보류(hold)도 아직 처리 전 → '신청 접수'로 보여 같은 신청을 또 내지 않게 */
+    if (r.order_id && ['pending', 'processing', 'hold'].includes(r.status) && !activeReqByOrder.has(r.order_id)) activeReqByOrder.set(r.order_id, r);
   });
   /* 가장 최근 신청이 반려(취소 거절·환불 불가)된 주문 → 주문 카드에 결과·사유 표시 (목록은 최신순) */
   const rejectedReqByOrder = new Map<string, MyRefundReq>();

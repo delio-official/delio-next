@@ -6565,10 +6565,10 @@ export default function AdminClient() {
               : `${Math.max(0, (vo.final_amount || 0) - (vo.partial_refund_amount || 0)).toLocaleString()}원`,
           });
         }
-        /* 이 주문에 걸린 고객 환불/취소 신청(pending·processing)도 함께 완료 처리 — '유령 미처리' 방지 */
+        /* 이 주문에 걸린 고객 환불/취소 신청(접수·진행중·보류)도 함께 완료 처리 — '유령 미처리'·자동 구매확정 막힘 방지 */
         await supabase.from('refund_requests').update({ status: 'completed' })
-          .eq('order_id', orderId).in('status', ['pending', 'processing']);
-        setRefundReqs(prev => prev.map(r => (r.order_id === orderId && (r.status === 'pending' || r.status === 'processing')) ? { ...r, status: 'completed' } : r));
+          .eq('order_id', orderId).in('status', ['pending', 'processing', 'hold']);
+        setRefundReqs(prev => prev.map(r => (r.order_id === orderId && ['pending', 'processing', 'hold'].includes(r.status)) ? { ...r, status: 'completed' } : r));
         /* 취소/환불 처리 완료 → 주문 상세 모달 자동으로 닫음(버튼도 함께 사라짐) */
         setSelectedOrder(null);
       }
@@ -7507,7 +7507,9 @@ export default function AdminClient() {
   /* 주문별 진행 중(접수/처리중) 취소·환불 요청 — 주문관리에서 뱃지·처리 노출용 */
   const pendingReqByOrder = new Map<string, AdminRefundReq>();
   refundReqs.forEach(r => {
-    if (r.order_id && (r.status === 'pending' || r.status === 'processing')) pendingReqByOrder.set(r.order_id, r);
+    /* 미처리 요청 = 접수·진행중·보류 — 보류한 요청도 주문 상세 🔔 박스에서 나중에 승인·거절할 수 있게 */
+    /* 목록은 최신순 → 한 주문에 요청이 여럿이면 가장 최근 요청을 표시 */
+    if (r.order_id && ['pending', 'processing', 'hold'].includes(r.status) && !pendingReqByOrder.has(r.order_id)) pendingReqByOrder.set(r.order_id, r);
   });
 
   /* 주문 목록 공통 필터(농가·검색·요청) — 상태는 제외. 단계 카운트와 목록이 같은 기준을 쓰도록 공유 */
@@ -9678,7 +9680,7 @@ export default function AdminClient() {
                 const w = rq.type === 'cancel' ? '취소' : '환불';
                 return (
                   <div className="adm-detail-group adm-detail-mt16" style={{ border:'1px solid #FECACA', background:'#FEF2F2', borderRadius:10, padding:'14px 16px' }}>
-                    <div style={{ fontWeight:800, color:'#B91C1C', marginBottom:8 }}>🔔 고객 {w} 요청{rq.status === 'processing' ? ' (진행중)' : ''}</div>
+                    <div style={{ fontWeight:800, color:'#B91C1C', marginBottom:8 }}>🔔 고객 {w} 요청{rq.status === 'processing' ? ' (진행중)' : rq.status === 'hold' ? ' (보류 중 — 확인 후 승인 또는 거절하세요)' : ''}</div>
                     <div style={{ fontSize:13, color:'#333', marginBottom:4 }}>사유: {rq.reason}{rq.detail ? ` — ${rq.detail}` : ''}</div>
                     <div style={{ fontSize:12, color:'#888', marginBottom:12 }}>신청일 {fmtDate(rq.created_at)}</div>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -9696,11 +9698,11 @@ export default function AdminClient() {
                           await updateRefundStatus(rq, 'rejected', reason || '');
                           await loadRefundRequests();
                         }}>거절(반려)</button>
-                      <button className="adm-btn adm-btn-outline" disabled={updatingStatus === selectedOrder.id}
+                      {rq.status !== 'hold' && (<button className="adm-btn adm-btn-outline" disabled={updatingStatus === selectedOrder.id}
                         onClick={async () => {
                           await updateRefundStatus(rq, 'hold');
                           await loadRefundRequests();
-                        }}>보류</button>
+                        }}>보류</button>)}
                     </div>
                   </div>
                 );
