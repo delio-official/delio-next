@@ -785,10 +785,11 @@ export default function ProductClient() {
   /* 리뷰 작성 적립 포인트 (안내용) */
   useEffect(() => {
     createClient().from('site_settings').select('key,value')
-      .in('key', ['review_point_text', 'review_point_photo'])
+      .in('key', ['review_point_text', 'review_point_photo', 'point_enabled'])
       .then(({ data }) => {
         const m: Record<string, string> = {};
         ((data as { key: string; value: string }[]) || []).forEach(s => { m[s.key] = s.value; });
+        if (m.point_enabled === 'false') { setReviewPt({ text: 0, photo: 0 }); return; }   // 포인트 OFF → 적립 안내 숨김
         setReviewPt({
           text: parseInt(m.review_point_text || '50') || 0,
           photo: parseInt(m.review_point_photo || '150') || 0,

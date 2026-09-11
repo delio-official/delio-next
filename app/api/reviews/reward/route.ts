@@ -21,6 +21,10 @@ export async function POST(req: Request) {
   const { data: me } = await admin.from('profiles').select('is_admin').eq('id', user.id).maybeSingle();
   if (me?.is_admin === true) return NextResponse.json({ ok: true, granted: 0 });
 
+  /* 포인트 시스템 OFF → 새 적립(구매·리뷰) 중지. 지급하지 않았으니 point_rewarded 도 표시하지 않음 */
+  const { data: pe } = await admin.from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle();
+  if ((pe as { value?: string } | null)?.value === 'false') return NextResponse.json({ ok: true, granted: 0, disabled: true });
+
   const { data: review } = await admin
     .from('reviews').select('id, user_id, image_urls, video_url, point_rewarded')
     .eq('id', reviewId).maybeSingle();

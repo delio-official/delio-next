@@ -11164,7 +11164,7 @@ export default function AdminClient() {
                   <div className="adm-card" style={{ marginBottom:16, padding:'16px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14 }}>포인트 시스템</div>
-                      <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>끄면 적립·사용 기능이 모두 중지됩니다.</div>
+                      <div className="adm-muted" style={{ fontSize:12, marginTop:2 }}>끄면 새 포인트 적립(구매·리뷰)이 멈춥니다. 고객이 가진 포인트는 계속 사용할 수 있습니다.</div>
                     </div>
                     <Toggle defaultOn={siteSettings.point_enabled !== 'false'} onChange={togglePointEnabled} />
                   </div>

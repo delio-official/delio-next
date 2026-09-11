@@ -7,6 +7,7 @@ import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
 import { fbInitiateCheckout, fbPurchase } from '@/lib/metaPixel';
 import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
 import { createClient } from '@/lib/supabase';
+import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -298,6 +299,24 @@ export default function CheckoutClient() {
       setPrefsLoaded(true);
     })();
   }, [user]); // eslint-disable-line
+
+  /* 적립 예정 안내 — 실제 적립(finalize-order)과 같은 기준: 회원 등급별 적립률, 포인트 시스템 OFF면 0(안내 숨김) */
+  const [earnRatePct, setEarnRatePct] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const sb = createClient();
+      const [{ data: pe }, { data: pf }] = await Promise.all([
+        sb.from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle(),
+        sb.from('profiles').select('grade').eq('id', user.id).maybeSingle(),
+      ]);
+      if ((pe as { value?: string } | null)?.value === 'false') { setEarnRatePct(0); return; }
+      const grade = normalizeGrade((pf as { grade?: string | null } | null)?.grade);
+      const { data: t } = await sb.from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
+      const tier = (t as MembershipTier | null) ?? DEFAULT_TIERS.find(x => x.grade === grade)!;
+      setEarnRatePct(effectiveRate(tier));
+    })();
+  }, [user]);
 
   /* 체크아웃에서 바꾼 선택도 prefs에 동기화 (장바구니로 돌아가도 유지) */
   useEffect(() => {
@@ -873,7 +892,7 @@ export default function CheckoutClient() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0 4px', marginTop:6, borderTop:'1.5px solid #1A1A1A', fontWeight:800 }}>
               <span style={{ fontSize:15 }}>총 결제 예정금액</span><span style={{ fontSize:18 }}>{fmtPrice(total)}원</span>
             </div>
-            <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4 }}>적립 예정 +{fmtPrice(Math.floor(total*0.01))}P</div>
+            {earnRatePct > 0 && <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4 }}>적립 예정 +{fmtPrice(Math.floor(total * earnRatePct / 100))}P</div>}
           </Section>
           </div>
 
@@ -916,7 +935,9 @@ export default function CheckoutClient() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 0 4px', marginTop:8, borderTop:'2px solid #1A1A1A' }}>
               <span style={{ fontSize:15, fontWeight:800 }}>총 결제 예정 금액</span><span style={{ fontSize:20, fontWeight:800 }}>{fmtPrice(total)}원</span>
             </div>
-            <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4, marginBottom:16 }}>적립 예정 +{fmtPrice(Math.floor(total*0.01))}P</div>
+            {earnRatePct > 0
+              ? <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4, marginBottom:16 }}>적립 예정 +{fmtPrice(Math.floor(total * earnRatePct / 100))}P</div>
+              : <div style={{ marginBottom:16 }} />}
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#333', marginBottom:12 }}>
               <input type="checkbox" checked={payAgree} onChange={e => setPayAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'#1A1A1A', flexShrink:0 }} />
               주문 내용을 확인하였으며, 결제에 동의합니다.

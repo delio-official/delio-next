@@ -702,11 +702,15 @@ export default function MypageClient() {
           .eq('user_id', user!.id)
           .order('created_at', { ascending: false })
           .limit(30),
-        supabase.from('site_settings').select('key,value').in('key', ['review_point_photo', 'review_point_text']),
+        supabase.from('site_settings').select('key,value').in('key', ['review_point_photo', 'review_point_text', 'point_enabled']),
       ]);
       { const arr = (rpSettings as { key: string; value: string }[]) || [];
-        const rp = arr.find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150);
-        const rt = arr.find(s => s.key === 'review_point_text');  if (rt?.value) setReviewRewardText(Number(rt.value) || 50); }
+        if (arr.find(s => s.key === 'point_enabled')?.value === 'false') {   // 포인트 OFF → 리뷰 적립 없음(안내 숨김)
+          setReviewRewardPhoto(0); setReviewRewardText(0);
+        } else {
+          const rp = arr.find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150);
+          const rt = arr.find(s => s.key === 'review_point_text');  if (rt?.value) setReviewRewardText(Number(rt.value) || 50);
+        } }
       setProfile(prof as Profile);
       if ((prof as Profile & { referral_code?: string })?.referral_code) {
         setReferralCode((prof as Profile & { referral_code?: string }).referral_code!);
@@ -3001,8 +3005,8 @@ export default function MypageClient() {
             <div className={`mp-panel${activePanel==='myreviews'?' active':''}`}>
               <button className="mp-panel-back" onClick={goBackMenu}><IconArrowLeft /></button>
               <div className="mp-section">
-                {/* 리뷰 적립 혜택 안내 박스 */}
-                <div className="mp-review-benefit">
+                {/* 리뷰 적립 혜택 안내 박스 (포인트 OFF면 숨김) */}
+                {(reviewRewardText > 0 || reviewRewardPhoto > 0) && <div className="mp-review-benefit">
                   <div className="mp-review-benefit-item">
                     <span className="mp-review-benefit-label">일반리뷰 작성 적립금</span>
                     <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardText)}P</span>
@@ -3011,7 +3015,7 @@ export default function MypageClient() {
                     <span className="mp-review-benefit-label">포토리뷰 작성 적립금</span>
                     <span className="mp-review-benefit-amt">{fmtPrice(reviewRewardPhoto)}P</span>
                   </div>
-                </div>
+                </div>}
                 <ul className="mp-review-notice">
                   <li>리뷰는 구매 확정일(배송완료일) 기준 30일까지 작성하실 수 있습니다.</li>
                   <li>작성하신 리뷰의 적립금은 등록 완료 시 즉시 지급됩니다.</li>
@@ -3051,7 +3055,7 @@ export default function MypageClient() {
                           {/* 리뷰 작성 버튼 → 그 자리에서 작성 모달 */}
                           <button onClick={() => setReviewWriteTarget({ id: w.id, name: w.name, thumb: w.thumb, star: 0 })}
                             style={{ display:'block', width:'100%', textAlign:'center', padding:'12px', border:'1px solid #DDD', borderRadius:8, fontSize:13.5, fontWeight:700, color:'#1A1A1A', background:'#fff', cursor:'pointer', fontFamily:'inherit' }}>
-                            리뷰 작성하고 최대 {fmtPrice(Math.max(reviewRewardText, reviewRewardPhoto))}P 받기
+                            {Math.max(reviewRewardText, reviewRewardPhoto) > 0 ? `리뷰 작성하고 최대 ${fmtPrice(Math.max(reviewRewardText, reviewRewardPhoto))}P 받기` : '리뷰 작성하기'}
                           </button>
                         </div>
                       ))}
