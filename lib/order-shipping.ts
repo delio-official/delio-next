@@ -3,9 +3,12 @@ import { ORDER_STATUS_RANK } from './tracker';
 
 /* 농가(상품)별 송장 → 주문 배송상태 집계 유틸.
    한 주문이 여러 농가 송장으로 나뉘므로, 주문 상태는 order_items 들의 ship_status 를 집계해 결정한다.
-   - 모든 상품 줄이 delivered      → 주문 delivered
-   - 하나라도 shipped 이상(배송중)  → 주문 shipped
-   - 그 외                         → 변경 없음(null) */
+   - 모든 상품 줄이 delivered            → 주문 delivered
+   - 모든 상품 줄이 shipped 이상(배송중)  → 주문 shipped
+   - 그 외(일부 농가만 출고 등)          → 변경 없음(null)
+   ※ 예전엔 '하나라도 배송중'이면 주문 전체를 배송중으로 올려서, 여러 농가 주문이
+      배송준비중 목록·금일 발송 대기·발송 지연 알림에서 빠져 남은 농가 송장 입력을 놓쳤다.
+      관리자 송장 저장(모든 농가 송장이 들어와야 배송중)과 기준을 통일한다. */
 
 const ITEM_RANK: Record<string, number> = { preparing: 2, shipped: 3, delivered: 4 };
 
@@ -14,7 +17,7 @@ export function aggregateOrderStatus(
 ): 'shipped' | 'delivered' | null {
   if (!statuses.length) return null;
   if (statuses.every((s) => s === 'delivered')) return 'delivered';
-  if (statuses.some((s) => s === 'shipped' || s === 'delivered')) return 'shipped';
+  if (statuses.every((s) => s === 'shipped' || s === 'delivered')) return 'shipped';
   return null;
 }
 
@@ -66,7 +69,9 @@ export async function applyTrackingStatusByItems(
       .eq('id', oid)
       .single();
     if (!ord) continue;
-    if (['cancelled', 'refunding', 'refunded'].includes(ord.status as string)) continue;
+    /* 취소·환불 진행 건은 물론, 구매확정·입금기한 만료·입금대기 주문도 배송추적 결과로 되돌리지 않는다
+       (구매확정 주문이 배송완료로 내려가 7일 자동확정이 다시 돌던 문제) */
+    if (['cancelled', 'refunding', 'refunded', 'confirmed', 'expired', 'pending'].includes(ord.status as string)) continue;
 
     const its = (ord.order_items || []) as Array<{ ship_status: string | null; product_name: string | null }>;
     const agg = aggregateOrderStatus(its.map((i) => i.ship_status));

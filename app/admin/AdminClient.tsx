@@ -1989,7 +1989,8 @@ let _optSeq = 0;
 const newOptId = () => `o${Date.now().toString(36)}${(_optSeq++).toString(36)}`;
 // 편집 중 상위-하위 연결은 라벨(이름)이 아니라 고정 id(parent_id)로 함 → 이름이 비거나 같아도 분류별 독립.
 // 저장 시 parent_id → 해당 상위의 라벨(parent_label)로 변환해 DB에 기록(스토어프론트는 parent_label 사용).
-type POpt = { id: string; group: string; required: boolean; label: string; add_price: number; purchase_price: number; shipping_fee: number; stock: number; manage_stock: boolean; parent_label?: string; parent_id?: string };
+type POpt = { id: string; dbId?: string; group: string; required: boolean; label: string; add_price: number; purchase_price: number; shipping_fee: number; stock: number; manage_stock: boolean; parent_label?: string; parent_id?: string };
+/* dbId = 저장된 product_options.id — 상품을 수정해도 옵션 ID가 유지돼야 장바구니·주문(재고 복원)이 안 깨진다 */
 function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   options: POpt[];
   setOptions: React.Dispatch<React.SetStateAction<POpt[]>>;
@@ -4342,11 +4343,11 @@ export default function AdminClient() {
         }
       });
       // 옵션 로드
-      supabase.from('product_options').select('label, add_price, purchase_price, shipping_fee, supply_price, stock, manage_stock, group_name, is_required, parent_label')
+      supabase.from('product_options').select('id, label, add_price, purchase_price, shipping_fee, supply_price, stock, manage_stock, group_name, is_required, parent_label')
         .eq('product_id', p.id).order('sort_order')
         .then(({ data }) => {
-          const rawRows: POpt[] = ((data || []) as { label: string; add_price: number; purchase_price: number | null; shipping_fee: number | null; supply_price: number | null; stock: number; manage_stock: boolean | null; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
-            ({ id: newOptId(), group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0,
+          const rawRows: POpt[] = ((data || []) as { id: string; label: string; add_price: number; purchase_price: number | null; shipping_fee: number | null; supply_price: number | null; stock: number; manage_stock: boolean | null; group_name: string | null; is_required: boolean | null; parent_label: string | null }[]).map(o =>
+            ({ id: newOptId(), dbId: o.id, group: o.group_name || '옵션', required: o.is_required !== false, label: o.label, add_price: o.add_price || 0,
               // 매입가 미입력 + 기존 공급가만 있는 예전 데이터 → 공급가를 매입가로 폴백
               purchase_price: o.purchase_price || (o.purchase_price === 0 && !o.shipping_fee ? (o.supply_price ?? 0) : 0),
               shipping_fee: o.shipping_fee ?? 0,
@@ -4435,11 +4436,21 @@ export default function AdminClient() {
       productId = data.id;
     }
 
-    // ── 옵션 저장 (기존 삭제 후 재삽입) ──
+    /* ── 옵션 저장 ──
+       예전엔 옵션을 전부 지우고 새로 넣어서 옵션 ID가 매번 바뀌었다. 그래서 판매 중 상품을 수정하면
+        · 이미 고객 장바구니에 담긴 상품이 결제 단계에서 막히고
+        · 수정 전 주문을 취소·환불해도 재고가 복원되지 않았다(주문이 옛 옵션 ID를 가리킴).
+       이제 같은 옵션(분류·그룹·이름 또는 보관한 ID가 같은 것)은 그대로 두고 값만 수정하고,
+       새 옵션만 추가하고, 없어진 옵션만 삭제한다. 중간에 실패하면 그 자리에서 알리고 멈춘다. */
     if (productId) {
-      // 기존 옵션 삭제 — 실패하면 중단(삭제 실패 후 insert 시 옵션이 중복 누적되는 것 방지)
-      const { error: delErr } = await supabase.from('product_options').delete().eq('product_id', productId);
-      if (delErr) { alert('옵션 저장 실패(기존 옵션 삭제 오류): ' + delErr.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
+      const { data: exRows, error: exErr } = await supabase.from('product_options')
+        .select('id, label, group_name, parent_label').eq('product_id', productId);
+      if (exErr) { alert('옵션 저장 실패(기존 옵션 조회 오류): ' + exErr.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
+      const existing = (exRows || []) as { id: string; label: string; group_name: string | null; parent_label: string | null }[];
+      const exIds = new Set(existing.map(o => o.id));
+      const optKey = (pl: string, g: string, l: string) => `${(pl || '').trim()}|${(g || '옵션').trim()}|${(l || '').trim()}`;
+      const byKey = new Map(existing.map(o => [optKey(o.parent_label || '', o.group_name || '옵션', o.label), o.id]));
+
       const validOptsRaw = pOptions.filter(o => o.label.trim());
       // parent_id(편집용 연결) → 상위 라벨(parent_label)로 변환해 저장 (스토어프론트는 parent_label 사용)
       const labelById = new Map(pOptions.map(o => [o.id, o.label?.trim() || '']));
@@ -4447,30 +4458,52 @@ export default function AdminClient() {
       const _seenSave = new Set<string>();
       const validOpts = validOptsRaw.filter(o => {
         const pl = o.parent_id ? (labelById.get(o.parent_id) || '') : (o.parent_label?.trim() || '');
-        const k = `${pl}|${o.group?.trim() || '옵션'}|${o.label.trim()}`;
+        const k = optKey(pl, o.group?.trim() || '옵션', o.label.trim());
         if (_seenSave.has(k)) return false; _seenSave.add(k); return true;
       });
       // 단품 재고관리('기본' 항목)만 있는 경우 = 상품 단위 브랜드 공급가(매입가+배송비)를 그 항목에 그대로 저장
       const saveSingleBasic = validOpts.length === 1 && validOpts[0].label.trim() === '기본' && !validOpts[0].parent_id && !(validOpts[0].parent_label || '').trim();
-      if (validOpts.length > 0) {
-        await supabase.from('product_options').insert(
-          validOpts.map((o, i) => ({
-            product_id: productId,
-            group_name: o.group?.trim() || '옵션',
-            is_required: o.required !== false,
-            label: o.label.trim(),
-            add_price: Number(o.add_price) || 0,
-            purchase_price: (saveSingleBasic ? Number(pSupPurchase) : Number(o.purchase_price)) || 0,
-            shipping_fee: (saveSingleBasic ? Number(pSupShip) : Number(o.shipping_fee)) || 0,
-            // 공급가 = 매입가 + 배송비 (발주서·농가정산·트리거가 이 값을 사용)
-            supply_price: saveSingleBasic ? ((Number(pSupPurchase) || 0) + (Number(pSupShip) || 0)) : ((Number(o.purchase_price) || 0) + (Number(o.shipping_fee) || 0)),
-            stock: Number(o.stock) || 0,
-            manage_stock: o.manage_stock !== false,
-            parent_label: o.parent_id ? (labelById.get(o.parent_id) || null) : (o.parent_label?.trim() || null),
-            is_default: i === 0,
-            sort_order: i + 1,
-          }))
-        );
+      const rowOf = (o: POpt, i2: number) => ({
+        product_id: productId,
+        group_name: o.group?.trim() || '옵션',
+        is_required: o.required !== false,
+        label: o.label.trim(),
+        add_price: Number(o.add_price) || 0,
+        purchase_price: (saveSingleBasic ? Number(pSupPurchase) : Number(o.purchase_price)) || 0,
+        shipping_fee: (saveSingleBasic ? Number(pSupShip) : Number(o.shipping_fee)) || 0,
+        // 공급가 = 매입가 + 배송비 (발주서·농가정산·트리거가 이 값을 사용)
+        supply_price: saveSingleBasic ? ((Number(pSupPurchase) || 0) + (Number(pSupShip) || 0)) : ((Number(o.purchase_price) || 0) + (Number(o.shipping_fee) || 0)),
+        stock: Number(o.stock) || 0,
+        manage_stock: o.manage_stock !== false,
+        parent_label: o.parent_id ? (labelById.get(o.parent_id) || null) : (o.parent_label?.trim() || null),
+        is_default: i2 === 0,
+        sort_order: i2 + 1,
+      });
+
+      const keepIds = new Set<string>();
+      const inserts: ReturnType<typeof rowOf>[] = [];
+      for (let i2 = 0; i2 < validOpts.length; i2++) {
+        const o = validOpts[i2];
+        const row = rowOf(o, i2);
+        const sameId = (o.dbId && exIds.has(o.dbId) && !keepIds.has(o.dbId))
+          ? o.dbId
+          : byKey.get(optKey(row.parent_label || '', row.group_name, row.label));
+        if (sameId && !keepIds.has(sameId)) {
+          keepIds.add(sameId);
+          const { error } = await supabase.from('product_options').update(row).eq('id', sameId);
+          if (error) { alert('옵션 저장 실패: ' + error.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
+        } else {
+          inserts.push(row);
+        }
+      }
+      if (inserts.length > 0) {
+        const { error } = await supabase.from('product_options').insert(inserts);
+        if (error) { alert('옵션 저장 실패(새 옵션 추가 오류): ' + error.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
+      }
+      const removeIds = existing.filter(o => !keepIds.has(o.id)).map(o => o.id);
+      if (removeIds.length > 0) {
+        const { error } = await supabase.from('product_options').delete().in('id', removeIds);
+        if (error) { alert('옵션 저장 실패(삭제된 옵션 정리 오류): ' + error.message + '\n다시 시도해주세요.'); setPSaving(false); return; }
       }
     }
 
@@ -4986,11 +5019,24 @@ export default function AdminClient() {
     if (newStatus === 'rejected') updatePayload.reject_reason = rejectReason || null;
     const { error } = await supabase.from('refund_requests').update(updatePayload).eq('id', req.id);
     if (error) { alert('상태 변경 실패: ' + error.message); return; }
-    // 주문 상태 연동. 부분환불은 주문을 confirmed로 유지(변경 안 함). 거절·보류도 변경 안 함
+    /* 주문 상태 연동.
+       · 승인(전액) → 취소/환불완료
+       · 진행중(이체대기, 환불 유형) → 환불처리중
+       · 거절·보류·부분환불 승인 → '환불처리중'이던 주문을 원래 단계로 되돌린다.
+         (예전엔 되돌리지 않아 주문이 환불처리중에 영구히 멈췄고, 자동 구매확정·정산·매출에서 빠졌다) */
     const isCancel = req.type === 'cancel';
     let nextOrderStatus: string | null = null;
     if (newStatus === 'completed' && !isPartial) nextOrderStatus = isCancel ? 'cancelled' : 'refunded';
     else if (newStatus === 'processing' && !isCancel) nextOrderStatus = 'refunding';
+    else if (req.order_id && (newStatus === 'rejected' || newStatus === 'hold' || isPartial)) {
+      const { data: ordRow } = await supabase.from('orders')
+        .select('status, confirmed_at, delivered_at, shipped_at, paid_at').eq('id', req.order_id).maybeSingle();
+      const o = ordRow as { status?: string; confirmed_at?: string | null; delivered_at?: string | null; shipped_at?: string | null; paid_at?: string | null } | null;
+      if (o?.status === 'refunding') {
+        // 기록된 시각으로 원래 단계 판단 (구매확정 > 배송완료 > 배송중 > 결제완료)
+        nextOrderStatus = o.confirmed_at ? 'confirmed' : o.delivered_at ? 'delivered' : o.shipped_at ? 'shipped' : 'paid';
+      }
+    }
     if (req.order_id && nextOrderStatus) {
       await supabase.from('orders').update({ status: nextOrderStatus }).eq('id', req.order_id);
     }
@@ -6810,10 +6856,16 @@ export default function AdminClient() {
     const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
     if (!eta || !eta.trim()) return;
     if (!confirm(`선택한 ${targets.length}건에 배송 지연 안내를 발송할까요?\n\n사유: ${reason.trim()}\n예상 도착일: ${eta.trim()}`)) return;
+    /* 배송 지연 = 배송 관련 → 수령인 + 주문자 양쪽. 각자 '본인 이름'으로 발송(상세 창과 동일).
+       발송 시각도 기록해 상세 창에 '지연안내 재발송'으로 표시되게 한다(중복 발송 방지). */
+    const iso = new Date().toISOString();
+    const supabase = createClient();
     for (const o of targets) {
-      /* 배송 지연 = 배송 관련 → 수령인 + 주문자 양쪽 */
-      notifyOrderPhones([o.phone, o.orderer_phone], { type:'delivery_delayed', recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() });
+      notifyOrderRoles(o, { type:'delivery_delayed', recipient:o.recipient, orderNo:o.order_no, reason:reason.trim(), eta:eta.trim() });
     }
+    await supabase.from('orders').update({ delay_notified_at: iso }).in('id', targets.map(o => o.id));
+    setOrders(prev => prev.map(o => targets.some(t => t.id === o.id) ? { ...o, delay_notified_at: iso } : o));
+    setSelectedOrder(prev => prev && targets.some(t => t.id === prev.id) ? { ...prev, delay_notified_at: iso } : prev);
     alert(`${targets.length}건에 배송 지연 안내를 발송했습니다.`);
     setSelOrders(new Set());
   }
@@ -6871,7 +6923,7 @@ export default function AdminClient() {
     });
     const list = Object.values(byKey);
     if (list.length === 0) { alert('엑셀에서 주문번호·운송장번호를 찾지 못했습니다.\n주문서(배송용)를 내려받아 택배사·운송장번호를 채운 뒤 올려주세요.'); return; }
-    if (!confirm(`엑셀에서 ${list.length}건(농가 기준)을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?`)) return;
+    if (!confirm(`엑셀에서 ${list.length}건(농가 기준)을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?\n\n· 이미 같은 운송장이 등록된 줄은 건너뜁니다(알림톡 중복 발송 방지)\n· 취소·환불 주문과 입금 전 주문은 제외됩니다`)) return;
     const supabase = createClient();
 
     /* 주문번호별로 농가 항목 묶기 */
@@ -6892,25 +6944,38 @@ export default function AdminClient() {
         const items = ((o.order_items as Record<string, unknown>[]) || []).map(it => {
           const prod = it.products as Record<string, unknown> | null;
           const farm = prod?.farms as Record<string, unknown> | null;
-          return { ...it, farm_id: (it.farm_id as string) ?? prod?.farm_id ?? null, farm_name: farm?.name ?? null };
+          return { ...it, farm_id: (it.farm_id as string) ?? prod?.farm_id ?? null, farm_name: farm?.name ?? null, carrier: farm?.carrier ?? null };
         });
         fetchedByNo[o.order_no as string] = { ...(o as unknown as Order), order_items: items as unknown as Order['order_items'] };
       });
     }
 
     const nowIso = new Date().toISOString();
-    let doneOrders = 0, doneFarms = 0, miss = 0, skip = 0;
+    let doneOrders = 0, doneFarms = 0, miss = 0, skip = 0, unpaid = 0, dupFarms = 0;
     for (const [orderNo, farmEntries] of Array.from(byOrder.entries())) {
       const o = loadedByNo[orderNo] || fetchedByNo[orderNo];
       if (!o) { miss++; continue; }
       if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
+      /* 입금 전(무통장 입금대기·기한만료) 주문은 제외 — 돈 받기 전에 '출고' 알림이 나가던 문제 */
+      if (['pending','expired'].includes(o.status)) { unpaid++; continue; }
       const allItems = o.order_items || [];
       const matchFarm = (i: { farm_name?: string | null }, brand: string) => brand === '' || (i.farm_name || '농가 미지정') === brand;
+
+      /* 이미 같은 운송장이 저장된 브랜드는 건너뛴다.
+         주문서(배송용)에는 기존 송장이 그대로 들어 있어서, 새 송장만 채워 올려도
+         예전에는 그 줄까지 다시 처리돼 배송시작 알림톡이 또 나가고 배송완료 품목이 배송중으로 돌아갔다. */
+      const todoEntries = farmEntries.filter(fe => {
+        const fitems = allItems.filter(i => matchFarm(i, fe.brand)) as ({ tracking_number?: string | null }[]);
+        const same = fitems.length > 0 && fitems.every(i => (i.tracking_number || '') === fe.tracking);
+        if (same) { dupFarms++; return false; }
+        return true;
+      });
+      if (todoEntries.length === 0) continue;
 
       /* 항목별 송장 계획 (item.id → {courier,tracking}).
          택배사 = 브랜드 지정 택배사(carrier) 우선. 지정이 없으면 엑셀 택배사칸, 그것도 없으면 CJ */
       const plan = new Map<string, { courier: string; tracking: string }>();
-      farmEntries.forEach(fe => {
+      todoEntries.forEach(fe => {
         const fitem = allItems.find(i => matchFarm(i, fe.brand)) as ({ carrier?: string | null } | undefined);
         const brandCarrier = resolveCourierCode(fitem?.carrier);
         fe.courier = brandCarrier || fe.courier || 'kr.cjlogistics';
@@ -6944,7 +7009,7 @@ export default function AdminClient() {
         : x));
 
       /* 농가별 배송시작 알림톡 (이번에 처리된 농가마다 1회) + 추적 웹훅 */
-      farmEntries.forEach(fe => {
+      todoEntries.forEach(fe => {
         const fitems = newItems.filter(i => matchFarm(i, fe.brand));
         const names = fitems.map(i => i.product_name).filter(Boolean) as string[];
         const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
@@ -6956,7 +7021,11 @@ export default function AdminClient() {
     }
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`엑셀 일괄 발송처리 완료: 주문 ${doneOrders}건 · 농가 송장 ${doneFarms}건 처리${skip ? `, ${skip}건 취소/환불 제외` : ''}${miss ? `, ${miss}건 매칭 실패` : ''}`);
+    alert(`엑셀 일괄 발송처리 완료: 주문 ${doneOrders}건 · 농가 송장 ${doneFarms}건 처리`
+      + `${dupFarms ? `\n· ${dupFarms}건은 이미 같은 운송장이 등록돼 건너뜀(알림톡 재발송 없음)` : ''}`
+      + `${unpaid ? `\n· ${unpaid}건은 입금 전 주문이라 제외` : ''}`
+      + `${skip ? `\n· ${skip}건은 취소/환불 주문이라 제외` : ''}`
+      + `${miss ? `\n· ${miss}건은 주문번호·브랜드를 찾지 못함` : ''}`);
   }
 
   /* ========== 라운지 노출 토글 ========== */
@@ -7327,10 +7396,20 @@ export default function AdminClient() {
     setCouponModal(false);
   }
 
+  /* 쿠폰 삭제 — 회원이 이미 받은 쿠폰·사용 기록까지 DB에서 함께 삭제되므로(연결 삭제) 보유 인원을 먼저 알린다 */
   async function deleteCoupon(id: string) {
-    if (!confirm('이 쿠폰을 삭제하시겠습니까?')) return;
     const supabase = createClient();
-    await supabase.from('coupons').delete().eq('id', id);
+    const [{ count: held }, { count: used }] = await Promise.all([
+      supabase.from('user_coupons').select('id', { count: 'exact', head: true }).eq('coupon_id', id).eq('is_used', false),
+      supabase.from('user_coupons').select('id', { count: 'exact', head: true }).eq('coupon_id', id).eq('is_used', true),
+    ]);
+    const h = held || 0, u = used || 0;
+    const warn = (h + u) > 0
+      ? `\n\n⚠️ 이 쿠폰을 받은 회원이 있습니다 — 미사용 ${h}장 · 사용완료 ${u}장.\n삭제하면 회원이 가진 쿠폰과 사용 기록까지 함께 사라지고, 이후 그 주문을 취소해도 쿠폰이 복원되지 않습니다.\n발급을 멈추려면 삭제 대신 '활성 여부'를 끄세요.`
+      : '';
+    if (!confirm(`이 쿠폰을 삭제하시겠습니까?${warn}`)) return;
+    const { error } = await supabase.from('coupons').delete().eq('id', id);
+    if (error) { alert('삭제 실패: ' + error.message); return; }
     setCoupons(prev => prev.filter(c => c.id !== id));
   }
 

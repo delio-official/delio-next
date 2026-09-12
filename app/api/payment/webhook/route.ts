@@ -57,11 +57,15 @@ export async function POST(req: NextRequest) {
     const fully = status === 'CANCELLED' || (total > 0 && cancelled >= total);
     if (fully) {
       /* 상태 갱신 + 쿠폰·포인트·재고 복원(멱등). 관리자 화면 환불과 달리
-         PortOne 콘솔 직접취소는 복원이 누락됐던 것을 여기서 보완(중복 호출은 refund_restored 가드로 무해). */
+         PortOne 콘솔 직접취소는 복원이 누락됐던 것을 여기서 보완(중복 호출은 refund_restored 가드로 무해).
+         ⚠️ 이미 '취소(cancelled)'로 처리된 주문은 그대로 둔다 — 고객 즉시취소·관리자 취소·판매자 직접취소가
+            모두 여기서 '환불완료'로 덮여, 취소 건이 취소 탭에서 사라지고 환불 건으로 보였다. */
       const { data: ord } = await supabase.from('orders')
-        .select('id').eq('portone_payment_id', paymentId).maybeSingle();
-      await supabase.from('orders').update({ status: 'refunded', partial_refund_amount: cancelled })
-        .eq('portone_payment_id', paymentId);
+        .select('id, status').eq('portone_payment_id', paymentId).maybeSingle();
+      if (ord?.status !== 'cancelled') {
+        await supabase.from('orders').update({ status: 'refunded', partial_refund_amount: cancelled })
+          .eq('portone_payment_id', paymentId);
+      }
       if (ord?.id) await restoreOrderCouponPoint(supabase, ord.id);
     } else {
       /* 부분취소: 상태는 건드리지 않고(배송완료/구매확정 유지), 부분환불 누적액만 카드 실제값으로 반영.
