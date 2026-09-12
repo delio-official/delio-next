@@ -6365,15 +6365,18 @@ export default function AdminClient() {
     const supabase = createClient();
     const from = new Date(year, 0, 1).toISOString();
     const to   = new Date(year + 1, 0, 1).toISOString();
+    /* 화면 상단 '총 순매출'과 같은 기준: 테스트 주문 제외 + 부분환불액 차감
+       (예전엔 결제액을 그대로 더해서 월별 그래프만 부분환불만큼 높게 나왔다) */
     const { data } = await supabase
-      .from('orders').select('final_amount, created_at, status')
+      .from('orders').select('final_amount, partial_refund_amount, created_at, status')
       .gte('created_at', from).lt('created_at', to)
-      .in('status', ['paid','preparing','shipped','delivered','confirmed']).limit(5000);
+      .in('status', ['paid','preparing','shipped','delivered','confirmed'])
+      .not('order_no', 'like', 'TEST%').limit(5000);
     const m: Record<number, number> = {};
     for (let i = 1; i <= 12; i++) m[i] = 0;
-    (data || []).forEach((o: { final_amount: number; created_at: string }) => {
+    (data || []).forEach((o: { final_amount: number; partial_refund_amount?: number | null; created_at: string }) => {
       const mon = new Date(o.created_at).getMonth() + 1;
-      m[mon] = (m[mon] || 0) + (o.final_amount || 0);
+      m[mon] = (m[mon] || 0) + Math.max(0, (o.final_amount || 0) - (o.partial_refund_amount || 0));
     });
     setSettlementYearly(Object.entries(m).map(([month, amount]) => ({ month: Number(month), amount })));
   }
@@ -6557,6 +6560,9 @@ export default function AdminClient() {
     push('');
     push('상위 판매 상품', '수량', '매출');
     d.topProducts.forEach(r => push(r.name, r.qty, r.amount));
+    push('');
+    push('카테고리별 TOP 5', '수량', '매출');
+    d.topCategories.forEach(r => push(r.category, r.qty, r.amount));
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

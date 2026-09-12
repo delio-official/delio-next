@@ -59,10 +59,13 @@ export default function ReviewDetailClient() {
         .from('reviews')
         .select(`
           *,
-          products(id,name,thumbnail_url,category,avg_rating,review_count,discounted_price,price,discount_rate,is_dawn),
+          products!inner(id,name,thumbnail_url,category,avg_rating,review_count,discounted_price,price,discount_rate,is_dawn,deleted_at),
           profiles(name)
         `)
         .eq('id', id)
+        /* 숨김 삭제된 상품의 리뷰는 열리지 않게 — 목록(메인 리뷰 하이라이트·리뷰 게시판)과 같은 기준.
+           데이터를 지우는 게 아니라 이 조건만 빼면 다시 보인다. */
+        .is('products.deleted_at', null)
         .single();
       if (data) setReview(data as Review);
       setLoading(false);
