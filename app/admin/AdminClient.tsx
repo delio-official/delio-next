@@ -2492,7 +2492,7 @@ export default function AdminClient() {
   const [trackingInput, setTrackingInput] = useState({ courier: '', tracking_number: '' });
   const [selOrders, setSelOrders] = useState<Set<string>>(new Set()); // 주문 일괄선택
   /* 일괄 발주확인·발송처리 경고창 — 일반 대상이 아닌 상태가 섞였을 때 (N건만 / 모두 / 취소) */
-  const [bulkGuard, setBulkGuard] = useState<{ action: 'preparing' | 'shipped'; okIds: string[]; badIds: string[]; groups: { label: string; count: number; note: string }[] } | null>(null);
+  const [bulkGuard, setBulkGuard] = useState<{ action: 'preparing' | 'shipped' | 'cancel'; okIds: string[]; badIds: string[]; skipped?: number; groups: { label: string; count: number; note: string }[] } | null>(null);
   const bulkShipFileRef = useRef<HTMLInputElement>(null); // 엑셀 일괄 발송처리 파일 인풋
   const [trackEditRow, setTrackEditRow] = useState<string | null>(null); // 목록 인라인 송장 편집 중인 주문
   const [trackEditVal, setTrackEditVal] = useState('');
@@ -6828,15 +6828,26 @@ export default function AdminClient() {
   /* ── 일괄 발주확인·발송처리 ──
      버튼마다 '일반 대상' 상태가 정해져 있고, 그 밖의 상태(취소·환불·배송완료 등)가 섞이면
      바로 바꾸지 않고 경고창으로 [일반 대상만 / 모두 / 취소]를 고르게 한다. */
-  const BULK_OK_STATUS: Record<'preparing' | 'shipped', string[]> = {
+  const BULK_OK_STATUS: Record<'preparing' | 'shipped' | 'cancel', string[]> = {
     preparing: ['pending', 'paid', 'preparing'],   // 발주확인: 입금대기·신규주문 (배송준비중은 그대로라 무해)
     shipped:   ['paid', 'preparing', 'shipped'],   // 발송처리: 신규주문·배송준비 (배송중은 그대로라 무해)
+    cancel:    ['pending', 'paid', 'preparing'],   // 판매자 직접취소: 발송 전 주문 (배송 시작·정산·환불진행 건은 경고)
   };
-  function bulkWarnGroups(action: 'preparing' | 'shipped', bad: Order[]) {
+  function bulkWarnGroups(action: 'preparing' | 'shipped' | 'cancel', bad: Order[]) {
     const g = new Map<string, { count: number; note: string }>();
     const add = (label: string, note: string) => g.set(label, { count: (g.get(label)?.count || 0) + 1, note });
     for (const o of bad) {
       const paid = !!(o as { paid_at?: string | null }).paid_at;
+      /* 판매자 직접취소 — 상태별로 취소하면 무슨 일이 생기는지 */
+      if (action === 'cancel') {
+        if (o.status === 'shipped') add('배송중', '송장이 들어가 배송이 시작된 주문입니다. 취소하면 결제가 취소되고 "주문 취소" 알림톡이 갑니다.');
+        else if (o.status === 'delivered') add('배송완료', '고객이 이미 받은 주문입니다. 취소하면 결제가 취소되고 "주문 취소" 알림톡이 갑니다.');
+        else if (o.status === 'confirmed') add('구매확정', '정산 기준이 되는 구매확정 주문입니다. 취소하면 브랜드 정산에서 빠집니다.');
+        else if (o.status === 'refunding') add('환불처리중', '환불 신청이 진행 중입니다. 취소·환불 관리에서 처리해야 하고, 여기서 처리하면 이중 환불이 될 수 있습니다.');
+        else if (o.status === 'expired') add('입금기한 만료', '이미 만료 처리되어 재고·쿠폰·포인트가 복원된 주문입니다. 취소 알림톡만 다시 나갑니다.');
+        else add(STATUS_LABEL[o.status] || o.status, '발송 전 주문이 아닙니다. 취소하면 결제취소·복원·알림톡이 진행됩니다.');
+        continue;
+      }
       if ((o.status === 'cancelled' && !paid) || o.status === 'expired') {
         add('미입금취소·입금기한 만료', action === 'preparing'
           ? '입금되지 않은 주문입니다. 변경하면 결제일이 찍혀 매출에 결제된 주문처럼 잡히고, 돈을 받지 않고 발송하게 됩니다.'
@@ -6852,21 +6863,33 @@ export default function AdminClient() {
     }
     return [...g].map(([label, v]) => ({ label, ...v }));
   }
-  function startBulkStatus(action: 'preparing' | 'shipped') {
+  function startBulkStatus(action: 'preparing' | 'shipped' | 'cancel') {
     const ids = [...selOrders];
     if (ids.length === 0) return;
-    const sel = orders.filter(o => ids.includes(o.id));
+    let sel = orders.filter(o => ids.includes(o.id));
+    /* 취소는 이미 취소·환불된 건은 할 일이 없으므로 계산에서 빼고 건수만 알린다 */
+    let skipped = 0;
+    if (action === 'cancel') {
+      const before = sel.length;
+      sel = sel.filter(o => !['cancelled', 'refunded'].includes(o.status));
+      skipped = before - sel.length;
+      if (sel.length === 0) { alert('선택한 주문은 이미 취소·환불 처리된 주문입니다.'); return; }
+    }
     const okIds = sel.filter(o => BULK_OK_STATUS[action].includes(o.status)).map(o => o.id);
     const bad = sel.filter(o => !BULK_OK_STATUS[action].includes(o.status));
     if (bad.length > 0) {
-      setBulkGuard({ action, okIds, badIds: bad.map(o => o.id), groups: bulkWarnGroups(action, bad) });
+      setBulkGuard({ action, okIds, badIds: bad.map(o => o.id), skipped, groups: bulkWarnGroups(action, bad) });
       return;
     }
     const msg = action === 'preparing'
       ? `선택한 ${okIds.length}건을 '배송준비' 상태로 변경할까요?`
-      : `선택한 ${okIds.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`;
+      : action === 'shipped'
+        ? `선택한 ${okIds.length}건을 '배송중'으로 변경할까요?\n(송장번호는 인라인 입력 또는 '엑셀 일괄 발송처리'로 등록하세요)`
+        : `선택한 ${okIds.length}건을 '판매자 직접취소' 처리할까요?${skipped ? `\n(이미 취소·환불된 ${skipped}건은 제외)` : ''}\n\n결제취소 + 쿠폰·포인트 복원 + 고객 취소 알림톡이 진행되며 되돌릴 수 없습니다.`;
     if (!confirm(msg)) return;
-    if (action === 'preparing') doBulkPreparing(okIds); else doBulkShipped(okIds);
+    if (action === 'preparing') doBulkPreparing(okIds);
+    else if (action === 'shipped') doBulkShipped(okIds);
+    else doBulkCancel(okIds);
   }
   function bulkSetPreparing() { startBulkStatus('preparing'); }
   function bulkSetShipped() { startBulkStatus('shipped'); }
@@ -6928,14 +6951,23 @@ export default function AdminClient() {
     alert(`${ids.length}건을 배송중으로 변경했습니다.`);
   }
 
-  /* 선택 주문 일괄 판매자 직접취소 (결제취소 + 쿠폰·포인트 복원) */
-  async function bulkCancel() {
-    const targets = orders.filter(o => selOrders.has(o.id) && !['cancelled','refunded'].includes(o.status));
-    if (targets.length === 0) { alert('취소 가능한 선택 주문이 없습니다.'); return; }
-    if (!confirm(`선택한 ${targets.length}건을 '판매자 직접취소' 처리할까요?\n\n결제취소 + 쿠폰·포인트 복원이 진행되며 되돌릴 수 없습니다.`)) return;
-    for (const o of targets) { await updateOrderStatus(o.id, 'cancelled'); }
+  /* 선택 주문 일괄 판매자 직접취소 — 실행부 (확인·경고창은 startBulkStatus('cancel'))
+     건마다 결제취소(포트원) → 상태 '취소' → 쿠폰·포인트 복원 → 고객 취소 알림톡.
+     끝나고 실제 상태를 다시 읽어, 카드취소 실패·중단으로 처리되지 않은 주문번호를 모아 알려준다. */
+  async function doBulkCancel(ids: string[]) {
+    if (ids.length === 0) return;
+    for (const id of ids) { await updateOrderStatus(id, 'cancelled'); }
+    const supabase = createClient();
+    const { data: after } = await supabase.from('orders').select('order_no, status').in('id', ids);
+    const rows = (after || []) as { order_no: string; status: string }[];
+    const failed = rows.filter(o => o.status !== 'cancelled');
+    refreshStageCounts();
     setSelOrders(new Set());
-    alert(`${targets.length}건 취소 처리했습니다.`);
+    alert(`판매자 직접취소: ${ids.length - failed.length}건 처리 완료`
+      + (failed.length > 0
+        ? `\n\n아래 ${failed.length}건은 처리되지 않았습니다(카드 취소 실패·중단 등). 주문 상세에서 개별 확인하세요.\n`
+          + failed.map(o => `· ${o.order_no} (${STATUS_LABEL[o.status] || o.status})`).join('\n')
+        : ''));
   }
 
   /* 엑셀 일괄 발송처리 — 주문서(배송용) 양식(주문번호·택배사·운송장번호)을 올려 여러 건 송장+배송중 일괄 등록 */
@@ -8717,21 +8749,27 @@ export default function AdminClient() {
       {bulkGuard && (() => {
         const g = bulkGuard;
         const total = g.okIds.length + g.badIds.length;
-        const verb = g.action === 'preparing' ? '발주' : '발송';
+        const verb = g.action === 'preparing' ? '발주' : g.action === 'shipped' ? '발송' : '취소';
+        const actWord = g.action === 'cancel' ? '취소 처리' : '변경';
         const run = (ids: string[]) => {
           setBulkGuard(null);
-          if (g.action === 'preparing') doBulkPreparing(ids); else doBulkShipped(ids);
+          if (g.action === 'preparing') doBulkPreparing(ids);
+          else if (g.action === 'shipped') doBulkShipped(ids);
+          else doBulkCancel(ids);
         };
         return (
           <div className="adm-modal-bg open" onClick={() => setBulkGuard(null)}>
             <div className="adm-modal" style={{ maxWidth:560, width:'95vw' }} onClick={e => e.stopPropagation()}>
               <div className="adm-modal-head">
-                <span className="adm-modal-title">⚠️ {g.action === 'preparing' ? '발주확인' : '발송처리'} 전 확인</span>
+                <span className="adm-modal-title">⚠️ {g.action === 'preparing' ? '발주확인' : g.action === 'shipped' ? '발송처리' : '판매자 직접취소'} 전 확인</span>
               </div>
               <div className="adm-modal-body" style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 <div style={{ fontSize:14, lineHeight:1.6, color:'#1A1A1A' }}>
                   선택한 {total}건 중 <b style={{ color:'#DC2626' }}>{g.badIds.length}건은 일반 {verb} 대상이 아닙니다.</b>
-                  {' '}변경하면 모두 ‘{g.action === 'preparing' ? '배송준비중' : '배송중'}’으로 바뀝니다.
+                  {g.action === 'cancel'
+                    ? ' 취소 처리하면 결제취소 + 쿠폰·포인트 복원 + 고객 취소 알림톡이 진행되며 되돌릴 수 없습니다.'
+                    : ` 변경하면 모두 ‘${g.action === 'preparing' ? '배송준비중' : '배송중'}’으로 바뀝니다.`}
+                  {g.action === 'cancel' && (g.skipped || 0) > 0 && ` (이미 취소·환불된 ${g.skipped}건은 제외했습니다.)`}
                 </div>
                 <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
                   {g.groups.map(x => (
@@ -8747,12 +8785,12 @@ export default function AdminClient() {
               <div className="adm-modal-foot" style={{ display:'flex', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
                 {g.okIds.length > 0 && (
                   <button className="adm-btn adm-btn-primary" onClick={() => run(g.okIds)}>
-                    {g.okIds.length}건만 변경 ({g.badIds.length}건 제외)
+                    {g.okIds.length}건만 {actWord} ({g.badIds.length}건 제외)
                   </button>
                 )}
                 <button className="adm-btn adm-btn-outline" style={{ color:'#DC2626', borderColor:'#FCA5A5' }}
                   onClick={() => run([...g.okIds, ...g.badIds])}>
-                  {g.badIds.length}건 포함 {total}건 모두 변경
+                  {g.badIds.length}건 포함 {total}건 모두 {actWord}
                 </button>
                 <button className="adm-btn adm-btn-outline" onClick={() => setBulkGuard(null)}>취소</button>
               </div>
@@ -10381,7 +10419,7 @@ export default function AdminClient() {
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} disabled={!hasSel} onClick={bulkSetShipped}>발송처리</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} onClick={() => bulkShipFileRef.current?.click()}>엑셀 일괄 발송처리</button>
                   <button className="adm-btn adm-btn-outline" style={{ height:34 }} disabled={!hasSel} onClick={bulkDelayNotice}>발송지연 처리</button>
-                  <button className="adm-btn adm-btn-outline" style={{ height:34, color: hasSel ? '#DC2626' : undefined, borderColor: hasSel ? '#FECACA' : undefined }} disabled={!hasSel} onClick={bulkCancel}>판매자 직접취소</button>
+                  <button className="adm-btn adm-btn-outline" style={{ height:34, color: hasSel ? '#DC2626' : undefined, borderColor: hasSel ? '#FECACA' : undefined }} disabled={!hasSel} onClick={() => startBulkStatus('cancel')}>판매자 직접취소</button>
                   {hasSel && <button className="adm-btn adm-btn-outline" style={{ height:34, marginLeft:'auto' }} onClick={() => setSelOrders(new Set())}>선택 해제</button>}
                   <input ref={bulkShipFileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) bulkExcelShip(f); e.target.value = ''; }} />
