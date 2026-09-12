@@ -91,16 +91,18 @@ export async function validateOrderInput(admin: SupabaseClient, od: OrderInput):
   if (od.userCouponId) {
     const { data: uc } = await admin
       .from('user_coupons')
-      .select('user_id, is_used, expires_at, coupons(discount_type, discount_value, min_order_amount, max_discount_amount, is_active, allow_point, expires_at)')
+      .select('user_id, is_used, expires_at, coupons(discount_type, discount_value, min_order_amount, max_discount_amount, is_active, allow_point, starts_at, expires_at)')
       .eq('id', od.userCouponId).maybeSingle();
     if (!uc) return bad('쿠폰 정보를 확인할 수 없습니다.');
     if (uc.user_id !== od.userId) return bad('본인 쿠폰이 아닙니다.');
     if (uc.is_used) return bad('이미 사용한 쿠폰입니다.');
     const c = (Array.isArray(uc.coupons) ? uc.coupons[0] : uc.coupons) as unknown as {
       discount_type: 'percent' | 'fixed'; discount_value: number; min_order_amount: number;
-      max_discount_amount: number | null; is_active: boolean; allow_point?: boolean; expires_at?: string | null;
+      max_discount_amount: number | null; is_active: boolean; allow_point?: boolean; starts_at?: string | null; expires_at?: string | null;
     } | null;
     if (!c || c.is_active === false) return bad('사용할 수 없는 쿠폰입니다.');
+    /* 사용 시작일 전에는 쓸 수 없다 — 예전엔 다운로드·코드등록에서만 확인해, 관리자 지급·가입 쿠폰은 시작 전에도 결제에 쓰였다 */
+    if (c.starts_at && new Date(c.starts_at).getTime() > Date.now()) return bad('아직 사용 기간이 아닌 쿠폰입니다.');
     const exp = (uc.expires_at as string) || c.expires_at;
     if (exp) {
       /* 만료일 '당일'까지 유효(화면과 동일, 한국 날짜 기준) */

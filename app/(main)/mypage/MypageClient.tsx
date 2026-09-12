@@ -549,6 +549,8 @@ export default function MypageClient() {
 
   /* 친구 추천 */
   const [referralCode,    setReferralCode]    = useState('');
+  /* 포인트 기능 ON/OFF — 꺼져 있으면 멤버십 혜택 안내에서 적립률 문구를 숨긴다(새 적립이 멈추므로) */
+  const [pointOn, setPointOn] = useState(true);
   const [referralInvited, setReferralInvited] = useState(0);
   const [referralRewarded,setReferralRewarded]= useState(0);
 
@@ -707,7 +709,7 @@ export default function MypageClient() {
       ]);
       { const arr = (rpSettings as { key: string; value: string }[]) || [];
         if (arr.find(s => s.key === 'point_enabled')?.value === 'false') {   // 포인트 OFF → 리뷰 적립 없음(안내 숨김)
-          setReviewRewardPhoto(0); setReviewRewardText(0);
+          setReviewRewardPhoto(0); setReviewRewardText(0); setPointOn(false);
         } else {
           const rp = arr.find(s => s.key === 'review_point_photo'); if (rp?.value) setReviewRewardPhoto(Number(rp.value) || 150);
           const rt = arr.find(s => s.key === 'review_point_text');  if (rt?.value) setReviewRewardText(Number(rt.value) || 50);
@@ -3777,7 +3779,7 @@ export default function MypageClient() {
                     [MEMBERSHIP_COUPON.FIVE]: '5,000원 쿠폰 (3만원 이상)',
                   }) as Record<string, string>)[code] || code;
                   const curBenefits = [
-                    `구매액 ${effectiveRate(curTier)}% 포인트 적립`,
+                    ...(pointOn ? [`구매액 ${effectiveRate(curTier)}% 포인트 적립`] : []),
                     ...curTier.coupon_codes.map(c => `매월 ${couponLabel(c)}`),
                     '생일월 5,000원 쿠폰 증정',
                     ...(cur === 'master' ? ['델리오 선별 선물세트 (연 2회 · 등급 유지 시)'] : []),
@@ -3851,7 +3853,7 @@ export default function MypageClient() {
                       <div style={{ border:`1.5px solid ${GRADE_COLOR[cur]}33`, borderRadius:12, overflow:'hidden', marginBottom:16 }}>
                         <div style={{ background:'#1A1A1A', color:'#fff', padding:'12px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                           <span style={{ fontWeight:800, fontSize:15 }}>{curTier.label} 혜택</span>
-                          <span style={{ fontSize:12, fontWeight:700, opacity:0.95 }}>포인트 {effectiveRate(curTier)}% 적립</span>
+                          {pointOn && <span style={{ fontSize:12, fontWeight:700, opacity:0.95 }}>포인트 {effectiveRate(curTier)}% 적립</span>}
                         </div>
                         <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', gap:9 }}>
                           {curBenefits.map((txt, i) => (

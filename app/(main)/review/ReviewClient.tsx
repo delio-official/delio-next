@@ -39,7 +39,8 @@ const BG_MAP: Record<string, string> = {
 };
 
 const TEXT_PER_PAGE = 10;
-const SEL = '*, products(id,name,thumbnail_url,category,avg_rating,review_count,discounted_price,price,discount_rate,is_dawn), profiles(name)';
+const SEL = '*, products!inner(id,name,thumbnail_url,category,avg_rating,review_count,discounted_price,price,discount_rate,is_dawn,deleted_at), profiles(name)';
+/* products!inner + deleted_at 필터 = 숨김 삭제된 상품의 리뷰는 목록에서 제외(눌러도 빈 페이지로 가던 문제) */
 
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });

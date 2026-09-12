@@ -834,14 +834,15 @@ export default function HomeClient() {
     (async () => {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'reviewhl');
-      const sel = 'id, rating, content, image_urls, author_name, seller_reply, products(id, name, category, avg_rating, review_count, thumbnail_url)';
+      const sel = 'id, rating, content, image_urls, author_name, seller_reply, products!inner(id, name, category, avg_rating, review_count, thumbnail_url, deleted_at)';
       let data;
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
-        ({ data } = await supabase.from('reviews').select(sel).in('id', cfg.ids));
+        ({ data } = await supabase.from('reviews').select(sel).is('products.deleted_at', null).in('id', cfg.ids));   // 삭제된 상품 리뷰 제외
       } else {
         const ord = orderColumn('reviewhl', cfg.mode === 'manual' ? 'latest' : cfg.mode);
         /* 사진 리뷰만 노출하므로 넉넉히 가져와 필터 후 잘라냄 */
         ({ data } = await supabase.from('reviews').select(sel)
+          .is('products.deleted_at', null)
           .order(ord.col, { ascending: ord.asc }).order('created_at', { ascending: false })
           .limit(Math.max(24, cfg.count * 4)));
       }

@@ -250,6 +250,9 @@ export default function CheckoutClient() {
         const c = r.coupons as Record<string, unknown> | null;
         // 개별 만료일(user_coupons.expires_at) 우선, 없으면 쿠폰 기본 만료일
         const exp = (r.expires_at as string) || (c?.expires_at as string);
+        // 사용 시작일 전 쿠폰은 목록에서 제외(서버 결제 검증과 동일 기준)
+        const st = c?.starts_at as string | undefined;
+        if (st && st.slice(0, 10) > todayStr) return false;
         return c?.is_active && (!exp || exp.slice(0, 10) >= todayStr);
       })
       .map((r: Record<string, unknown>) => {

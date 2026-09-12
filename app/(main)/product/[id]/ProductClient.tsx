@@ -1237,7 +1237,10 @@ export default function ProductClient() {
   const totalQty      = options.length > 0 ? picks.reduce((s, p) => s + p.qty, 0) : qty;
   const totalPrice    = options.length > 0 ? picksTotal : basePrice * qty;
 
-  /* 맛 프로파일: 판매자 점수(DB 우선, 없으면 카테고리 기본값) */
+  /* 맛 프로파일: 판매자 점수(DB 우선, 없으면 카테고리 기본값).
+     등록 화면에서 아무 축도 고르지 않았으면(=hasSellerScore false) 4축 블록 자체를 숨긴다.
+     예전엔 기본값이 표시돼, 선택을 해제해도 근거 없는 맛 정보가 고객에게 보였다. */
+  const hasSellerScore = !!(product.seller_score && Object.keys(product.seller_score).length > 0);
   const sellerScore: Record<string, number> =
     (product.seller_score && Object.keys(product.seller_score).length > 0)
       ? product.seller_score
@@ -2180,9 +2183,10 @@ export default function ProductClient() {
               );
             })()}
 
+            {(hasSellerScore || tasteRevealed) && <>
             <div className="tp-axis-head">맛 프로파일 <span>· {tasteRevealed ? '구매자 동의율' : '판매자 제공 정보'}</span></div>
 
-            {/* 판매자 4축은 항상 노출(등록 시 입력한 맛 정보). 구매자 동의율·신선도는 리뷰 5개 이상에서만 */}
+            {/* 판매자 4축(등록 시 입력한 맛 정보) — 미입력이면 위 조건에서 숨김. 구매자 동의율·신선도는 리뷰 5개 이상에서만 */}
             <div className={`taste5-grid${tasteMore ? ' expanded' : ' collapsed'}`}>
               {SELLER_AXES.map((axis, idx) => {
                 const sLevel = toLevel(sellerScore[axis.key]);
@@ -2226,6 +2230,7 @@ export default function ProductClient() {
                 </button>
               )}
             </div>
+            </>}
           </div>
         </div>
       </div>

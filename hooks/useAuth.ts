@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -50,6 +50,21 @@ export function useAuth() {
       window.location.href = '/login?error=blocked';
     })();
     return () => { alive = false; };
+  }, [user]);
+
+  /* 초대 링크(?ref=코드)로 들어온 뒤 소셜 로그인으로 가입한 경우, 로그인 직후 추천 등록을 시도한다.
+     서버 함수(register_referral)가 셀프추천·중복·잘못된 코드를 걸러내므로 여기서는 한 번만 호출하고 코드를 지운다. */
+  const refTried = useRef(false);
+  useEffect(() => {
+    if (!user || refTried.current) return;
+    let code: string | null = null;
+    try { code = localStorage.getItem('delio_pending_ref'); } catch { code = null; }
+    if (!code) return;
+    refTried.current = true;
+    (async () => {
+      try { await createClient().rpc('register_referral', { p_code: code }); } catch { /* 실패는 무시 */ }
+      try { localStorage.removeItem('delio_pending_ref'); } catch { /* 무시 */ }
+    })();
   }, [user]);
 
   return { user, loading, loggedIn: !!user };

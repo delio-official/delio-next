@@ -68,6 +68,19 @@ export async function GET(request: Request) {
     const { error: otpErr } = await supabase.auth.verifyOtp({ type: 'magiclink', token_hash: tokenHash });
     if (otpErr) return fail('naver_session');
 
+    /* 4-1) 차단(블랙리스트) 회원은 로그인 불가 — 만들어진 세션을 즉시 폐기.
+       프로비저닝(쿠폰 지급 등)보다 먼저 검사해야 차단 회원에게 혜택이 나가지 않는다. */
+    {
+      const { data: { user: authed } } = await supabase.auth.getUser();
+      if (authed) {
+        const { data: blocked } = await admin.from('profiles').select('is_blocked').eq('id', authed.id).maybeSingle();
+        if (blocked?.is_blocked) {
+          await supabase.auth.signOut();
+          return fail('blocked');
+        }
+      }
+    }
+
     // 5) 신규/기존 회원 프로비저닝 (추천코드·프로필사진·웰컴쿠폰·웰컴알림톡)
     //    → 로그인 속도를 위해 응답 후 백그라운드(after)로 처리. 세션은 이미 위에서 발급됨.
     const { data: { user } } = await supabase.auth.getUser();

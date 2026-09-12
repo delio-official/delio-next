@@ -8622,7 +8622,7 @@ export default function AdminClient() {
               <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14 }}>
                 {([
                   ['is_new',  'NEW 태그',   '상품카드에 NEW 표시'],
-                  ['is_best', '인기 태그',  'NEW와 함께 켜면 NEW가 우선 표시됨'],
+                  ['is_best', '인기 태그',  'NEW와 함께 켜면 두 뱃지가 같이 표시됨'],
                   ['is_active', '판매중',   '끄면 판매중지'],
                   ['show_stat_pill', '만족/재구매 필 표시', '상품카드에 만족도·재구매 필 노출'],
                 ] as const).map(([key, label, hint]) => {

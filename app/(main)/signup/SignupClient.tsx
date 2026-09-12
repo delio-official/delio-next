@@ -103,7 +103,12 @@ export default function SignupClient() {
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const r = sp.get('ref');
-    if (r) { setRefCode(r); setShowRef(true); }
+    if (r) {
+      setRefCode(r); setShowRef(true);
+      /* 카카오·네이버로 가입해도 추천 보상이 적용되도록 코드를 잠시 보관.
+         소셜 로그인 화면에는 추천코드 입력칸이 없어, 예전엔 이메일 가입만 보상이 지급됐다. */
+      try { localStorage.setItem('delio_pending_ref', r); } catch { /* 무시 */ }
+    }
     if (sp.get('preview') === 'done') setDone(true);
   }, []);
 

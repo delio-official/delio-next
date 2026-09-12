@@ -20,7 +20,9 @@ interface Popup {
 }
 
 function getTodayKey(id: string) {
-  const today = new Date().toISOString().slice(0, 10);
+  /* 한국 날짜 기준 — UTC 날짜로 계산하면 한국시간 오전 9시에 '오늘'이 바뀌어
+     오전 8시에 '오늘 하루 보지 않기'를 눌러도 1시간 뒤 팝업이 다시 떴다. */
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return `popup_hide_${id}_${today}`;
 }
 function isHiddenToday(id: string) {
