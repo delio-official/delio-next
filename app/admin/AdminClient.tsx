@@ -2678,7 +2678,7 @@ export default function AdminClient() {
   const [couponModal, setCouponModal] = useState(false);
   const [membershipLocked, setMembershipLocked] = useState(false); // 멤버십 추가창: '멤버십 월 발급' 고정
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
-  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true, code_redeemable: false });
+  const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true, code_redeemable: false, redeem_code: '' });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
   const [giveCouponModal, setGiveCouponModal] = useState(false);
@@ -7397,11 +7397,14 @@ export default function AdminClient() {
     setMembershipLocked(false);
     if (c) {
       setEditingCoupon(c);
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true, code_redeemable: c.code_redeemable ?? false });
+      /* 등록용 코드는 관리자 전용 테이블에 있음 — 고객은 어떤 방법으로도 읽을 수 없다 */
+      createClient().from('coupon_redeem_codes').select('code').eq('coupon_id', c.id).maybeSingle()
+        .then(({ data }) => setCouponForm(f => ({ ...f, redeem_code: (data as { code?: string } | null)?.code || '' })));
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true, code_redeemable: c.code_redeemable ?? false, redeem_code: '' });
     } else {
       setEditingCoupon(null);
       /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
-      setCouponForm({ code: '', name: '', description: '', discount_type: 'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true, code_redeemable: false });
+      setCouponForm({ code: '', name: '', description: '', discount_type: 'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '', is_active: true, is_public: true, signup_grant: false, is_membership: false, allow_point: true, code_redeemable: false, redeem_code: '' });
     }
     setCouponModal(true);
   }
@@ -7410,7 +7413,7 @@ export default function AdminClient() {
   function openSignupCouponModal() {
     setEditingCoupon(null);
     setMembershipLocked(false);
-    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false, allow_point: true, code_redeemable: false });
+    setCouponForm({ code: '', name: '신규회원 쿠폰', description: '', discount_type: 'fixed', discount_value: 3000, min_order_amount: 0, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: true, is_membership: false, allow_point: true, code_redeemable: false, redeem_code: '' });
     setCouponModal(true);
   }
 
@@ -7418,7 +7421,7 @@ export default function AdminClient() {
   function openMembershipCouponModal() {
     setEditingCoupon(null);
     setMembershipLocked(true);
-    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true, allow_point: true, code_redeemable: false });
+    setCouponForm({ code: '', name: '멤버십 쿠폰', description: '', discount_type: 'fixed', discount_value: 1000, min_order_amount: 10000, max_discount_amount: '', starts_at: new Date().toISOString().slice(0,10), expires_at: '', valid_days: '30', is_active: true, is_public: false, signup_grant: false, is_membership: true, allow_point: true, code_redeemable: false, redeem_code: '' });
     setCouponModal(true);
   }
 
@@ -7463,6 +7466,7 @@ export default function AdminClient() {
     };
     // is_membership 컬럼이 아직 없으면(SQL 미실행) 그 필드 빼고 재시도
     const stripMembership = (p: typeof payload) => { const { is_membership, code_redeemable, ...rest } = p; void is_membership; void code_redeemable; return rest; };
+    let couponId = editingCoupon?.id || '';
     if (editingCoupon) {
       let { error } = await supabase.from('coupons').update(payload).eq('id', editingCoupon.id);
       if (error && /is_membership|column/i.test(error.message)) ({ error } = await supabase.from('coupons').update(stripMembership(payload)).eq('id', editingCoupon.id));
@@ -7471,8 +7475,27 @@ export default function AdminClient() {
     } else {
       let { data, error } = await supabase.from('coupons').insert(payload).select().single();
       if (error && /is_membership|column/i.test(error.message)) ({ data, error } = await supabase.from('coupons').insert(stripMembership(payload)).select().single());
-      if (!error && data) setCoupons(prev => [data as AdminCoupon, ...prev]);
+      if (!error && data) { setCoupons(prev => [data as AdminCoupon, ...prev]); couponId = (data as AdminCoupon).id; }
       else { alert('생성 실패: ' + (error?.message || '')); setCouponSaving(false); return; }
+    }
+    /* 등록용 코드(관리자 전용 테이블) 반영 — '쿠폰 코드로 등록 허용'을 켠 쿠폰만 코드를 둔다.
+       coupons.code 는 고객도 조회할 수 있어 등록에 쓰지 않는다(정산 계좌를 분리해 둔 것과 같은 이유). */
+    if (couponId) {
+      if (couponForm.code_redeemable) {
+        const rc = (couponForm.redeem_code.trim() || genCouponCode()).toUpperCase();
+        const { error: rcErr } = await supabase.from('coupon_redeem_codes')
+          .upsert({ coupon_id: couponId, code: rc, updated_at: new Date().toISOString() }, { onConflict: 'coupon_id' });
+        if (rcErr) {
+          alert(/duplicate|unique/i.test(rcErr.message)
+            ? `등록용 코드 "${rc}" 는 다른 쿠폰이 이미 쓰고 있습니다. 다른 코드를 넣거나 자동생성을 눌러주세요.\n(쿠폰 내용은 저장되었습니다)`
+            : '등록용 코드 저장 실패: ' + rcErr.message);
+          setCouponSaving(false); return;
+        }
+        setCouponForm(f => ({ ...f, redeem_code: rc }));
+      } else {
+        /* 허용을 끄면 등록용 코드를 없앤다(다시 켤 때는 새로 발급) */
+        await supabase.from('coupon_redeem_codes').delete().eq('coupon_id', couponId);
+      }
     }
     setCouponSaving(false);
     setCouponModal(false);
@@ -16639,6 +16662,23 @@ export default function AdminClient() {
                     </button>
                   </div>
                 </div>
+                {couponForm.code_redeemable && (
+                  <div className="adm-form-row adm-form-row-full">
+                    <label className="adm-label">등록용 코드 <span style={{ fontWeight:400, color:'#94A3B8' }}>(고객이 입력하는 코드 · 미입력 시 자동생성)</span></label>
+                    <div className="adm-flex-center-gap" style={{ flex:1, flexWrap:'wrap' }}>
+                      <input type="text" className="adm-input-text" style={{ flex:1, minWidth:180 }} placeholder="예: FALL5000"
+                        value={couponForm.redeem_code} onChange={e => setCouponForm(p => ({ ...p, redeem_code: e.target.value.toUpperCase() }))} />
+                      <button type="button" onClick={() => setCouponForm(p => ({ ...p, redeem_code: genCouponCode() }))}
+                        style={{ padding:'0 14px', height:34, border:'1.5px solid #1A1A1A', background:'#1A1A1A', color:'#fff', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        자동생성
+                      </button>
+                      <div style={{ flexBasis:'100%', fontSize:11.5, color:'#64748B', lineHeight:1.5 }}>
+                        이 코드는 <b>관리자만 볼 수 있습니다</b>(위 ‘쿠폰 코드’는 내부 연결용이라 고객도 조회할 수 있어 등록에 쓰지 않습니다).
+                        고객은 마이페이지 <b>쿠폰등록</b> 에 이 코드를 넣어 받습니다. 대소문자는 구분하지 않습니다.
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* ── 할인 설정 ── */}
@@ -16727,7 +16767,7 @@ export default function AdminClient() {
                   { l:'회원가입 자동 지급', on:couponForm.signup_grant, set:(v:boolean)=>setCouponForm(p=>({...p,signup_grant:v})), d:'신규 가입 시 자동 발급 (웰컴 쿠폰팩)', lock:false },
                   { l:'회원 직접 다운로드', on:couponForm.is_public,  set:(v:boolean)=>setCouponForm(p=>({...p,is_public:v})),     d:'마이페이지·결제창에서 회원이 직접 받을 수 있음', lock:false },
                   { l:'멤버십 월 발급', on:couponForm.is_membership, set:(v:boolean)=>setCouponForm(p=>({...p,is_membership:v})), d:'멤버십 관리 탭의 등급별 월 발급 쿠폰으로 설정', lock:membershipLocked },
-                  { l:'쿠폰 코드로 등록 허용', on:couponForm.code_redeemable, set:(v:boolean)=>setCouponForm(p=>({...p,code_redeemable:v})), d:'고객이 마이페이지 쿠폰등록에 위 쿠폰 코드를 넣어 받을 수 있음(이벤트 코드 배포용). 끄면 코드를 알아도 받을 수 없음', lock:false },
+                  { l:'쿠폰 코드로 등록 허용', on:couponForm.code_redeemable, set:(v:boolean)=>setCouponForm(p=>({...p,code_redeemable:v})), d:'켜면 아래 ‘등록용 코드’ 칸이 생기고, 고객이 마이페이지 쿠폰등록에 그 코드를 넣어 받을 수 있음(이벤트 코드 배포용). 끄면 코드가 삭제되어 받을 수 없음', lock:false },
                 ]
                   /* 신규회원 자동지급 쿠폰은 가입 시 자동 발급 전용 — 직접 다운로드·멤버십 월발급과 무관하므로 숨김 */
                   .filter(t => !(couponForm.signup_grant && (t.l === '회원 직접 다운로드' || t.l === '멤버십 월 발급' || t.l === '쿠폰 코드로 등록 허용')))
