@@ -45,3 +45,6 @@ next-env.d.ts
 
 MOBILE_TODO.html
 MOBILE_TODO.pdf
+
+# 화면 캡처 — 비밀키가 찍힐 수 있어 커밋 금지 (매뉴얼용은 마스킹본만 사용)
+/docs/*.png
