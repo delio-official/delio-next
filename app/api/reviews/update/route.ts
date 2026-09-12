@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (r >= 1 && r <= 5) payload.rating = Math.round(r);
   /* 작성일: reviewDate가 온 경우에만 갱신(날짜 변경 시에만 클라가 전송) */
   if (typeof body.reviewDate === 'string' && body.reviewDate) {
-    const d = new Date(body.reviewDate + 'T12:00:00');
+    const d = new Date(body.reviewDate + 'T12:00:00+09:00');   // 관리자가 고른 날짜 = 한국시간 기준 그 날 정오
     if (!isNaN(d.getTime())) payload.created_at = d.toISOString();
   }
   /* 미디어·표시명 — 키가 온 경우에만 갱신(부분수정 지원). 빈 배열/빈 값은 null로 저장 */

@@ -2294,7 +2294,8 @@ export default function AdminClient() {
   const [farmList, setFarmList] = useState<AdminFarmSimple[]>([]);
   const [farmSearch, setFarmSearch] = useState('');
   const PRODUCT_EMPTY: Omit<AdminProductFull, 'id' | 'discounted_price' | 'created_at'> = {
-    sku: '', name: '', category: 'apple', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
+    /* 카테고리는 등록 화면에서 직접 고른다 — 예전 기본값 'apple'은 실제로 없는 카테고리였다 */
+    sku: '', name: '', category: '', origin: 'domestic', origin_region: '', supply_price: 0, price: 0, discount_rate: 0,
     short_desc: '', thumbnail_url: '', image_urls: [null, null, null, null, null],
     dispatch_cutoff: '', brix: null,   // ''=상속(농가 → 사이트 전체). 값 박으면 상위 변경이 반영 안 됨
  badge: '', badge_color: BADGE_DEFAULT_COLOR, is_new: false,
@@ -2593,6 +2594,7 @@ export default function AdminClient() {
   /* 리뷰 수정(관리자 전용) — 작성일·별점·내용 */
   const [reviewEdit, setReviewEdit] = useState(false);
   const [reviewEditDate, setReviewEditDate] = useState('');
+  const reviewEditDateOrig = useRef('');   // 작성일을 실제로 바꿨을 때만 서버에 보냄(내용만 고쳐도 날짜가 밀리던 문제)
   const [reviewEditContent, setReviewEditContent] = useState('');
   const [reviewEditRating, setReviewEditRating] = useState(5);
   const [reviewEditSaving, setReviewEditSaving] = useState(false);
@@ -2927,6 +2929,7 @@ export default function AdminClient() {
     byGrade: { grade: string; count: number; amount: number }[];
     newAmount: number; newCount: number; repeatAmount: number; repeatCount: number;
     daily: { date: string; amount: number }[];
+    rangeDays: number;                      // 조회 기간 날짜 수(일평균 계산용)
     realSettle: number; aov: number; couponTotal: number; pointTotal: number;
     refundCount: number; refundRate: number; prevRefundRate: number;
     prevTotal: number; prevOrderCount: number;
@@ -3265,6 +3268,8 @@ export default function AdminClient() {
   const [settlementYearly, setSettlementYearly] = useState<{ month: number; amount: number }[]>([]);
   /* 매출 그래프 좌측 영역 실측 폭 — 그래프를 컨테이너 폭에 꽉 채우기 위함(고정 픽셀 → 반응형) */
   const settleChartRef = useRef<HTMLDivElement | null>(null);
+  /* 설정 화면을 불러온 시점의 값 — 저장 시 '바뀐 값만' 보내 다른 탭·자동 작업의 값을 덮지 않게 한다 */
+  const settingsLoadedRef = useRef<Record<string, string>>({});
   const [settleChartW, setSettleChartW] = useState(720);
   useEffect(() => {
     const el = settleChartRef.current;
@@ -3340,6 +3345,10 @@ export default function AdminClient() {
   /* ── 섹션(패널) 이동 시 하위 필터 초기화 — 나갔다 와도 이전 선택이 남지 않도록.
         대시보드 바로가기는 pendingOrderStatus 로 원하는 상태를 전달해 그 값만 유지 ── */
   useEffect(() => {
+    /* 알림 바(취소·환불 요청, 미답변 문의, 재고 임박, 정산 미완료 …)를 화면 이동마다 다시 계산.
+       예전엔 로그인 직후·대시보드 [새로고침] 때만 계산돼, 처리한 건이 계속 남아 보이고
+       새로 들어온 요청·문의는 나타나지 않았다. */
+    if (isAdmin) loadDashboard();
     setOrderFarmFilter(''); setOrderSearch(''); setOrderPage(1);
     setRefundFilter('all');
     setOrderStatusFilter(pendingOrderStatus.current ?? '');
@@ -3499,7 +3508,9 @@ export default function AdminClient() {
       const sb = createClient();
       /* ① 재고관리 켠 옵션 중 재고 기준 이하(품절 포함) — 판매중 상품만. 기준은 설정값(기본 5) */
       const { data: lstRow } = await sb.from('site_settings').select('value').eq('key', 'low_stock_threshold').maybeSingle();
-      const LOW_STOCK = Math.max(0, parseInt((lstRow as { value?: string } | null)?.value || '') || 5);
+      const lstVal = (lstRow as { value?: string } | null)?.value;
+      const lstNum = parseInt(lstVal ?? '');
+      const LOW_STOCK = Math.max(0, Number.isFinite(lstNum) ? lstNum : 5);   // 0 = 품절만 알림 (예전엔 0을 넣어도 5로 동작)
       const { data: lowOpts } = await sb
         .from('product_options')
         .select('product_id, products!inner(is_active)')
@@ -3507,40 +3518,53 @@ export default function AdminClient() {
         .lte('stock', LOW_STOCK).limit(1000);
       const lowStock = new Set((lowOpts || []).map((o: Record<string, unknown>) => o.product_id as string)).size;
 
-      /* ② 지급일이 지난 가장 최근 정산 회차에서, 매출은 있는데 정산완료(paid) 안 된 브랜드 수 */
+      /* ② 지급일이 지난 정산 회차들(최근 6회차)에서, 매출은 있는데 정산완료(paid) 안 된 브랜드 수.
+         예전엔 '가장 최근 회차 하나'만 봐서, 다음 지급일이 지나면 이전 회차 미지급이 알림에서 조용히 빠졌다. */
       const now = new Date();
       const day = now.getDate();
       let ty = now.getFullYear(), tm = now.getMonth() + 1;
       let thalf: 1 | 2;
       if (day >= 16) { thalf = 1; }                       // 이번달 1차(16일 지급) 이미 지남
       else { thalf = 2; tm -= 1; if (tm === 0) { tm = 12; ty -= 1; } } // 지난달 2차(익월 1일 지급) 이미 지남
-      const targetMonth = `${ty}-${String(tm).padStart(2, '0')}`;
-      const info = farmPeriodInfo(targetMonth, thalf);
-      const from = info.from.toISOString(), to = info.to.toISOString();
-      const { data: settleItems } = await sb
-        .from('order_items')
-        .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id, farms(is_own))')
-        .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
-        .eq('orders.status', 'confirmed')
-        .not('orders.order_no', 'like', 'TEST%')
-        .limit(10000);
-      const salesFarms = new Set<string>();
-      (settleItems as Record<string, unknown>[] | null || []).forEach(r => {
-        const prod = r.products as { farm_id: string | null; farms: { is_own?: boolean } | null } | null;
-        if (prod?.farms?.is_own) return;   // 자사(델리오)는 정산 대상 아님 — 목록과 동일하게 제외
-        if (prod?.farm_id) salesFarms.add(prod.farm_id);
-      });
-      const { data: paidRows } = await sb
-        .from('farm_settlements').select('farm_id').eq('period', info.key).eq('status', 'paid');
-      const paidFarms = new Set((paidRows || []).map((p: { farm_id: string }) => p.farm_id));
+      const periods: { month: string; half: 1 | 2 }[] = [];
+      { let y = ty, m = tm, h: 1 | 2 = thalf;
+        for (let i = 0; i < 6; i++) {
+          periods.push({ month: `${y}-${String(m).padStart(2, '0')}`, half: h });
+          if (h === 2) { h = 1; } else { h = 2; m -= 1; if (m === 0) { m = 12; y -= 1; } }
+        } }
       let settleDue = 0;
-      salesFarms.forEach(fid => { if (!paidFarms.has(fid)) settleDue++; });
+      let oldestDue: { month: string; half: 1 | 2 } | null = null;
+      const targetMonth = periods[0].month;
+      for (const pr of periods) {
+        const info = farmPeriodInfo(pr.month, pr.half);
+        const from = info.from.toISOString(), to = info.to.toISOString();
+        const { data: settleItems } = await sb
+          .from('order_items')
+          .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id, farms(is_own))')
+          .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
+          .eq('orders.status', 'confirmed')
+          .not('orders.order_no', 'like', 'TEST%')
+          .limit(10000);
+        const salesFarms = new Set<string>();
+        (settleItems as Record<string, unknown>[] | null || []).forEach(r => {
+          const prod = r.products as { farm_id: string | null; farms: { is_own?: boolean } | null } | null;
+          if (prod?.farms?.is_own) return;   // 자사(델리오)는 정산 대상 아님 — 목록과 동일하게 제외
+          if (prod?.farm_id) salesFarms.add(prod.farm_id);
+        });
+        if (salesFarms.size === 0) continue;
+        const { data: paidRows } = await sb
+          .from('farm_settlements').select('farm_id').eq('period', info.key).eq('status', 'paid');
+        const paidFarms = new Set((paidRows || []).map((p: { farm_id: string }) => p.farm_id));
+        let due = 0;
+        salesFarms.forEach(fid => { if (!paidFarms.has(fid)) due++; });
+        if (due > 0) { settleDue += due; oldestDue = pr; }   // 가장 오래된 미지급 회차로 이동하게 기록
+      }
 
       /* 배송추적 자격증명 만료 경보 (크론이 site_settings.tracker_alert 에 세팅) */
       const { data: trkAlert } = await sb.from('site_settings').select('value').eq('key', 'tracker_alert').maybeSingle();
       const trackerAlert = !!(trkAlert?.value && String(trkAlert.value).length > 0);
 
-      setDashExtra(prev => ({ ...prev, lowStock, settleDue, trackerAlert, settleDuePeriod: { month: targetMonth, half: thalf } }));
+      setDashExtra(prev => ({ ...prev, lowStock, settleDue, trackerAlert, settleDuePeriod: oldestDue || { month: targetMonth, half: thalf } }));
     })();
 
     const allOrders = ordersRes.data || [];
@@ -3766,7 +3790,9 @@ export default function AdminClient() {
     const supabase = createClient();
     /* 재고 임박 기준(설정값 · 기본 5) — 알림바와 동일 기준 */
     const { data: lstRow } = await supabase.from('site_settings').select('value').eq('key', 'low_stock_threshold').maybeSingle();
-    const LOW_STOCK = Math.max(0, parseInt((lstRow as { value?: string } | null)?.value || '') || 5);
+    const lstVal2 = (lstRow as { value?: string } | null)?.value;
+    const lstNum2 = parseInt(lstVal2 ?? '');
+    const LOW_STOCK = Math.max(0, Number.isFinite(lstNum2) ? lstNum2 : 5);   // 0 = 품절만 알림
     const { data } = await supabase
       .from('products')
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock, manage_stock)')
@@ -4251,6 +4277,7 @@ export default function AdminClient() {
       const { error } = await supabase.from('farms').update({ deleted_at: now }).eq('id', f.id);
       if (error) { alert('삭제 실패: ' + error.message); return; }
       setFarms(prev => prev.map(x => x.id === f.id ? { ...x, deleted_at: now } : x));
+      setFarmList(prev => prev.filter(x => x.id !== f.id));   // 상품 등록의 '연결 브랜드' 선택지에서도 제거
       return;
     } else {
       if (!confirm(`'${f.name}' 브랜드를 완전히 삭제할까요?\n\n· 판매 이력이 없어 운영 메모·정산 계좌·브랜드 찜까지 함께 영구 삭제됩니다.\n· 되돌릴 수 없습니다.`)) return;
@@ -4258,6 +4285,7 @@ export default function AdminClient() {
       if (error) { alert('삭제 실패: ' + error.message + '\n(아무것도 삭제되지 않았습니다)'); return; }
     }
     setFarms(prev => prev.filter(x => x.id !== f.id));
+    setFarmList(prev => prev.filter(x => x.id !== f.id));
   }
 
   async function loadFarmList() {
@@ -4382,6 +4410,7 @@ export default function AdminClient() {
   async function saveProduct() {
     if (!pForm.name.trim()) { alert('상품명을 입력하세요.'); return; }
     if (!pForm.price || pForm.price <= 0) { alert('정상가를 입력하세요.'); return; }
+    if (!pForm.category?.trim()) { alert('카테고리를 선택하세요.'); return; }
     /* 옵션 0개 = 단품 (옵션 선택 없이 바로구매). 허용. */
     // pForm 상태 + ref 양쪽 모두 확인 (스테일 클로저 방어)
     const thumbnailUrl = pForm.thumbnail_url?.trim() || uploadedThumbnailRef.current || null;
@@ -5387,7 +5416,10 @@ export default function AdminClient() {
   /* 리뷰 수정 모드 진입 — 현재 값 프리필 */
   function startReviewEdit() {
     if (!selectedReview) return;
-    setReviewEditDate(selectedReview.created_at ? selectedReview.created_at.slice(0, 10) : '');
+    /* 작성일 기준을 한국시간으로 표시 — 예전엔 UTC 날짜라 00~09시 리뷰가 하루 전날로 보였다 */
+    const kstDay = (iso?: string | null) => iso ? new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10) : '';
+    setReviewEditDate(kstDay(selectedReview.created_at));
+    reviewEditDateOrig.current = kstDay(selectedReview.created_at);
     setReviewEditContent(selectedReview.content || '');
     setReviewEditRating(selectedReview.rating || 5);
     setReviewEdit(true);
@@ -5400,7 +5432,8 @@ export default function AdminClient() {
     try {
       const res = await fetch('/api/reviews/update', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewId: selectedReview.id, content: reviewEditContent.trim(), rating: reviewEditRating, reviewDate: reviewEditDate }),
+        body: JSON.stringify({ reviewId: selectedReview.id, content: reviewEditContent.trim(), rating: reviewEditRating,
+          ...(reviewEditDate && reviewEditDate !== reviewEditDateOrig.current ? { reviewDate: reviewEditDate } : {}) }),
       });
       const json = await res.json();
       if (!json.ok) { alert('수정 실패: ' + (json.error || '')); return; }
@@ -5935,7 +5968,7 @@ export default function AdminClient() {
     return data.publicUrl;
   }
 
-  function openBannerModal(b?: AdminBanner) {
+  function openBannerModal(b?: AdminBanner, defaultType?: string) {
     if (b) {
       setEditingBanner(b);
       setBnForm({ type: b.type, name: b.name || '', link_url: b.link_url, is_active: b.is_active,
@@ -5944,7 +5977,9 @@ export default function AdminClient() {
       setBnImgUrlMobile(b.image_url_mobile || '');
     } else {
       setEditingBanner(null);
-      setBnForm({ ...BANNER_EMPTY });
+      /* 지금 보고 있는 탭의 배너 종류로 시작 — 예전엔 여기서 무조건 '메인 배너'로 덮어써서
+         중간·카테고리 배너 탭에서 등록해도 메인 슬라이더에 올라갔다. */
+      setBnForm({ ...BANNER_EMPTY, type: defaultType || BANNER_EMPTY.type });
       setBnImgUrl('');
       setBnImgUrlMobile('');
     }
@@ -6025,6 +6060,7 @@ export default function AdminClient() {
       const map: Record<string, string> = {};
       data.forEach(row => { map[row.key] = row.value; });
       setSiteSettings(prev => ({ ...prev, ...map }));
+      settingsLoadedRef.current = { ...settingsLoadedRef.current, ...map };   // 저장 시 '바뀐 값만' 보내기 위한 기준값
     }
   }
 
@@ -6047,13 +6083,19 @@ export default function AdminClient() {
     /* 메인 큐레이션 키(_mode/_ids/_count)는 각 관리 탭에서 관리 → 여기선 건드리지 않음 */
     const CURATION_KEYS = new Set(['pick_count', 'qg_count', 'brand_count', 'reviewhl_count', 'lounge_count']);
     const isCuration = (k: string) => k.endsWith('_mode') || k.endsWith('_ids') || CURATION_KEYS.has(k);
+    /* 이 화면에서 실제로 바꾼 값만 저장한다.
+       예전엔 불러온 모든 설정을 통째로 다시 써서, 창을 열어 둔 사이 다른 탭이나 자동 작업(배송추적 경보,
+       멤버십 재산정 시각)이 바꾼 값이 옛 값으로 되돌아갔다. */
     const upsertRows = Object.entries(siteSettings)
       .filter(([key]) => !isCuration(key))
+      .filter(([key, value]) => settingsLoadedRef.current[key] !== value)
       .map(([key, value]) => ({ key, value }));
+    if (upsertRows.length === 0) { setSettingsSaving(false); alert('변경된 내용이 없습니다.'); return; }
     const { error } = await supabase.from('site_settings').upsert(upsertRows, { onConflict: 'key' });
     setSettingsSaving(false);
-    if (error) alert('저장 실패: ' + error.message);
-    else alert('저장되었습니다!');
+    if (error) { alert('저장 실패: ' + error.message); return; }
+    upsertRows.forEach(r => { settingsLoadedRef.current[r.key] = r.value as string; });
+    alert('저장되었습니다!');
   }
 
   /* 인기 검색어 저장 (마케팅 분석 패널로 이동됨) */
@@ -6314,6 +6356,7 @@ export default function AdminClient() {
     const { error } = await supabase.from('search_logs').delete().eq('keyword', keyword);
     if (error) { alert('삭제 실패: ' + error.message); return; }
     setSearchStats(prev => prev.filter(s => s.keyword !== keyword));
+    setNoResultStats(prev => prev.filter(s => s.keyword !== keyword));   // '결과없음' 탭도 같이 정리(새로고침 전까지 남아 있던 문제)
   }
 
   /* ========== 정산 집계 ========== */
@@ -6429,6 +6472,7 @@ export default function AdminClient() {
       validOrders.forEach(o => { const d = new Date(o.created_at); const k = `${d.getMonth()+1}/${d.getDate()}`; if (dailyMap[k] !== undefined) dailyMap[k] += netAmt(o); });
     }
     const daily = Object.entries(dailyMap).map(([date, amount]) => ({ date, amount }));
+    const rangeDaysForAvg = Math.max(1, rangeDays);   // 일평균 계산용(조회 기간 날짜 수)
 
     // 전기간 대비 (직전 동일 길이) — 실결제 기준(미입금 제외), 환불취소율 증감 계산
     const lenMs = to.getTime() - from.getTime();
@@ -6476,7 +6520,7 @@ export default function AdminClient() {
 
     const margin = confirmed - supplyCost;
     const marginRate = confirmed > 0 ? (margin / confirmed * 100) : 0;
-    setSettlementData({ confirmed, pending, cancelled, total, orderCount: paidData.length,
+    setSettlementData({ confirmed, pending, cancelled, total, orderCount: paidData.length, rangeDays: rangeDaysForAvg,
       unpaidAmount, unpaidCount, supplyCost, margin, marginRate,
       byStatus, byMethod, byGrade, newAmount, newCount, repeatAmount, repeatCount, daily,
       realSettle: margin, aov, couponTotal, pointTotal, refundCount, refundRate, prevRefundRate, prevTotal, prevOrderCount, topProducts, topCategories });
@@ -6493,7 +6537,7 @@ export default function AdminClient() {
     push('매출 현황', `${settlementCustFrom} ~ ${settlementCustTo}`);
     push('');
     push('구분', '값');
-    push('총 주문금액', d.total); push('확정 매출', d.confirmed); push('처리 중', d.pending);
+    push('총 순매출(취소·환불 제외)', d.total); push('확정 매출', d.confirmed); push('처리 중', d.pending);
     push('취소·환불', d.cancelled); push('무통장 미입금', d.unpaidAmount);
     push('상품원가(공급가)', d.supplyCost); push('예상 마진', d.margin); push('마진율(%)', d.marginRate.toFixed(1));
     push('객단가', d.aov); push('쿠폰 차감', d.couponTotal); push('포인트 사용', d.pointTotal);
@@ -7062,12 +7106,18 @@ export default function AdminClient() {
     setSelectedReview(prev => (prev ? apply(prev) : prev));
   }
 
+  /* 리뷰 삭제 — 서버 경유(/api/reviews/delete).
+     브라우저에서 직접 지우면 지급한 적립 포인트가 회수되지 않아 '작성→삭제→재작성'으로 포인트를
+     다시 받을 수 있었고, 상품 리뷰 수·평점 재계산도 이 경로에서 함께 처리한다. */
   async function deleteReview(id: string) {
-    if (!confirm('이 리뷰를 삭제하시겠습니까?')) return;
-    const supabase = createClient();
-    const { error } = await supabase.from('reviews').delete().eq('id', id);
-    if (error) { alert('삭제 실패: ' + error.message); return; }
+    if (!confirm('이 리뷰를 삭제하시겠습니까?\n\n· 이 리뷰로 지급된 적립 포인트가 있으면 함께 회수됩니다.\n· 되돌릴 수 없습니다.')) return;
+    const res = await fetch('/api/reviews/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reviewId: id }),
+    }).then(r => r.json()).catch(() => ({ ok: false, error: '네트워크 오류' }));
+    if (!res?.ok) { alert('삭제 실패: ' + (res?.error || '처리 실패')); return; }
     setReviews(prev => prev.filter(r => r.id !== id));
+    if (res.recovered > 0) alert(`리뷰를 삭제하고 적립 포인트 ${Number(res.recovered).toLocaleString()}P를 회수했습니다.`);
   }
 
   /* ========== 라운지 CRUD ========== */
@@ -7942,7 +7992,9 @@ export default function AdminClient() {
   const generalCoupons = coupons.filter(c => !c.signup_grant);
   const pagedCoupons = generalCoupons.slice((cpCur - 1) * cpSize, cpCur * cpSize);
   /* 멤버십 관리 탭 월발급 체크박스용 — 활성 멤버십 쿠폰 목록 */
-  const membershipCoupons = coupons.filter(c => c.is_membership && c.is_active);
+  /* 등급별 월 발급 쿠폰 후보 — 비활성 쿠폰도 보여준다(체크 해제로 발급을 멈출 수 있게).
+     비활성 쿠폰은 크론이 발급하지 않지만, 목록에서 사라지면 등급에서 뺄 방법이 없었다. */
+  const membershipCoupons = coupons.filter(c => c.is_membership);
   /* 쿠폰 지급 내역 필터/페이징 */
   const clFiltered = couponLogs.filter(l => {
     if (clStatus === 'unused' && l.status !== '미사용') return false;
@@ -8558,7 +8610,9 @@ export default function AdminClient() {
                   <input className="adm-input-text" style={{ width:'100%' }} type="number" value={pForm.sort_order || ''}
                     onChange={e => setPForm(f => ({ ...f, sort_order: Number(e.target.value) }))} placeholder="0" />
                   <div style={{ fontSize:11, color:'#94A3B8', marginTop:4, lineHeight:1.6 }}>
-                    상품 목록에서 <b>앞에 보일 순서</b>를 정합니다. <b>숫자가 작을수록 앞쪽</b>(예: 1=맨앞, 2, 3…).<br />
+                    상품 목록에서 <b>앞에 보일 순서</b>를 정합니다. <b>숫자가 작을수록 앞쪽</b>이고 <b>기본값은 0</b>이라,
+                    맨 앞으로 올리려면 <b>-1, -2 처럼 0보다 작은 값</b>을 넣으세요.
+                    카테고리 추천순뿐 아니라 <b>검색 결과·브랜드 페이지 기본 정렬</b>과 메인 브랜드관의 대표 상품 선정에도 함께 쓰입니다.<br />
                     비워두면 <b>0(기본)</b> — 이땐 화면에서 고른 정렬(인기·최신·가격 등)대로 나옵니다.
                   </div>
                 </div>
@@ -9927,11 +9981,12 @@ export default function AdminClient() {
           {/* 공통 처리항목 알림 바 (모든 페이지 동일 위치) */}
           <div className="adm-alertbar-wrap">
             <AdminAlertBar alerts={([
-              stageCounts.paid > 0 && { icon:'🆕', label:'신규 주문', count: stageCounts.paid, onClick: () => { pendingOrderStatus.current='paid'; go('orders'); } },
-              stageCounts.preparing > 0 && { icon:'📦', label:'금일 발송 대기', count: stageCounts.preparing, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
-              dashExtra.shipDelay > 0 && { icon:'🚨', label:'발송 지연(2일+)', count: dashExtra.shipDelay, onClick: () => { pendingOrderStatus.current='preparing'; go('orders'); } },
-              dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
-              dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current='pending'; go('refund'); } },
+              /* onClick: pending…ref = 화면이 바뀔 때 적용, set…Filter = 이미 그 화면에 있을 때 즉시 적용 */
+              stageCounts.paid > 0 && { icon:'🆕', label:'신규 주문', count: stageCounts.paid, onClick: () => { pendingOrderStatus.current='paid'; setOrderStatusFilter('paid'); setOrderPage(1); go('orders'); } },
+              stageCounts.preparing > 0 && { icon:'📦', label:'금일 발송 대기', count: stageCounts.preparing, onClick: () => { pendingOrderStatus.current='preparing'; setOrderStatusFilter('preparing'); setOrderPage(1); go('orders'); } },
+              dashExtra.shipDelay > 0 && { icon:'🚨', label:'발송 지연(2일+)', count: dashExtra.shipDelay, onClick: () => { pendingOrderStatus.current='preparing'; setOrderStatusFilter('preparing'); setOrderPage(1); go('orders'); } },
+              dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; setRefundStatusFilter('pending'); go('refund'); } },
+              dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current='pending'; setRefundStatusFilter('pending'); go('refund'); } },
               dashExtra.lowStock > 0 && { icon:'📉', label:'품절·재고 임박', count: dashExtra.lowStock, onClick: () => { setProductStatusFilter('lowstock'); go('products'); } },
               dashExtra.settleDue > 0 && { icon:'💸', label:'브랜드 정산 미완료', count: dashExtra.settleDue, onClick: () => { if (dashExtra.settleDuePeriod) pendingFarmSettle.current = dashExtra.settleDuePeriod; go('farmsettle'); } },
               dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
@@ -11422,6 +11477,7 @@ export default function AdminClient() {
                                 <label key={c.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, cursor:'pointer' }}>
                                   <input type="checkbox" checked={!!c.code && t.coupon_codes.includes(c.code)} disabled={!c.code} onChange={() => c.code && toggleTierCoupon(t.grade, c.code)} />
                                   {c.name}
+                                  {!c.is_active && <span style={{ fontSize:11, fontWeight:700, color:'#DC2626' }}>(비활성 — 발급 안 됨)</span>}
                                 </label>
                               ))}
                             </div>
@@ -11677,10 +11733,7 @@ export default function AdminClient() {
                       {list.length > 1 && <span className="adm-muted" style={{ fontSize:12 }}>💡 카드를 드래그해서 노출 순서를 바꿀 수 있습니다.</span>}
                     </div>
                     <div className="adm-toolbar-right">
-                      <button className="adm-btn adm-btn-primary" onClick={() => {
-                        setBnForm({ ...BANNER_EMPTY, type: bannerType });
-                        openBannerModal();
-                      }}>+ 배너 등록</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => openBannerModal(undefined, bannerType)}>+ 배너 등록</button>
                     </div>
                   </div>
 
@@ -14135,7 +14188,13 @@ export default function AdminClient() {
                             })}
                           </svg>
                         );
-                      })() : (() => {
+                      })() : settlementData.daily.length === 0 ? (
+                        /* 조회 기간이 92일을 넘으면 일별 데이터를 만들지 않는다 — 빈 그래프 대신 안내 */
+                        <div className="adm-muted" style={{ fontSize:13, padding:'28px 12px', lineHeight:1.6 }}>
+                          조회 기간이 길어(92일 초과) 일별 그래프를 표시하지 않습니다.<br />
+                          위 <b>월별</b> 버튼을 누르면 연간 월별 매출로 볼 수 있습니다.
+                        </div>
+                      ) : (() => {
                         const H = 210, pad = 10;
                         const data = settlementData.daily;
                         const maxAmt = Math.max(...data.map(d => d.amount), 1);
@@ -14189,7 +14248,11 @@ export default function AdminClient() {
                       })()}
                     </div>
                     <div style={{ display:'flex', justifyContent:'flex-end', padding:'4px 16px 0', fontSize:12, color:'#94A3B8' }}>
-                      일평균: {settlementData.orderCount > 0 ? fmtPrice(Math.round(settlementData.total / Math.max(settlementData.daily.filter(d => d.amount > 0).length, 1))) : 0}원
+                      {/* 일평균 = 순매출 ÷ 조회 기간의 날짜 수. 예전엔 '매출이 있는 날 수'로 나눠서,
+                          일별 데이터가 없는 장기 조회에서는 총액이 그대로 일평균으로 보였다. */}
+                      일평균: {settlementData.orderCount > 0 && settlementData.rangeDays > 0
+                        ? fmtPrice(Math.round(settlementData.total / settlementData.rangeDays)) : 0}원
+                      <span style={{ marginLeft:6, color:'#CBD5E1' }}>({settlementData.rangeDays}일 기준)</span>
                     </div>
                   </div>
 
@@ -14528,12 +14591,15 @@ export default function AdminClient() {
 
           {/* ===== 취향 프로파일 ===== */}
           {panel === 'tasteprofile' && (() => {
-            const now = new Date();
-            const thisMonth = now.toISOString().slice(0, 7);
-            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
+            /* 이번달·지난달은 한국시간 기준. 예전엔 한국시간 자정이 UTC로 전날이 되면서
+               '지난달'이 두 달 전으로 계산되고, 매월 1일 0~9시 응답이 전월로 잡혔다. */
+            const nowKst = new Date(Date.now() + 9 * 3600 * 1000);
+            const kstMonth = (iso: string) => new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+            const thisMonth = nowKst.toISOString().slice(0, 7);
+            const lastMonth = new Date(Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth() - 1, 1)).toISOString().slice(0, 7);
             const total      = surveyResults.length;
-            const thisMonthArr = surveyResults.filter(r => r.created_at.startsWith(thisMonth));
-            const lastMonthArr = surveyResults.filter(r => r.created_at.startsWith(lastMonth));
+            const thisMonthArr = surveyResults.filter(r => kstMonth(r.created_at) === thisMonth);
+            const lastMonthArr = surveyResults.filter(r => kstMonth(r.created_at) === lastMonth);
             const thisMonthCnt = thisMonthArr.length;
             const lastMonthCnt = lastMonthArr.length;
             const memberCnt  = surveyResults.filter(r => r.user_id).length;
