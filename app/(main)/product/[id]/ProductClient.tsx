@@ -54,6 +54,7 @@ interface ProductInquiry {
   answer: string | null;
   answered_at: string | null;
   created_at: string;
+  author_name?: string | null;   // 관리자가 작성 시 지정한 표시 이름
   profiles?: { name: string | null } | null;
 }
 
@@ -136,6 +137,8 @@ export default function ProductClient() {
   const [inqPrivate, setInqPrivate] = useState(false);
   const [inqSubmitting, setInqSubmitting] = useState(false);
   const [inqPassword, setInqPassword] = useState('');
+  const [inqAuthorName, setInqAuthorName] = useState('');   // 관리자 전용: 작성자 표시명 지정
+  const [inqDate, setInqDate] = useState('');               // 관리자 전용: 작성일(YYYY-MM-DD) 지정, 비우면 지금
   const [expandedInq, setExpandedInq] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState<Record<string, string>>({});
   const [unlockedInq, setUnlockedInq] = useState<Set<string>>(new Set());
@@ -1066,6 +1069,9 @@ export default function ProductClient() {
     setInqSubmitting(true);
     const supabase = createClient();
     if (inqPrivate && !inqPassword.trim()) { alert('비밀 문의는 비밀번호를 설정해야 합니다.'); setInqSubmitting(false); return; }
+    /* 관리자 전용 작성자명·작성일 — 일반 회원이 보내도 DB 트리거가 비우고 현재 시각으로 고정한다 */
+    const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    if (isAdmin && inqDate && inqDate > todayKst) { alert('작성일은 오늘 이후로 지정할 수 없습니다.'); setInqSubmitting(false); return; }
     const { error } = await supabase.from('product_inquiries').insert({
       product_id: product!.id,
       user_id: user.id,
@@ -1073,6 +1079,9 @@ export default function ProductClient() {
       content: inqContent.trim(),
       is_private: inqPrivate,
       password: inqPrivate ? inqPassword.trim() : null,
+      ...(isAdmin && inqAuthorName.trim() ? { author_name: maskName(inqAuthorName) } : {}),
+      /* 날짜만 고르므로 한국시간 정오로 저장 — 어느 시간대로 봐도 고른 날짜 그대로 표시 */
+      ...(isAdmin && inqDate && inqDate !== todayKst ? { created_at: `${inqDate}T12:00:00+09:00` } : {}),
     });
     if (error) { setInqSubmitting(false); alert('문의 등록 실패: ' + error.message); return; }
     /* 목록은 오래된 순 정렬 → 서버에서 다시 읽고, 새 문의가 있는 마지막 페이지로 이동 (새로고침 없이 바로 보이게) */
@@ -1084,6 +1093,8 @@ export default function ProductClient() {
     setInqCategory('문의');
     setInqPrivate(false);
     setInqPassword('');
+    setInqAuthorName('');
+    setInqDate('');
     alert('문의가 등록되었습니다.');
   }
 
@@ -2791,7 +2802,9 @@ export default function ProductClient() {
                 <>
                   {paged.map((q, i) => {
                     const isMe = user?.id === q.user_id;
-                    const maskedName = q.profiles?.name
+                    const maskedName = q.author_name
+                      ? q.author_name
+                      : q.profiles?.name
                       ? (isAdmin ? q.profiles.name : q.profiles.name.charAt(0) + '****')
                       : isMe ? (user?.user_metadata?.name?.charAt(0) || '나') + '****' : '익명';
                     const isLocked = q.is_private;
@@ -2806,7 +2819,7 @@ export default function ProductClient() {
                           <div className="qna-line1">
                             <span className="qna-cat">{inqCatLabel(q.category)}</span>
                             <span className="qna-user">{maskedName}</span>
-                            <span className="qna-datetime">{q.created_at.slice(0,10)}</span>
+                            <span className="qna-datetime">{new Date(q.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })}</span>
                             <span className={`qna-count ${(q.answer || q.answered_at) ? 'done' : 'wait'}`}>{(q.answer || q.answered_at) ? '답변완료' : '답변대기'}</span>
                             {isMe && (
                               <button
@@ -2978,6 +2991,28 @@ export default function ProductClient() {
                 </div>
               )}
             </div>
+            {/* 관리자 전용: 작성자명·작성일 지정 (리뷰 작성과 동일 방식) */}
+            {isAdmin && (
+              <div style={{ marginBottom:18, padding:'12px 14px', background:'#F8FAFC', border:'1px dashed #CBD5E1', borderRadius:8 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'#64748B', marginBottom:10 }}>관리자 전용 · 고객에게는 이 칸이 보이지 않습니다</div>
+                <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>
+                  작성자 이름
+                  <span style={{ fontWeight:500, color:'#94A3B8', marginLeft:6 }}>
+                    첫 글자만 남고 마스킹{inqAuthorName.trim() ? ` (→ ${maskName(inqAuthorName)})` : ' · 비우면 기존처럼 표시'}
+                  </span>
+                </label>
+                <input value={inqAuthorName} onChange={e => setInqAuthorName(e.target.value)} maxLength={20}
+                  placeholder="예: 김민수 (김**** 로 표시)"
+                  style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', boxSizing:'border-box', marginBottom:10 }} />
+                <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>
+                  작성일
+                  <span style={{ fontWeight:500, color:'#94A3B8', marginLeft:6 }}>비우면 지금 시각으로 저장</span>
+                </label>
+                <input type="date" value={inqDate} onChange={e => setInqDate(e.target.value)}
+                  max={new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })}
+                  style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+              </div>
+            )}
             <button onClick={submitInquiry} disabled={inqSubmitting}
               style={{ width:'100%', height:46, border:'none', borderRadius:8, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
               {inqSubmitting ? '등록 중...' : '등록하기'}

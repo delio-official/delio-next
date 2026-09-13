@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const admin = createAdminSupabaseClient();
   const { data } = await admin
     .from('product_inquiries')
-    .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id')
+    .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id, author_name')
     .eq('product_id', productId)
     .order('created_at', { ascending: true })
     .limit(100);
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const inquiries = ((data || []) as {
     id: string; category: string; content: string; is_private: boolean;
     password: string | null; answer: string | null; answered_at: string | null;
-    created_at: string; user_id: string | null;
+    created_at: string; user_id: string | null; author_name: string | null;
   }[]).map(q => {
     const owner = !!user && q.user_id === user.id;
     const canView = !q.is_private || owner || isAdmin;
@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       answer: canView ? q.answer : null,   // 남의 비밀글은 답변도 가림(답변완료 표시는 answered_at 으로)
       answered_at: q.answered_at,
       created_at: q.created_at,
+      author_name: q.author_name,          // 관리자가 작성 시 지정한 표시 이름(없으면 null)
     };
   });
 
