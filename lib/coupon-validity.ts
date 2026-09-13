@@ -15,20 +15,28 @@ export async function applyCouponValidity(admin: SupabaseClient, userId?: string
   );
   if (days.size === 0) return 0;
 
-  let q = admin.from('user_coupons')
-    .select('id, coupon_id, issued_at')
-    .is('expires_at', null)
-    .in('coupon_id', [...days.keys()])
-    .limit(2000);
-  if (userId) q = q.eq('user_id', userId);
-  const { data: rows } = await q;
-
+  /* 처리할수록 '만료일 없음' 대상이 줄어드므로 페이지를 넘기지 않고, 남은 대상이 없을 때까지 앞에서부터 반복
+     (한 번에 1,000건까지만 오기 때문 — 예전엔 1회만 조회해서 1,000건 넘으면 일부가 다음 날로 밀렸다) */
   let fixed = 0;
-  for (const r of (rows || []) as { id: string; coupon_id: string; issued_at: string | null }[]) {
-    const base = r.issued_at ? new Date(r.issued_at).getTime() : Date.now();
-    const expires_at = new Date(base + (days.get(r.coupon_id) as number) * 86400000).toISOString();
-    const { error } = await admin.from('user_coupons').update({ expires_at }).eq('id', r.id).is('expires_at', null);
-    if (!error) fixed++;
+  for (let round = 0; round < 50; round++) {
+    let q = admin.from('user_coupons')
+      .select('id, coupon_id, issued_at')
+      .is('expires_at', null)
+      .in('coupon_id', [...days.keys()])
+      .order('id')
+      .limit(1000);
+    if (userId) q = q.eq('user_id', userId);
+    const { data: rows } = await q;
+    if (!rows || rows.length === 0) break;
+    const before = fixed;
+
+    for (const r of (rows || []) as { id: string; coupon_id: string; issued_at: string | null }[]) {
+      const base = r.issued_at ? new Date(r.issued_at).getTime() : Date.now();
+      const expires_at = new Date(base + (days.get(r.coupon_id) as number) * 86400000).toISOString();
+      const { error } = await admin.from('user_coupons').update({ expires_at }).eq('id', r.id).is('expires_at', null);
+      if (!error) fixed++;
+    }
+    if (fixed === before) break; // 전부 실패한 회차면 무한 반복 방지
   }
   return fixed;
 }

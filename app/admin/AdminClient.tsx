@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import { fetchAllRows } from '@/lib/fetch-all';   // 1,000행 제한 없이 끝까지 조회
 import '@/styles/admin.css';
 import '@/styles/login.css';
 import { StarRating, SingleStar } from '@/components/StarRating';
@@ -1090,7 +1091,7 @@ function SmsPanel({ members, loadMembers, membersLoading }: {
 
   async function loadSmsStats() {
     const supabase = createClient();
-    const { data } = await supabase.from('sms_logs').select('cost, created_at, status').not('status', 'in', '(failed,cancelled)').limit(10000);
+    const { data } = await fetchAllRows((a, b) => supabase.from('sms_logs').select('cost, created_at, status').not('status', 'in', '(failed,cancelled)').order('id').range(a, b));
     const rows = (data || []) as { cost: number|null; created_at: string; status: string }[];
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     let cc = 0, ct = 0, mc = 0, mt = 0;
@@ -2402,10 +2403,10 @@ export default function AdminClient() {
     const supabase = createClient();
     const valid = VALID_ORDER_STATUS;
     /* 현재 기간: 일자별 집계까지 (created_at 포함) */
-    const { data: curRows } = await supabase.from('orders').select('final_amount, created_at')
+    const { data: curRows } = await fetchAllRows((a, b) => supabase.from('orders').select('final_amount, created_at')
       .gte('created_at', new Date(curStart.getFullYear(),curStart.getMonth(),curStart.getDate(),0,0,0).toISOString())
       .lte('created_at', new Date(curEnd.getFullYear(),curEnd.getMonth(),curEnd.getDate(),23,59,59).toISOString())
-      .in('status', valid).limit(10000);
+      .in('status', valid).order('id').range(a, b));
     const ordByDay:Record<string,number> = {}, payByDay:Record<string,number> = {};
     dayKeys.forEach(k => { ordByDay[k]=0; payByDay[k]=0; });
     (curRows||[]).forEach((o:{final_amount:number; created_at:string}) => {
@@ -2415,10 +2416,10 @@ export default function AdminClient() {
     const curOrders = (curRows||[]).length;
     const curPayment = (curRows||[]).reduce((s, o:{final_amount:number}) => s+(o.final_amount||0), 0);
     /* 이전 기간: 합계만 */
-    const { data: prevRows } = await supabase.from('orders').select('final_amount')
+    const { data: prevRows } = await fetchAllRows((a, b) => supabase.from('orders').select('final_amount')
       .gte('created_at', new Date(prevStart.getFullYear(),prevStart.getMonth(),prevStart.getDate(),0,0,0).toISOString())
       .lte('created_at', new Date(prevEnd.getFullYear(),prevEnd.getMonth(),prevEnd.getDate(),23,59,59).toISOString())
-      .in('status', valid).limit(10000);
+      .in('status', valid).order('id').range(a, b));
     const prevOrders = (prevRows||[]).length;
     const prevPayment = (prevRows||[]).reduce((s, o:{final_amount:number}) => s+(o.final_amount||0), 0);
 
@@ -2999,25 +3000,27 @@ export default function AdminClient() {
     (bankData as { farm_id: string; bank_name: string|null; bank_account: string|null; account_holder: string|null }[] | null || []).forEach(b => { bankMap[b.farm_id] = { bank_name: b.bank_name || '', bank_account: b.bank_account || '', account_holder: b.account_holder || '' }; });
     setFarmBankMap(bankMap);
     // 구매확정 주문 상품항목 (구매확정일 기준 반차 범위)
-    const { data } = await supabase
+    const { data } = await fetchAllRows((a, b) => supabase
       .from('order_items')
       .select('product_name, option_label, quantity, subtotal, supply_price, orders!inner(order_no, status, confirmed_at), products!inner(farm_id, supply_price, farms(id, name, is_own))')
       .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
       .eq('orders.status', 'confirmed')
       .not('orders.order_no', 'like', 'TEST%') // 테스트용 더미 주문 제외
-      .limit(10000);
+      .order('id').range(a, b));
     /* ⑯ 명세서용 — 같은 기간(구매확정일 기준) '전체환불(refunded)'된 주문 수를 농가별 집계.
        정산액엔 안 잡히지만(제외) 명세서에 'N건 정산 제외'로 안내한다. */
-    const { data: refData } = await supabase
+    /* products 에는 is_own 컬럼이 없다(브랜드 farms 에 있음) — 예전엔 없는 컬럼을 조회해 DB 오류로
+       결과가 비어, 명세서의 '전체환불 N건(정산 제외)'이 항상 0으로 나왔다 */
+    const { data: refData } = await fetchAllRows((a, b) => supabase
       .from('order_items')
-      .select('orders!inner(order_no, status, confirmed_at), products!inner(farm_id, is_own)')
+      .select('orders!inner(order_no, status, confirmed_at), products!inner(farm_id, farms(is_own))')
       .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
       .eq('orders.status', 'refunded')
       .not('orders.order_no', 'like', 'TEST%')
-      .limit(10000);
+      .order('id').range(a, b));
     const fullRefundByFarm: Record<string, Set<string>> = {};
-    (refData as { orders: { order_no: string }|null; products: { farm_id: string|null; is_own?: boolean }|null }[] | null || []).forEach(rr => {
-      if (rr.products?.is_own) return;
+    (refData as { orders: { order_no: string }|null; products: { farm_id: string|null; farms?: { is_own?: boolean } | null }|null }[] | null || []).forEach(rr => {
+      if (rr.products?.farms?.is_own) return;
       const fid = rr.products?.farm_id; const ono = rr.orders?.order_no;
       if (!fid || !ono) return;
       (fullRefundByFarm[fid] || (fullRefundByFarm[fid] = new Set())).add(ono);
@@ -3538,13 +3541,13 @@ export default function AdminClient() {
       for (const pr of periods) {
         const info = farmPeriodInfo(pr.month, pr.half);
         const from = info.from.toISOString(), to = info.to.toISOString();
-        const { data: settleItems } = await sb
+        const { data: settleItems } = await fetchAllRows((a, b) => sb
           .from('order_items')
           .select('orders!inner(status, confirmed_at, order_no), products!inner(farm_id, farms(is_own))')
           .gte('orders.confirmed_at', from).lt('orders.confirmed_at', to)
           .eq('orders.status', 'confirmed')
           .not('orders.order_no', 'like', 'TEST%')
-          .limit(10000);
+          .order('id').range(a, b));
         const salesFarms = new Set<string>();
         (settleItems as Record<string, unknown>[] | null || []).forEach(r => {
           const prod = r.products as { farm_id: string | null; farms: { is_own?: boolean } | null } | null;
@@ -3626,8 +3629,8 @@ export default function AdminClient() {
     const fetchStart = weekMon < monthFirst ? weekMon : monthFirst;
 
     // 기간 내 유효주문 → 그 주문의 상품 아이템 집계
-    const { data: ords } = await supabase.from('orders').select('id, created_at')
-      .gte('created_at', fetchStart.toISOString()).in('status', VALID_ORDER_STATUS).limit(10000);
+    const { data: ords } = await fetchAllRows((a, b) => supabase.from('orders').select('id, created_at')
+      .gte('created_at', fetchStart.toISOString()).in('status', VALID_ORDER_STATUS).order('id').range(a, b));
     const orderDate: Record<string, number> = {};
     (ords || []).forEach((o: { id:string; created_at:string }) => { orderDate[o.id] = new Date(o.created_at).getTime(); });
     const orderIds = Object.keys(orderDate);
@@ -3682,7 +3685,7 @@ export default function AdminClient() {
       supabase.from('profiles').select('id', { count:'exact', head:true }).gte('created_at', lastMonthStartISO).lt('created_at', monthStartISO),
       supabase.from('withdrawn_users').select('id', { count:'exact', head:true }).gte('withdrawn_at', monthStartISO),
       // 유효 주문(취소·환불·무통장 미입금 제외) — 구매자/재구매/평균구매횟수 계산용
-      supabase.from('orders').select('user_id, created_at').in('status', VALID_ORDER_STATUS).limit(20000),
+      fetchAllRows((a, b) => supabase.from('orders').select('user_id, created_at').in('status', VALID_ORDER_STATUS).order('id').range(a, b)),
     ]);
 
     const orders = ((ordersRes.data as { user_id:string|null; created_at:string }[]) || []).filter(o => o.user_id);
@@ -3729,14 +3732,17 @@ export default function AdminClient() {
     const from  = opts?.from  ?? orderFrom;
     const to    = opts?.to    ?? orderTo;
     const supabase = createClient();
-    let query = supabase
-      .from('orders')
-      .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier))),profiles:user_id(name,email)')
-      .order(basis, { ascending: false })
-      .limit(1000);
-    /* 조회 기준(주문일/결제일) + 기간 필터 */
-    if (from) query = query.gte(basis, new Date(`${from}T00:00:00`).toISOString());
-    if (to)   query = query.lte(basis, new Date(`${to}T23:59:59`).toISOString());
+    const buildMain = () => {
+      let q = supabase
+        .from('orders')
+        .select('*,order_items(id,product_name,option_label,quantity,unit_price,subtotal,supply_price,thumbnail_url,farm_id,courier,tracking_number,ship_status,products(farm_id,farms(name,carrier))),profiles:user_id(name,email)')
+        .order(basis, { ascending: false }).order('id');
+      /* 조회 기준(주문일/결제일) + 기간 필터 */
+      if (from) q = q.gte(basis, new Date(`${from}T00:00:00`).toISOString());
+      if (to)   q = q.lte(basis, new Date(`${to}T23:59:59`).toISOString());
+      return q;
+    };
+    const query = fetchAllRows((a, b) => buildMain().range(a, b));   // 1,000건 넘는 기간도 전부
     /* paid_at이 비어있는 모든 주문(입금대기·만료·미입금취소 + 무통장 입금확인 시 결제일 미기록 등)은
        결제일 기준 조회에서 빠지므로 created_at 기준으로 별도 합류(위에서 id로 중복 제거). */
     let unpaidQ = supabase
@@ -3793,12 +3799,12 @@ export default function AdminClient() {
     const lstVal2 = (lstRow as { value?: string } | null)?.value;
     const lstNum2 = parseInt(lstVal2 ?? '');
     const LOW_STOCK = Math.max(0, Number.isFinite(lstNum2) ? lstNum2 : 5);   // 0 = 품절만 알림
-    const { data } = await supabase
+    const { data } = await fetchAllRows((a, b) => supabase
       .from('products')
       .select('id, name, category, price, discount_rate, discounted_price, is_active, farm_id, sort_order, created_at, product_options(stock, manage_stock)')
       .is('deleted_at', null)   // 숨김 삭제된 상품 제외
-      .order('sort_order')
-      .limit(5000);
+      .order('sort_order').order('id')
+      .range(a, b));
     /* 옵션 재고 합계 → total_stock 평탄화 (품절 판정용).
        단품(옵션 0개)·재고 무한(manage_stock=false) 옵션 보유 시 → null = 재고 N/A(품절 아님) */
     const flat = (data || []).map((p: Record<string, unknown>) => {
@@ -4102,8 +4108,8 @@ export default function AdminClient() {
     const supabase = createClient();
     const [{ data: farmData }, { data: wishData }, { data: prodData }] = await Promise.all([
       supabase.from('farms').select('id, slug, name, farmer_name, region, farm_type, items, intro, carrier, dispatch_cutoff, thumbnail_url, logo_url, landing_images, created_at, is_own, deleted_at').order('name'),
-      supabase.from('farm_wishlist').select('farm_id').limit(10000),
-      supabase.from('products').select('farm_id, is_active, review_count, avg_rating').is('deleted_at', null).limit(10000),
+      fetchAllRows((a, b) => supabase.from('farm_wishlist').select('farm_id').order('id').range(a, b)),
+      fetchAllRows((a, b) => supabase.from('products').select('farm_id, is_active, review_count, avg_rating').is('deleted_at', null).order('id').range(a, b)),
     ]);
     // 농가별 찜(팔로워) 수
     const wishMap: Record<string, number> = {};
@@ -4139,18 +4145,18 @@ export default function AdminClient() {
     /* 취소·환불까지 전부 가져온다 — 반품·취소율을 내려면 실패한 주문도 있어야 함 */
     const items: FarmRawItem[] = [];
     for (let i = 0; i < prodIds.length; i += 200) {
-      const { data: it } = await supabase.from('order_items')
+      const { data: it } = await fetchAllRows((a, b) => supabase.from('order_items')
         .select('order_id, product_id, option_label, quantity, subtotal, supply_price, orders!inner(status, created_at, user_id)')
-        .in('product_id', prodIds.slice(i, i + 200)).limit(10000);
+        .in('product_id', prodIds.slice(i, i + 200)).order('id').range(a, b));
       if (it) items.push(...(it as unknown as FarmRawItem[]));
     }
     const { data: revs } = await supabase.from('reviews')
       .select('id, rating, content, created_at, product_id')
       .in('product_id', prodIds).order('created_at', { ascending: false }).limit(500);
     /* 공급가 미입력 진단용 — 지금 옵션에 매입가가 비어 있는지 확인 */
-    const { data: opts } = await supabase.from('product_options')
+    const { data: opts } = await fetchAllRows((a, b) => supabase.from('product_options')
       .select('id, product_id, label, group_name, purchase_price, shipping_fee, supply_price')
-      .in('product_id', prodIds).limit(2000);
+      .in('product_id', prodIds).order('id').range(a, b));
     setFarmRaw({ items, reviews: (revs || []) as FarmRawReview[], options: (opts || []) as FarmRawOption[], prodName });
     setFarmDetailLoading(false);
   }
@@ -4636,11 +4642,11 @@ export default function AdminClient() {
   async function loadMembers() {
     setMembersLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
+    const { data } = await fetchAllRows((a, b) => supabase
       .from('profiles')
       .select('id, email, name, grade, point_balance, created_at, phone, is_blocked, memo, provider, marketing_sms')
-      .order('created_at', { ascending: false })
-      .limit(10000);   // 전체 회원 로드 — 검색이 전 회원 대상으로 동작 (최근 300만 로드하던 문제 해결)
+      .order('created_at', { ascending: false }).order('id')
+      .range(a, b));   // 전체 회원 로드(1,000명 넘어도) — 검색이 전 회원 대상으로 동작
     setMembers((data as AdminProfile[]) || []);
     setMembersLoading(false);
     /* 이번달 탈퇴 수 */
@@ -4840,9 +4846,10 @@ export default function AdminClient() {
   async function loadCouponLogs() {
     setCouponLogsLoading(true);
     const supabase = createClient();
-    const { data: ucs } = await supabase.from('user_coupons')
+    /* 지급 내역 전체 (예전엔 1,000건에서 잘려 오래된 내역이 안 보였다) */
+    const { data: ucs } = await fetchAllRows((a, b) => supabase.from('user_coupons')
       .select('id, user_id, coupon_id, is_used, used_at, issued_at, expires_at, grant_period')
-      .order('issued_at', { ascending: false }).limit(2000);
+      .order('issued_at', { ascending: false }).order('id').range(a, b));
     const userIds = [...new Set((ucs || []).map((u: { user_id: string }) => u.user_id))];
     const couponIds = [...new Set((ucs || []).map((u: { coupon_id: string }) => u.coupon_id))];
     const [{ data: profs }, { data: cps }] = await Promise.all([
@@ -5330,10 +5337,10 @@ export default function AdminClient() {
     setReviewsLoading(true);
     const supabase = createClient();
     const [{ data }, { data: reportCounts }] = await Promise.all([
-      supabase.from('reviews')
+      fetchAllRows((a, b) => supabase.from('reviews')
         .select('id, product_id, user_id, rating, content, is_best, image_urls, taste, created_at, seller_reply, seller_replied_at, profiles(name, email), products(name, farm_id, seller_score)')
-        .order('created_at', { ascending: false })
-        .limit(5000),   // 전체 로드 — KPI·브랜드/상태 필터가 전 리뷰 대상으로 동작(최신 100개만 로드하던 문제 해결)
+        .order('created_at', { ascending: false }).order('id')
+        .range(a, b)),   // 전체 로드(1,000건 넘어도) — KPI·브랜드/상태 필터가 전 리뷰 대상으로 동작
       supabase.from('review_reports')
         .select('id, review_id, reason, created_at, status')
         .order('created_at', { ascending: false })
@@ -6212,13 +6219,13 @@ export default function AdminClient() {
     const startISO = rStart.toISOString(), endISO = rEnd.toISOString(), pStartISO = pStart.toISOString();
 
     const [oRes, pRes, bRes, cRes, ucRes, sRes, svRes] = await Promise.all([
-      supabase.from('orders').select('user_id, final_amount, status, created_at').gte('created_at', pStartISO).order('created_at', { ascending: false }).limit(8000),
-      supabase.from('profiles').select('id, created_at, provider').limit(10000),
+      fetchAllRows((a, b) => supabase.from('orders').select('user_id, final_amount, status, created_at').gte('created_at', pStartISO).order('created_at', { ascending: false }).order('id').range(a, b)),
+      fetchAllRows((a, b) => supabase.from('profiles').select('id, created_at, provider').order('id').range(a, b)),
       supabase.from('banners').select('view_count, click_count'),
       supabase.from('coupons').select('id, name, is_active'),
-      supabase.from('user_coupons').select('coupon_id, is_used').limit(10000),
-      supabase.from('sms_logs').select('target_count, created_at').neq('status', 'cancelled').gte('created_at', pStartISO).limit(2000),
-      supabase.from('survey_results').select('age_group').limit(5000),
+      fetchAllRows((a, b) => supabase.from('user_coupons').select('coupon_id, is_used').order('id').range(a, b)),
+      fetchAllRows((a, b) => supabase.from('sms_logs').select('target_count, created_at').neq('status', 'cancelled').gte('created_at', pStartISO).order('id').range(a, b)),
+      fetchAllRows((a, b) => supabase.from('survey_results').select('age_group').order('id').range(a, b)),
     ]);
     const orders = (oRes.data || []) as { user_id: string|null; final_amount: number; status: string; created_at: string }[];
     const profs = (pRes.data || []) as { id: string; created_at: string; provider: string|null }[];
@@ -6320,8 +6327,8 @@ export default function AdminClient() {
     };
 
     const [{ data: curData }, { data: prevData }, { data: emptyData }] = await Promise.all([
-      supabase.from('search_logs').select('keyword').gte('created_at', since).limit(2000),
-      supabase.from('search_logs').select('keyword').gte('created_at', prevSince).lt('created_at', since).limit(2000),
+      fetchAllRows<{ keyword: string }>((a, b) => supabase.from('search_logs').select('keyword').gte('created_at', since).order('id').range(a, b)),
+      fetchAllRows<{ keyword: string }>((a, b) => supabase.from('search_logs').select('keyword').gte('created_at', prevSince).lt('created_at', since).order('id').range(a, b)),
       supabase.from('search_logs').select('keyword').eq('result_count', 0).gte('created_at', since).limit(1000),
     ]);
 
@@ -6367,11 +6374,11 @@ export default function AdminClient() {
     const to   = new Date(year + 1, 0, 1).toISOString();
     /* 화면 상단 '총 순매출'과 같은 기준: 테스트 주문 제외 + 부분환불액 차감
        (예전엔 결제액을 그대로 더해서 월별 그래프만 부분환불만큼 높게 나왔다) */
-    const { data } = await supabase
+    const { data } = await fetchAllRows((a, b) => supabase
       .from('orders').select('final_amount, partial_refund_amount, created_at, status')
       .gte('created_at', from).lt('created_at', to)
       .in('status', ['paid','preparing','shipped','delivered','confirmed'])
-      .not('order_no', 'like', 'TEST%').limit(5000);
+      .not('order_no', 'like', 'TEST%').order('id').range(a, b));
     const m: Record<number, number> = {};
     for (let i = 1; i <= 12; i++) m[i] = 0;
     (data || []).forEach((o: { final_amount: number; partial_refund_amount?: number | null; created_at: string }) => {
@@ -6392,11 +6399,11 @@ export default function AdminClient() {
     const isCancel = (s: string) => ['cancelled','refunded','refunding'].includes(s);
     const isUnpaid = (s: string) => ['pending','expired'].includes(s); // 무통장 미입금·만료
 
-    const { data } = await supabase
+    const { data } = await fetchAllRows((a, b) => supabase
       .from('orders')
       .select('id, user_id, status, buyer_grade, final_amount, partial_refund_amount, coupon_discount, point_used, payment_method, created_at')
       .gte('created_at', fromISO).lt('created_at', toISO)
-      .not('order_no', 'like', 'TEST%').limit(5000);
+      .not('order_no', 'like', 'TEST%').order('id').range(a, b));
     if (!data) { setSettlementLoading(false); return; }
 
     /* 순매출 = 결제액 - 부분환불액(하자분). 부분환불된 주문도 confirmed로 남으므로 여기서 차감해야 실매출과 일치 */
@@ -6453,8 +6460,8 @@ export default function AdminClient() {
     /* 신규 vs 재구매 매출 (유효주문 중, 해당 고객의 그 주문 이전 유효주문 존재 여부) */
     let newAmount = 0, newCount = 0, repeatAmount = 0, repeatCount = 0;
     if (userIds.length) {
-      const { data: hist } = await supabase.from('orders').select('user_id, created_at, status')
-        .in('user_id', userIds).in('status', VALID_ORDER_STATUS).order('created_at', { ascending: true }).limit(20000);
+      const { data: hist } = await fetchAllRows((a, b) => supabase.from('orders').select('user_id, created_at, status')
+        .in('user_id', userIds).in('status', VALID_ORDER_STATUS).order('created_at', { ascending: true }).order('id').range(a, b));
       const firstAt: Record<string, string> = {};
       (hist as { user_id: string; created_at: string }[] | null || []).forEach(h => { if (h.user_id && !firstAt[h.user_id]) firstAt[h.user_id] = h.created_at; });
       validOrders.forEach(o => {
@@ -6479,9 +6486,9 @@ export default function AdminClient() {
 
     // 전기간 대비 (직전 동일 길이) — 실결제 기준(미입금 제외), 환불취소율 증감 계산
     const lenMs = to.getTime() - from.getTime();
-    const { data: prev } = await supabase.from('orders').select('final_amount, partial_refund_amount, status')
+    const { data: prev } = await fetchAllRows((a, b) => supabase.from('orders').select('final_amount, partial_refund_amount, status')
       .gte('created_at', new Date(from.getTime() - lenMs).toISOString()).lt('created_at', fromISO)
-      .not('order_no', 'like', 'TEST%').limit(5000);
+      .not('order_no', 'like', 'TEST%').order('id').range(a, b));
     const prevPaid = (prev || []).filter(o => !isUnpaid(o.status));
     /* 현재 total(=확정+진행 순매출, 취소 제외)과 같은 기준으로 계산해야 추세% 왜곡이 없다 */
     const prevTotal = prevPaid.filter(o => !isCancel(o.status)).reduce((s, o) => s + netAmt(o), 0);
@@ -6812,18 +6819,25 @@ export default function AdminClient() {
     if (newStatus !== order.status) {
       await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
     }
-    /* 모든 상품이 같은 송장 하나면 주문 단위에도 반영(목록 대표 송장). 갈리면 건드리지 않음. */
+    /* 주문 단위 대표 송장 = '모든 상품'이 같은 송장 하나일 때만.
+       예전엔 송장이 들어간 상품끼리만 비교해서, 한 브랜드만 발송돼도 대표 송장이 기록됐고
+       배송조회 크론이 그 번호로 주문 전체를 배송완료 처리했다(부분 발송 주문이 배송완료로 넘어간 사고).
+       상품줄 송장이 하나라도 있는데 조건이 안 맞으면 대표 송장을 비운다(옛 번호가 남지 않게). */
     const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
-    const oneTrk = trks.length === 1 ? trks[0] as string : null;
+    const everyHasTrk = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
+    const oneTrk = everyHasTrk && trks.length === 1 ? trks[0] as string : null;
     const oneCourier = oneTrk ? (newItems.find(i => i.tracking_number === oneTrk)?.courier || null) : null;
+    const clearTrk = !oneTrk && trks.length > 0;
     if (oneTrk) {
       await supabase.from('orders').update({ courier: oneCourier, tracking_number: oneTrk }).eq('id', order.id);
+    } else if (clearTrk) {
+      await supabase.from('orders').update({ courier: null, tracking_number: null }).eq('id', order.id);
     }
 
     /* 로컬 상태 반영 — orders 목록과 selectedOrder(열려 있으면) 양쪽 */
     const apply = (o: Order): Order => o.id !== order.id ? o : {
       ...o, order_items: newItems, status: newStatus,
-      ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : {}),
+      ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : clearTrk ? { courier: null, tracking_number: null } : {}),
     };
     setOrders(prev => prev.map(apply));
     setSelectedOrder(s => (s && s.id === order.id ? apply(s) : s));
@@ -7077,17 +7091,21 @@ export default function AdminClient() {
       /* 주문 단위: 모든 상품에 송장 들어갔을 때만 배송중 / 전부 동일 송장이면 대표 송장 기록 */
       const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
       const newStatus = (allShipped && (o.status === 'paid' || o.status === 'preparing')) ? 'shipped' : o.status;
+      /* 대표 송장 = 모든 상품이 같은 송장 하나일 때만(부분 발송 주문이 크론에서 배송완료로 넘어가던 원인) */
       const trks = [...new Set(newItems.map(i => i.tracking_number).filter(Boolean))];
-      const oneTrk = trks.length === 1 ? trks[0] as string : null;
+      const everyHasTrk = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
+      const oneTrk = everyHasTrk && trks.length === 1 ? trks[0] as string : null;
       const oneCourier = oneTrk ? (newItems.find(i => i.tracking_number === oneTrk)?.courier || null) : null;
+      const clearTrk = !oneTrk && trks.length > 0;
       const orderPatch: Record<string, unknown> = {};
       if (newStatus !== o.status) orderPatch.status = newStatus;
       if (oneTrk) { orderPatch.courier = oneCourier; orderPatch.tracking_number = oneTrk; }
+      else if (clearTrk) { orderPatch.courier = null; orderPatch.tracking_number = null; }
       if (Object.keys(orderPatch).length) await supabase.from('orders').update(orderPatch).eq('id', o.id);
 
       /* 로컬 반영 */
       setOrders(prev => prev.map(x => x.id === o.id
-        ? { ...x, ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : {}), status: newStatus, order_items: newItems }
+        ? { ...x, ...(oneTrk ? { courier: oneCourier, tracking_number: oneTrk } : clearTrk ? { courier: null, tracking_number: null } : {}), status: newStatus, order_items: newItems }
         : x));
 
       /* 농가별 배송시작 알림톡 (이번에 처리된 농가마다 1회) + 추적 웹훅 */
@@ -7384,8 +7402,8 @@ export default function AdminClient() {
       supabase.from('coupons').select('*').order('created_at', { ascending: false }),
       supabase.from('user_coupons').select('id', { count: 'exact', head: true }),
       supabase.from('user_coupons').select('id', { count: 'exact', head: true }).eq('is_used', true),
-      // 쿠폰별 발급/사용 집계용 원자료
-      supabase.from('user_coupons').select('coupon_id, is_used').limit(20000),
+      // 쿠폰별 발급/사용 집계용 원자료 — 전부(예전엔 1,000건에서 잘려 쿠폰별 발급·사용 숫자가 틀렸다)
+      fetchAllRows((a, b) => supabase.from('user_coupons').select('coupon_id, is_used').order('id').range(a, b)),
     ]);
     setCoupons((data || []) as AdminCoupon[]);
     setCouponStats({ issued: issuedRes.count || 0, used: usedRes.count || 0 });

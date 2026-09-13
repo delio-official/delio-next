@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - 30 * 86400000).toISOString();
   const { data: orders, error } = await admin
     .from('orders')
-    .select('id, status, courier, tracking_number, phone, recipient, orderer_phone, orderer_name, order_no, order_items(product_name)')
+    .select('id, status, courier, tracking_number, phone, recipient, orderer_phone, orderer_name, order_no, order_items(product_name, tracking_number)')
     .in('status', ['paid', 'preparing', 'shipped'])
     .not('courier', 'is', null)
     .not('tracking_number', 'is', null)
@@ -52,9 +52,13 @@ export async function GET(req: NextRequest) {
   for (const o of (orders || []) as Array<{
     id: string; status: string; courier: string | null; tracking_number: string | null;
     phone: string | null; recipient: string | null; orderer_phone: string | null; orderer_name: string | null; order_no: string | null;
-    order_items?: { product_name: string | null }[];
+    order_items?: { product_name: string | null; tracking_number: string | null }[];
   }>) {
     if (!o.courier || !o.tracking_number) continue;
+    /* 상품줄(브랜드별) 송장이 하나라도 있는 주문은 아래 상품줄 블록이 '모든 브랜드' 기준으로 처리한다.
+       여기서 주문 대표 송장 하나로 상태를 올리면, 한 브랜드만 발송돼도 주문 전체가 배송완료되는 사고가 난다
+       (2026-09-12 ORD-20260910-fbf67c39). 이 블록은 상품줄 송장이 없던 옛 주문 전용. */
+    if ((o.order_items || []).some(i => !!i.tracking_number)) continue;
     checked++;
     let mapped: ReturnType<typeof mapTrackerCodeToOrderStatus> = null;
     try {

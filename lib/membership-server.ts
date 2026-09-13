@@ -5,6 +5,7 @@
    · issueBirthdayCoupons: 생일월 5천원 쿠폰 발급 (멱등)
    ─────────────────────────────────────────────────────────── */
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { fetchAllRows } from '@/lib/fetch-all';   // 1,000행 제한 없이 전체 회원·주문
 import {
   computeGrade, normalizeGrade, quarterKey, DEFAULT_TIERS, MEMBERSHIP_COUPON,
   type MembershipTier,
@@ -46,12 +47,12 @@ export async function recalcAllGrades(): Promise<{ updated: number }> {
 
   // 롤링 3개월(분기) 확정 주문 집계
   const since = new Date(Date.now() - 90 * 86400000).toISOString();
-  const { data: orders } = await admin
+  const { data: orders } = await fetchAllRows((a, b) => admin
     .from('orders')
     .select('user_id, final_amount, status, created_at')
     .gte('created_at', since)
     .in('status', ['delivered', 'confirmed'])
-    .limit(50000);
+    .order('id').range(a, b));
 
   const agg: Record<string, { amount: number; count: number }> = {};
   (orders || []).forEach((o: { user_id: string | null; final_amount: number | null }) => {
@@ -62,7 +63,7 @@ export async function recalcAllGrades(): Promise<{ updated: number }> {
     agg[o.user_id] = a;
   });
 
-  const { data: profs } = await admin.from('profiles').select('id, grade, grade_locked, grade_updated_at').limit(100000);
+  const { data: profs } = await fetchAllRows((a, b) => admin.from('profiles').select('id, grade, grade_locked, grade_updated_at').order('id').range(a, b));
   const qStart = kstQuarterStart().getTime();
   let updated = 0;
   for (const p of (profs || []) as { id: string; grade: string | null; grade_locked: boolean | null; grade_updated_at: string | null }[]) {
@@ -106,8 +107,9 @@ export async function issueMonthlyPacks(): Promise<{ issued: number }> {
   const codeMap: Record<string, { id: string; valid_days: number | null }> = {};
   (cps || []).forEach((c: { id: string; code: string; valid_days: number | null }) => { codeMap[c.code] = { id: c.id, valid_days: c.valid_days }; });
 
-  const { data: profs } = await admin.from('profiles').select('id, grade').limit(100000);
-  const { data: granted } = await admin.from('membership_grants').select('user_id').eq('grant_type', 'monthly').eq('period', period);
+  const { data: profs } = await fetchAllRows((a, b) => admin.from('profiles').select('id, grade').order('id').range(a, b));
+  /* 이미 지급한 회원 목록도 전부 받아야 한다 — 1,000건에서 잘리면 같은 회원에게 월 쿠폰이 중복 지급된다 */
+  const { data: granted } = await fetchAllRows((a, b) => admin.from('membership_grants').select('user_id').eq('grant_type', 'monthly').eq('period', period).order('id').range(a, b));
   const grantedSet = new Set((granted || []).map((g: { user_id: string }) => g.user_id));
 
   let issued = 0;
@@ -141,8 +143,8 @@ export async function issueBirthdayCoupons(): Promise<{ issued: number }> {
   if (!bday) return { issued: 0 };
   const bd = bday as { id: string; valid_days: number | null };
 
-  const { data: profs } = await admin.from('profiles').select('id, birth').limit(100000);
-  const { data: granted } = await admin.from('membership_grants').select('user_id').eq('grant_type', 'birthday').eq('period', yearPeriod);
+  const { data: profs } = await fetchAllRows((a, b) => admin.from('profiles').select('id, birth').order('id').range(a, b));
+  const { data: granted } = await fetchAllRows((a, b) => admin.from('membership_grants').select('user_id').eq('grant_type', 'birthday').eq('period', yearPeriod).order('id').range(a, b));
   const grantedSet = new Set((granted || []).map((g: { user_id: string }) => g.user_id));
 
   let issued = 0;
