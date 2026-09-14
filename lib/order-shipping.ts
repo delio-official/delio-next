@@ -34,7 +34,8 @@ export interface DeliveredOrder {
 /**
  * 한 운송장(trackingNumber)의 order_items 를 mapped 상태로 전진(역행 방지)시키고,
  * 영향받은 주문들을 재집계해 주문 status 를 갱신한다.
- * 새로 delivered 로 전환된 주문 목록을 반환(배송완료 알림톡 발송용).
+ * 반환 deliveredOrders = 이번에 '상품줄이 새로 배송완료'된 주문(브랜드 송장 단위) — 배송완료 알림톡 발송용.
+ * 여러 브랜드 주문은 브랜드마다 도착할 때 그 상품명으로 알림이 간다(주문 전체 완료를 기다리지 않음).
  */
 export async function applyTrackingStatusByItems(
   admin: SupabaseClient,
@@ -49,9 +50,11 @@ export async function applyTrackingStatusByItems(
 
   const newRank = ITEM_RANK[mapped] ?? 0;
   const orderIds = new Set<string>();
-  for (const it of items as Array<{ id: string; order_id: string; ship_status: string | null }>) {
+  const newlyDelivered = new Map<string, string[]>();   // 주문 id → 이번에 배송완료된 상품명
+  for (const it of items as Array<{ id: string; order_id: string; ship_status: string | null; product_name: string | null }>) {
     orderIds.add(it.order_id);
     if ((ITEM_RANK[it.ship_status ?? ''] ?? 0) >= newRank) continue; // 역행/동급 방지
+    if (mapped === 'delivered') newlyDelivered.set(it.order_id, [...(newlyDelivered.get(it.order_id) || []), it.product_name || '주문 상품']);
     await admin
       .from('order_items')
       .update({
@@ -73,6 +76,20 @@ export async function applyTrackingStatusByItems(
        (구매확정 주문이 배송완료로 내려가 7일 자동확정이 다시 돌던 문제) */
     if (['cancelled', 'refunding', 'refunded', 'confirmed', 'expired', 'pending'].includes(ord.status as string)) continue;
 
+    /* 이 송장(브랜드)의 상품이 새로 배송완료됐으면 알림 대상 — 주문 전체 완료 여부와 무관 */
+    const names = newlyDelivered.get(oid) || [];
+    if (names.length) {
+      deliveredOrders.push({
+        id: ord.id as string,
+        phone: (ord.phone as string | null) ?? null,
+        recipient: (ord.recipient as string | null) ?? null,
+        orderer_phone: (ord.orderer_phone as string | null) ?? null,
+        orderer_name: (ord.orderer_name as string | null) ?? null,
+        order_no: (ord.order_no as string | null) ?? null,
+        productName: names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : ''),
+      });
+    }
+
     const its = (ord.order_items || []) as Array<{ ship_status: string | null; product_name: string | null }>;
     const agg = aggregateOrderStatus(its.map((i) => i.ship_status));
     if (!agg) continue;
@@ -89,18 +106,6 @@ export async function applyTrackingStatusByItems(
       })
       .eq('id', oid);
 
-    if (agg === 'delivered') {
-      const name = its[0]?.product_name || '주문 상품';
-      deliveredOrders.push({
-        id: ord.id as string,
-        phone: (ord.phone as string | null) ?? null,
-        recipient: (ord.recipient as string | null) ?? null,
-        orderer_phone: (ord.orderer_phone as string | null) ?? null,
-        orderer_name: (ord.orderer_name as string | null) ?? null,
-        order_no: (ord.order_no as string | null) ?? null,
-        productName: name + (its.length > 1 ? ` 외 ${its.length - 1}건` : ''),
-      });
-    }
   }
 
   return { matched: items.length, deliveredOrders };

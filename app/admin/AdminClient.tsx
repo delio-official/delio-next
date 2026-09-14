@@ -6784,6 +6784,8 @@ export default function AdminClient() {
 
     /* 입금대기 → 결제 이후 단계면 입금확인 처리(결제일·구매 적립) 먼저 */
     const curOrd = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+    /* 배송완료 알림에 넣을 상품 = 아직 배송완료가 아니던 상품만(브랜드별 배송완료로 이미 안내한 상품은 다시 알리지 않음) */
+    const notYetDelivered = (curOrd?.order_items || []).filter(i => i.ship_status !== 'delivered');
     let vbankEarned = 0;
     let vbankDone = false;   // 입금확인 API가 이미 상태를 newStatus 로 바꿨는가
     if (curOrd?.status === 'pending' && !isVoid) {
@@ -6879,11 +6881,12 @@ export default function AdminClient() {
         const deliveredOrder = await orderForNotify(orderId);
         if (deliveredOrder) {
           /* 배송 관련 → 수령인 + 주문자 양쪽(같은 번호면 1회) */
+          const pick = notYetDelivered.length ? notYetDelivered : (deliveredOrder.order_items || []);
           notifyOrderRoles(deliveredOrder, {
             type: 'delivery_complete',
             recipient: deliveredOrder.recipient,
             orderNo: deliveredOrder.order_no,
-            productName: orderProductName(deliveredOrder),
+            productName: pick.length ? pick[0].product_name + (pick.length > 1 ? ` 외 ${pick.length - 1}건` : '') : orderProductName(deliveredOrder),
             completedAt: new Date().toLocaleString('ko-KR'),
           });
         }
@@ -6934,6 +6937,61 @@ export default function AdminClient() {
 
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
      + 해당 농가 배송시작 알림톡 발송 + 추적 웹훅 구독 등록(송장별 각각) */
+  /* 브랜드(상품) 단위 배송상태 변경 — 상세 창 브랜드 칸의 [배송준비중][배송중][배송완료].
+     그 브랜드 상품줄만 바꾸고 주문 상태는 모든 브랜드를 모아 다시 정한다(모두 배송완료 → 배송완료, 모두 배송중 이상 → 배송중).
+     배송완료로 바꾸면 그 브랜드 상품명으로 배송완료 알림톡(수령인·주문자). 택배 추적이 안 되는 경우의 수동 처리용. */
+  async function setBrandShipStatus(order: Order, itemIds: string[], status: 'preparing' | 'shipped' | 'delivered', brandName: string) {
+    if (!order || itemIds.length === 0) return;
+    if (!['paid', 'preparing', 'shipped', 'delivered'].includes(order.status)) {
+      alert(`${STATUS_LABEL[order.status] || order.status} 주문은 브랜드별 배송상태를 바꿀 수 없습니다.`); return;
+    }
+    const idSet = new Set(itemIds);
+    const all = order.order_items || [];
+    const target = all.filter(i => i.id && idSet.has(i.id));
+    const becomingDelivered = status === 'delivered' && target.some(i => i.ship_status !== 'delivered');
+    if (status === 'delivered' && !confirm(`'${brandName}' 상품을 배송완료로 바꿀까요?\n고객(수령인·주문자)에게 이 상품의 배송완료 알림톡이 발송됩니다.`)) return;
+    if (status !== 'delivered' && target.some(i => i.ship_status === 'delivered') && !confirm(`'${brandName}' 상품이 이미 배송완료입니다. ${STATUS_LABEL[status]}(으)로 되돌릴까요?`)) return;
+
+    setSavingTracking(true);
+    const supabase = createClient();
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase.from('order_items')
+      .update({ ship_status: status, delivered_at: status === 'delivered' ? nowIso : null })
+      .in('id', itemIds);
+    if (error) { setSavingTracking(false); alert('변경 실패: ' + error.message); return; }
+    if (status !== 'preparing') await supabase.from('order_items').update({ shipped_at: nowIso }).in('id', itemIds).is('shipped_at', null);
+
+    const newItems = all.map(i => (i.id && idSet.has(i.id)) ? { ...i, ship_status: status } : i);
+    const sts = newItems.map(i => i.ship_status);
+    const nextStatus = sts.every(s => s === 'delivered') ? 'delivered'
+      : sts.every(s => s === 'shipped' || s === 'delivered') ? 'shipped'
+      : (['shipped', 'delivered'].includes(order.status) ? 'preparing' : order.status);
+    let finalStatus = order.status;
+    if (nextStatus !== order.status) {
+      /* 화면에서 본 상태 그대로일 때만(그 사이 취소 등 방지) */
+      const { data: upd } = await supabase.from('orders').update({
+        status: nextStatus,
+        ...(nextStatus === 'delivered' ? { delivered_at: nowIso } : order.status === 'delivered' ? { delivered_at: null } : {}),
+        ...(nextStatus === 'shipped' && !(order as { shipped_at?: string | null }).shipped_at ? { shipped_at: nowIso } : {}),
+      }).eq('id', order.id).eq('status', order.status).select('id');
+      if (upd && upd.length) finalStatus = nextStatus;
+      else alert('그 사이 주문 상태가 바뀌어 주문 전체 상태는 바꾸지 않았습니다. 목록을 새로고침해 확인하세요.');
+    }
+    if (becomingDelivered) {
+      const names = target.map(i => i.product_name);
+      notifyOrderRoles(order, {
+        type: 'delivery_complete', recipient: order.recipient, orderNo: order.order_no,
+        productName: names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : ''),
+        completedAt: new Date().toLocaleString('ko-KR'),
+      });
+    }
+    const apply = (o: Order): Order => o.id !== order.id ? o : { ...o, order_items: newItems, status: finalStatus };
+    setOrders(prev => prev.map(apply));
+    setSelectedOrder(s => (s && s.id === order.id ? apply(s) : s));
+    refreshStageCounts();
+    setSavingTracking(false);
+  }
+
   /* 브랜드(상품) 단위 송장 저장 — 목록·상세 공용.
      order 를 인자로 받아 selectedOrder 없이도 동작한다(목록에서 브랜드별 줄이 직접 호출). */
   async function saveItemTracking(order: Order, itemIds: string[], courier: string, tracking: string) {
@@ -10117,12 +10175,33 @@ export default function AdminClient() {
                     const carrier = first?.carrier || '';
                     const cur = farmTracking[fid] ?? { courier: first?.courier || resolveCourierCode(carrier) || '', tracking_number: first?.tracking_number || '' };
                     const shipped = fItems.every(i => !!i.tracking_number);
+                    /* 이 브랜드의 배송상태(상품줄 기준) */
+                    const bSts = fItems.map(i => i.ship_status);
+                    const bStatus: 'preparing' | 'shipped' | 'delivered' = bSts.every(s => s === 'delivered') ? 'delivered'
+                      : (bSts.every(s => s === 'shipped' || s === 'delivered') || shipped) ? 'shipped' : 'preparing';
+                    const brandName = first?.farm_name || '브랜드 미지정';
+                    const canBrandShip = ['paid', 'preparing', 'shipped', 'delivered'].includes(selectedOrder.status);
                     return (
                       <div key={fid} style={{ marginBottom:10, padding:'10px 12px', border:'1px solid #E2E8F0', borderRadius:8 }}>
-                        <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>
-                          {first?.farm_name || '브랜드 미지정'}
-                          {carrier && <span style={{ fontSize:11, color:'#94A3B8', fontWeight:500, marginLeft:6 }}>지정: {COURIER_NAMES[carrier] || carrier}</span>}
-                          {shipped && <span style={{ fontSize:11, color:'#2D7A4D', fontWeight:700, marginLeft:6 }}>✓ 발송</span>}
+                        <div style={{ fontSize:13, fontWeight:700, marginBottom:4, display:'flex', alignItems:'center', flexWrap:'wrap', gap:6 }}>
+                          <span>{brandName}</span>
+                          {carrier && <span style={{ fontSize:11, color:'#94A3B8', fontWeight:500 }}>지정: {COURIER_NAMES[carrier] || carrier}</span>}
+                          {shipped && <span style={{ fontSize:11, color:'#2D7A4D', fontWeight:700 }}>✓ 발송</span>}
+                          {canBrandShip && (
+                            <span style={{ marginLeft:'auto', display:'inline-flex', gap:4 }} title="이 브랜드 상품만 배송상태 변경 (주문 전체 상태는 모든 브랜드를 모아 자동 결정)">
+                              {(['preparing', 'shipped', 'delivered'] as const).map(st => {
+                                const on = bStatus === st; const c = STATUS_BTN_COLOR[st];
+                                return (
+                                  <button key={st} type="button" disabled={savingTracking || on}
+                                    onClick={() => setBrandShipStatus(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), st, brandName)}
+                                    style={{ height:26, padding:'0 9px', fontSize:11.5, fontWeight:700, borderRadius:6, cursor: on ? 'default' : 'pointer',
+                                      border:`1px solid ${on ? c.border : '#E2E8F0'}`, background: on ? c.bg : '#fff', color: on ? c.color : '#64748B' }}>
+                                    {STATUS_LABEL[st]}
+                                  </button>
+                                );
+                              })}
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize:12, color:'#64748B', marginBottom:8 }}>{fItems.map(i => i.product_name).join(', ')}</div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
@@ -10192,6 +10271,15 @@ export default function AdminClient() {
                 disabled={updatingStatus === selectedOrder.id}
                 onClick={async () => {
                   if (detailStatus && detailStatus !== selectedOrder.status) {
+                    /* 여러 브랜드 주문을 한꺼번에 배송중·배송완료로 바꾸면 모든 브랜드 상품줄이 같이 바뀐다 → 아직 그 단계가 아닌 브랜드를 알리고 확인 */
+                    if (['shipped', 'delivered'].includes(detailStatus)) {
+                      const its = selectedOrder.order_items || [];
+                      const rank: Record<string, number> = { preparing: 1, shipped: 2, delivered: 3 };
+                      const need = rank[detailStatus];
+                      const behind = [...new Set(its.filter(i => (rank[i.ship_status || ''] || (i.tracking_number ? 2 : 0)) < need).map(i => i.farm_name || '브랜드 미지정'))];
+                      const brandCount = new Set(its.map(i => i.farm_id || '__none')).size;
+                      if (brandCount > 1 && behind.length && !confirm(`${STATUS_LABEL[detailStatus]}이(가) 아닌 브랜드가 있습니다: ${behind.join(', ')}\n\n모든 브랜드를 ${STATUS_LABEL[detailStatus]}(으)로 바꿀까요?\n(한 브랜드만 바꾸려면 아래 '배송 추적' 칸의 브랜드별 버튼을 쓰세요)`)) return;
+                    }
                     await updateOrderStatus(selectedOrder.id, detailStatus);
                   }
                   setSelectedOrder(null);
@@ -10815,11 +10903,18 @@ export default function AdminClient() {
                                 ) : (
                                   /* 주문 상태를 '우선'으로 표기(송장 유무와 무관하게 관리자 수동변경도 즉시 반영).
                                      송장이 입력된 경우(g.shipped)는 배송준비중 대신 배송중으로만 승격. */
-                                  o.status === 'delivered' ? <span className="adm-badge badge-done">배송완료</span>
-                                    : o.status === 'confirmed' ? <span className="adm-badge badge-done">구매확정</span>
-                                    : (o.status === 'shipped' || g.shipped) ? <span className="adm-badge badge-shipping">배송중</span>
-                                    : o.status === 'paid' ? <span className="adm-badge badge-paid">신규주문</span>
-                                    : <span className="adm-badge badge-ready">배송준비중</span>
+                                  /* 여러 브랜드 주문은 브랜드 줄마다 그 브랜드 상품의 배송상태(ship_status)로 표시.
+                                     (예전엔 주문 전체 상태를 모든 줄에 똑같이 보여, 한 브랜드만 도착해도 전부 '배송완료'로 보였다) */
+                                  (() => {
+                                    const gs = g.items.map(x => x.ship_status);
+                                    const hasItemStatus = gs.some(Boolean);
+                                    if (o.status === 'confirmed') return <span className="adm-badge badge-done">구매확정</span>;
+                                    if (hasItemStatus && gs.every(s => s === 'delivered')) return <span className="adm-badge badge-done">배송완료</span>;
+                                    if (!hasItemStatus && o.status === 'delivered') return <span className="adm-badge badge-done">배송완료</span>;
+                                    if (g.shipped || gs.every(s => s === 'shipped' || s === 'delivered') || (!hasItemStatus && o.status === 'shipped')) return <span className="adm-badge badge-shipping">배송중</span>;
+                                    if (o.status === 'paid') return <span className="adm-badge badge-paid">신규주문</span>;
+                                    return <span className="adm-badge badge-ready">배송준비중</span>;
+                                  })()
                                 )}
                                 {gi === 0 && (() => {
                                   const rq = pendingReqByOrder.get(o.id);
