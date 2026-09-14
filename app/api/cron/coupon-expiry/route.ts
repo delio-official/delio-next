@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
 
   /* user_coupons ↔ profiles 는 직접 FK 관계가 없어(auth.users 경유) 조인 불가 → 쿠폰만 조회 후 회원정보는 따로 */
   let q = admin.from('user_coupons')
-    .select('id, user_id, expires_at, coupons:coupon_id(name)')
+    /* 비활성(사용 중지) 쿠폰은 결제에서 쓸 수 없으므로 만료 안내도 보내지 않는다 */
+    .select('id, user_id, expires_at, coupons:coupon_id!inner(name, is_active)')
+    .eq('coupons.is_active', true)
     .eq('is_used', false)
     .eq('expiry_notified', false)
     .not('expires_at', 'is', null)

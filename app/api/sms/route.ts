@@ -125,6 +125,8 @@ export async function POST(req: NextRequest) {
       scheduled_at:  schedDate,
       status:        allFailed ? 'failed' : (schedDate ? 'reserved' : 'sent'),
       error_msg:     errorMsg,                 // 부분 실패 시에도 사유 기록(상태는 완료 유지)
+      /* 예약 취소 때 이 ID로 바로 취소(예전엔 접수시각·건수로 추정해 같은 시각 예약이 겹치면 취소 불가) */
+      solapi_group_id: result?.groupInfo?.groupId || result?.groupInfo?._id || null,
     });
   } catch { /* 로그 저장 실패는 무시 */ }
 

@@ -11,8 +11,10 @@ export interface CurationItem { id: string; label: string; sub?: string; bucket?
    - 노출 개수
    - 직접 선택 시: 후보에서 골라 순서 지정 → site_settings 저장
    - buckets 전달 시(퀵가이드): 카테고리별로 직접선택, ids 는 JSON 맵으로 저장 */
-export default function SectionCuration({ sec, items, buckets }: {
+export default function SectionCuration({ sec, items, buckets, hiddenLabels }: {
   sec: string; items: CurationItem[]; buckets?: { value: string; label: string }[];
+  /** 후보 목록에 없는(판매중지·삭제·비공개) 항목의 표시 이름 — 선택돼 있어도 안 보여 뺄 수 없던 문제 */
+  hiddenLabels?: Record<string, string>;
 }) {
   const meta = HOME_SECTIONS[sec];
   const hasBuckets = !!(buckets && buckets.length > 0);
@@ -79,6 +81,8 @@ export default function SectionCuration({ sec, items, buckets }: {
   /* 버킷이면 후보를 현재 카테고리 상품으로 제한 */
   const candItems = hasBuckets ? items.filter(i => i.bucket === bucket) : items;
   const selected = curIds.map(id => candItems.find(i => i.id === id) || items.find(i => i.id === id)).filter((v): v is CurationItem => !!v);
+  /* 저장돼 있지만 후보에 없는 항목(판매중지·삭제 등) — 메인에는 안 보이지만 판매 재개 시 다시 노출되므로 보여주고 뺄 수 있게 */
+  const hiddenSel = curIds.filter(id => !selected.some(s => s.id === id));
   /* 이미 추가된 항목도 목록에 남겨 '추가됨' 흐릿 표시 (숨기지 않음) */
   const filtered = candItems.filter(i =>
     (q === '' || i.label.toLowerCase().includes(q.toLowerCase()) || (i.sub || '').toLowerCase().includes(q.toLowerCase())))
@@ -147,10 +151,18 @@ export default function SectionCuration({ sec, items, buckets }: {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           {/* 선택됨 (드래그로 순서변경 · 삭제만) */}
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-            <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>선택된 항목 ({selected.length}) <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 6 }}>· 드래그로 두 항목 자리 맞바꾸기</span></div>
+            <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>선택된 항목 ({selected.length}{hiddenSel.length ? ` · 비노출 ${hiddenSel.length}` : ''}) <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 6 }}>· 드래그로 두 항목 자리 맞바꾸기</span></div>
             <div style={{ ...box, padding: 8, height: 260, overflowY: 'auto' }}>
+              {hiddenSel.map(id => (
+                <div key={`hidden-${id}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderBottom: '1px solid #F1F5F9', background: '#F8FAFC' }}
+                  title="판매중지·삭제된 항목 — 지금은 메인에 안 보이지만, 다시 활성화하면 이 자리로 노출됩니다">
+                  <span style={{ fontSize: 11, color: '#94A3B8', width: 42, flexShrink: 0 }}>비노출</span>
+                  <div style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hiddenLabels?.[id] || '삭제된 항목'}</div>
+                  <button onClick={() => setCurIds(p => p.filter(x => x !== id))} style={{ ...btnMini, color: '#DC2626', borderColor: '#FECACA', width: 'auto', padding: '3px 10px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>삭제</button>
+                </div>
+              ))}
               {selected.length === 0
-                ? <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>오른쪽에서 항목을 추가하세요</div>
+                ? (hiddenSel.length === 0 && <div style={{ fontSize: 12, color: '#94A3B8', padding: '16px 0', textAlign: 'center' }}>오른쪽에서 항목을 추가하세요</div>)
                 : selected.map((it, idx) => (
                   <div key={it.id} draggable
                     onDragStart={() => { dragIdx.current = idx; }}

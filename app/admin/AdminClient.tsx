@@ -2084,6 +2084,17 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
   const setSingleStock = (n: number) => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'옵션', required:true, label:'기본', add_price:0, purchase_price:0, shipping_fee:0, stock:n, manage_stock:true, parent_label:'' }]); setMode('indep'); };
   const startTwo = () => { userTouchedMode.current = true; lastCascade.current = null; setOptions([{ id: newOptId(), group:'분류', required:true, label:'', add_price:0, purchase_price:0, shipping_fee:0, stock:0, manage_stock:true, parent_label:'' }]); setMode('cascade'); };
   const toIndep = () => {
+    /* 분류를 없애면 하위 옵션만 남는데, 분류가 달라 괜찮던 같은 이름(예: 선물용 1kg · 가정용 1kg)이 겹친다 →
+       분류 이름을 앞에 붙일지 묻는다(취소하면 전환하지 않음) */
+    const kidsNow = options.filter(o => !!o.parent_id);
+    const cnt = new Map<string, number>();
+    kidsNow.forEach(o => { const l = (o.label || '').trim(); if (l) cnt.set(l, (cnt.get(l) || 0) + 1); });
+    const clash = [...cnt.entries()].filter(([, n]) => n > 1).map(([l]) => l);
+    let prefixParent = false;
+    if (clash.length) {
+      if (!confirm(`분류를 없애면 이름이 겹치는 옵션이 생깁니다: ${clash.join(', ')}\n\n확인 = 분류 이름을 앞에 붙여 전환 (예: '선물용 1kg')\n취소 = 전환하지 않음`)) return;
+      prefixParent = true;
+    }
     const hasCascade = options.some(o => (o.parent_label || '').trim());
     userTouchedMode.current = true;
     lastCascade.current = hasCascade ? options : null; // 복원용 스냅샷 (다시 2단계 누르면 복원)
@@ -2091,7 +2102,10 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
       const isCasc = prev.some(o => !!o.parent_id || (o.parent_label || '').trim());
       // 종속이면 하위(값=parent_id 있는 것)만 단일 옵션으로 유지, 상위(분류)는 버림
       const kept = isCasc ? prev.filter(o => !!o.parent_id) : prev;
-      return kept.map(o => ({ ...o, parent_label:'', parent_id: undefined }));
+      const parentLabel = new Map(prev.map(o => [o.id, (o.label || '').trim()]));
+      return kept.map(o => ({ ...o,
+        label: prefixParent && o.parent_id && parentLabel.get(o.parent_id) ? `${parentLabel.get(o.parent_id)} ${o.label.trim()}` : o.label,
+        parent_label:'', parent_id: undefined }));
     });
     setMode('indep');
   };
@@ -2193,7 +2207,12 @@ function OptionTreeEditor({ options, setOptions, basePrice = 0 }: {
               <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
                 <span style={{ color:'#1A8A4C', fontWeight:800, flexShrink:0 }}>●</span>
                 <input className="adm-input-text" style={{ flex:1, minWidth:0, fontWeight:600 }} placeholder="예: 무농약 방울토마토" value={sup.label} onChange={e => renameSup(sup._i, sup.label, e.target.value)} />
-                <button type="button" onClick={() => removeAt(sup._i)} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:0, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
+                <button type="button" onClick={() => {
+                  /* 분류만 지우면 하위 옵션이 화면에서 안 보인 채 남아 분류 없는 옵션으로 저장됐다 → 함께 삭제 */
+                  const kids = options.filter(o => o.parent_id === sup.id);
+                  if (kids.length && !confirm(`'${sup.label || '이 분류'}' 분류와 그 안의 옵션 ${kids.length}개를 함께 삭제할까요?`)) return;
+                  setOptions(prev => prev.filter(o => o.id !== sup.id && o.parent_id !== sup.id));
+                }} style={{ fontSize:11, color:'#DC2626', background:'#fff', border:'1px solid #FECACA', borderRadius:0, padding:'4px 9px', cursor:'pointer', flexShrink:0 }}>분류 삭제</button>
               </div>
               {subOpts.filter(s => s.parent_id === sup.id).map(s => valueRow(s))}
               {addBtn(`+ ${sup.label || '이 분류'}의 옵션 추가`, () => addSubUnder(sup.id))}
@@ -2394,7 +2413,8 @@ export default function AdminClient() {
     } else {
       curStart = new Date(today.getFullYear(), today.getMonth(), 1);
       prevStart = new Date(today.getFullYear(), today.getMonth()-1, 1);
-      prevEnd = new Date(today.getFullYear(), today.getMonth()-1, today.getDate());
+      /* 지난달 같은 날까지 — 지난달에 그 날짜가 없으면 말일로 자름(예전엔 3/31 → '2/31' = 3/3 으로 넘쳐 이번 달 매출이 섞였다) */
+      prevEnd = new Date(today.getFullYear(), today.getMonth()-1, Math.min(today.getDate(), new Date(today.getFullYear(), today.getMonth(), 0).getDate()));
     }
     /* 현재 기간의 일자 키 목록 (그래프 X축) */
     const dayKeys:string[] = [];
@@ -2887,8 +2907,8 @@ export default function AdminClient() {
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   /* ── 검색 통계 ── */
-  const [searchStats, setSearchStats] = useState<{ keyword: string; count: number; trend: number; isNew: boolean }[]>([]);
-  const [noResultStats, setNoResultStats] = useState<{ keyword: string; count: number }[]>([]);
+  const [searchStats, setSearchStats] = useState<{ keyword: string; count: number; trend: number; isNew: boolean; variants?: string[] }[]>([]);
+  const [noResultStats, setNoResultStats] = useState<{ keyword: string; count: number; variants?: string[] }[]>([]);
   const [searchStatsLoading, setSearchStatsLoading] = useState(false);
   const [statsDays, setStatsDays] = useState<7|30>(7);
   /* ── 마케팅 분석 (자체 DB) ── */
@@ -2953,6 +2973,7 @@ export default function AdminClient() {
   const [farmSettleRows, setFarmSettleRows] = useState<{ farmId: string|null; farmName: string; qty: number; sales: number; payout: number; margin: number; orderCount: number; fullRefundCount: number; orders: FarmSettleOrder[] }[]>([]);
   const [farmSettleLoading, setFarmSettleLoading] = useState(false);
   const [farmSettlePaid, setFarmSettlePaid] = useState<Record<string, { paidAt: string; invoice: boolean }>>({}); // farmId → 정산·계산서 상태
+  const farmBankLoadRef = useRef<{ farmId: string | null; loaded: boolean }>({ farmId: null, loaded: true }); // 브랜드 수정창 계좌 불러오기 상태
   const [farmBankMap, setFarmBankMap] = useState<Record<string, { bank_name: string; bank_account: string; account_holder: string }>>({});
   const [farmSettleSearch, setFarmSettleSearch] = useState('');
   const [farmSettleStatus, setFarmSettleStatus] = useState<'all' | 'unpaid' | 'paid'>('all');
@@ -3484,7 +3505,8 @@ export default function AdminClient() {
       supabase.from('orders').select('id', { count:'exact', head:true }).eq('status', 'refunding'),
       supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['exchanging','exchanged']),
       supabase.from('orders').select('id', { count:'exact', head:true }).in('status', ['paid','preparing']).lt('created_at', twoDaysAgo),
-      supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').lt('created_at', twoDaysAgo),
+      /* 처리 안 끝난 요청 전부(접수·진행중·보류) — 보류·진행중으로 방치된 건도 자동 구매확정·정산을 막으므로 알려야 한다 */
+      supabase.from('refund_requests').select('id', { count:'exact', head:true }).in('status', ['pending', 'processing', 'hold']).lt('created_at', twoDaysAgo),
       supabase.from('cs_inquiries').select('id', { count:'exact', head:true }).eq('status', 'pending'),
       supabase.from('product_inquiries').select('id', { count:'exact', head:true }).is('answer', null),
       supabase.from('farm_inquiries').select('id', { count:'exact', head:true }).or('status.eq.pending,status.eq.new,status.is.null'),
@@ -3492,7 +3514,9 @@ export default function AdminClient() {
       supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').eq('type', 'cancel'),
       supabase.from('refund_requests').select('id', { count:'exact', head:true }).eq('status', 'pending').or('type.eq.refund,type.is.null'),
     ]);
-    setDashExtra({
+    /* 재고·정산·배송추적 알림은 아래 비동기 작업이 다시 채움 → 그동안 이전 값을 유지(화면 이동마다 알림이 잠깐 사라지던 문제) */
+    setDashExtra(prev => ({
+      ...prev,
       cancelReq:  cancelReqRes.count   || 0,
       refunding:  refundingRes.count   || 0,
       exchanging: exchangeRes.count    || 0,
@@ -3504,8 +3528,7 @@ export default function AdminClient() {
       unansweredProdInq: prodInqRes.count || 0,
       unansweredFarmInq: farmInqRes.count || 0,
       unansweredReview:  reviewRes.count  || 0,
-      lowStock: 0, settleDue: 0, trackerAlert: false, settleDuePeriod: null,
-    });
+    }));
 
     /* 품절·재고 임박 상품 + 지난 회차 브랜드 정산 미완료 (알림 바용, 비동기 후 병합) */
     void (async () => {
@@ -3922,6 +3945,7 @@ export default function AdminClient() {
     const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
     setSecTogSaving(false);
     if (error) { alert('저장 실패: ' + error.message); return; }
+    markSettingsSaved(rows);
     setSiteSettings(prev => { const n = { ...prev }; changed.forEach(k => { n[k] = secTogDraft[k] ? 'true' : 'false'; }); return n; });
     setSecTogDraft({});
     setSecTogSaved('저장됐어요 ✓'); setTimeout(() => setSecTogSaved(''), 2500);
@@ -4136,7 +4160,7 @@ export default function AdminClient() {
     setFarmDetailTarget(farm); setFarmDetailOpen(true); setFarmDetailLoading(true); setFarmRaw(null);
     setFarmChartMonths(6); setFarmChartFrom(''); setFarmChartTo('');
     const supabase = createClient();
-    const { data: prods } = await supabase.from('products').select('id, name').eq('farm_id', farm.id);
+    const { data: prods } = await supabase.from('products').select('id, name, is_active, deleted_at').eq('farm_id', farm.id);
     const prodIds = (prods || []).map((p: { id: string }) => p.id);
     const prodName = new Map<string, string>((prods || []).map((p: { id: string; name: string }) => [p.id, p.name]));
     if (prodIds.length === 0) {
@@ -4155,9 +4179,14 @@ export default function AdminClient() {
       .select('id, rating, content, created_at, product_id')
       .in('product_id', prodIds).order('created_at', { ascending: false }).limit(500);
     /* 공급가 미입력 진단용 — 지금 옵션에 매입가가 비어 있는지 확인 */
-    const { data: opts } = await fetchAllRows((a, b) => supabase.from('product_options')
-      .select('id, product_id, label, group_name, purchase_price, shipping_fee, supply_price')
+    const { data: optsAll } = await fetchAllRows<FarmRawOption & { parent_label: string | null }>((a, b) => supabase.from('product_options')
+      .select('id, product_id, label, group_name, purchase_price, shipping_fee, supply_price, parent_label')
       .in('product_id', prodIds).order('id').range(a, b));
+    /* 채울 수 없는 행 제외: 2단 옵션의 '분류' 행(매입가 칸이 없음 — 하위 옵션에만 입력) + 판매중지·삭제 상품.
+       예전엔 이 행까지 세서 가격을 다 채워도 '채워야 할 옵션 N개' 경고가 사라지지 않았다 */
+    const sellable = new Set((prods || []).filter((p: { is_active?: boolean; deleted_at?: string | null }) => p.is_active && !p.deleted_at).map((p: { id: string }) => p.id));
+    const parentLabels = new Set(optsAll.filter(o => (o.parent_label || '').trim()).map(o => `${o.product_id}|${(o.parent_label || '').trim()}`));
+    const opts = optsAll.filter(o => sellable.has(o.product_id) && !parentLabels.has(`${o.product_id}|${(o.label || '').trim()}`));
     setFarmRaw({ items, reviews: (revs || []) as FarmRawReview[], options: (opts || []) as FarmRawOption[], prodName });
     setFarmDetailLoading(false);
   }
@@ -4168,8 +4197,10 @@ export default function AdminClient() {
       setEditingFarm(farm);
       setFarmForm({ name: farm.name, farmer_name: farm.farmer_name || '', region: farm.region || '', items: farm.items || [], intro: farm.intro || '', carrier: farm.carrier || '', dispatch_cutoff: farm.dispatch_cutoff || '', bank_name: '', bank_account: '', account_holder: '', thumbnail_url: farm.thumbnail_url || '', logo_url: farm.logo_url || '', landing_images: farm.landing_images || [] });
       loadFarmMemos(farm.id);
+      farmBankLoadRef.current = { farmId: farm.id, loaded: false };
       loadFarmBank(farm.id);
     } else {
+      farmBankLoadRef.current = { farmId: null, loaded: true };
       setEditingFarm(null);
       setFarmForm({ name: '', farmer_name: '', region: '', items: [], intro: '', carrier: '', dispatch_cutoff: '', bank_name: '', bank_account: '', account_holder: '', thumbnail_url: '', logo_url: '', landing_images: [] });
       setFarmMemos([]);
@@ -4180,9 +4211,17 @@ export default function AdminClient() {
   /* 은행정보 — 관리자 전용 별도 테이블(farm_bank_info)에서 조회 */
   async function loadFarmBank(farmId: string) {
     const supabase = createClient();
-    const { data } = await supabase.from('farm_bank_info')
+    const { data, error } = await supabase.from('farm_bank_info')
       .select('bank_name, bank_account, account_holder').eq('farm_id', farmId).maybeSingle();
-    setFarmForm(p => ({ ...p, bank_name: data?.bank_name || '', bank_account: data?.bank_account || '', account_holder: (data as { account_holder?: string | null } | null)?.account_holder || '' }));
+    /* 그 사이 다른 브랜드 창을 열었으면 이 응답은 버린다(A 계좌가 B 창에 채워져 저장되던 문제) */
+    if (farmBankLoadRef.current.farmId !== farmId) return;
+    if (error) return;   // 불러오기 실패 → loaded=false 유지 → 저장 시 계좌를 지우지 않음
+    /* 불러오는 사이 관리자가 이미 입력한 칸은 덮지 않는다 */
+    setFarmForm(p => ({ ...p,
+      bank_name: p.bank_name || data?.bank_name || '',
+      bank_account: p.bank_account || data?.bank_account || '',
+      account_holder: p.account_holder || (data as { account_holder?: string | null } | null)?.account_holder || '' }));
+    farmBankLoadRef.current = { farmId, loaded: true };
   }
 
   /* ===== 브랜드 운영 메모 (최신이 위로 쌓임) ===== */
@@ -4241,11 +4280,14 @@ export default function AdminClient() {
     /* 은행정보는 farms가 아니라 관리자 전용 테이블에 저장 (farms는 고객도 조회 가능) */
     const bn = farmForm.bank_name.trim(), ba = farmForm.bank_account.trim(), ah = farmForm.account_holder.trim();
     if (farmId) {
+      const bankLoaded = !editingFarm || (farmBankLoadRef.current.farmId === farmId && farmBankLoadRef.current.loaded);
       if (bn || ba || ah) {
         const { error: bErr } = await supabase.from('farm_bank_info')
           .upsert({ farm_id: farmId, bank_name: bn || null, bank_account: ba || null, account_holder: ah || null, updated_at: new Date().toISOString() }, { onConflict: 'farm_id' });
         if (bErr) alert('은행정보 저장 실패: ' + bErr.message);
-      } else {
+      } else if (bankLoaded) {
+        /* 계좌 칸을 일부러 비운 경우만 삭제 — 아직 못 불러왔거나 불러오기에 실패한 상태의 빈 칸은 '계좌 없음'이 아니다
+           (예전엔 창을 열자마자 저장하면 정산 계좌가 지워졌다) */
         await supabase.from('farm_bank_info').delete().eq('farm_id', farmId);
       }
     }
@@ -4391,9 +4433,9 @@ export default function AdminClient() {
               purchase_price: o.purchase_price || (o.purchase_price === 0 && !o.shipping_fee ? (o.supply_price ?? 0) : 0),
               shipping_fee: o.shipping_fee ?? 0,
               stock: o.stock ?? 0, manage_stock: o.manage_stock !== false, parent_label: o.parent_label || '' }));
-          // 중복 옵션 제거(같은 분류·그룹·라벨은 1개만) — 과거 중복 저장 데이터 방어
-          const _seen = new Set<string>();
-          const rows = rawRows.filter(r => { const k = `${(r.parent_label||'').trim()}|${r.group}|${(r.label||'').trim()}`; if (_seen.has(k)) return false; _seen.add(k); return true; });
+          /* 이름이 같은 옵션도 전부 보여준다 — 예전엔 불러올 때 조용히 하나만 남겨, 그대로 저장하면 나머지 옵션(가격·재고)이
+             DB에서 삭제됐다. 이제 겹치면 저장할 때 알려주고 막는다(saveProduct) */
+          const rows = rawRows;
           // 저장된 parent_label(상위 라벨) → 편집용 parent_id 로 연결
           for (const r of rows) {
             const pl = (r.parent_label || '').trim();
@@ -4422,6 +4464,19 @@ export default function AdminClient() {
     if (!pForm.name.trim()) { alert('상품명을 입력하세요.'); return; }
     if (!pForm.price || pForm.price <= 0) { alert('정상가를 입력하세요.'); return; }
     if (!pForm.category?.trim()) { alert('카테고리를 선택하세요.'); return; }
+    /* 옵션 이름 겹침 검사 — 예전엔 같은 (분류·그룹·이름) 옵션을 저장 때 조용히 하나만 남겨 나머지의 가격·재고와
+       DB 옵션(주문 재고복원 연결)이 사라졌다. 저장 전에 막고 알려준다 */
+    {
+      const lbl = new Map(pOptions.map(o => [o.id, o.label?.trim() || '']));
+      const seen = new Map<string, number>();
+      pOptions.filter(o => o.label.trim()).forEach(o => {
+        const pl = o.parent_id ? (lbl.get(o.parent_id) || '') : (o.parent_label?.trim() || '');
+        const k = `${pl}|${o.group?.trim() || '옵션'}|${o.label.trim()}`;
+        seen.set(k, (seen.get(k) || 0) + 1);
+      });
+      const dups = [...seen.entries()].filter(([, n]) => n > 1).map(([k, n]) => { const [pl, , l] = k.split('|'); return `· ${pl ? pl + ' > ' : ''}${l} (${n}개)`; });
+      if (dups.length) { alert(`이름이 같은 옵션이 있어 저장할 수 없습니다.\n겹치지 않게 이름을 바꾸거나 하나를 삭제해 주세요.\n\n${dups.join('\n')}`); return; }
+    }
     /* 옵션 0개 = 단품 (옵션 선택 없이 바로구매). 허용. */
     // pForm 상태 + ref 양쪽 모두 확인 (스테일 클로저 방어)
     const thumbnailUrl = pForm.thumbnail_url?.trim() || uploadedThumbnailRef.current || null;
@@ -6014,7 +6069,8 @@ export default function AdminClient() {
       name: bnForm.name.trim() || null,
       link_url: bnForm.link_url.trim() || '/',
       image_url: bnImgUrl || editingBanner?.image_url || null,
-      image_url_mobile: bnImgUrlMobile || null,
+      /* 카테고리 배너는 모바일 이미지 칸이 숨겨져 있어, 예전에 올린 모바일 이미지가 남아 고객에게 교체 전 이미지가 보였다 */
+      image_url_mobile: bnForm.type === 'cat_promo' ? null : (bnImgUrlMobile || null),
       is_active: bnForm.is_active,
       starts_at: bnForm.starts_at ? new Date(`${bnForm.starts_at}T00:00:00`).toISOString() : null,
       ends_at:   bnForm.ends_at   ? new Date(`${bnForm.ends_at}T23:59:59`).toISOString()   : null,
@@ -6077,7 +6133,14 @@ export default function AdminClient() {
     if (data) {
       const map: Record<string, string> = {};
       data.forEach(row => { map[row.key] = row.value; });
-      setSiteSettings(prev => ({ ...prev, ...map }));
+      /* 입력만 하고 아직 저장 안 한 값(현재 값 ≠ 마지막 기준값)은 덮지 않는다 — 다른 화면을 처음 열 때 설정을 다시 불러오며
+         입력 중이던 값이 조용히 되돌아가던 문제 */
+      const base = { ...settingsLoadedRef.current };
+      setSiteSettings(prev => {
+        const next = { ...prev };
+        Object.entries(map).forEach(([k, v]) => { if (prev[k] === undefined || prev[k] === base[k]) next[k] = v; });
+        return next;
+      });
       settingsLoadedRef.current = { ...settingsLoadedRef.current, ...map };   // 저장 시 '바뀐 값만' 보내기 위한 기준값
     }
   }
@@ -6092,10 +6155,18 @@ export default function AdminClient() {
     const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
     setEarnSaving(false);
     if (error) alert('저장 실패: ' + error.message);
-    else alert('적립 설정이 저장되었습니다.');
+    else { markSettingsSaved(rows); alert('적립 설정이 저장되었습니다.'); }
   }
 
-  async function saveSettings() {
+  /* 다른 저장 버튼으로 저장한 설정도 '저장된 값' 기준을 맞춰 둔다(불러오기 보호·변경 판별이 어긋나지 않게) */
+  function markSettingsSaved(rows: { key: string; value: string }[]) {
+    rows.forEach(r => { settingsLoadedRef.current[r.key] = r.value; });
+  }
+
+  /* 설정 화면 구역별 저장 — 넘겨받은 키만 저장한다.
+     예전엔 모든 설정 중 바뀐 값을 통째로 저장해, 다른 화면(리뷰 적립금·인기 검색어 등)이나 다른 구역에서
+     입력만 하고 저장 안 한 값까지 같이 저장됐다. */
+  async function saveSettings(keys: string[]) {
     setSettingsSaving(true);
     const supabase = createClient();
     /* 메인 큐레이션 키(_mode/_ids/_count)는 각 관리 탭에서 관리 → 여기선 건드리지 않음 */
@@ -6104,7 +6175,9 @@ export default function AdminClient() {
     /* 이 화면에서 실제로 바꾼 값만 저장한다.
        예전엔 불러온 모든 설정을 통째로 다시 써서, 창을 열어 둔 사이 다른 탭이나 자동 작업(배송추적 경보,
        멤버십 재산정 시각)이 바꾼 값이 옛 값으로 되돌아갔다. */
+    const keySet = new Set(keys);
     const upsertRows = Object.entries(siteSettings)
+      .filter(([key]) => keySet.has(key))
       .filter(([key]) => !isCuration(key))
       .filter(([key, value]) => settingsLoadedRef.current[key] !== value)
       .map(([key, value]) => ({ key, value }));
@@ -6121,7 +6194,7 @@ export default function AdminClient() {
     const { error } = await createClient().from('site_settings')
       .upsert({ key: 'popular_keywords', value: siteSettings.popular_keywords || '' }, { onConflict: 'key' });
     if (error) alert('저장 실패: ' + error.message);
-    else alert('인기 검색어가 저장되었습니다.');
+    else { markSettingsSaved([{ key: 'popular_keywords', value: siteSettings.popular_keywords || '' }]); alert('인기 검색어가 저장되었습니다.'); }
   }
 
   /* 관리자 계정 이메일 로드 (설정 패널 진입 시) */
@@ -6147,7 +6220,8 @@ export default function AdminClient() {
   /* ========== 포인트 적립 설정 ========== */
   async function togglePointEnabled(v: boolean) {
     setSiteSettings(prev => ({ ...prev, point_enabled: v ? 'true' : 'false' }));
-    await createClient().from('site_settings').upsert({ key: 'point_enabled', value: v ? 'true' : 'false' }, { onConflict: 'key' });
+    const { error } = await createClient().from('site_settings').upsert({ key: 'point_enabled', value: v ? 'true' : 'false' }, { onConflict: 'key' });
+    if (!error) markSettingsSaved([{ key: 'point_enabled', value: v ? 'true' : 'false' }]);
   }
   /* ========== 멤버십 등급 설정 ========== */
   async function loadMTiers() {
@@ -6189,7 +6263,8 @@ export default function AdminClient() {
   }
   async function saveMembershipToggle(key: string, v: boolean) {
     setSiteSettings(prev => ({ ...prev, [key]: v ? 'true' : 'false' }));
-    await createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' });
+    const { error } = await createClient().from('site_settings').upsert({ key, value: v ? 'true' : 'false' }, { onConflict: 'key' });
+    if (!error) markSettingsSaved([{ key, value: v ? 'true' : 'false' }]);
   }
   async function recalcGradesNow() {
     if (!confirm('전체 회원 등급을 분기 누적 구매(금액·횟수) 기준으로 재산정합니다.\n이번 분기에 관리자가 직접 등급을 바꾼 회원은 제외됩니다(지난 분기 이전 변경분은 다시 자동 산정). 진행할까요?')) return;
@@ -6331,9 +6406,22 @@ export default function AdminClient() {
     const since     = new Date(now - days * 24 * 60 * 60 * 1000).toISOString();
     const prevSince = new Date(now - days * 2 * 24 * 60 * 60 * 1000).toISOString();
 
+    /* '샤인머스캣'·'샤인 머스캣'·'SHINE' 대소문자처럼 띄어쓰기·대소문자만 다른 검색어는 한 줄로 합산.
+       표시는 가장 많이 쓰인 표기, 삭제는 묶인 표기 전부 */
+    const normKey = (s: string) => s.replace(/\s+/g, '').toLowerCase();
+    const groupMap = (rows: { keyword: string }[] | null) => {
+      const g: Record<string, { count: number; forms: Record<string, number> }> = {};
+      (rows || []).forEach(r => {
+        const form = r.keyword.trim(); const k = normKey(form); if (!k) return;
+        const e = g[k] || (g[k] = { count: 0, forms: {} });
+        e.count++; e.forms[form] = (e.forms[form] || 0) + 1;
+      });
+      return g;
+    };
+    const topForm = (forms: Record<string, number>) => Object.entries(forms).sort((a, b) => b[1] - a[1])[0][0];
     const countMap = (rows: { keyword: string }[] | null) => {
       const c: Record<string, number> = {};
-      (rows || []).forEach(r => { const k = r.keyword.trim(); c[k] = (c[k] || 0) + 1; });
+      Object.entries(groupMap(rows)).forEach(([k, e]) => { c[k] = e.count; });
       return c;
     };
 
@@ -6343,24 +6431,25 @@ export default function AdminClient() {
       supabase.from('search_logs').select('keyword').eq('result_count', 0).gte('created_at', since).limit(1000),
     ]);
 
-    const cur  = countMap(curData);
+    const curG = groupMap(curData);
     const prev = countMap(prevData);
 
     setSearchStats(
-      Object.entries(cur)
-        .map(([keyword, count]) => {
-          const prevCount = prev[keyword] || 0;
+      Object.entries(curG)
+        .map(([k, e]) => {
+          const count = e.count;
+          const prevCount = prev[k] || 0;
           const isNew  = prevCount === 0;
           const trend  = isNew ? 100 : Math.round(((count - prevCount) / prevCount) * 100);
-          return { keyword, count, trend, isNew };
+          return { keyword: topForm(e.forms), count, trend, isNew, variants: Object.keys(e.forms) };
         })
         .sort((a, b) => b.count - a.count)
         .slice(0, 20)
     );
 
     setNoResultStats(
-      Object.entries(countMap(emptyData))
-        .map(([keyword, count]) => ({ keyword, count }))
+      Object.entries(groupMap(emptyData))
+        .map(([, e]) => ({ keyword: topForm(e.forms), count: e.count, variants: Object.keys(e.forms) }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20)
     );
@@ -6369,9 +6458,11 @@ export default function AdminClient() {
   }
 
   async function deleteSearchKeyword(keyword: string) {
-    if (!confirm(`"${keyword}" 검색어 로그를 모두 삭제하시겠습니까?`)) return;
+    /* 띄어쓰기·대소문자만 다른 표기까지 함께 삭제(통계에서 한 줄로 합쳐 보이므로) */
+    const variants = [...new Set([keyword, ...(searchStats.find(s => s.keyword === keyword)?.variants || []), ...(noResultStats.find(s => s.keyword === keyword)?.variants || [])])];
+    if (!confirm(`"${keyword}" 검색어 로그를 모두 삭제하시겠습니까?${variants.length > 1 ? `\n(함께 삭제: ${variants.filter(v => v !== keyword).join(', ')})` : ''}`)) return;
     const supabase = createClient();
-    const { error } = await supabase.from('search_logs').delete().eq('keyword', keyword);
+    const { error } = await supabase.from('search_logs').delete().in('keyword', variants);
     if (error) { alert('삭제 실패: ' + error.message); return; }
     setSearchStats(prev => prev.filter(s => s.keyword !== keyword));
     setNoResultStats(prev => prev.filter(s => s.keyword !== keyword));   // '결과없음' 탭도 같이 정리(새로고침 전까지 남아 있던 문제)
@@ -6635,8 +6726,11 @@ export default function AdminClient() {
   }
 
   /* ========== 주문 상태 변경 ========== */
-  async function updateOrderStatus(orderId: string, newStatus: string) {
-    if (refundBusyRef.current) return;   // 처리 중이면 중복 클릭 무시(일괄취소는 await 순차라 영향 없음)
+  /* bulk: 일괄 판매자 직접취소용 — 건마다 확인·알림창을 띄우지 않고 결과를 모은다.
+     카드 취소 실패는 확인창 대신 건너뛰고 사유를 기록(개별 처리에서 '상태만 기록'을 고를 수 있게) */
+  type BulkCancelReport = { fails: Map<string, string>; coupon: number; refundPoint: number; refundCnt: number; claw: number; clawCnt: number };
+  async function updateOrderStatus(orderId: string, newStatus: string, bulk?: BulkCancelReport) {
+    if (refundBusyRef.current) { if (bulk) bulk.fails.set(orderId, '다른 처리가 진행 중이라 건너뜀'); return; }   // 처리 중이면 중복 클릭 무시(일괄취소는 await 순차라 영향 없음)
     refundBusyRef.current = true;
     setUpdatingStatus(orderId);
     try {
@@ -6656,6 +6750,11 @@ export default function AdminClient() {
           body: JSON.stringify({ paymentId: pid, reason: newStatus === 'cancelled' ? '관리자 주문취소' : '관리자 환불' }),
         });
         const j = await res.json().catch(() => ({}));
+        if (!res.ok && bulk) {
+          const reason = String(j.error || (j.detail && (j.detail.message || j.detail.type)) || `카드 취소 실패(${res.status})`).replace(/\s+/g, ' ').slice(0, 60);
+          bulk.fails.set(orderId, reason);
+          setUpdatingStatus(null); return;
+        }
         if (!res.ok) {
           /* 카드취소 실패 — 이미 PG(카카오·이니시스) 어드민에서 직접 취소한 경우 등.
              이땐 카드취소 없이 사이트 상태만 기록할 수 있게 선택지를 준다. */
@@ -6708,6 +6807,7 @@ export default function AdminClient() {
       return;
     }
     if (!error && vbankEarned > 0) alert(`입금확인 처리: 구매 적립 ${vbankEarned.toLocaleString()}P 지급`);
+    if (error && bulk) bulk.fails.set(orderId, `상태 변경 실패: ${error.message}`.slice(0, 60));
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: newStatus } : s);
@@ -6729,7 +6829,11 @@ export default function AdminClient() {
             body: JSON.stringify({ orderId }),
           });
           const rj = await rr.json().catch(() => ({}));
-          if (rj?.restored) {
+          if (rj?.restored && bulk) {
+            if (rj.refundedPoint > 0) { bulk.refundPoint += rj.refundedPoint; bulk.refundCnt++; }
+            if (rj.clawback > 0) { bulk.claw += rj.clawback; bulk.clawCnt++; }
+            if (rj.couponRestored) bulk.coupon++;
+          } else if (rj?.restored) {
             const parts: string[] = [];
             if (rj.refundedPoint > 0) parts.push(`포인트 ${rj.refundedPoint.toLocaleString()}P 환급`);
             if (rj.clawback > 0) parts.push(`적립 ${rj.clawback.toLocaleString()}P 회수`);
@@ -7050,18 +7154,28 @@ export default function AdminClient() {
      끝나고 실제 상태를 다시 읽어, 카드취소 실패·중단으로 처리되지 않은 주문번호를 모아 알려준다. */
   async function doBulkCancel(ids: string[]) {
     if (ids.length === 0) return;
-    for (const id of ids) { await updateOrderStatus(id, 'cancelled'); }
+    const report: BulkCancelReport = { fails: new Map(), coupon: 0, refundPoint: 0, refundCnt: 0, claw: 0, clawCnt: 0 };
+    for (const id of ids) { await updateOrderStatus(id, 'cancelled', report); }
     const supabase = createClient();
-    const { data: after } = await supabase.from('orders').select('order_no, status').in('id', ids);
-    const rows = (after || []) as { order_no: string; status: string }[];
+    const { data: after } = await supabase.from('orders').select('id, order_no, status').in('id', ids);
+    const rows = (after || []) as { id: string; order_no: string; status: string }[];
     const failed = rows.filter(o => o.status !== 'cancelled');
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`판매자 직접취소: ${ids.length - failed.length}건 처리 완료`
-      + (failed.length > 0
-        ? `\n\n아래 ${failed.length}건은 처리되지 않았습니다(카드 취소 실패·중단 등). 주문 상세에서 개별 확인하세요.\n`
-          + failed.map(o => `· ${o.order_no} (${STATUS_LABEL[o.status] || o.status})`).join('\n')
-        : ''));
+    const done = ids.length - failed.length;
+    const lines: string[] = [failed.length ? `판매자 직접취소 완료: ${done}건 / 처리 못 함: ${failed.length}건` : `판매자 직접취소 완료: ${done}건`];
+    const restore: string[] = [];
+    if (report.coupon) restore.push(`· 쿠폰 복원 ${report.coupon}건`);
+    if (report.refundPoint) restore.push(`· 사용 포인트 환급 ${report.refundPoint.toLocaleString()}P (${report.refundCnt}건)`);
+    if (report.claw) restore.push(`· 구매 적립 회수 ${report.claw.toLocaleString()}P (${report.clawCnt}건)`);
+    if (restore.length) lines.push('', ...restore);
+    if (done > 0) lines.push('고객 취소 안내 알림톡이 발송되었습니다.');
+    if (failed.length) {
+      lines.push('', `⚠️ 아래 ${failed.length}건은 카드 취소에 실패해 아무것도 바꾸지 않았습니다.`, '주문 상세에서 하나씩 확인해 주세요.',
+        "(PG 관리자 화면에서 이미 직접 취소했다면, 상세에서 '상태만 기록'을 선택하면 됩니다)");
+      failed.forEach(o => lines.push(`· ${o.order_no} — ${report.fails.get(o.id) || `처리되지 않음 (현재 ${STATUS_LABEL[o.status] || o.status})`}`));
+    }
+    alert(lines.join('\n'));
   }
 
   /* 엑셀 일괄 발송처리 — 주문서(배송용) 양식(주문번호·택배사·운송장번호)을 올려 여러 건 송장+배송중 일괄 등록 */
@@ -7291,14 +7405,15 @@ export default function AdminClient() {
       const { date: _d, ...rest0 } = loungeForm; void _d;
       const rest = { ...rest0, badge_color: badgeColor };
       const { error } = await supabase.from('lounge_posts').update(rest).eq('id', editingLounge.id);
-      if (!error) setLoungePosts(prev => prev.map(p => p.id === editingLounge.id ? { ...p, ...rest } : p));
-      else alert('수정 실패: ' + error.message);
+      /* 실패하면 창을 닫지 않는다 — 예전엔 알림 후 창이 닫혀 작성한 내용이 사라졌다 */
+      if (error) { alert('수정 실패: ' + error.message + '\n작성한 내용은 그대로 있으니 다시 저장해 주세요.'); setLoungeSaving(false); return; }
+      setLoungePosts(prev => prev.map(p => p.id === editingLounge.id ? { ...p, ...rest } : p));
     } else {
       /* 등록 시점을 작성일로 자동 설정 */
       const payload = { ...loungeForm, badge_color: badgeColor, date: new Date().toISOString() };
       const { data, error } = await supabase.from('lounge_posts').insert(payload).select().single();
-      if (!error && data) setLoungePosts(prev => [data, ...prev]);
-      else alert('등록 실패: ' + (error?.message || ''));
+      if (error || !data) { alert('등록 실패: ' + (error?.message || '') + '\n작성한 내용은 그대로 있으니 다시 저장해 주세요.'); setLoungeSaving(false); return; }
+      setLoungePosts(prev => [data, ...prev]);
     }
     setLoungeSaving(false);
     setLoungeModal(false);
@@ -7343,6 +7458,7 @@ export default function AdminClient() {
     const value = JSON.stringify(list);
     const { error } = await supabase.from('site_settings').upsert({ key: 'inquiry_reply_templates', value }, { onConflict: 'key' });
     if (error) { alert('저장 실패: ' + error.message); return false; }
+    markSettingsSaved([{ key: 'inquiry_reply_templates', value }]);
     setSiteSettings(prev => ({ ...prev, inquiry_reply_templates: value }));
     return true;
   }
@@ -8214,6 +8330,10 @@ export default function AdminClient() {
 
   /* 1:1 문의 탭별 필터 */
   const csPending  = csItems.filter(c => c.status === 'pending');
+  const navCsCount      = loadedPanels.current.has('cs') ? csPending.length : dashExtra.unansweredCs;
+  const navProdInqCount = loadedPanels.current.has('productinquiry') ? productInquiries.filter(q => !q.answer).length : dashExtra.unansweredProdInq;
+  const navRefundCount  = (loadedPanels.current.has('refund') || loadedPanels.current.has('orders')) ? refundReqs.filter(r => r.status === 'pending').length : dashExtra.cancelReq;
+  const navFarmInqCount = loadedPanels.current.has('inquiry') ? pendingInquiries.length : dashExtra.unansweredFarmInq;
   const csAnswered = csItems.filter(c => c.status === 'answered');
   const csTabBase  = csAdminTab === 'tab-pending' ? csPending : csAdminTab === 'tab-answered' ? csAnswered : csItems;
   const csTabList  = csTabBase.filter(c => {
@@ -10080,23 +10200,24 @@ export default function AdminClient() {
             <div style={{ marginBottom:6 }}>
               <NavItem panel="dashboard" icon={<Icon.Dashboard />} label="대시보드" />
             </div>
-            <NavGroup label="운영" badge={orders.filter(o => o.status === 'paid').length || undefined}>
-              <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" badge={orders.filter(o => o.status === 'paid').length || undefined} />
+            <NavGroup label="운영" badge={stageCounts.paid || undefined}>
+              <NavItem panel="orders"   icon={<Icon.Orders />}   label="주문 관리" badge={stageCounts.paid || undefined} />
               <NavItem panel="products" icon={<Icon.Products />} label="상품 관리" />
               <NavItem panel="menu" icon={<Icon.Products />} label="메뉴 관리" />
               <NavItem panel="homesections" icon={<Icon.Banner />} label="메인페이지 섹션관리" />
               <NavItem panel="farms"    icon={<Icon.Farms />}    label="브랜드 관리" />
               <NavItem panel="reviews"  icon={<Icon.Reviews />}  label="리뷰 관리" />
             </NavGroup>
-            <NavGroup label="고객지원" badge={(csPending.length + productInquiries.filter(q => !q.answer).length + refundReqs.filter(r => r.status === 'pending').length + pendingInquiries.length) || undefined}>
+            {/* 뱃지: 그 화면을 열어 목록을 불러왔으면 목록 기준(처리하면 바로 줄어듦), 아니면 대시보드가 DB에서 센 값 */}
+            <NavGroup label="고객지원" badge={(navCsCount + navProdInqCount + navRefundCount + navFarmInqCount) || undefined}>
               <NavItem panel="cs"  icon={<Icon.Cs />}  label="1:1 문의"
-                badge={csPending.length || undefined} />
+                badge={navCsCount || undefined} />
               <NavItem panel="productinquiry" icon={<Icon.Faq />} label="상품 문의"
-                badge={productInquiries.filter(q => !q.answer).length || undefined} />
+                badge={navProdInqCount || undefined} />
               <NavItem panel="refund" icon={<Icon.Settlement />} label="취소·환불 관리"
-                badge={refundReqs.filter(r => r.status === 'pending').length || undefined} />
+                badge={navRefundCount || undefined} />
               <NavItem panel="inquiry" icon={<Icon.Inquiry />} label="입점 협업문의"
-                badge={pendingInquiries.length || undefined} />
+                badge={navFarmInqCount || undefined} />
               <NavItem panel="faq" icon={<Icon.Faq />} label="FAQ 관리" />
             </NavGroup>
             <NavGroup label="회원">
@@ -10149,9 +10270,15 @@ export default function AdminClient() {
               stageCounts.preparing > 0 && { icon:'📦', label:'금일 발송 대기', count: stageCounts.preparing, onClick: () => { pendingOrderStatus.current='preparing'; setOrderStatusFilter('preparing'); setOrderPage(1); go('orders'); } },
               dashExtra.shipDelay > 0 && { icon:'🚨', label:'발송 지연(2일+)', count: dashExtra.shipDelay, onClick: () => { pendingOrderStatus.current='preparing'; setOrderStatusFilter('preparing'); setOrderPage(1); go('orders'); } },
               dashExtra.cancelReq > 0 && { icon:'↩️', label:'취소·환불 요청', count: dashExtra.cancelReq, onClick: () => { pendingRefundStatus.current='pending'; setRefundStatusFilter('pending'); go('refund'); } },
-              dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current='pending'; setRefundStatusFilter('pending'); go('refund'); } },
+              dashExtra.refundDelay > 0 && { icon:'⏰', label:'환불 지연(2일+, 보류·진행중 포함)', count: dashExtra.refundDelay, onClick: () => { pendingRefundStatus.current=''; setRefundStatusFilter(''); go('refund'); } },
               dashExtra.lowStock > 0 && { icon:'📉', label:'품절·재고 임박', count: dashExtra.lowStock, onClick: () => { setProductStatusFilter('lowstock'); go('products'); } },
-              dashExtra.settleDue > 0 && { icon:'💸', label:'브랜드 정산 미완료', count: dashExtra.settleDue, onClick: () => { if (dashExtra.settleDuePeriod) pendingFarmSettle.current = dashExtra.settleDuePeriod; go('farmsettle'); } },
+              dashExtra.settleDue > 0 && { icon:'💸', label:'브랜드 정산 미완료', count: dashExtra.settleDue, onClick: () => {
+                /* 브랜드 정산 화면을 이미 열어본 적 있으면 go()가 다시 불러오지 않으므로 여기서 바로 회차·필터 적용(예전엔 첫 방문만 이동됨) */
+                const pf = dashExtra.settleDuePeriod;
+                if (pf && loadedPanels.current.has('farmsettle')) { setFarmSettleMonth(pf.month); setFarmSettleHalf(pf.half); setFarmSettleStatus('unpaid'); loadFarmSettlement(pf.month, pf.half); }
+                else if (pf) pendingFarmSettle.current = pf;
+                go('farmsettle');
+              } },
               dashExtra.unansweredCs > 0 && { icon:'💬', label:'미답변 1:1 문의', count: dashExtra.unansweredCs, onClick: () => { setCsAdminTab('tab-pending'); go('cs'); } },
               dashExtra.unansweredProdInq > 0 && { icon:'❓', label:'미답변 상품문의', count: dashExtra.unansweredProdInq, onClick: () => go('productinquiry') },
               dashExtra.trackerAlert && { icon:'🚚', label:'배송추적 연동 만료 — 갱신 필요', count: 1, onClick: () => go('orders') },
@@ -10171,7 +10298,7 @@ export default function AdminClient() {
                         최근 {String(dashRefreshedAt.getHours()).padStart(2,'0')}:{String(dashRefreshedAt.getMinutes()).padStart(2,'0')}
                       </span>
                     )}
-                    <button className="adm-btn adm-btn-outline" onClick={() => { setStatsLoading(true); loadDashboard(); }}>
+                    <button className="adm-btn adm-btn-outline" onClick={() => { setStatsLoading(true); loadDashboard(); loadSalesPerf(perfRange); }}>
                       <span className="adm-btn-icon"><Icon.Refresh /></span>새로고침
                     </button>
                   </div>
@@ -10217,7 +10344,7 @@ export default function AdminClient() {
                   <div className="adm-card-head"><span className="adm-card-title">판매 지연</span></div>
                   <div className="adm-pending-list">
                     <div className="adm-pending-row" onClick={() => { pendingOrderStatus.current = 'preparing'; go('orders'); }}><span>발송 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num red">{dashExtra.shipDelay}</span></div>
-                    <div className="adm-pending-row" onClick={() => { pendingRefundStatus.current = 'pending'; go('refund'); }}><span>환불 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
+                    <div className="adm-pending-row" onClick={() => { pendingRefundStatus.current = ''; go('refund'); }}><span>환불 지연 <span className="adm-muted" style={{ fontSize:11 }}>(2일+ · 보류·진행중 포함)</span></span><span className="adm-pending-num orange">{dashExtra.refundDelay}</span></div>
                   </div>
                 </div>
               </div>
@@ -10375,8 +10502,9 @@ export default function AdminClient() {
                     <div className="adm-card-head"><span className="adm-card-title">처리 대기</span></div>
                     <div className="adm-pending-list">
                       {[
-                        { label:'신규 주문', num: orders.filter(o=>o.status==='paid').length, cls:'red', panel:'orders' as PanelKey },
-                        { label:'답변대기 문의', num: pendingInquiries.length, cls:'orange', panel:'inquiry' as PanelKey },
+                        /* 주문·입점문의 화면을 열기 전에는 목록이 비어 0으로 보이던 문제 → 대시보드가 DB에서 직접 센 값 사용 */
+                        { label:'신규 주문', num: stageCounts.paid, cls:'red', panel:'orders' as PanelKey },
+                        { label:'답변대기 문의', num: loadedPanels.current.has('inquiry') ? pendingInquiries.length : dashExtra.unansweredFarmInq, cls:'orange', panel:'inquiry' as PanelKey },
                       ].map(r => (
                         <div key={r.label} className="adm-pending-row" onClick={() => go(r.panel)}>
                           <span>{r.label}</span>
@@ -12816,7 +12944,8 @@ export default function AdminClient() {
               </div>
 
               {/* ── 델리오 픽 (퀵 가이드 위) ── */}
-              <SectionCuration sec="pick" items={products.filter(p => p.is_active).map(p => ({ id: p.id, label: p.name, sub: `${fmtPrice(p.discounted_price || p.price)}원` }))} />
+              <SectionCuration sec="pick" items={products.filter(p => p.is_active).map(p => ({ id: p.id, label: p.name, sub: `${fmtPrice(p.discounted_price || p.price)}원` }))}
+                hiddenLabels={Object.fromEntries(products.filter(p => !p.is_active).map(p => [p.id, `${p.name} (판매중지)`]))} />
 
               {/* ── 퀵 가이드 (제목 + 지정 상품) ── */}
               <div className="adm-card" style={{ marginBottom:16, padding:'16px 18px' }}>
@@ -12931,9 +13060,11 @@ export default function AdminClient() {
                 </>)}
               </div>
 
-              <SectionCuration sec="brand" items={farms.filter(f => !f.deleted_at).map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))} />
+              <SectionCuration sec="brand" items={farms.filter(f => !f.deleted_at).map(f => ({ id: f.id, label: f.name, sub: f.region || f.farm_type || '' }))}
+                hiddenLabels={Object.fromEntries(farms.filter(f => f.deleted_at).map(f => [f.id, `${f.name} (삭제됨)`]))} />
               <SectionCuration sec="reviewhl" items={reviews.filter(r => r.image_urls && r.image_urls.length > 0).map(r => ({ id: r.id, label: (r.content || '(내용 없음)').slice(0, 30), sub: `★${r.rating} · ${r.products?.name || ''}` }))} />
-              <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))} />
+              <SectionCuration sec="lounge" items={loungePosts.filter(l => l.is_active).map(l => ({ id: String(l.id), label: l.title, sub: l.filter }))}
+                hiddenLabels={Object.fromEntries(loungePosts.filter(l => !l.is_active).map(l => [String(l.id), `${l.title} (비공개)`]))} />
             </div>
           )}
 
@@ -15564,7 +15695,7 @@ export default function AdminClient() {
                     ))}
                     <div className="adm-muted" style={{ fontSize:11 }}>* 빈 칸은 푸터 기본값으로 표시됩니다. 저장 후 반영됩니다.</div>
                     <div style={{ display:'flex', justifyContent:'flex-start', marginTop:16 }}>
-                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '사이트 정보 저장'}</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => saveSettings(['biz_name', 'biz_ceo', 'biz_no', 'biz_mail_order', 'cs_phone', 'cs_email', 'biz_addr'])} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '사이트 정보 저장'}</button>
                     </div>
                   </div>
                   {/* 푸터 미리보기 — PC / 모바일 위아래 */}
@@ -15612,7 +15743,7 @@ export default function AdminClient() {
                     </div>
                     <div className="adm-muted" style={{ fontSize:11, marginTop:12 }}>* 켜진 수단만 주문서에 노출됩니다. 네이버페이 등 PG 미승인 수단은 켜도 결제 실패할 수 있습니다.</div>
                     <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
-                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '결제수단 저장'}</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => saveSettings(['pay_card', 'pay_kakao', 'pay_naver', 'pay_vbank'])} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '결제수단 저장'}</button>
                     </div>
                   </div>
                 </div>
@@ -15685,7 +15816,7 @@ export default function AdminClient() {
                     </div>
                     <div className="adm-muted" style={{ fontSize:11 }}>* 기본 배송비를 <b>0으로 두면 무료배송</b>입니다. (현재 전 상품 무료배송)</div>
                     <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
-                      <button className="adm-btn adm-btn-primary" onClick={saveSettings} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '표시·배송 저장'}</button>
+                      <button className="adm-btn adm-btn-primary" onClick={() => saveSettings(['dispatch_cutoff', 'ship_fee', 'free_ship_min', 'jeju_extra', 'low_stock_threshold', 'show_shipping_tab'])} disabled={settingsSaving}>{settingsSaving ? '저장 중...' : '표시·배송 저장'}</button>
                     </div>
                   </div>
                 </div>
@@ -16668,7 +16799,7 @@ export default function AdminClient() {
 
       {/* ===== 라운지 등록/수정 모달 ===== */}
       {loungeModal && (
-        <div className="adm-modal-bg open" onClick={() => setLoungeModal(false)}>
+        <div className="adm-modal-bg open" onClick={() => { if ((loungeForm.title.trim() || String(loungeForm.content || '').trim()) && !confirm('작성 중인 내용이 사라집니다. 창을 닫을까요?')) return; setLoungeModal(false); }}>
           <div className="adm-modal" style={{ maxWidth:560, width:'95vw', maxHeight:'92vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
             <div className="adm-modal-head">

@@ -24,13 +24,16 @@ export async function cancelScheduledSms(
   if (!process.env.SOLAPI_API_KEY || !process.env.SOLAPI_API_SECRET) return { ok: false, error: 'SMS 서비스 미설정' };
 
   const { data: log } = await admin.from('sms_logs')
-    .select('id, status, scheduled_at, target_count, created_at').eq('id', logId).maybeSingle();
+    .select('id, status, scheduled_at, target_count, created_at, solapi_group_id').eq('id', logId).maybeSingle();
   if (!log) return { ok: false, error: '발송 이력을 찾을 수 없습니다.' };
   if (log.status !== 'reserved' || !log.scheduled_at) return { ok: false, error: '예약 발송 건이 아닙니다.' };
   const schedMs = new Date(log.scheduled_at).getTime();
   if (schedMs <= Date.now()) return { ok: false, error: '예약 시각이 이미 지나 발송된 건입니다.' };
 
-  /* 이력 접수시각 ±5분 안에 생성된 솔라피 그룹 조회 (알림톡 등 다른 그룹이 많아 페이지 넘김) */
+  /* 발송 때 저장한 솔라피 그룹 ID가 있으면 그걸로 바로 취소 */
+  let groupId = (log as { solapi_group_id?: string | null }).solapi_group_id || '';
+  if (!groupId) {
+  /* (옛 이력) 접수시각 ±5분 안에 생성된 솔라피 그룹 조회 (알림톡 등 다른 그룹이 많아 페이지 넘김) */
   const created = new Date(log.created_at).getTime();
   const startDate = new Date(created - 5 * 60000).toISOString();
   const endDate = new Date(created + 5 * 60000).toISOString();
@@ -57,7 +60,8 @@ export async function cancelScheduledSms(
     return { ok: false, error: '같은 시각에 예약된 발송이 여러 건이라 자동으로 구분할 수 없습니다. 솔라피 사이트에서 직접 취소해 주세요.' };
   }
 
-  const groupId = cands[0].groupId || cands[0]._id || '';
+  groupId = cands[0].groupId || cands[0]._id || '';
+  }
   const r = await fetch(`https://api.solapi.com/messages/v4/groups/${groupId}/schedule`, {
     method: 'DELETE', headers: { Authorization: solapiAuth() },
   });
@@ -66,6 +70,7 @@ export async function cancelScheduledSms(
     return { ok: false, error: `예약 취소 실패: ${j?.errorMessage || r.status}` };
   }
 
-  await admin.from('sms_logs').update({ status: 'cancelled', cost: 0 }).eq('id', logId);
+  const { error: upErr } = await admin.from('sms_logs').update({ status: 'cancelled', cost: 0 }).eq('id', logId);
+  if (upErr) return { ok: false, groupId, error: `솔라피 예약은 취소됐지만 발송 이력 갱신에 실패했습니다: ${upErr.message}` };
   return { ok: true, groupId };
 }

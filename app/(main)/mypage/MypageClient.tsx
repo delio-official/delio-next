@@ -754,7 +754,7 @@ export default function MypageClient() {
 
       // 관심상품 미리보기용 위시리스트 프리로드 (모바일 메뉴 하단)
       const { data: wishData } = await supabase.from('wishlist')
-        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock))')
+        .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock,manage_stock))')
         .eq('user_id', user!.id).limit(20);
       /* 판매중지 상품은 고객에게 조회되지 않아 products 가 비어 옴 → 숨김 삭제 상품과 함께 제외 */
       setWishlist(((wishData as unknown as WishItem[]) || []).filter(w => w.products && !(w.products as { deleted_at?: string | null }).deleted_at).map(w => ({
@@ -1079,7 +1079,7 @@ export default function MypageClient() {
       const supabase = createClient();
       const [{ data }, { data: farmData }] = await Promise.all([
         supabase.from('wishlist')
-          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock))')
+          .select('id, products(id,name,price,discounted_price,discount_rate,thumbnail_url,category,badge,is_dawn,is_new,is_best,avg_rating,review_count,short_desc,deleted_at,product_options(stock,manage_stock))')
           .eq('user_id', user!.id).limit(40),
         supabase.from('farm_wishlist')
           .select('id, farms(id,slug,name,region,farm_type,items,intro,thumbnail_url,hero_image_url,logo_url,deleted_at)')

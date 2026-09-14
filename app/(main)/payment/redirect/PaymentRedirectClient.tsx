@@ -25,6 +25,15 @@ export default function PaymentRedirectClient() {
 
     // 결제 실패·취소
     if (code) {
+      /* 결제 실패 알림톡 — PC(CheckoutClient)와 같은 기준(단순 사용자 취소는 제외).
+         모바일은 결제창에서 이 페이지로 돌아오므로 번호·금액이 없다 → 서버가 결제 준비 데이터(paymentId)로 본인 확인 후 채워 발송 */
+      const isCancel = !message || /취소|cancel/i.test(message);
+      if (!isCancel && paymentId) {
+        fetch('/api/notify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+          body: JSON.stringify({ type: 'payment_failed', paymentId, reason: message }),
+        }).catch(() => {});
+      }
       alert(message || '결제가 취소되었습니다.');
       router.replace('/checkout');
       return;

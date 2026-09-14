@@ -29,7 +29,18 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: '잘못된 요청' }, { status: 400 });
-  const { type, phone, ...params } = body as { type: AlimtalkKind; phone: string; [key: string]: string };
+  const { type, phone: rawPhone, paymentId, ...params } = body as { type: AlimtalkKind; phone?: string; paymentId?: string; [key: string]: string | undefined };
+  let phone = rawPhone || '';
+  /* 모바일 결제 실패: 복귀 페이지엔 번호·금액이 없어 paymentId 만 온다 → 결제 준비 데이터에서 본인 것인지 확인 후 채움 */
+  if (type === 'payment_failed' && !phone && paymentId) {
+    const { data: pp } = await createAdminSupabaseClient().from('pending_payments')
+      .select('data').eq('payment_id', String(paymentId)).maybeSingle();
+    const d = (pp as { data?: { userId?: string; ordererPhone?: string; phone?: string; ordererName?: string; recipient?: string; totalAmount?: number; couponDiscount?: number; pointUsed?: number } } | null)?.data;
+    if (!d || d.userId !== user.id) return NextResponse.json({ error: '본인 결제가 아닙니다.' }, { status: 403 });
+    phone = d.ordererPhone || d.phone || '';
+    if (!params.recipient) params.recipient = d.ordererName || d.recipient || '';
+    if (!params.amount) params.amount = `${Math.max(0, (d.totalAmount || 0) - (d.couponDiscount || 0) - (d.pointUsed || 0)).toLocaleString('ko-KR')}원`;
+  }
   if (!type || !phone) {
     return NextResponse.json({ error: 'type, phone 필수' }, { status: 400 });
   }

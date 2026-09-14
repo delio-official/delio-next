@@ -454,7 +454,7 @@ function QuickGuide() {
     (async () => {
       setLoading(true);
       const supabase = createClient();
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock)';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,thumbnail_url,category,short_desc,avg_rating,review_count,product_options(stock,manage_stock)';
       const { data } = await supabase.from('products').select(cols).eq('is_active', true).in('id', pids);
       if (!cancelled) {
         const mapped = ((data as unknown as Record<string, unknown>[]) || []).map(withSoldout) as unknown as QGProduct[];
@@ -759,7 +759,7 @@ export default function HomeClient() {
       const supabase = createClient();
       const cfg = await fetchSectionConfig(supabase, 'pick');
       if (cfg.count === 0) { setPickProds([]); setPickLoaded(true); return; }
-      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,avg_rating,review_count,short_desc,thumbnail_url,category,product_options(stock)';
+      const cols = 'id,name,price,discounted_price,discount_rate,brix,is_dawn,is_new,is_best,badge,badge_color,avg_rating,review_count,short_desc,thumbnail_url,category,product_options(stock,manage_stock)';
 
       let rows: PickProduct[] = [];
       if (cfg.mode === 'manual' && cfg.ids.length > 0) {
@@ -898,13 +898,13 @@ export default function HomeClient() {
       }
       if (!farmsData || farmsData.length === 0) { setBrandCards([]); setBrandLoaded(true); return; }
       const { data: prods } = await supabase.from('products')
-        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order, thumbnail_url, product_options(stock)')
+        .select('id, name, price, discount_rate, discounted_price, category, farm_id, sort_order, thumbnail_url, product_options(stock,manage_stock)')
         .in('farm_id', farmsData.map(f => f.id))
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
       const EMOJI: Record<string, string> = { apple:'🍎', citrus:'🍊', berry:'🫐', melon:'🍈', kiwi:'🥝', mango:'🥭', grape:'🍇', gift:'🎁' };
       const SUF: Record<string, string> = { apple:'apple', citrus:'citrus', grape:'grape', berry:'berry', kiwi:'berry', melon:'citrus', mango:'citrus', gift:'citrus' };
-      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null; thumbnail_url: string | null; product_options?: { stock: number }[] | null };
+      type PRow = { id: string; name: string; price: number; discount_rate: number | null; discounted_price: number | null; category: string; farm_id: string | null; thumbnail_url: string | null; product_options?: { stock: number; manage_stock?: boolean | null }[] | null };
       const byFarm: Record<string, PRow> = {};
       ((prods || []) as PRow[]).forEach(p => { if (p.farm_id && !byFarm[p.farm_id]) byFarm[p.farm_id] = p; });
       const cards = farmsData
