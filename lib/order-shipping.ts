@@ -84,6 +84,7 @@ export async function applyTrackingStatusByItems(
       .from('orders')
       .update({
         status: agg,
+        ...(agg === 'shipped' ? { shipped_at: new Date().toISOString() } : {}),
         ...(agg === 'delivered' ? { delivered_at: new Date().toISOString() } : {}),
       })
       .eq('id', oid);

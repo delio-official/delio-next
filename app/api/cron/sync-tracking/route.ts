@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     if ((ORDER_STATUS_RANK[o.status] ?? 0) >= newRank) continue; // 역행/동급 방지
 
     await admin.from('orders')
-      .update({ status: mapped, ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+      .update({ status: mapped, ...(mapped === 'shipped' ? { shipped_at: new Date().toISOString() } : {}), ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
       .eq('id', o.id);
     advanced++;
 

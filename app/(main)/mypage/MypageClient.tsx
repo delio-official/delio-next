@@ -396,7 +396,9 @@ export default function MypageClient() {
           if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
           setReqModal(null); setReqReason(''); setReqDetail(''); setReqFiles([]);
           await loadMyRefundReqs();
-          alert('이미 상품 준비가 시작돼 즉시취소가 어려워, 취소 신청으로 접수했습니다. 관리자 확인 후 처리됩니다.');
+          alert(j?.bankRefund
+            ? '무통장 입금 주문은 입금하신 계좌로 환불해 드려야 해서 취소 신청으로 접수했습니다. 관리자 확인 후 환불해 드립니다.'
+            : '이미 상품 준비가 시작돼 즉시취소가 어려워, 취소 신청으로 접수했습니다. 관리자 확인 후 처리됩니다.');
           return;
         }
         setReqSubmitting(false);
@@ -2627,7 +2629,8 @@ export default function MypageClient() {
                             if (o.status === 'paid' || o.status === 'preparing') {
                               btns.push(askBtn);
                               if (active) btns.push({ key:'reqst', label:`${active.type === 'cancel' ? '취소' : '환불'} 신청 ${active.status === 'processing' ? '처리중' : '접수'}`, muted:true });
-                              else if (o.status === 'paid') btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel', instant:true }); setReqReason(''); setReqDetail(''); } });
+                              /* 입금된 무통장 주문은 계좌 환불이 필요해 즉시취소 대신 취소 신청 */
+                              else if (o.status === 'paid' && !(o.payment_method === 'vbank' && (o.final_amount || 0) > 0)) btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel', instant:true }); setReqReason(''); setReqDetail(''); } });
                               else btns.push({ key:'cancel', label:'주문취소', onClick: () => { setReqModal({ order:o, type:'cancel' }); setReqReason(''); setReqDetail(''); } });
                             } else if (o.status === 'shipped') {
                               if (trackBtn) btns.push(trackBtn);
@@ -4593,7 +4596,9 @@ export default function MypageClient() {
             <p style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
               {reqModal.instant
                 ? '취소 즉시 결제·쿠폰·포인트가 복원됩니다. (이미 상품 준비가 시작된 경우 취소 신청으로 접수되어 관리자 확인 후 처리돼요.)'
-                : '신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.'}
+                : reqModal.order.payment_method === 'vbank'
+                  ? '무통장 입금 주문은 관리자 확인 후 계좌로 환불해 드려요. 환불받으실 은행·계좌번호·예금주를 상세 내용에 적어주세요.'
+                  : '신청 후 관리자 확인을 거쳐 처리됩니다. 승인 시 결제 수단으로 자동 환불되며, 진행 상황은 마이페이지에서 확인하실 수 있어요.'}
             </p>
             <button onClick={submitReq} disabled={reqSubmitting || !reqReason || (reqReason === '기타' && !reqDetail.trim())}
               style={{ width:'100%', padding:'14px', background: (reqReason && !(reqReason === '기타' && !reqDetail.trim())) ? 'var(--color-ink)' : '#CCC', color:'#fff',

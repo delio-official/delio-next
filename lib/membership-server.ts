@@ -103,7 +103,7 @@ export async function issueMonthlyPacks(): Promise<{ issued: number }> {
 
   /* 비활성(발급·사용 중지) 쿠폰은 발급하지 않는다 — 예전엔 활성 여부를 보지 않아
      쓸 수 없는 쿠폰이 매월 계속 지급됐다(등급 화면에서도 사라져 뺄 수 없었음). */
-  const { data: cps } = await admin.from('coupons').select('id, code, valid_days, is_active').in('code', codes).eq('is_active', true);
+  const { data: cps } = await admin.from('coupons').select('id, code, valid_days, is_active').in('code', codes).eq('is_active', true).eq('is_membership', true);   // 멤버십 표시를 끈 쿠폰은 등급에 코드가 남아 있어도 발급 안 함
   const codeMap: Record<string, { id: string; valid_days: number | null }> = {};
   (cps || []).forEach((c: { id: string; code: string; valid_days: number | null }) => { codeMap[c.code] = { id: c.id, valid_days: c.valid_days }; });
 

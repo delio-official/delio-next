@@ -63,7 +63,7 @@ async function handle(carrierId: string | null, trackingNumber: string | null) {
     if (['cancelled', 'refunding', 'refunded'].includes(cur)) continue;
     if ((ORDER_STATUS_RANK[cur] ?? 0) >= newRank) continue;
     await supabase.from('orders')
-      .update({ status: mapped, ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
+      .update({ status: mapped, ...(mapped === 'shipped' ? { shipped_at: new Date().toISOString() } : {}), ...(mapped === 'delivered' ? { delivered_at: new Date().toISOString() } : {}) })
       .eq('id', o.id);
     updated = true;
     /* 배송완료 자동 전환 시 배송완료 알림톡 발송 (어드민 수동 처리와 동일) */

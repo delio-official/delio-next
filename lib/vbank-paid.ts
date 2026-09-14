@@ -25,6 +25,7 @@ export async function confirmVbankPaidOrders(
     const { data: ord } = await admin.from('orders')
       .update({
         status, paid_at: nowIso,
+        ...(status === 'shipped' ? { shipped_at: nowIso } : {}),
         ...(status === 'delivered' ? { delivered_at: nowIso } : {}),
         ...(status === 'confirmed' ? { confirmed_at: nowIso } : {}),
       })

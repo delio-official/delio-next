@@ -2679,6 +2679,7 @@ export default function AdminClient() {
   const [couponModal, setCouponModal] = useState(false);
   const [membershipLocked, setMembershipLocked] = useState(false); // 멤버십 추가창: '멤버십 월 발급' 고정
   const [editingCoupon, setEditingCoupon] = useState<AdminCoupon | null>(null);
+  const [redeemCodeLoading, setRedeemCodeLoading] = useState(false);   // 수정창 등록용 코드 불러오는 중 — 저장 막음(빈 값이면 새 코드로 바뀌던 문제)
   const [couponForm, setCouponForm] = useState({ code: '', name: '', description: '', discount_type: 'percent' as 'percent'|'fixed', discount_value: 0, min_order_amount: 0, max_discount_amount: '', starts_at: '', expires_at: '', valid_days: '', is_active: true, is_public: false, signup_grant: false, is_membership: false, allow_point: true, code_redeemable: false, redeem_code: '' });
   const [couponSaving, setCouponSaving] = useState(false);
   /* 쿠폰 지급 */
@@ -4266,19 +4267,23 @@ export default function AdminClient() {
   async function deleteFarm(f: { id: string; name: string; is_own?: boolean | null }) {
     const supabase = createClient();
     if (f.is_own) { alert('자사 브랜드는 삭제할 수 없습니다.'); return; }
-    const [liveRes, anyRes, soldRes] = await Promise.all([
+    /* 판매 이력: 주문 상품줄의 브랜드 칸(order_items.farm_id)은 기록된 적이 없어(전부 빈칸) 쓸 수 없다 →
+       '이 브랜드 상품(숨긴 상품 포함)의 주문' + '정산 기록'으로 판단. 정산 기록이 있으면 완전 삭제 시
+       지급 이력(farm_settlements)이 연결 삭제되므로 반드시 숨김 삭제 */
+    const [liveRes, anyRes, soldRes, settleRes] = await Promise.all([
       supabase.from('products').select('id', { count: 'exact', head: true }).eq('farm_id', f.id).is('deleted_at', null),
       supabase.from('products').select('id', { count: 'exact', head: true }).eq('farm_id', f.id),
-      supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('farm_id', f.id),
+      supabase.from('order_items').select('id, products!inner(farm_id)', { count: 'exact', head: true }).eq('products.farm_id', f.id),
+      supabase.from('farm_settlements').select('id', { count: 'exact', head: true }).eq('farm_id', f.id),
     ]);
-    if (liveRes.error || anyRes.error || soldRes.error) { alert('연결된 상품·주문을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
-    const live = liveRes.count || 0, anyProd = anyRes.count || 0, sold = soldRes.count || 0;
+    if (liveRes.error || anyRes.error || soldRes.error || settleRes.error) { alert('연결된 상품·주문·정산 기록을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+    const live = liveRes.count || 0, anyProd = anyRes.count || 0, sold = soldRes.count || 0, settled = settleRes.count || 0;
     if (live > 0) {
       alert(`'${f.name}' 브랜드에 연결된 상품이 ${live}개 있어 삭제할 수 없습니다.\n\n상품 관리에서 이 브랜드 상품을 먼저 삭제하거나 다른 브랜드로 옮긴 뒤 다시 시도하세요.\n(잠시 판매만 멈추려면 상품을 '판매중지'하면 됩니다)`);
       return;
     }
-    if (sold > 0 || anyProd > 0) {
-      if (!confirm(`'${f.name}' 브랜드를 삭제할까요?\n\n· 판매 이력이 있어 기록 보존을 위해 '숨김 삭제'합니다.\n· 브랜드 관리 목록과 고객 화면(브랜드관 등)에서 사라지고, 지난 주문·정산 기록은 그대로 남습니다.`)) return;
+    if (sold > 0 || anyProd > 0 || settled > 0) {
+      if (!confirm(`'${f.name}' 브랜드를 삭제할까요?\n\n· 판매·정산 이력이 있어 기록 보존을 위해 '숨김 삭제'합니다.\n· 브랜드 관리 목록과 고객 화면(브랜드관 등)에서 사라지고, 지난 주문·정산 기록은 그대로 남습니다.`)) return;
       const now = new Date().toISOString();
       const { error } = await supabase.from('farms').update({ deleted_at: now }).eq('id', f.id);
       if (error) { alert('삭제 실패: ' + error.message); return; }
@@ -5066,11 +5071,17 @@ export default function AdminClient() {
     else if (newStatus === 'processing' && !isCancel) nextOrderStatus = 'refunding';
     else if (req.order_id && (newStatus === 'rejected' || newStatus === 'hold' || isPartial)) {
       const { data: ordRow } = await supabase.from('orders')
-        .select('status, confirmed_at, delivered_at, shipped_at, paid_at').eq('id', req.order_id).maybeSingle();
-      const o = ordRow as { status?: string; confirmed_at?: string | null; delivered_at?: string | null; shipped_at?: string | null; paid_at?: string | null } | null;
+        .select('status, confirmed_at, delivered_at, shipped_at, paid_at, order_items(shipped_at, tracking_number, ship_status)').eq('id', req.order_id).maybeSingle();
+      const o = ordRow as { status?: string; confirmed_at?: string | null; delivered_at?: string | null; shipped_at?: string | null; paid_at?: string | null;
+        order_items?: { shipped_at: string | null; tracking_number: string | null; ship_status: string | null }[] } | null;
       if (o?.status === 'refunding') {
-        // 기록된 시각으로 원래 단계 판단 (구매확정 > 배송완료 > 배송중 > 결제완료)
-        nextOrderStatus = o.confirmed_at ? 'confirmed' : o.delivered_at ? 'delivered' : o.shipped_at ? 'shipped' : 'paid';
+        /* 기록으로 원래 단계 판단 (구매확정 > 배송완료 > 배송중 > 배송준비 > 결제완료).
+           주문의 발송일(orders.shipped_at)은 예전엔 기록되지 않았으므로 상품줄의 발송일·송장·배송상태도 본다
+           (예전엔 배송중 주문이 거절 후 '결제완료'로 되돌아갔다) */
+        const its = o.order_items || [];
+        const shipped = !!o.shipped_at || its.some(i => !!i.shipped_at || !!i.tracking_number || i.ship_status === 'shipped' || i.ship_status === 'delivered');
+        nextOrderStatus = o.confirmed_at ? 'confirmed' : o.delivered_at ? 'delivered' : shipped ? 'shipped'
+          : its.some(i => i.ship_status === 'preparing') ? 'preparing' : 'paid';
       }
     }
     if (req.order_id && nextOrderStatus) {
@@ -6598,14 +6609,18 @@ export default function AdminClient() {
 
   /* 무통장 입금대기(pending) → 결제 이후 단계 전환 = 입금확인.
      서버에서 상태전환 + 결제일 기록 + 구매 적립(등급별 적립률) 1회 처리 → 지급된 포인트 합계 반환 */
-  async function confirmVbankPaid(ids: string[], status: string): Promise<number> {
-    if (ids.length === 0 || !['paid', 'preparing', 'shipped', 'delivered', 'confirmed'].includes(status)) return 0;
+  /* 반환: ok=false 면 입금확인 자체가 실패(네트워크·서버 오류) → 호출부는 상태 변경을 멈춰야 한다.
+     (예전엔 실패를 0으로 삼켜서 상태만 바뀌고 결제일·구매 적립이 영영 빠졌다 — 이미 입금대기가 아니라 재처리 불가)
+     ids = 이번에 실제로 입금확인(입금대기→status 전환)된 주문 */
+  async function confirmVbankPaid(ids: string[], status: string): Promise<{ ok: boolean; earned: number; ids: string[] }> {
+    if (ids.length === 0 || !['paid', 'preparing', 'shipped', 'delivered', 'confirmed'].includes(status)) return { ok: true, earned: 0, ids: [] };
     try {
       const r = await fetch('/api/admin/vbank-paid', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderIds: ids, status }),
       });
       const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j?.ok) return { ok: false, earned: 0, ids: [] };
       const granted = (j?.granted || []) as { id: string; earned: number }[];
       if (granted.length) {
         const nowIso = new Date().toISOString();
@@ -6615,8 +6630,8 @@ export default function AdminClient() {
         setOrders(prev => prev.map(patch));
         setSelectedOrder(s => (s ? patch(s) : s));
       }
-      return granted.reduce((s, g) => s + (g.earned || 0), 0);
-    } catch { return 0; }
+      return { ok: true, earned: granted.reduce((s, g) => s + (g.earned || 0), 0), ids: granted.map(g => g.id) };
+    } catch { return { ok: false, earned: 0, ids: [] }; }
   }
 
   /* ========== 주문 상태 변경 ========== */
@@ -6660,13 +6675,38 @@ export default function AdminClient() {
     /* 입금대기 → 결제 이후 단계면 입금확인 처리(결제일·구매 적립) 먼저 */
     const curOrd = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
     let vbankEarned = 0;
-    if (curOrd?.status === 'pending' && !isVoid) vbankEarned = await confirmVbankPaid([orderId], newStatus);
+    let vbankDone = false;   // 입금확인 API가 이미 상태를 newStatus 로 바꿨는가
+    if (curOrd?.status === 'pending' && !isVoid) {
+      const vb = await confirmVbankPaid([orderId], newStatus);
+      if (!vb.ok) { alert('입금확인 처리에 실패해 상태를 바꾸지 않았습니다.\n(결제일·구매 적립이 빠지지 않도록 중단) 잠시 후 다시 시도해주세요.'); setUpdatingStatus(null); return; }
+      vbankEarned = vb.earned;
+      vbankDone = vb.ids.includes(orderId);
+    }
 
     const supabase = createClient();
-    const { error } = await supabase
+    const nowIso = new Date().toISOString();
+    /* 화면에서 본 상태 그대로일 때만 변경 — 그 사이 고객이 취소한 주문을 되살리지 않게(동시성 가드).
+       취소·환불 처리는 이미 결제취소를 끝낸 뒤라 조건 없이 기록한다 */
+    let q = supabase
       .from('orders')
-      .update({ status: newStatus, ...(newStatus === 'delivered' ? { delivered_at: new Date().toISOString() } : {}), ...(newStatus === 'confirmed' ? { confirmed_at: new Date().toISOString() } : {}) })
+      .update({ status: newStatus,
+        ...(newStatus === 'shipped' ? { shipped_at: nowIso } : {}),
+        ...(newStatus === 'delivered' ? { delivered_at: nowIso } : {}),
+        ...(newStatus === 'confirmed' ? { confirmed_at: nowIso } : {}) })
       .eq('id', orderId);
+    if (!isVoid && curOrd && !vbankDone) q = q.eq('status', curOrd.status);
+    const { data: changedRows, error } = await q.select('id');
+    if (!error && !isVoid && curOrd && !vbankDone && (changedRows || []).length === 0) {
+      const { data: now } = await supabase.from('orders').select('status').eq('id', orderId).maybeSingle();
+      const cur = (now as { status?: string } | null)?.status || '';
+      alert(`그 사이 주문 상태가 바뀌어 변경하지 않았습니다.\n현재 상태: ${STATUS_LABEL[cur] || cur}\n목록을 새로고침한 뒤 다시 확인해주세요.`);
+      if (cur) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: cur } : o));
+        if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: cur } : s);
+      }
+      setUpdatingStatus(null);
+      return;
+    }
     if (!error && vbankEarned > 0) alert(`입금확인 처리: 구매 적립 ${vbankEarned.toLocaleString()}P 지급`);
     if (!error) {
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -6817,7 +6857,7 @@ export default function AdminClient() {
     const allShipped = newItems.length > 0 && newItems.every(i => !!i.tracking_number);
     const newStatus = (allShipped && (order.status === 'paid' || order.status === 'preparing')) ? 'shipped' : order.status;
     if (newStatus !== order.status) {
-      await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
+      await supabase.from('orders').update({ status: newStatus, ...(newStatus === 'shipped' ? { shipped_at: new Date().toISOString() } : {}) }).eq('id', order.id);
     }
     /* 주문 단위 대표 송장 = '모든 상품'이 같은 송장 하나일 때만.
        예전엔 송장이 들어간 상품끼리만 비교해서, 한 브랜드만 발송돼도 대표 송장이 기록됐고
@@ -6917,21 +6957,57 @@ export default function AdminClient() {
   /* 선택 주문 일괄 배송준비 처리 — 실행부 (확인은 startBulkStatus / 경고창에서) */
   async function doBulkPreparing(ids: string[]) {
     if (ids.length === 0) return;
-    /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
-    await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'preparing');
-    const supabase = createClient();
-    const { error } = await supabase.from('orders').update({ status: 'preparing' }).in('id', ids);
-    if (error) { alert('변경 실패: ' + error.message); return; }
+    const res = await bulkChangeStatus(ids, 'preparing');
+    if (!res) return;
     /* 무통장 미입금이었던 주문은 배송준비 = 입금확인 시점이므로 결제일(paid_at) 기록(비어있는 건만) */
     const nowIso = new Date().toISOString();
-    const stampIds = orders.filter(o => ids.includes(o.id) && !(o as { paid_at?: string|null }).paid_at).map(o => o.id);
-    if (stampIds.length) await supabase.from('orders').update({ paid_at: nowIso }).in('id', stampIds);
-    setOrders(prev => prev.map(o => ids.includes(o.id)
+    const stampIds = orders.filter(o => res.changed.includes(o.id) && !(o as { paid_at?: string|null }).paid_at).map(o => o.id);
+    if (stampIds.length) await createClient().from('orders').update({ paid_at: nowIso }).in('id', stampIds).is('paid_at', null);
+    setOrders(prev => prev.map(o => res.changed.includes(o.id)
       ? { ...o, status: 'preparing', ...(!(o as { paid_at?: string|null }).paid_at ? { paid_at: nowIso } : {}) }
-      : o));
+      : res.current.has(o.id) ? { ...o, status: res.current.get(o.id)! } : o));
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`${ids.length}건을 배송준비로 변경했습니다.`);
+    alert(bulkResultMessage(res, '배송준비'));
+  }
+
+  /* 일괄 상태 변경 공통 — (1) 입금대기는 입금확인 먼저(실패 시 전체 중단) (2) 나머지는 '화면에서 본 상태 그대로'일 때만 변경.
+     그 사이 고객 취소 등으로 상태가 바뀐 주문은 건너뛰고 현재 상태를 모아 알린다(예전엔 조건 없이 덮어써 취소 주문이 되살아났다). */
+  async function bulkChangeStatus(ids: string[], status: 'preparing' | 'shipped'): Promise<{ changed: string[]; skipped: { order_no: string; status: string }[]; current: Map<string, string> } | null> {
+    const shown = orders.filter(o => ids.includes(o.id));
+    const pendingIds = shown.filter(o => o.status === 'pending').map(o => o.id);
+    const changed: string[] = [];
+    if (pendingIds.length) {
+      const vb = await confirmVbankPaid(pendingIds, status);
+      if (!vb.ok) { alert('입금대기 주문의 입금확인 처리에 실패해 일괄 변경을 중단했습니다.\n(결제일·구매 적립이 빠지지 않도록) 잠시 후 다시 시도해주세요.'); return null; }
+      changed.push(...vb.ids);   // 입금확인 API가 상태·결제일(배송중이면 발송일)까지 기록
+    }
+    const supabase = createClient();
+    const nowIso = new Date().toISOString();
+    const byStatus = new Map<string, string[]>();
+    shown.filter(o => o.status !== 'pending').forEach(o => byStatus.set(o.status, [...(byStatus.get(o.status) || []), o.id]));
+    for (const [st, group] of byStatus) {
+      const { data, error } = await supabase.from('orders')
+        .update({ status, ...(status === 'shipped' ? { shipped_at: nowIso } : {}) })
+        .in('id', group).eq('status', st).select('id');
+      if (error) { alert('변경 실패: ' + error.message); break; }
+      changed.push(...((data || []) as { id: string }[]).map(r => r.id));
+    }
+    const missed = ids.filter(id => !changed.includes(id));
+    const current = new Map<string, string>();
+    let skipped: { order_no: string; status: string }[] = [];
+    if (missed.length) {
+      const { data } = await supabase.from('orders').select('id, order_no, status').in('id', missed);
+      skipped = ((data || []) as { id: string; order_no: string; status: string }[]).map(r => { current.set(r.id, r.status); return { order_no: r.order_no, status: r.status }; });
+    }
+    return { changed, skipped, current };
+  }
+  function bulkResultMessage(res: { changed: string[]; skipped: { order_no: string; status: string }[] }, label: string) {
+    return `${res.changed.length}건을 ${label}(으)로 변경했습니다.`
+      + (res.skipped.length
+        ? `\n\n아래 ${res.skipped.length}건은 그 사이 상태가 바뀌어 제외했습니다(고객 취소 등). 목록을 새로고침해 확인하세요.\n`
+          + res.skipped.map(s => `· ${s.order_no} (현재 ${STATUS_LABEL[s.status] || s.status})`).join('\n')
+        : '');
   }
 
   /* 선택 주문 일괄 배송 지연 안내 발송 (사유·예상도착일 1회 입력 → 전체 발송) */
@@ -6960,15 +7036,13 @@ export default function AdminClient() {
   /* 선택 주문 일괄 발송처리(배송중으로 변경) — 송장은 인라인/엑셀로 별도 등록 */
   async function doBulkShipped(ids: string[]) {
     if (ids.length === 0) return;
-    /* 입금대기 주문은 입금확인 처리(결제일·구매 적립) 먼저 */
-    await confirmVbankPaid(orders.filter(o => ids.includes(o.id) && o.status === 'pending').map(o => o.id), 'shipped');
-    const supabase = createClient();
-    const { error } = await supabase.from('orders').update({ status: 'shipped' }).in('id', ids);
-    if (error) { alert('변경 실패: ' + error.message); return; }
-    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: 'shipped' } : o));
+    const res = await bulkChangeStatus(ids, 'shipped');
+    if (!res) return;
+    setOrders(prev => prev.map(o => res.changed.includes(o.id) ? { ...o, status: 'shipped' }
+      : res.current.has(o.id) ? { ...o, status: res.current.get(o.id)! } : o));
     refreshStageCounts();
     setSelOrders(new Set());
-    alert(`${ids.length}건을 배송중으로 변경했습니다.`);
+    alert(bulkResultMessage(res, '배송중'));
   }
 
   /* 선택 주문 일괄 판매자 직접취소 — 실행부 (확인·경고창은 startBulkStatus('cancel'))
@@ -7098,7 +7172,7 @@ export default function AdminClient() {
       const oneCourier = oneTrk ? (newItems.find(i => i.tracking_number === oneTrk)?.courier || null) : null;
       const clearTrk = !oneTrk && trks.length > 0;
       const orderPatch: Record<string, unknown> = {};
-      if (newStatus !== o.status) orderPatch.status = newStatus;
+      if (newStatus !== o.status) { orderPatch.status = newStatus; if (newStatus === 'shipped') orderPatch.shipped_at = new Date().toISOString(); }
       if (oneTrk) { orderPatch.courier = oneCourier; orderPatch.tracking_number = oneTrk; }
       else if (clearTrk) { orderPatch.courier = null; orderPatch.tracking_number = null; }
       if (Object.keys(orderPatch).length) await supabase.from('orders').update(orderPatch).eq('id', o.id);
@@ -7422,8 +7496,10 @@ export default function AdminClient() {
     if (c) {
       setEditingCoupon(c);
       /* 등록용 코드는 관리자 전용 테이블에 있음 — 고객은 어떤 방법으로도 읽을 수 없다 */
+      setRedeemCodeLoading(true);
       createClient().from('coupon_redeem_codes').select('code').eq('coupon_id', c.id).maybeSingle()
-        .then(({ data }) => setCouponForm(f => ({ ...f, redeem_code: (data as { code?: string } | null)?.code || '' })));
+        .then(({ data }) => setCouponForm(f => ({ ...f, redeem_code: (data as { code?: string } | null)?.code || '' })))
+        .then(() => setRedeemCodeLoading(false), () => setRedeemCodeLoading(false));
       setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true, code_redeemable: c.code_redeemable ?? false, redeem_code: '' });
     } else {
       setEditingCoupon(null);
@@ -7458,6 +7534,7 @@ export default function AdminClient() {
   }
 
   async function saveCoupon() {
+    if (redeemCodeLoading) { alert('등록용 코드를 불러오는 중입니다. 잠시 후 다시 저장해주세요.'); return; }
     if (!couponForm.name.trim()) { alert('쿠폰명을 입력해주세요.'); return; }
     if (couponForm.signup_grant && !couponForm.valid_days.trim()) {
       alert('신규회원 쿠폰은 유효기간(발급일로부터 N일)을 반드시 입력해주세요.\n(고정 만료일이 아니라 가입일 기준으로 만료되어야 합니다.)');
@@ -7499,7 +7576,8 @@ export default function AdminClient() {
     } else {
       let { data, error } = await supabase.from('coupons').insert(payload).select().single();
       if (error && /is_membership|column/i.test(error.message)) ({ data, error } = await supabase.from('coupons').insert(stripMembership(payload)).select().single());
-      if (!error && data) { setCoupons(prev => [data as AdminCoupon, ...prev]); couponId = (data as AdminCoupon).id; }
+      /* 생성 즉시 수정 모드로 전환 — 아래 등록용 코드 저장이 실패해 창이 열린 채 다시 저장해도 쿠폰이 하나 더 생기지 않게 */
+      if (!error && data) { setCoupons(prev => [data as AdminCoupon, ...prev]); couponId = (data as AdminCoupon).id; setEditingCoupon(data as AdminCoupon); }
       else { alert('생성 실패: ' + (error?.message || '')); setCouponSaving(false); return; }
     }
     /* 등록용 코드(관리자 전용 테이블) 반영 — '쿠폰 코드로 등록 허용'을 켠 쿠폰만 코드를 둔다.
@@ -11565,6 +11643,17 @@ export default function AdminClient() {
                                   {!c.is_active && <span style={{ fontSize:11, fontWeight:700, color:'#DC2626' }}>(비활성 — 발급 안 됨)</span>}
                                 </label>
                               ))}
+                              {/* 등급에 저장돼 있지만 '멤버십 쿠폰'이 아닌(표시를 끔·삭제됨) 코드 — 목록에 안 보여 해제할 수 없던 문제.
+                                  월 발급은 멤버십·활성 쿠폰만 하므로 발급되지 않는다. [해제] 후 등급 설정 저장 */}
+                              {t.coupon_codes.filter(code => !membershipCoupons.some(c => c.code === code)).map(code => {
+                                const other = coupons.find(c => c.code === code);
+                                return (
+                                  <div key={code} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#B45309' }}>
+                                    <span>⚠️ {other ? other.name : code} — {other ? '멤버십 쿠폰 아님' : '삭제된 쿠폰'}(발급 안 됨)</span>
+                                    <button type="button" className="adm-btn adm-btn-outline" style={{ height:22, padding:'0 8px', fontSize:11 }} onClick={() => toggleTierCoupon(t.grade, code)}>해제</button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                           {/* 월 쿠폰 발급 토글 */}
@@ -14140,6 +14229,9 @@ export default function AdminClient() {
                             /* 부분환불이면 하자수량을 자동저장(refund_amount 확정) 후 그 값으로 바로 승인 — 별도 '저장' 클릭 불필요 */
                             let target = r;
                             if (hasDefect) { const saved = await saveRefundPartial(true); if (!saved) return; target = saved; }
+                            /* 화면에 하자가 없는데 예전에 저장된 부분환불 금액이 남아 있으면 비우고 승인 → 안내대로 전체 환불
+                               (예전엔 [저장]을 안 누르면 남은 금액으로 부분환불됐다) */
+                            else if (r.refund_amount != null || r.refund_items) { const cleared = await saveRefundPartial(true); if (!cleared) return; target = cleared; }
                             updateRefundStatus(target, 'completed');
                           }}>환불승인</button>
                         )}
@@ -16810,8 +16902,8 @@ export default function AdminClient() {
             </div>
             <div className="adm-modal-foot">
               <button className="adm-btn adm-btn-outline" onClick={() => setCouponModal(false)}>취소</button>
-              <button className="adm-btn adm-btn-primary" onClick={saveCoupon} disabled={couponSaving}>
-                {couponSaving ? '저장 중...' : '저장'}
+              <button className="adm-btn adm-btn-primary" onClick={saveCoupon} disabled={couponSaving || redeemCodeLoading}>
+                {couponSaving ? '저장 중...' : redeemCodeLoading ? '불러오는 중...' : '저장'}
               </button>
             </div>
           </div>

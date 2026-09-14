@@ -31,6 +31,11 @@ export async function POST(req: Request) {
   if (order.status !== 'paid' && order.status !== 'pending') {
     return NextResponse.json({ ok: false, needsRequest: true, status: order.status });
   }
+  /* 입금이 끝난 무통장 주문(결제 ID 없음 + 결제금액 있음)은 자동으로 돌려줄 수단이 없다 → 취소 신청으로 받아
+     관리자가 계좌 환불 후 승인. (예전엔 즉시 '취소완료'로 기록돼 환불한 것처럼 보였지만 돈은 안 돌아갔다) */
+  if (order.status === 'paid' && !order.portone_payment_id && (order.final_amount || 0) > 0) {
+    return NextResponse.json({ ok: false, needsRequest: true, bankRefund: true, status: order.status });
+  }
 
   /* 포트원 결제취소 (결제 ID 있을 때) */
   if (order.portone_payment_id) {
