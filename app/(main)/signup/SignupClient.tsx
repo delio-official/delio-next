@@ -105,9 +105,13 @@ export default function SignupClient() {
     const r = sp.get('ref');
     if (r) {
       setRefCode(r); setShowRef(true);
-      /* 카카오·네이버로 가입해도 추천 보상이 적용되도록 코드를 잠시 보관.
-         소셜 로그인 화면에는 추천코드 입력칸이 없어, 예전엔 이메일 가입만 보상이 지급됐다. */
-      try { localStorage.setItem('delio_pending_ref', r); } catch { /* 무시 */ }
+      /* 카카오·네이버로 가입해도 추천 보상이 적용되도록 코드를 잠시 보관(7일).
+         소셜 로그인 화면에는 추천코드 입력칸이 없어, 예전엔 이메일 가입만 보상이 지급됐다.
+         이미 로그인한 기존 회원이 초대링크를 누른 경우는 보관하지 않는다(가입이 아니므로). */
+      createClient().auth.getSession().then(({ data }) => {
+        if (data.session) return;
+        try { localStorage.setItem('delio_pending_ref', JSON.stringify({ code: r, ts: Date.now() })); } catch { /* 무시 */ }
+      }).catch(() => {});
     }
     if (sp.get('preview') === 'done') setDone(true);
   }, []);

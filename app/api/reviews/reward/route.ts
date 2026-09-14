@@ -42,7 +42,8 @@ export async function POST(req: Request) {
 
   /* 멱등 마킹 먼저 (동시요청 방지) */
   const { data: marked } = await admin
-    .from('reviews').update({ point_rewarded: true })
+    /* 지급액을 함께 기록 — 삭제 시 이 금액을 회수, 사진을 모두 지우면 DB 트리거가 차액 회수·재등록 시 복원 */
+    .from('reviews').update({ point_rewarded: true, point_reward_amount: amount, point_reward_max: amount })
     .eq('id', reviewId).eq('point_rewarded', false).select('id').maybeSingle();
   if (!marked) return NextResponse.json({ ok: true, granted: 0 });
 

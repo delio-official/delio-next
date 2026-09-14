@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const admin = createAdminSupabaseClient();
 
   const { data: review } = await admin
-    .from('reviews').select('id, user_id, product_id, image_urls, video_url, point_rewarded')
+    .from('reviews').select('id, user_id, product_id, image_urls, video_url, point_rewarded, point_reward_amount')
     .eq('id', reviewId).maybeSingle();
   if (!review) return NextResponse.json({ ok: false, error: 'NOT_FOUND' }, { status: 404 });
 
@@ -28,7 +28,8 @@ export async function POST(req: Request) {
   const isMine  = review.user_id === user.id;
   if (!isMine && !isAdmin) return NextResponse.json({ ok: false, error: 'FORBIDDEN' }, { status: 403 });
 
-  /* 적립금 회수 — 지급된 리뷰만. 지급 당시와 동일한 규칙(미디어 유무 × 설정단가)으로 산정 */
+  /* 적립금 회수 — 지급된 리뷰만. 기록된 지급액(point_reward_amount)을 그대로 회수.
+     기록이 없는 경우(칸 추가 전 데이터)만 현재 규칙(미디어 유무 × 설정단가)으로 산정 */
   let recovered = 0;
   if (review.point_rewarded && review.user_id) {
     const { data: settings } = await admin
@@ -36,7 +37,9 @@ export async function POST(req: Request) {
     const map: Record<string, string> = {};
     ((settings as { key: string; value: string }[]) || []).forEach(s => { map[s.key] = s.value; });
     const hasMedia = (review.image_urls && review.image_urls.length > 0) || !!review.video_url;
-    const amount = Math.max(0, parseInt((hasMedia ? map.review_point_photo : map.review_point_text) || (hasMedia ? '150' : '50')) || 0);
+    const amount = typeof review.point_reward_amount === 'number'
+      ? Math.max(0, review.point_reward_amount)
+      : Math.max(0, parseInt((hasMedia ? map.review_point_photo : map.review_point_text) || (hasMedia ? '150' : '50')) || 0);
 
     if (amount > 0) {
       const { data: prof } = await admin.from('profiles').select('point_balance').eq('id', review.user_id).single();

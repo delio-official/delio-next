@@ -53,12 +53,22 @@ export function useAuth() {
   }, [user]);
 
   /* 초대 링크(?ref=코드)로 들어온 뒤 소셜 로그인으로 가입한 경우, 로그인 직후 추천 등록을 시도한다.
-     서버 함수(register_referral)가 셀프추천·중복·잘못된 코드를 걸러내므로 여기서는 한 번만 호출하고 코드를 지운다. */
+     서버 함수(register_referral)가 셀프추천·중복·잘못된 코드와 '가입 24시간 지난 회원·주문 있는 회원'을 걸러내므로
+     여기서는 한 번만 호출하고 코드를 지운다. 저장 형식 {code, ts} — 7일 지난 코드나 옛 형식(문자열)은 버린다. */
   const refTried = useRef(false);
   useEffect(() => {
     if (!user || refTried.current) return;
     let code: string | null = null;
-    try { code = localStorage.getItem('delio_pending_ref'); } catch { code = null; }
+    try {
+      const raw = localStorage.getItem('delio_pending_ref');
+      const saved = raw ? JSON.parse(raw) as { code?: string; ts?: number } : null;
+      code = saved && typeof saved.code === 'string' && typeof saved.ts === 'number' && Date.now() - saved.ts < 7 * 86400000
+        ? saved.code : null;
+      if (raw && !code) localStorage.removeItem('delio_pending_ref');
+    } catch {
+      code = null;
+      try { localStorage.removeItem('delio_pending_ref'); } catch { /* 무시 */ }
+    }
     if (!code) return;
     refTried.current = true;
     (async () => {
