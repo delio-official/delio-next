@@ -1,6 +1,7 @@
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
 import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
 import { notifyAlimtalk, kstDate } from '@/lib/sms';
+import { maybeSendWelcome } from '@/lib/welcome';
 
 export interface OrderData {
   userId: string;
@@ -254,6 +255,11 @@ export async function finalizeOrder(
         amount: `${orderData.totalAmount.toLocaleString()}원`,
       });
     } catch { /* noop */ }
+  }
+
+  /* 가입 환영 알림톡 — 카카오·네이버 가입자는 가입 때 번호가 없어 보류됐다가, 첫 주문 결제 완료 시 주문자 번호로 발송(가입 30일 이내, 1회) */
+  if (orderData.userId) {
+    try { await maybeSendWelcome(supabase, orderData.userId, { phone: ordererPhone, name: orderData.ordererName || orderData.recipient }); } catch { /* noop */ }
   }
 
   return { success: true, orderNo: order.order_no, earnedPoint: earned, amount: trackAmount, items: trackItems };

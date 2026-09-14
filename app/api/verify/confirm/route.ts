@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { maybeSendWelcome } from '@/lib/welcome';
 
 /* 포트원(다날) 본인인증 결과 확인 → CI 중복/재가입 차단 → profiles 저장.
    클라이언트가 requestIdentityVerification 성공 후 identityVerificationId 를 보내면,
@@ -48,6 +49,9 @@ export async function POST(req: Request) {
 
   const { error } = await admin.from('profiles').update(update).eq('id', user.id);
   if (error) return NextResponse.json({ ok: false, error: '저장 실패: ' + error.message + ' (add_phone_verification_columns.sql 실행 여부 확인)' }, { status: 500 });
+
+  /* 번호가 없어 보류된 가입 환영 알림톡 — 인증으로 번호가 생긴 지금 발송(가입 30일 이내, 1회) */
+  try { await maybeSendWelcome(admin, user.id); } catch { /* noop */ }
 
   return NextResponse.json({ ok: true });
 }

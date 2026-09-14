@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { validateOrderInput, type OrderInput } from '@/lib/order-validate';
 import { notifyAlimtalk, kstDate } from '@/lib/sms';
+import { maybeSendWelcome } from '@/lib/welcome';
 
 /* 결제창 없는 주문 생성 (서버 전용) — 무통장입금(입금대기) · 0원 결제(쿠폰·포인트 전액).
    예전엔 브라우저가 재고 차감·주문 저장·쿠폰 사용·포인트 차감을 직접 했으나(조작 가능),
@@ -135,6 +136,11 @@ export async function createDirectOrder(
         });
       } catch { /* 알림 실패는 주문에 영향 없음 */ }
     }
+  }
+
+  /* 가입 환영 알림톡 — 번호가 없어 보류된 소셜 가입자의 첫 주문(무통장 접수·0원 결제) 때 주문자 번호로 발송(가입 30일 이내, 1회) */
+  if (od.userId) {
+    try { await maybeSendWelcome(admin, od.userId, { phone: od.ordererPhone?.trim() || od.phone.trim(), name: od.ordererName?.trim() || od.recipient.trim() }); } catch { /* noop */ }
   }
 
   return { ok: true, orderNo: order.order_no as string, orderId: order.id as string };
