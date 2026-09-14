@@ -94,6 +94,24 @@ const BG_MAP: Record<string, string> = {
 function fmtPrice(n: number) { return n.toLocaleString('ko-KR'); }
 /* 문의 목록 페이지당 개수 (등록 직후 새 문의가 있는 페이지 계산에도 사용) */
 const INQ_PER = 10;
+
+/* 고정 헤더 + 상품 탭 바로 아래까지의 높이 — 탭 클릭 이동·스크롤스파이 기준.
+   PC는 기존 104px 그대로. 모바일(≤768px)은 헤더가 두 줄이라 실제 탭 위치(top + 높이)로 계산 */
+const isMobileLayout = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+function stickyTabOffset(): number {
+  if (!isMobileLayout()) return 104;
+  const bar = document.getElementById('productTabs');
+  if (!bar) return 104;
+  return (parseFloat(getComputedStyle(bar).top) || 0) + bar.offsetHeight;
+}
+/* 모바일에서 후기·문의 페이지를 넘기면 그 목록 시작점이 탭 바로 아래 오게 이동
+   (예전엔 위치를 그대로 두어, 짧은 페이지로 넘어가면 아래 Q&A가 화면에 올라왔다) */
+function scrollListTopMobile(anchorId: string) {
+  if (!isMobileLayout()) return;
+  const el = document.getElementById(anchorId);
+  if (!el) return;
+  window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - stickyTabOffset(), behavior: 'smooth' });
+}
 /* 문의 카테고리 표시 라벨 */
 const INQ_CAT_LABEL: Record<string, string> = {
   '문의': '상품문의', '상품': '상품문의', '배송관련': '배송문의',
@@ -299,7 +317,7 @@ export default function ProductClient() {
         setActiveTab(ids.length - 1);
         return;
       }
-      const line = window.scrollY + 140; // 헤더 + sticky 탭바 아래 기준선
+      const line = window.scrollY + stickyTabOffset() + 36; // 헤더 + sticky 탭바 아래 기준선 (PC 140)
       let cur = 0;
       ids.forEach((id, i) => {
         const el = document.getElementById(id);
@@ -317,7 +335,7 @@ export default function ProductClient() {
   function scrollToSection(i: number, behavior: ScrollBehavior = 'smooth') {
     const el = document.getElementById(SECTION_IDS[i]);
     if (!el) return;
-    const y = window.scrollY + el.getBoundingClientRect().top - 104; // 헤더+sticky 탭바 보정
+    const y = window.scrollY + el.getBoundingClientRect().top - stickyTabOffset(); // 헤더+sticky 탭바 보정
     window.scrollTo({ top: y, behavior });
   }
 
@@ -348,7 +366,7 @@ export default function ProductClient() {
        매 프레임 섹션 위치를 다시 읽어, 이미지가 뒤늦게 로드되며 밀려도 그대로 따라가 안착한다. */
     const targetIdx = tabParam === 'qna' ? 3 : 2;
     const targetId = SECTION_IDS[targetIdx];
-    const OFFSET = 104;   // 헤더 + sticky 탭바 보정
+    const OFFSET = stickyTabOffset();   // 헤더 + sticky 탭바 보정
     let raf = 0, frames = 0, cancelled = false;
     const chase = () => {
       if (cancelled) return;
@@ -1142,9 +1160,11 @@ export default function ProductClient() {
       ...(isAdmin && inqDate && inqDate !== todayKst ? { created_at: `${inqDate}T12:00:00+09:00` } : {}),
     });
     if (error) { setInqSubmitting(false); alert('문의 등록 실패: ' + error.message); return; }
-    /* 목록은 오래된 순 정렬 → 서버에서 다시 읽고, 새 문의가 있는 마지막 페이지로 이동 (새로고침 없이 바로 보이게) */
+    /* 목록은 최신순 → 서버에서 다시 읽고, 새 문의가 있는 페이지로 이동 (보통 첫 페이지 맨 위.
+       관리자가 과거 작성일을 지정했으면 그 날짜 자리에 들어가므로 내 글·같은 내용으로 찾는다) */
     const list = await refreshInquiries();
-    setInqPage(Math.max(0, Math.ceil(list.length / INQ_PER) - 1));
+    const newIdx = list.findIndex(x => x.user_id === user.id && x.content === inqContent.trim());
+    setInqPage(newIdx > 0 ? Math.floor(newIdx / INQ_PER) : 0);
     setInqSubmitting(false);
     setInqModal(false);
     resetInqForm();
@@ -2629,8 +2649,8 @@ export default function ProductClient() {
               </div>
             )}
 
-            {/* ✅ 리뷰 수 + 포토 필터 (원본 구조 그대로) */}
-            <div style={{ display:'flex', alignItems:'center',
+            {/* ✅ 리뷰 수 + 포토 필터 (원본 구조 그대로) — id: 모바일 후기 페이지 이동 시 기준점 */}
+            <div id="reviewListTop" style={{ display:'flex', alignItems:'center',
               justifyContent:'space-between', padding:'12px 0',
               borderBottom:'1px solid #EBEBEB',
               marginBottom:4 }}>
@@ -2809,30 +2829,30 @@ export default function ProductClient() {
             <div className="pagination">
                 <button className="page-btn"
                   disabled={reviewPage === 0}
-                  onClick={() => setReviewPage(0)}>«</button>
+                  onClick={() => { setReviewPage(0); scrollListTopMobile('reviewListTop'); }}>«</button>
                 <button className="page-btn"
                   disabled={reviewPage === 0}
-                  onClick={() => setReviewPage(p => p - 1)}>‹</button>
+                  onClick={() => { setReviewPage(p => p - 1); scrollListTopMobile('reviewListTop'); }}>‹</button>
                 {(() => {
                   const W = 5;
                   let s = Math.max(0, safeReviewPage - Math.floor(W / 2));
                   const e = Math.min(reviewTotalPages, s + W); s = Math.max(0, e - W);
                   return Array.from({ length: e - s }, (_, k) => s + k).map(i => (
-                    <button key={i} className={`page-num${safeReviewPage === i ? ' active' : ''}`} onClick={() => setReviewPage(i)}>{i + 1}</button>
+                    <button key={i} className={`page-num${safeReviewPage === i ? ' active' : ''}`} onClick={() => { setReviewPage(i); scrollListTopMobile('reviewListTop'); }}>{i + 1}</button>
                   ));
                 })()}
                 <button className="page-btn"
                   disabled={reviewPage === reviewTotalPages - 1}
-                  onClick={() => setReviewPage(p => p + 1)}>›</button>
+                  onClick={() => { setReviewPage(p => p + 1); scrollListTopMobile('reviewListTop'); }}>›</button>
                 <button className="page-btn"
                   disabled={reviewPage === reviewTotalPages - 1}
-                  onClick={() => setReviewPage(reviewTotalPages - 1)}>»</button>
+                  onClick={() => { setReviewPage(reviewTotalPages - 1); scrollListTopMobile('reviewListTop'); }}>»</button>
               </div>
           </div>
 
         {/* ④ 문의 */}
           <div id="tabQna" className="tab-content container">
-            <div className="qna-header">
+            <div className="qna-header" id="qnaListTop">
               <div>
                 <div className="qna-header-title">Q&A</div>
                 <div className="qna-header-sub">상품의 궁금한 점을 해결해 드립니다.</div>
@@ -2975,14 +2995,14 @@ export default function ProductClient() {
                     );
                   })}
                   <div className="pd-pagination">
-                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => setInqPage(0)}>«</button>
-                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => setInqPage(p => p - 1)}>‹</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => { setInqPage(0); scrollListTopMobile('qnaListTop'); }}>«</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === 0} onClick={() => { setInqPage(p => p - 1); scrollListTopMobile('qnaListTop'); }}>‹</button>
                     {Array.from({ length: totalPages }, (_, n) => (
                       <button key={n} className={`pd-page-btn${inqPage === n ? ' active' : ''}`}
-                        onClick={() => { setInqPage(n); setExpandedInq(null); }}>{n + 1}</button>
+                        onClick={() => { setInqPage(n); setExpandedInq(null); scrollListTopMobile('qnaListTop'); }}>{n + 1}</button>
                     ))}
-                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => setInqPage(p => p + 1)}>›</button>
-                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => setInqPage(totalPages - 1)}>»</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => { setInqPage(p => p + 1); scrollListTopMobile('qnaListTop'); }}>›</button>
+                    <button className="pd-page-btn arrow" disabled={inqPage === totalPages - 1} onClick={() => { setInqPage(totalPages - 1); scrollListTopMobile('qnaListTop'); }}>»</button>
                   </div>
                 </>
               );

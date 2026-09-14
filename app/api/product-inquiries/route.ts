@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
+import { fetchAllRows } from '@/lib/fetch-all';
 
 /* 상품 Q&A 목록 조회 (서버 sanitize).
    - 남의 비밀글은 content를 비워서 반환(마스킹) → 브라우저로 내용이 전송되지 않음
@@ -19,12 +20,14 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminSupabaseClient();
-  const { data } = await admin
+  /* 최신 문의가 첫 페이지 맨 위 (예전엔 오래된 순 + 100건 제한이라 최신 문의가 뒤로 밀리거나 잘렸다) */
+  const { data } = await fetchAllRows((a, b) => admin
     .from('product_inquiries')
     .select('id, category, content, is_private, password, answer, answered_at, created_at, user_id, author_name')
     .eq('product_id', productId)
-    .order('created_at', { ascending: true })
-    .limit(100);
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(a, b));
 
   /* 관리자 작성 문의 표시(수정 버튼용) — 관리자에게만 내려준다. 고객에게 어떤 문의가 관리자 글인지 알려주지 않도록
      작성자 user_id 도 본인·관리자에게만 내려준다(예전엔 모두에게 내려가서 같은 계정이 쓴 글을 묶어볼 수 있었다) */
