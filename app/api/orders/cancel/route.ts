@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminSupabaseClient();
   const { data: order } = await admin.from('orders')
-    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id, order_no, recipient, phone, orderer_name, orderer_phone, final_amount')
+    .select('id, user_id, status, point_used, earned_point, used_coupon_id, refund_restored, portone_payment_id, order_no, recipient, phone, orderer_name, orderer_phone, final_amount, partial_refund_amount')
     .eq('id', orderId).maybeSingle();
   if (!order) return NextResponse.json({ ok: false, error: '주문 없음' }, { status: 404 });
   if (order.user_id !== user.id) return NextResponse.json({ ok: false, error: '본인 주문이 아닙니다' }, { status: 403 });
@@ -112,7 +112,8 @@ export async function POST(req: Request) {
       orderNo: order.order_no || '',
       cancelledAt: kstDateTime(),
       /* 무통장 입금 전 취소는 돌려줄 돈이 없음 */
-      refundAmount: order.status === 'pending' ? '없음 (입금 전 취소)' : `${(order.final_amount || 0).toLocaleString()}원`,
+      /* 부분환불이 있었으면 실제로 취소되는 남은 금액 (관리자 취소와 같은 기준) */
+      refundAmount: order.status === 'pending' ? '없음 (입금 전 취소)' : `${Math.max(0, (order.final_amount || 0) - (order.partial_refund_amount || 0)).toLocaleString()}원`,
     }).catch(() => { /* noop */ });
     await Promise.race([notify, new Promise(r => setTimeout(r, 3000))]);
   }

@@ -28,6 +28,10 @@ export async function POST(req: Request) {
   const isMine  = review.user_id === user.id;
   if (!isMine && !isAdmin) return NextResponse.json({ ok: false, error: 'FORBIDDEN' }, { status: 403 });
 
+  /* 먼저 삭제하고, 성공했을 때만 적립금 회수 — 예전엔 회수 후 삭제가 실패하면 다시 지울 때 두 번 회수됐다 */
+  const { error: delErr } = await admin.from('reviews').delete().eq('id', reviewId);
+  if (delErr) return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+
   /* 적립금 회수 — 지급된 리뷰만. 기록된 지급액(point_reward_amount)을 그대로 회수.
      기록이 없는 경우(칸 추가 전 데이터)만 현재 규칙(미디어 유무 × 설정단가)으로 산정 */
   let recovered = 0;
@@ -55,9 +59,6 @@ export async function POST(req: Request) {
       }
     }
   }
-
-  const { error: delErr } = await admin.from('reviews').delete().eq('id', reviewId);
-  if (delErr) return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
 
   /* products.review_count 보정 — DB 트리거는 avg_rating만 갱신하므로 여기서 맞춘다 */
   const { count } = await admin

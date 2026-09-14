@@ -439,7 +439,7 @@ interface AdminRefundReq {
   refund_items?: { name: string; total: number; defective: number; refund: number }[] | null;
   attachments?: string[] | null;   // 고객 증빙 사진
   memo?: string | null;
-  orders: { order_no: string; final_amount: number; status: string; portone_payment_id: string | null; payment_method: string | null; order_items?: { product_name: string; quantity: number }[] } | null;
+  orders: { order_no: string; final_amount: number; partial_refund_amount?: number | null; status: string; portone_payment_id: string | null; payment_method: string | null; order_items?: { product_name: string; quantity: number }[] } | null;
   profiles: { name: string | null; email: string | null } | null;
 }
 
@@ -2867,6 +2867,7 @@ export default function AdminClient() {
   const [refundPage, setRefundPage] = useState(1); // 취소·환불 목록 페이지
   useEffect(() => { setRefundPage(1); }, [refundTypeFilter, refundFilter, refundStatusFilter, refundSearch, refundFrom, refundTo, cancelReasonFilter]);
   // 환불 상세 모달 — 부분환불 상품 입력·메모·증빙 라이트박스
+  const [refundItemsLoading, setRefundItemsLoading] = useState(false);   // 환불 창 상품 불러오는 중 — 승인 막음
   const [refundOrderItems, setRefundOrderItems] = useState<{ id: string; name: string; subtotal: number; total: string; defective: string; checked: boolean }[]>([]);
   const [refundMemoInput, setRefundMemoInput] = useState('');
   const [refundMemos, setRefundMemos] = useState<{ id: string; content: string; admin_name: string|null; created_at: string }[]>([]);
@@ -5041,7 +5042,7 @@ export default function AdminClient() {
       .select(`
         id, order_id, reason, detail, status, reject_reason, created_at, updated_at, type,
         refund_amount, resend_amount, resend_status, refund_items, attachments, memo,
-        orders ( order_no, final_amount, status, portone_payment_id, payment_method, order_items ( product_name, quantity ) ),
+        orders ( order_no, final_amount, partial_refund_amount, status, portone_payment_id, payment_method, order_items ( product_name, quantity ) ),
         profiles:user_id ( name, email )
       `)
       .order('created_at', { ascending: false })
@@ -5087,7 +5088,18 @@ export default function AdminClient() {
     /* 부분환불 여부 — 실결제액보다 적은 하자분(refund_amount)만 취소 = 진짜 부분취소.
        주문은 confirmed 유지, 쿠폰·포인트 복구 안 함, partial_refund_amount에 누적한다. */
     const orderTotal = req.orders?.final_amount || 0;
-    const isPartial = newStatus === 'completed' && (req.refund_amount != null) && req.refund_amount > 0 && req.refund_amount < orderTotal;
+    /* 이미 부분환불한 금액을 뺀 '남은 결제금액' 기준 — 넘으면 카드사가 취소를 거부한다 */
+    let alreadyRefunded = req.orders?.partial_refund_amount || 0;
+    if (newStatus === 'completed' && req.order_id) {
+      const { data: pr } = await supabase.from('orders').select('partial_refund_amount').eq('id', req.order_id).maybeSingle();
+      alreadyRefunded = (pr as { partial_refund_amount?: number | null } | null)?.partial_refund_amount || 0;
+    }
+    const remaining = Math.max(0, orderTotal - alreadyRefunded);
+    if (newStatus === 'completed' && req.refund_amount != null && req.refund_amount > remaining) {
+      alert(`환불 금액 ${req.refund_amount.toLocaleString()}원이 남은 결제금액 ${remaining.toLocaleString()}원을 넘습니다.\n(이미 부분환불 ${alreadyRefunded.toLocaleString()}원) 하자 수량을 줄여 다시 저장해 주세요.`);
+      return;
+    }
+    const isPartial = newStatus === 'completed' && (req.refund_amount != null) && req.refund_amount > 0 && req.refund_amount < remaining;
 
     /* 환불 승인(완료)이면 실제 카드 취소부터 — 포트원 취소 API (부분환불은 amount로 하자분만 부분취소) */
     const cardPid = req.orders?.portone_payment_id;
@@ -5235,6 +5247,7 @@ export default function AdminClient() {
     setRefundMemos([]);
     setRefundOrderItems([]);
     if (!r.order_id) return;
+    setRefundItemsLoading(true);
     loadRefundMemos(r.order_id);
     const supabase = createClient();
     const { data } = await supabase.from('order_items')
@@ -5245,11 +5258,12 @@ export default function AdminClient() {
       return { id: it.id, name: it.product_name, subtotal: it.subtotal || 0, total: String(prev?.total ?? (it.quantity || 1)), defective: String(prev?.defective ?? 0), checked: !!(prev && prev.defective > 0) };
     });
     setRefundOrderItems(items);
+    setRefundItemsLoading(false);
   }
 
   /* 부분환불 계산 (하자수량 비율로 실환불액 산출 — 진짜 부분취소).
      하자분 금액만 실제로 카드 부분취소한다. 정상분은 그대로 결제 유지(재송금 없음). */
-  function calcRefund(items: { name: string; subtotal: number; total: string | number; defective: string | number; checked?: boolean }[], orderTotal: number) {
+  function calcRefund(items: { name: string; subtotal: number; total: string | number; defective: string | number; checked?: boolean }[], orderTotal: number, cap = orderTotal) {
     // 실결제액(orderTotal) 기준으로 안분 — 쿠폰·포인트 할인이 이미 반영된 금액이라 정가가 아닌 결제액으로 계산
     const grossTotal = items.reduce((s, it) => s + it.subtotal, 0);
     const ratio = grossTotal > 0 ? orderTotal / grossTotal : 0; // 정가→실결제 할인비율
@@ -5260,7 +5274,7 @@ export default function AdminClient() {
       // 원 단위 반올림(0.5 미만 버림 / 0.5 이상 올림)
       return { name: it.name, total: t, defective: on ? d : 0, refund: Math.round(grossRefund * ratio) };
     });
-    const refundAmount = Math.min(orderTotal, refundItems.reduce((s, it) => s + it.refund, 0));
+    const refundAmount = Math.min(cap, refundItems.reduce((s, it) => s + it.refund, 0));   // 남은 결제금액을 넘지 않게
     return { refundItems, refundAmount };
   }
   /* 부분환불 상품·메모 저장. silent=true면 승인 직전 자동저장용(알림 없이 결과만 반환).
@@ -5270,7 +5284,7 @@ export default function AdminClient() {
     setRefundSaving(true);
     const orderTotal = refundDetail.orders?.final_amount || 0;
     const anyDefect = refundOrderItems.some(it => it.checked && (Number(it.defective) || 0) > 0);
-    const { refundItems, refundAmount } = calcRefund(refundOrderItems, orderTotal);
+    const { refundItems, refundAmount } = calcRefund(refundOrderItems, orderTotal, Math.max(0, orderTotal - (refundDetail.orders?.partial_refund_amount || 0)));
     const payload = {
       refund_items: anyDefect ? refundItems : null,
       refund_amount: anyDefect ? refundAmount : null,
@@ -6749,6 +6763,16 @@ export default function AdminClient() {
     /* 취소(cancelled)·환불(refunded)이면 결제된 카드도 실제 취소(포트원) 먼저 수행 */
     const isVoid = newStatus === 'cancelled' || newStatus === 'refunded';
     if (isVoid) {
+      /* DB의 현재 상태로 다시 확인 — 목록을 띄워 둔 사이 고객이 이미 취소했으면 다시 취소(알림톡·복원 재실행)하지 않는다 */
+      const { data: liveOrd } = await createClient().from('orders').select('status').eq('id', orderId).maybeSingle();
+      const liveSt = (liveOrd as { status?: string } | null)?.status;
+      if (liveSt && ['cancelled', 'refunded'].includes(liveSt)) {
+        const msg = `이미 ${STATUS_LABEL[liveSt] || liveSt}된 주문이라 처리하지 않았습니다(고객 취소 등).`;
+        if (bulk) bulk.fails.set(orderId, msg); else alert(msg + '\n목록을 새로고침해 확인하세요.');
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: liveSt } : o));
+        if (selectedOrder?.id === orderId) setSelectedOrder(s => s ? { ...s, status: liveSt } : s);
+        setUpdatingStatus(null); return;
+      }
       const ord = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
       const pid = (ord as unknown as { portone_payment_id?: string | null })?.portone_payment_id;
       /* refunding(환불 진행중)은 아직 카드취소 전이므로 '이미 취소됨'에서 제외 → 실제 카드취소를 시도한다.
@@ -6937,6 +6961,9 @@ export default function AdminClient() {
 
   /* 농가(상품)별 송장 저장 — 해당 농가 order_items 업데이트 + 모든 농가 발송 시 주문 배송중 전환
      + 해당 농가 배송시작 알림톡 발송 + 추적 웹훅 구독 등록(송장별 각각) */
+  /* 송장 입력을 막는 주문 상태 — 목록 줄 송장칸('—')·엑셀 일괄 발송과 같은 기준 */
+  const TRACKING_BLOCKED_STATUS = ['cancelled', 'refunded', 'refunding', 'exchanging', 'exchanged', 'pending', 'expired'];
+
   /* 브랜드(상품) 단위 배송상태 변경 — 상세 창 브랜드 칸의 [배송준비중][배송중][배송완료].
      그 브랜드 상품줄만 바꾸고 주문 상태는 모든 브랜드를 모아 다시 정한다(모두 배송완료 → 배송완료, 모두 배송중 이상 → 배송중).
      배송완료로 바꾸면 그 브랜드 상품명으로 배송완료 알림톡(수령인·주문자). 택배 추적이 안 되는 경우의 수동 처리용. */
@@ -6996,29 +7023,51 @@ export default function AdminClient() {
      order 를 인자로 받아 selectedOrder 없이도 동작한다(목록에서 브랜드별 줄이 직접 호출). */
   async function saveItemTracking(order: Order, itemIds: string[], courier: string, tracking: string) {
     if (!order || itemIds.length === 0) return;
-    setSavingTracking(true);
     const supabase = createClient();
-    const patch = {
-      courier: courier || null,
-      tracking_number: tracking || null,
-      ship_status: tracking ? 'shipped' : 'preparing',
-      shipped_at: tracking ? new Date().toISOString() : null,
-    };
+    /* 저장 직전 DB의 현재 상태로 판단 — 창을 열어 둔 사이 고객이 취소했을 수 있다 */
+    const { data: live } = await supabase.from('orders').select('status').eq('id', order.id).maybeSingle();
+    const liveStatus = (live as { status?: string } | null)?.status || order.status;
+    if (TRACKING_BLOCKED_STATUS.includes(liveStatus)) {
+      alert(liveStatus !== order.status
+        ? `그 사이 주문 상태가 ${STATUS_LABEL[liveStatus] || liveStatus}(으)로 바뀌어 송장을 저장하지 않았습니다.`
+        : `${STATUS_LABEL[liveStatus] || liveStatus} 주문에는 송장을 입력할 수 없습니다.\n(고객에게 출고 알림이 나가지 않도록 막았습니다)`);
+      if (liveStatus !== order.status) {
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: liveStatus } : o));
+        setSelectedOrder(s => (s && s.id === order.id ? { ...s, status: liveStatus } : s));
+      }
+      return;
+    }
+    /* 이미 배송완료·구매확정 → 잘못 넣은 번호를 고치는 경우만: 상품줄 상태·발송일은 그대로, 출고 알림 없음 */
+    const fixOnly = ['delivered', 'confirmed'].includes(liveStatus)
+      || (order.order_items || []).filter(i => i.id && itemIds.includes(i.id)).every(i => i.ship_status === 'delivered');
+    if (fixOnly && !confirm('이미 배송완료된 상품입니다. 송장 번호만 고칠까요?\n(배송 상태는 그대로 두고, 출고 알림톡은 보내지 않습니다)')) return;
+    setSavingTracking(true);
+    /* 택배사를 안 고르면 브랜드 지정 택배사 → 없으면 CJ대한통운 (비어 있으면 자동 배송 점검에서 빠졌다) */
+    const brandItem = (order.order_items || []).find(i => i.id && itemIds.includes(i.id)) as ({ carrier?: string | null } | undefined);
+    const courierFinal = courier || (tracking ? (resolveCourierCode(brandItem?.carrier) || 'kr.cjlogistics') : '');
+    const patch: Record<string, unknown> = fixOnly
+      ? { courier: courierFinal || null, tracking_number: tracking || null }
+      : {
+        courier: courierFinal || null,
+        tracking_number: tracking || null,
+        ship_status: tracking ? 'shipped' : 'preparing',
+        shipped_at: tracking ? new Date().toISOString() : null,
+      };
     const { error } = await supabase.from('order_items').update(patch).in('id', itemIds);
     if (error) { setSavingTracking(false); alert('저장 실패: ' + error.message); return; }
     const idSet = new Set(itemIds);
     const newItems = (order.order_items || []).map(i =>
-      (i.id && idSet.has(i.id)) ? { ...i, courier: patch.courier, tracking_number: patch.tracking_number, ship_status: patch.ship_status } : i
+      (i.id && idSet.has(i.id)) ? { ...i, courier: patch.courier as string | null, tracking_number: patch.tracking_number as string | null, ...(fixOnly ? {} : { ship_status: patch.ship_status as string }) } : i
     );
 
-    // 송장이 새로 입력된 경우: 그 브랜드 배송시작 알림톡 + 추적 웹훅 구독 등록
-    if (tracking) {
-      const cid = courier || 'kr.cjlogistics';
+    // 송장이 새로 입력된 경우: 그 브랜드 배송시작 알림톡 + 추적 웹훅 구독 등록 (배송완료 후 번호 수정은 알림 없음)
+    if (tracking && !fixOnly) {
+      const cid = courierFinal || 'kr.cjlogistics';
       const names = newItems.filter(i => i.id && idSet.has(i.id)).map(i => i.product_name).filter(Boolean) as string[];
       const productName = names.length ? names[0] + (names.length > 1 ? ` 외 ${names.length - 1}건` : '') : '주문상품';
       notifyOrderRoles(order, {
         type: 'shipping_started', recipient: order.recipient, orderNo: order.order_no,
-        productName, courierName: COURIER_NAMES[courier] || courier || '택배사', trackingNumber: tracking,
+        productName, courierName: COURIER_NAMES[courierFinal] || courierFinal || '택배사', trackingNumber: tracking,
       });
       fetch('/api/tracking/register', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -7185,9 +7234,12 @@ export default function AdminClient() {
 
   /* 선택 주문 일괄 배송 지연 안내 발송 (사유·예상도착일 1회 입력 → 전체 발송) */
   async function bulkDelayNotice() {
-    const targets = orders.filter(o => selOrders.has(o.id) && o.phone);
-    if (targets.length === 0) { alert('연락처가 있는 선택 주문이 없습니다.'); return; }
-    const reason = prompt(`선택 ${targets.length}건에 보낼 지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)`);
+    /* 발송 전 주문(결제완료·배송준비)에만 — 취소·환불·배송완료 주문에 지연 알림이 나가던 문제 */
+    const picked = orders.filter(o => selOrders.has(o.id));
+    const targets = picked.filter(o => o.phone && ['paid', 'preparing'].includes(o.status));
+    const excluded = picked.length - targets.length;
+    if (targets.length === 0) { alert(`지연 안내를 보낼 수 있는 주문이 없습니다.\n(결제완료·배송준비 상태이고 연락처가 있는 주문만 발송${excluded ? ` · 선택 중 ${excluded}건 제외` : ''})`); return; }
+    const reason = prompt(`선택 ${targets.length}건에 보낼 지연 사유를 입력하세요. (예: 산지 기상 악화로 출고 지연)${excluded ? `\n※ 발송 전 주문이 아니거나 연락처가 없는 ${excluded}건은 제외됩니다` : ''}`);
     if (!reason || !reason.trim()) return;
     const eta = prompt('변경 예상 도착일을 입력하세요. (예: 6/15(일))');
     if (!eta || !eta.trim()) return;
@@ -7228,7 +7280,7 @@ export default function AdminClient() {
     const supabase = createClient();
     const { data: after } = await supabase.from('orders').select('id, order_no, status').in('id', ids);
     const rows = (after || []) as { id: string; order_no: string; status: string }[];
-    const failed = rows.filter(o => o.status !== 'cancelled');
+    const failed = rows.filter(o => o.status !== 'cancelled' || report.fails.has(o.id));   // 이미 취소돼 있어 건너뛴 주문은 '완료'로 세지 않음
     refreshStageCounts();
     setSelOrders(new Set());
     const done = ids.length - failed.length;
@@ -7240,8 +7292,8 @@ export default function AdminClient() {
     if (restore.length) lines.push('', ...restore);
     if (done > 0) lines.push('고객 취소 안내 알림톡이 발송되었습니다.');
     if (failed.length) {
-      lines.push('', `⚠️ 아래 ${failed.length}건은 카드 취소에 실패해 아무것도 바꾸지 않았습니다.`, '주문 상세에서 하나씩 확인해 주세요.',
-        "(PG 관리자 화면에서 이미 직접 취소했다면, 상세에서 '상태만 기록'을 선택하면 됩니다)");
+      lines.push('', `⚠️ 아래 ${failed.length}건은 처리하지 않았습니다(카드 취소 실패·이미 취소된 주문 등).`, '주문 상세에서 하나씩 확인해 주세요.',
+        '(PG 관리자 화면에서 이미 직접 취소했다면, 상세에서 취소·전체환불을 누른 뒤 카드 취소 실패 창에서 [확인]을 누르면 상태만 기록됩니다)');
       failed.forEach(o => lines.push(`· ${o.order_no} — ${report.fails.get(o.id) || `처리되지 않음 (현재 ${STATUS_LABEL[o.status] || o.status})`}`));
     }
     alert(lines.join('\n'));
@@ -7256,6 +7308,7 @@ export default function AdminClient() {
     /* 엑셀 한 줄 = (주문번호 + 브랜드) 단위. 브랜드 열이 있으면 농가별 송장 각각, 없으면(구양식) 주문 전체 */
     type P = { orderNo: string; brand: string; courier: string; tracking: string };
     const byKey: Record<string, P> = {};
+    const conflicts = new Set<string>();
     wb.SheetNames.forEach(sn => {
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1 }) as unknown[][];
       const hi = rows.findIndex(r => (r || []).some(c => String(c).trim() === '주문번호'));
@@ -7271,12 +7324,16 @@ export default function AdminClient() {
         if (!orderNo || !tracking) continue;
         const courierName = iCr >= 0 ? String(row[iCr] || '').trim() : '';
         const brand = iBrand >= 0 ? String(row[iBrand] || '').trim() : '';
-        byKey[`${orderNo}::${brand}`] = { orderNo, brand, courier: resolveCourierCode(courierName), tracking }; // 빈칸/미인식이면 '' → 적용 시 농가 지정택배사로 폴백
+        const key = `${orderNo}::${brand}`;
+        /* 같은 주문·브랜드가 여러 줄(품목별)이면 첫 줄 기준. 줄마다 송장이 다르면 모아서 알린다(예전엔 마지막 줄만 조용히 반영) */
+        if (byKey[key]) { if (byKey[key].tracking !== tracking) conflicts.add(`${orderNo}${brand ? ` (${brand})` : ''}`); continue; }
+        byKey[key] = { orderNo, brand, courier: resolveCourierCode(courierName), tracking }; // 빈칸/미인식이면 '' → 적용 시 농가 지정택배사로 폴백
       }
     });
     const list = Object.values(byKey);
     if (list.length === 0) { alert('엑셀에서 주문번호·운송장번호를 찾지 못했습니다.\n주문서(배송용)를 내려받아 택배사·운송장번호를 채운 뒤 올려주세요.'); return; }
-    if (!confirm(`엑셀에서 ${list.length}건(농가 기준)을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?\n\n· 이미 같은 운송장이 등록된 줄은 건너뜁니다(알림톡 중복 발송 방지)\n· 취소·환불 주문과 입금 전 주문은 제외됩니다`)) return;
+    if (!confirm(`엑셀에서 ${list.length}건(농가 기준)을 찾았습니다. 일괄 발송처리(송장 등록 + 배송중)할까요?\n\n· 이미 같은 운송장이 등록된 줄은 건너뜁니다(알림톡 중복 발송 방지)\n· 취소·환불 주문, 입금 전 주문, 이미 배송완료된 주문·브랜드는 제외됩니다`
+      + (conflicts.size ? `\n\n⚠️ 한 브랜드에 송장이 여러 개 적힌 주문 ${conflicts.size}건은 첫 줄 송장으로 처리합니다:\n${[...conflicts].slice(0, 10).map(c => '· ' + c).join('\n')}` : ''))) return;
     const supabase = createClient();
 
     /* 주문번호별로 농가 항목 묶기 */
@@ -7291,7 +7348,7 @@ export default function AdminClient() {
     for (let i = 0; i < missingNos.length; i += 300) {
       const chunk = missingNos.slice(i, i + 300);
       const { data } = await supabase.from('orders')
-        .select('id, order_no, phone, orderer_phone, orderer_name, recipient, status, order_items(id, product_name, farm_id, products(farm_id, farms(name, carrier)))')
+        .select('id, order_no, phone, orderer_phone, orderer_name, recipient, status, order_items(id, product_name, farm_id, courier, tracking_number, ship_status, products(farm_id, farms(name, carrier)))')   // 송장·배송상태도 가져와야 중복 판별이 된다(예전엔 빠져 알림톡이 재발송됐다)
         .in('order_no', chunk);
       (data || []).forEach((o: Record<string, unknown>) => {
         const items = ((o.order_items as Record<string, unknown>[]) || []).map(it => {
@@ -7304,13 +7361,15 @@ export default function AdminClient() {
     }
 
     const nowIso = new Date().toISOString();
-    let doneOrders = 0, doneFarms = 0, miss = 0, skip = 0, unpaid = 0, dupFarms = 0;
+    let doneOrders = 0, doneFarms = 0, miss = 0, skip = 0, unpaid = 0, dupFarms = 0, deliveredSkip = 0;
     for (const [orderNo, farmEntries] of Array.from(byOrder.entries())) {
       const o = loadedByNo[orderNo] || fetchedByNo[orderNo];
       if (!o) { miss++; continue; }
       if (['cancelled','refunded','refunding'].includes(o.status)) { skip++; continue; }
       /* 입금 전(무통장 입금대기·기한만료) 주문은 제외 — 돈 받기 전에 '출고' 알림이 나가던 문제 */
       if (['pending','expired'].includes(o.status)) { unpaid++; continue; }
+      /* 이미 배송완료·구매확정 주문은 제외 — 상품줄이 배송중으로 되돌아가고 출고 알림이 다시 나가던 문제 */
+      if (['delivered','confirmed'].includes(o.status)) { deliveredSkip++; continue; }
       const allItems = o.order_items || [];
       const matchFarm = (i: { farm_name?: string | null }, brand: string) => brand === '' || (i.farm_name || '농가 미지정') === brand;
 
@@ -7318,9 +7377,10 @@ export default function AdminClient() {
          주문서(배송용)에는 기존 송장이 그대로 들어 있어서, 새 송장만 채워 올려도
          예전에는 그 줄까지 다시 처리돼 배송시작 알림톡이 또 나가고 배송완료 품목이 배송중으로 돌아갔다. */
       const todoEntries = farmEntries.filter(fe => {
-        const fitems = allItems.filter(i => matchFarm(i, fe.brand)) as ({ tracking_number?: string | null }[]);
+        const fitems = allItems.filter(i => matchFarm(i, fe.brand)) as ({ tracking_number?: string | null; ship_status?: string | null }[]);
         const same = fitems.length > 0 && fitems.every(i => (i.tracking_number || '') === fe.tracking);
         if (same) { dupFarms++; return false; }
+        if (fitems.length > 0 && fitems.every(i => i.ship_status === 'delivered')) { deliveredSkip++; return false; }   // 이 브랜드는 이미 도착
         return true;
       });
       if (todoEntries.length === 0) continue;
@@ -7382,6 +7442,8 @@ export default function AdminClient() {
       + `${dupFarms ? `\n· ${dupFarms}건은 이미 같은 운송장이 등록돼 건너뜀(알림톡 재발송 없음)` : ''}`
       + `${unpaid ? `\n· ${unpaid}건은 입금 전 주문이라 제외` : ''}`
       + `${skip ? `\n· ${skip}건은 취소/환불 주문이라 제외` : ''}`
+      + `${deliveredSkip ? `\n· ${deliveredSkip}건은 이미 배송완료된 주문·브랜드라 제외(번호를 고치려면 주문 상세에서)` : ''}`
+      + `${conflicts.size ? `\n· ${conflicts.size}건은 한 브랜드에 송장이 여러 개라 첫 줄 송장으로 처리` : ''}`
       + `${miss ? `\n· ${miss}건은 주문번호·브랜드를 찾지 못함` : ''}`);
   }
 
@@ -10204,12 +10266,16 @@ export default function AdminClient() {
                           )}
                         </div>
                         <div style={{ fontSize:12, color:'#64748B', marginBottom:8 }}>{fItems.map(i => i.product_name).join(', ')}</div>
+                        {TRACKING_BLOCKED_STATUS.includes(selectedOrder.status) && (
+                          <div style={{ fontSize:12, color:'#B45309', marginBottom:8 }}>{STATUS_LABEL[selectedOrder.status] || selectedOrder.status} 주문 — 송장 입력 불가</div>
+                        )}
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                           <AdmSelect value={cur.courier} onChange={v => setFarmTracking(p => ({ ...p, [fid]: { ...cur, courier: v } }))} className="adm-cs-round" style={{ minWidth:140 }} options={COURIER_OPTIONS} />
                           <input placeholder="운송장번호" value={cur.tracking_number}
+                            disabled={TRACKING_BLOCKED_STATUS.includes(selectedOrder.status)}
                             onChange={e => setFarmTracking(p => ({ ...p, [fid]: { ...cur, tracking_number: e.target.value } }))}
-                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none' }} />
-                          <button onClick={() => saveItemTracking(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking}
+                            style={{ flex:1, minWidth:140, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:13, fontFamily:'inherit', outline:'none', opacity: TRACKING_BLOCKED_STATUS.includes(selectedOrder.status) ? .5 : 1 }} />
+                          <button onClick={() => saveItemTracking(selectedOrder, fItems.map(i => i.id).filter((id): id is string => !!id), cur.courier, cur.tracking_number)} disabled={savingTracking || TRACKING_BLOCKED_STATUS.includes(selectedOrder.status)}
                             className="adm-btn adm-btn-primary" style={{ height:36, padding:'0 14px', fontSize:13, borderRadius:8 }}>
                             {savingTracking ? '저장 중...' : '저장'}
                           </button>
@@ -14286,8 +14352,9 @@ export default function AdminClient() {
                 const stCls: Record<string,string> = { pending:'badge-wait', hold:'badge-ready', processing:'badge-refund', completed:'badge-paid', rejected:'badge-off' };
                 const secTitle: React.CSSProperties = { fontSize:13, fontWeight:800, color:'#1A1A1A', marginBottom:10 };
                 const orderTotal = r.orders?.final_amount || 0;
-                const { refundAmount } = calcRefund(refundOrderItems, orderTotal);
-                const keptAmount = Math.max(0, orderTotal - refundAmount);
+                const remainingPay = Math.max(0, orderTotal - (r.orders?.partial_refund_amount || 0));   // 이전 부분환불을 뺀 남은 결제금액
+                const { refundAmount } = calcRefund(refundOrderItems, orderTotal, remainingPay);
+                const keptAmount = Math.max(0, remainingPay - refundAmount);
                 const hasDefect = refundOrderItems.some(it => (Number(it.defective) || 0) > 0);
                 const numInput: React.CSSProperties = { width:52, height:30, textAlign:'center', border:'1.5px solid #E2E8F0', borderRadius:6, fontSize:13, fontFamily:'inherit', outline:'none' };
                 const setItem = (id: string, key: 'total'|'defective', val: string) =>
@@ -14463,8 +14530,9 @@ export default function AdminClient() {
                           <button className="adm-btn adm-btn-outline" onClick={() => updateRefundStatus(r, 'hold')}>보류</button>
                         )}
                         {r.status !== 'completed' && (
-                          <button className="adm-btn adm-btn-primary" onClick={async () => {
-                            if (!confirm(hasDefect ? `부분환불 승인: 하자분 ${fmtPrice(refundAmount)}원만 카드 부분취소합니다. 나머지 ${fmtPrice(keptAmount)}원은 결제 유지되고 주문은 그대로입니다. (쿠폰·포인트 복구 없음) 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) return;
+                          <button className="adm-btn adm-btn-primary" disabled={refundItemsLoading} title={refundItemsLoading ? '주문 상품을 불러오는 중입니다' : undefined} onClick={async () => {
+                            if (refundItemsLoading) return;
+                            if (!confirm(hasDefect && keptAmount > 0 ? `부분환불 승인: 하자분 ${fmtPrice(refundAmount)}원만 카드 부분취소합니다. 나머지 ${fmtPrice(keptAmount)}원은 결제 유지되고 주문은 그대로입니다. (쿠폰·포인트 복구 없음) 진행할까요?` : hasDefect ? `환불 승인: 남은 결제금액 ${fmtPrice(refundAmount)}원을 모두 환불합니다. 주문이 환불완료로 변경됩니다. 진행할까요?` : '환불 승인 처리하시겠습니까? 주문이 환불완료로 변경됩니다.')) return;
                             /* 부분환불이면 하자수량을 자동저장(refund_amount 확정) 후 그 값으로 바로 승인 — 별도 '저장' 클릭 불필요 */
                             let target = r;
                             if (hasDefect) { const saved = await saveRefundPartial(true); if (!saved) return; target = saved; }
