@@ -26,6 +26,17 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(100);
 
+  /* 관리자 작성 문의 표시(수정 버튼용) — 관리자에게만 내려준다. 고객에게 어떤 문의가 관리자 글인지 알려주지 않도록
+     작성자 user_id 도 본인·관리자에게만 내려준다(예전엔 모두에게 내려가서 같은 계정이 쓴 글을 묶어볼 수 있었다) */
+  let adminIds = new Set<string>();
+  if (isAdmin) {
+    const uids = [...new Set(((data || []) as { user_id: string | null }[]).map(q => q.user_id).filter((v): v is string => !!v))];
+    if (uids.length) {
+      const { data: ads } = await admin.from('profiles').select('id').in('id', uids).eq('is_admin', true);
+      adminIds = new Set(((ads || []) as { id: string }[]).map(a => a.id));
+    }
+  }
+
   const inquiries = ((data || []) as {
     id: string; category: string; content: string; is_private: boolean;
     password: string | null; answer: string | null; answered_at: string | null;
@@ -35,7 +46,7 @@ export async function GET(req: NextRequest) {
     const canView = !q.is_private || owner || isAdmin;
     return {
       id: q.id,
-      user_id: q.user_id,
+      user_id: owner || isAdmin ? q.user_id : null,
       category: q.category,
       content: canView ? q.content : '',   // 남의 비밀글 내용 마스킹
       is_private: q.is_private,
@@ -44,6 +55,7 @@ export async function GET(req: NextRequest) {
       answered_at: q.answered_at,
       created_at: q.created_at,
       author_name: q.author_name,          // 관리자가 작성 시 지정한 표시 이름(없으면 null)
+      ...(isAdmin ? { by_admin: !!q.user_id && adminIds.has(q.user_id) } : {}),
     };
   });
 

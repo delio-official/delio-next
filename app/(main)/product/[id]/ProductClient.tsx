@@ -55,6 +55,7 @@ interface ProductInquiry {
   answered_at: string | null;
   created_at: string;
   author_name?: string | null;   // 관리자가 작성 시 지정한 표시 이름
+  by_admin?: boolean;            // 관리자 계정이 쓴 문의 (관리자가 볼 때만 서버가 표시)
   profiles?: { name: string | null } | null;
 }
 
@@ -139,6 +140,8 @@ export default function ProductClient() {
   const [inqPassword, setInqPassword] = useState('');
   const [inqAuthorName, setInqAuthorName] = useState('');   // 관리자 전용: 작성자 표시명 지정
   const [inqDate, setInqDate] = useState('');               // 관리자 전용: 작성일(YYYY-MM-DD) 지정, 비우면 지금
+  const [inqEditId, setInqEditId] = useState<string | null>(null); // 관리자 작성 문의 수정 모드(문의 창 재사용)
+  const inqEditOrigDateRef = useRef('');                    // 수정 시작 시 작성일 — 실제로 바꿨을 때만 저장
   const [expandedInq, setExpandedInq] = useState<string | null>(null);
   const [pwInput, setPwInput] = useState<Record<string, string>>({});
   const [unlockedInq, setUnlockedInq] = useState<Set<string>>(new Set());
@@ -1062,10 +1065,65 @@ export default function ProductClient() {
     setReviewModalOpen(true);
   }
 
+  /* 문의 창 입력값 초기화 */
+  function resetInqForm() {
+    setInqContent('');
+    setInqCategory('문의');
+    setInqPrivate(false);
+    setInqPassword('');
+    setInqAuthorName('');
+    setInqDate('');
+    setInqEditId(null);
+    inqEditOrigDateRef.current = '';
+  }
+
+  /* 문의 창 닫기 — 새 문의는 쓰던 내용 유지(기존 동작), 수정 모드는 비워서 다음 새 문의 창에 남지 않게 */
+  function closeInqModal() {
+    setInqModal(false);
+    if (inqEditId) resetInqForm();
+  }
+
+  /* 관리자가 쓴 문의 수정 — 리뷰 수정처럼 문의 창을 현재 값으로 채워 연다 (고객 문의는 대상 아님) */
+  function openInquiryEdit(q: ProductInquiry) {
+    const d = new Date(q.created_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    setInqEditId(q.id);
+    setInqCategory(q.category || '문의');
+    setInqContent(q.content || '');
+    setInqAuthorName(q.author_name || '');
+    setInqDate(d);
+    inqEditOrigDateRef.current = d;
+    setInqModal(true);
+  }
+
+  /* 관리자 작성 문의 수정 저장 — 관리자는 RLS·보호 트리거상 수정 허용. 작성일은 날짜를 실제로 바꿨을 때만 갱신 */
+  async function saveInquiryEdit() {
+    const editId = inqEditId!;
+    const todayKst = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' });
+    if (inqDate && inqDate > todayKst) { alert('작성일은 오늘 이후로 지정할 수 없습니다.'); return; }
+    const dateChanged = !!inqDate && inqDate !== inqEditOrigDateRef.current;
+    setInqSubmitting(true);
+    const { error } = await createClient().from('product_inquiries').update({
+      category: inqCategory,
+      content: inqContent.trim(),
+      author_name: inqAuthorName.trim() ? maskName(inqAuthorName) : null,
+      ...(dateChanged ? { created_at: inqDate === todayKst ? new Date().toISOString() : `${inqDate}T12:00:00+09:00` } : {}),
+    }).eq('id', editId);
+    if (error) { setInqSubmitting(false); alert('문의 수정 실패: ' + error.message); return; }
+    /* 날짜가 바뀌면 순서가 바뀌므로 다시 읽고, 수정한 문의가 있는 페이지로 이동해 펼쳐 둔다 */
+    const list = await refreshInquiries();
+    const idx = list.findIndex(x => x.id === editId);
+    if (idx >= 0) { setInqPage(Math.floor(idx / INQ_PER)); setExpandedInq(editId); }
+    setInqSubmitting(false);
+    setInqModal(false);
+    resetInqForm();
+    alert('문의가 수정되었습니다.');
+  }
+
   /* ── 상품 문의 제출 ── */
   async function submitInquiry() {
     if (!user) { gotoLogin(); return; }
     if (!inqContent.trim()) { alert('문의 내용을 입력해주세요.'); return; }
+    if (inqEditId) { if (isAdmin) await saveInquiryEdit(); return; }
     setInqSubmitting(true);
     const supabase = createClient();
     if (inqPrivate && !inqPassword.trim()) { alert('비밀 문의는 비밀번호를 설정해야 합니다.'); setInqSubmitting(false); return; }
@@ -1089,12 +1147,7 @@ export default function ProductClient() {
     setInqPage(Math.max(0, Math.ceil(list.length / INQ_PER) - 1));
     setInqSubmitting(false);
     setInqModal(false);
-    setInqContent('');
-    setInqCategory('문의');
-    setInqPrivate(false);
-    setInqPassword('');
-    setInqAuthorName('');
-    setInqDate('');
+    resetInqForm();
     alert('문의가 등록되었습니다.');
   }
 
@@ -2785,7 +2838,7 @@ export default function ProductClient() {
                 <div className="qna-header-sub">상품의 궁금한 점을 해결해 드립니다.</div>
               </div>
               <button className="qna-btn-filled"
-                onClick={() => { if (!user) { gotoLogin(); return; } setInqModal(true); }}>
+                onClick={() => { if (!user) { gotoLogin(); return; } if (inqEditId) resetInqForm(); setInqModal(true); }}>
                 상품문의하기
               </button>
             </div>
@@ -2885,7 +2938,7 @@ export default function ProductClient() {
                                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
                                   <span style={{ fontSize:12, fontWeight:700, background:'#1A1A1A', color:'#fff', borderRadius:4, padding:'2px 8px' }}>답변</span>
                                   {q.answered_at && (
-                                    <span style={{ fontSize:11, color:'#94A3B8' }}>{q.answered_at.slice(0,10)}</span>
+                                    <span style={{ fontSize:11, color:'#94A3B8' }}>{new Date(q.answered_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })}</span>
                                   )}
                                 </div>
                                 <div style={{ fontSize:13, color:'#444', lineHeight:1.8, whiteSpace:'pre-wrap' }}>
@@ -2893,19 +2946,27 @@ export default function ProductClient() {
                                 </div>
                               </div>
                             )}
-                            {/* 본인 문의 수정/삭제 (편집 중 아닐 때) */}
-                            {isMe && editInqId !== q.id && (
+                            {/* 본인 문의 수정/삭제 (편집 중 아닐 때)
+                                관리자가 쓴 문의: 관리자에게 답변 여부와 상관없이 수정(작성자명·작성일 포함, 문의 창) */}
+                            {(isMe || (isAdmin && q.by_admin)) && editInqId !== q.id && (
                               <div style={{ marginTop:14, display:'flex', justifyContent:'flex-end', gap:8 }}>
-                                {!q.answer && (
+                                {isAdmin && q.by_admin ? (
+                                  <button onClick={() => openInquiryEdit(q)}
+                                    style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                    수정
+                                  </button>
+                                ) : !q.answer && (
                                   <button onClick={() => { setEditInqId(q.id); setEditInqText(q.content); }}
                                     style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
                                     수정
                                   </button>
                                 )}
-                                <button onClick={() => deleteInquiry(q.id)}
-                                  style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
-                                  삭제
-                                </button>
+                                {isMe && (
+                                  <button onClick={() => deleteInquiry(q.id)}
+                                    style={{ fontSize:12, color:'#666', background:'#fff', border:'1px solid #D8D8D8', borderRadius:6, padding:'6px 14px', cursor:'pointer', fontWeight:600 }}>
+                                    삭제
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2934,13 +2995,13 @@ export default function ProductClient() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:3100,
           display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center',
           padding: isMobile ? 0 : 16 }}
-          onClick={() => setInqModal(false)}>
+          onClick={closeInqModal}>
           <div className="hide-scrollbar" style={{ background:'#fff', width:'100%', maxWidth:480,
             borderRadius: isMobile ? '16px 16px 0 0' : 16, padding:24, maxHeight:'80vh', overflowY:'auto' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-              <span style={{ fontSize:17, fontWeight:700 }}>상품 문의</span>
-              <button onClick={() => setInqModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
+              <span style={{ fontSize:17, fontWeight:700 }}>{inqEditId ? '상품 문의 수정' : '상품 문의'}</span>
+              <button onClick={closeInqModal} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#94A3B8' }}>✕</button>
             </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>카테고리</label>
@@ -2977,7 +3038,8 @@ export default function ProductClient() {
                 style={{ width:'100%', padding:'10px 12px', border:'1.5px solid #E2E8F0', borderRadius:8,
                   fontSize:14, fontFamily:'inherit', resize:'vertical', outline:'none', boxSizing:'border-box' }} />
             </div>
-            <div style={{ marginBottom:18 }}>
+            {/* 비밀글 설정은 수정 대상 아님 (비밀번호가 브라우저로 오지 않음) */}
+            {!inqEditId && <div style={{ marginBottom:18 }}>
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:14, cursor:'pointer', marginBottom: inqPrivate ? 10 : 0 }}>
                 <input type="checkbox" checked={inqPrivate} onChange={e => { setInqPrivate(e.target.checked); if (!e.target.checked) setInqPassword(''); }} />
                 비밀 문의로 등록
@@ -2990,7 +3052,7 @@ export default function ProductClient() {
                     style={{ flex:1, height:36, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none' }} />
                 </div>
               )}
-            </div>
+            </div>}
             {/* 관리자 전용: 작성자명·작성일 지정 (리뷰 작성과 동일 방식) */}
             {isAdmin && (
               <div style={{ marginBottom:18, padding:'12px 14px', background:'#F8FAFC', border:'1px dashed #CBD5E1', borderRadius:8 }}>
@@ -2998,7 +3060,7 @@ export default function ProductClient() {
                 <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>
                   작성자 이름
                   <span style={{ fontWeight:500, color:'#94A3B8', marginLeft:6 }}>
-                    첫 글자만 남고 마스킹{inqAuthorName.trim() ? ` (→ ${maskName(inqAuthorName)})` : ' · 비우면 기존처럼 표시'}
+                    첫 글자만 남고 마스킹{inqAuthorName.trim() ? ` (→ ${maskName(inqAuthorName)})` : inqEditId ? ' · 비우면 이름 지정 없음' : ' · 비우면 기존처럼 표시'}
                   </span>
                 </label>
                 <input value={inqAuthorName} onChange={e => setInqAuthorName(e.target.value)} maxLength={20}
@@ -3006,7 +3068,7 @@ export default function ProductClient() {
                   style={{ width:'100%', height:38, padding:'0 10px', border:'1.5px solid #E2E8F0', borderRadius:8, fontSize:14, fontFamily:'inherit', outline:'none', boxSizing:'border-box', marginBottom:10 }} />
                 <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:6 }}>
                   작성일
-                  <span style={{ fontWeight:500, color:'#94A3B8', marginLeft:6 }}>비우면 지금 시각으로 저장</span>
+                  <span style={{ fontWeight:500, color:'#94A3B8', marginLeft:6 }}>{inqEditId ? '바꾸지 않으면 그대로' : '비우면 지금 시각으로 저장'}</span>
                 </label>
                 <input type="date" value={inqDate} onChange={e => setInqDate(e.target.value)}
                   max={new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })}
@@ -3015,7 +3077,7 @@ export default function ProductClient() {
             )}
             <button onClick={submitInquiry} disabled={inqSubmitting}
               style={{ width:'100%', height:46, border:'none', borderRadius:8, background:'#1A1A1A', color:'#fff', fontSize:15, fontWeight:700, cursor:'pointer' }}>
-              {inqSubmitting ? '등록 중...' : '등록하기'}
+              {inqSubmitting ? (inqEditId ? '저장 중...' : '등록 중...') : (inqEditId ? '수정하기' : '등록하기')}
             </button>
           </div>
         </div>
