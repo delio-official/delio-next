@@ -884,6 +884,8 @@ async function compressImage(file: File, maxDim = 1200, quality = 0.82): Promise
     return { blob, ext: 'jpg', type: 'image/jpeg' };
   } catch { return fallback; }
 }
+/* 한국 날짜(YYYY-MM-DD) — DB 시각은 UTC로 오므로 앞 10자를 자르면 한국 0~9시 값이 전날로 보인다 */
+function kstYmd(iso: string): string { return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }); }
 function fmtDate(iso: string) {
   const d = new Date(iso);
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -3589,7 +3591,16 @@ export default function AdminClient() {
 
       /* 배송추적 자격증명 만료 경보 (크론이 site_settings.tracker_alert 에 세팅) */
       const { data: trkAlert } = await sb.from('site_settings').select('value').eq('key', 'tracker_alert').maybeSingle();
-      const trackerAlert = !!(trkAlert?.value && String(trkAlert.value).length > 0);
+      let trackerAlert = !!(trkAlert?.value && String(trkAlert.value).length > 0);
+      /* 알림이 떠 있으면 지금 바로 자격증명을 다시 확인 — 새 자격증명으로 재배포한 뒤 새로고침하면 바로 사라지게
+         (예전엔 하루 4번 크론이 돌 때까지 남아 있었다) */
+      if (trackerAlert) {
+        try {
+          const tr = await fetch('/api/admin/tracker-check', { method: 'POST' });
+          const tj = await tr.json().catch(() => null);
+          if (tr.ok && tj?.ok) trackerAlert = !!tj.alert;
+        } catch { /* 확인 실패 시 기존 알림 유지 */ }
+      }
 
       setDashExtra(prev => ({ ...prev, lowStock, settleDue, trackerAlert, settleDuePeriod: oldestDue || { month: targetMonth, half: thalf } }));
     })();
@@ -7616,7 +7627,7 @@ export default function AdminClient() {
       createClient().from('coupon_redeem_codes').select('code').eq('coupon_id', c.id).maybeSingle()
         .then(({ data }) => setCouponForm(f => ({ ...f, redeem_code: (data as { code?: string } | null)?.code || '' })))
         .then(() => setRedeemCodeLoading(false), () => setRedeemCodeLoading(false));
-      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: c.starts_at.slice(0,10), expires_at: c.expires_at ? c.expires_at.slice(0,10) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true, code_redeemable: c.code_redeemable ?? false, redeem_code: '' });
+      setCouponForm({ code: c.code || '', name: c.name, description: c.description || '', discount_type: c.discount_type, discount_value: c.discount_value, min_order_amount: c.min_order_amount, max_discount_amount: c.max_discount_amount?.toString() || '', starts_at: kstYmd(c.starts_at), expires_at: c.expires_at ? kstYmd(c.expires_at) : '', valid_days: c.valid_days != null ? String(c.valid_days) : '', is_active: c.is_active, is_public: c.is_public ?? false, signup_grant: c.signup_grant ?? false, is_membership: c.is_membership ?? false, allow_point: c.allow_point ?? true, code_redeemable: c.code_redeemable ?? false, redeem_code: '' });
     } else {
       setEditingCoupon(null);
       /* 신규 쿠폰 기본값: 활성·회원 다운로드 ON */
@@ -7670,8 +7681,10 @@ export default function AdminClient() {
       discount_value: Number(couponForm.discount_value),
       min_order_amount: Number(couponForm.min_order_amount) || 0,
       max_discount_amount: couponForm.discount_type === 'percent' && couponForm.max_discount_amount ? Number(couponForm.max_discount_amount) : null,
-      starts_at: couponForm.starts_at || new Date().toISOString(),
-      expires_at: couponForm.expires_at || null,
+      /* 날짜만 저장하면 UTC 0시 = 한국 오전 9시로 들어가 '만료일 오전 9시에 만료·시작일 오전 9시부터 사용'이 됐다 →
+         시작일은 그날 한국 0시, 만료일은 그날 한국 23:59:59 로 저장 */
+      starts_at: couponForm.starts_at ? `${couponForm.starts_at}T00:00:00+09:00` : new Date().toISOString(),
+      expires_at: couponForm.expires_at ? `${couponForm.expires_at}T23:59:59+09:00` : null,
       valid_days: couponForm.valid_days.trim() ? Number(couponForm.valid_days) : null,
       is_active: couponForm.is_active,
       is_public: couponForm.is_public,
@@ -11466,7 +11479,7 @@ export default function AdminClient() {
                   {/* 신규 회원가입 쿠폰팩 (signup_grant) */}
                   {(() => {
                     const pack = coupons.filter(c => c.signup_grant);
-                    const today = new Date().toISOString().slice(0,10);
+                    const today = kstYmd(new Date().toISOString());
                     const totalAmt = pack.filter(c => c.is_active && c.discount_type === 'fixed').reduce((s,c) => s + c.discount_value, 0);
                     return (
                       <div className="adm-card" style={{ marginBottom:16 }}>
@@ -11487,14 +11500,14 @@ export default function AdminClient() {
                               <tbody>
                                 {pack.map(c => {
                                   const relative = c.valid_days != null;
-                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                                  const expiredFixed = !relative && !!c.expires_at && kstYmd(c.expires_at) < today;
                                   return (
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
                                       <td>{c.name}</td>
                                       <td>{c.discount_type === 'percent' ? '정률' : '정액'}</td>
                                       <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
                                       <td className="adm-muted">
-                                        {relative ? <span style={{ color:'#475569' }}>발급일 +{c.valid_days}일</span> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {relative ? <span style={{ color:'#475569' }}>발급일 +{c.valid_days}일</span> : (c.expires_at ? `${kstYmd(c.expires_at)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
@@ -11544,7 +11557,7 @@ export default function AdminClient() {
                                 <td>{c.name}</td>
                                 <td>{c.discount_type === 'percent' ? '정률' : '정액'}</td>
                                 <td><strong>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</strong></td>
-                                <td className="adm-muted">{c.expires_at ? c.expires_at.slice(0,10) : '무제한'}</td>
+                                <td className="adm-muted">{c.expires_at ? kstYmd(c.expires_at) : '무제한'}</td>
                                 <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
                                 <td>
                                   <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
@@ -11610,7 +11623,7 @@ export default function AdminClient() {
                                 <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                                 <td className="adm-muted">{l.source}</td>
                                 <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
-                                <td className="adm-muted">{l.expires_at ? l.expires_at.slice(0,10) : '-'}</td>
+                                <td className="adm-muted">{l.expires_at ? kstYmd(l.expires_at) : '-'}</td>
                                 <td className="adm-muted">{l.used_at ? l.used_at.slice(0,10) : '-'}</td>
                                 <td>
                                   <span className="adm-badge" style={{
@@ -11805,7 +11818,7 @@ export default function AdminClient() {
                   {/* 멤버십 월발급 쿠폰팩 (is_membership) */}
                   {(() => {
                     const pack = coupons.filter(c => c.is_membership);
-                    const today = new Date().toISOString().slice(0,10);
+                    const today = kstYmd(new Date().toISOString());
                     return (
                       <div className="adm-card" style={{ marginBottom:24, padding:'20px 22px' }}>
                         <div className="adm-card-head" style={{ alignItems:'flex-start', borderBottom:'none', marginBottom:16, padding:0 }}>
@@ -11826,13 +11839,13 @@ export default function AdminClient() {
                               <tbody>
                                 {pack.map(c => {
                                   const relative = c.valid_days != null;
-                                  const expiredFixed = !relative && !!c.expires_at && c.expires_at.slice(0,10) < today;
+                                  const expiredFixed = !relative && !!c.expires_at && kstYmd(c.expires_at) < today;
                                   return (
                                     <tr key={c.id} style={{ opacity: c.is_active ? 1 : 0.55 }}>
                                       <td style={{ fontWeight:700 }}>{c.name}</td>
                                       <td style={{ fontWeight:700 }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${fmtPrice(c.discount_value)}원`}</td>
                                       <td className="adm-muted">
-                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${c.expires_at.slice(0,10)} 고정` : '무제한')}
+                                        {relative ? <strong style={{ color:'#475569' }}>발급일 +{c.valid_days}일</strong> : (c.expires_at ? `${kstYmd(c.expires_at)} 고정` : '무제한')}
                                         {expiredFixed && <span style={{ fontSize:11, color:'#DC2626', fontWeight:700, marginLeft:6 }}>⚠️ 만료일 지남</span>}
                                       </td>
                                       <td><CouponUsageCell issued={couponUsage[c.id]?.issued || 0} used={couponUsage[c.id]?.used || 0} /></td>
@@ -13278,11 +13291,11 @@ export default function AdminClient() {
               return matchStatus && matchSearch && matchDate;
             });
             /* 쿠폰 상태 (사용완료 / 미사용 / 기간만료) */
-            const todayStr = new Date().toISOString().slice(0,10);
+            const todayStr = kstYmd(new Date().toISOString());
             const cpStatus = (c?: RefCoupon) => {
               if (!c) return null;
               if (c.is_used) return { label:'사용완료', bg:'#DCFCE7', color:'#16A34A' };
-              if (c.expires_at && c.expires_at.slice(0,10) < todayStr) return { label:'기간만료', bg:'#FEE2E2', color:'#DC2626' };
+              if (c.expires_at && kstYmd(c.expires_at) < todayStr) return { label:'기간만료', bg:'#FEE2E2', color:'#DC2626' };
               return { label:'미사용', bg:'#F1F5F9', color:'#64748B' };
             };
             /* 쿠폰내역 — referral_id로 추천인/피추천인 묶기 */
@@ -16305,7 +16318,7 @@ export default function AdminClient() {
                           <td style={{ fontWeight:700 }}>{l.discountLabel}</td>
                           <td className="adm-muted">{l.source}</td>
                           <td className="adm-muted">{l.issued_at ? l.issued_at.slice(0,10) : '-'}</td>
-                          <td className="adm-muted">{l.expires_at ? l.expires_at.slice(0,10) : '-'}</td>
+                          <td className="adm-muted">{l.expires_at ? kstYmd(l.expires_at) : '-'}</td>
                           <td className="adm-muted">{l.used_at ? l.used_at.slice(0,10) : '-'}</td>
                           <td>{badge(l.status)}</td>
                         </tr>
