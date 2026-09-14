@@ -361,6 +361,13 @@ export default function MypageClient() {
     if (r.status === 'rejected') rejectedReqByOrder.set(r.order_id, r);
   });
 
+  /* 신청 규칙(DB)에 걸렸을 때 고객에게 보여줄 이유 */
+  const reqErrorText = (msg: string) =>
+    msg.includes('REFUND_REQ_DUPLICATE') ? '이미 처리 중인 취소·환불 신청이 있어요. 마이페이지에서 진행 상황을 확인해 주세요.'
+    : msg.includes('REFUND_REQ_EXPIRED') ? '환불 신청 기간(배송완료일로부터 7일)이 지났어요. 고객센터로 문의해 주세요.'
+    : msg.includes('REFUND_REQ_STATUS') ? '지금 주문 상태에서는 신청할 수 없어요. 새로고침 후 다시 확인해 주세요.'
+    : '신청 중 오류가 발생했습니다.';
+
   /* 반려/보류된 신청 → 같은 주문·유형으로 다시 신청 */
   async function submitReq() {
     if (!user || !reqModal || !reqReason) { if (!reqReason) alert('사유를 선택해주세요.'); return; }
@@ -393,7 +400,7 @@ export default function MypageClient() {
             ...(atts.length ? { attachments: atts } : {}),
           });
           setReqSubmitting(false);
-          if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
+          if (error) { alert(reqErrorText(error.message)); return; }
           setReqModal(null); setReqReason(''); setReqDetail(''); setReqFiles([]);
           await loadMyRefundReqs();
           alert(j?.bankRefund
@@ -418,7 +425,7 @@ export default function MypageClient() {
       ...(atts.length ? { attachments: atts } : {}),
     });
     setReqSubmitting(false);
-    if (error) { alert('신청 중 오류가 발생했습니다.'); return; }
+    if (error) { alert(reqErrorText(error.message)); return; }
     setReqModal(null); setReqReason(''); setReqDetail(''); setReqFiles([]);
     await loadMyRefundReqs();
     alert(reqModal.type === 'cancel' ? '주문취소 신청이 접수됐습니다.' : '환불 신청이 접수됐습니다.');
