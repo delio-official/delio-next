@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
+import { reviewAmountsFor, POINT_EVENT_COLS, type PointEvent } from '@/lib/point-earn';
 import { imgThumb } from '@/lib/img';
 import { TASTE_AXES } from '@/lib/taste';
 
@@ -32,7 +33,17 @@ export default function ReviewWriteModal({
   const submittingRef = useRef(false);
   const reviewDragSrc = useRef<number | null>(null);
   const reviewDropTarget = useRef<number | null>(null);
-  const reviewPt = { text: rewardText, photo: rewardPhoto };
+  /* 안내 금액 = 기본 설정(부모가 넘김) + 이 상품에 진행 중인 리뷰 적립 이벤트 (적립 API 와 같은 계산).
+     포인트 OFF(부모가 0 전달)면 이벤트도 표시하지 않는다 */
+  const [reviewEvents, setReviewEvents] = useState<PointEvent[]>([]);
+  useEffect(() => {
+    createClient().from('point_events').select(POINT_EVENT_COLS).eq('kind', 'review')
+      .then(({ data }) => setReviewEvents((data as PointEvent[] | null) || []));
+  }, []);
+  const pointOff = rewardText <= 0 && rewardPhoto <= 0;
+  const evAmt = reviewAmountsFor(product.id, { text: rewardText, photo: rewardPhoto }, pointOff ? [] : reviewEvents);
+  const reviewPt = { text: evAmt.text, photo: evAmt.photo };
+  const reviewPtEvent = !!(evAmt.textEvent || evAmt.photoEvent);
 
   function reorderReviewImages(to: number) {
     const from = reviewDragSrc.current;
@@ -176,7 +187,7 @@ export default function ReviewWriteModal({
           {(reviewPt.text > 0 || reviewPt.photo > 0) && (
             <div style={{ marginBottom:20, padding:'14px 16px', borderRadius:12, background:'var(--color-accent-bg)', border:'1px solid var(--color-accent-soft)', textAlign:'left' }}>
               <div style={{ fontSize:14, lineHeight:1.7, color:'var(--color-ink-soft)' }}>
-                리뷰를 남기면 포인트를 드려요!<br />
+                {reviewPtEvent ? <><b style={{ color:'var(--color-accent)' }}>리뷰 적립 이벤트 중!</b> </> : null}리뷰를 남기면 포인트를 드려요!<br />
                 <b style={{ color:'var(--color-accent)' }}>일반 리뷰 {reviewPt.text.toLocaleString()}P</b>
                 {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>포토(사진·영상) 리뷰 {reviewPt.photo.toLocaleString()}P</b></>}
               </div>

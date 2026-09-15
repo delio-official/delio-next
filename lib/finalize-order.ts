@@ -1,5 +1,5 @@
 import { createAdminSupabaseClient } from '@/lib/supabase-admin';
-import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { computeOrderEarn } from '@/lib/point-earn-server';
 import { notifyAlimtalk, kstDate } from '@/lib/sms';
 import { maybeSendWelcome } from '@/lib/welcome';
 
@@ -209,7 +209,7 @@ export async function finalizeOrder(
       .eq('id', orderData.userCouponId);
   }
 
-  /* 포인트 적립: 회원 등급별 적립률(membership_tiers, 적용일 스케줄링 포함). 글로벌 on/off 존중 */
+  /* 포인트 적립: 개인 적립률(없으면 등급 적립률) + 진행 중인 구매 적립 이벤트(상품별 최고 1개). 글로벌 on/off 존중 */
   let pointEnabled = true;
   {
     const { data: pe } = await supabase
@@ -219,14 +219,16 @@ export async function finalizeOrder(
   let earned = 0;
   if (orderData.userId) {
     const { data: prof } = await supabase
-      .from('profiles').select('point_balance, grade').eq('id', orderData.userId).single();
+      .from('profiles').select('point_balance').eq('id', orderData.userId).single();
     if (prof) {
-      const grade = normalizeGrade(prof.grade);
-      const { data: tierRow } = await supabase
-        .from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
-      const tier = (tierRow as MembershipTier | null) ?? DEFAULT_TIERS.find(t => t.grade === grade)!;
-      const ratePct = effectiveRate(tier);
-      earned = pointEnabled ? Math.floor(orderData.totalAmount * ratePct / 100) : 0;
+      earned = pointEnabled
+        ? await computeOrderEarn(supabase, {
+            userId: orderData.userId,
+            finalAmount: orderData.totalAmount,
+            items: orderData.items.map(i => ({ productId: i.id, amount: i.price * i.quantity })),
+            at: new Date(order.created_at || Date.now()),
+          })
+        : 0;
       const newBalance = (prof.point_balance || 0) - pointUsed + earned;
       await supabase.from('profiles')
         .update({ point_balance: Math.max(0, newBalance) }).eq('id', orderData.userId);

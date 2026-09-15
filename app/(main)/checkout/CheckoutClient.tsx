@@ -8,7 +8,8 @@ import { gaBeginCheckout, gaPurchase } from '@/lib/gtag';
 import { fbInitiateCheckout, fbPurchase } from '@/lib/metaPixel';
 import { getOrderPrefs, setOrderPrefs, clearOrderPrefs } from '@/lib/orderPrefs';
 import { createClient } from '@/lib/supabase';
-import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { normalizeGrade, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { baseRatePct, computePurchaseEarn, purchaseRateFor, POINT_EVENT_COLS, type PointEvent } from '@/lib/point-earn';
 import { useAuth } from '@/hooks/useAuth';
 import { getDownloadableCoupons, claimAllPublic } from '@/lib/coupons';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
@@ -306,21 +307,34 @@ export default function CheckoutClient() {
     })();
   }, [user]); // eslint-disable-line
 
-  /* 적립 예정 안내 — 실제 적립(finalize-order)과 같은 기준: 회원 등급별 적립률, 포인트 시스템 OFF면 0(안내 숨김) */
+  /* 적립 예정 안내 — 실제 적립(finalize-order)과 같은 계산(lib/point-earn):
+     개인 적립률(없으면 등급 적립률) + 진행 중인 구매 적립 이벤트(상품별 최고 1개). 포인트 시스템 OFF면 0(안내 숨김) */
   const [earnRatePct, setEarnRatePct] = useState(0);
+  const [earnEvents, setEarnEvents]   = useState<PointEvent[]>([]);
+  const [pointMinUse, setPointMinUse] = useState(0);   // 포인트 최소 사용(0 = 제한 없음)
   useEffect(() => {
     if (!user) return;
     (async () => {
       const sb = createClient();
-      const [{ data: pe }, { data: pf }] = await Promise.all([
-        sb.from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle(),
-        sb.from('profiles').select('grade').eq('id', user.id).maybeSingle(),
+      const [{ data: st }, { data: pf }, { data: ev }] = await Promise.all([
+        sb.from('site_settings').select('key, value').in('key', ['point_enabled', 'point_min_use']),
+        sb.from('profiles').select('grade, point_rate_override').eq('id', user.id).maybeSingle(),
+        sb.from('point_events').select(POINT_EVENT_COLS).eq('kind', 'purchase'),
       ]);
-      if ((pe as { value?: string } | null)?.value === 'false') { setEarnRatePct(0); return; }
-      const grade = normalizeGrade((pf as { grade?: string | null } | null)?.grade);
+      const map: Record<string, string> = {};
+      ((st as { key: string; value: string }[] | null) || []).forEach(x => { map[x.key] = x.value; });
+      setPointMinUse(Math.max(0, parseInt(map.point_min_use || '0') || 0));
+      if (map.point_enabled === 'false') { setEarnRatePct(0); return; }
+      let prof = pf as { grade?: string | null; point_rate_override?: number | null } | null;
+      if (!prof) {   // 개인 적립률 칸 추가 전이면 등급만
+        const { data } = await sb.from('profiles').select('grade').eq('id', user.id).maybeSingle();
+        prof = data as { grade?: string | null } | null;
+      }
+      const grade = normalizeGrade(prof?.grade);
       const { data: t } = await sb.from('membership_tiers').select('*').eq('grade', grade).maybeSingle();
       const tier = (t as MembershipTier | null) ?? DEFAULT_TIERS.find(x => x.grade === grade)!;
-      setEarnRatePct(effectiveRate(tier));
+      setEarnRatePct(baseRatePct(tier, prof?.point_rate_override));
+      setEarnEvents((ev as PointEvent[] | null) || []);
     })();
   }, [user]);
 
@@ -364,9 +378,17 @@ export default function CheckoutClient() {
   const afterCoupon = Math.max(0, subtotal - couponDisc);
   /* 이 쿠폰이 포인트 중복 사용 불가면 포인트 최대치 0 */
   const pointBlocked = !!coupon && coupon.allowPoint === false;
-  const maxPoint = pointBlocked ? 0 : Math.min(pointBalance, afterCoupon);
+  /* 보유 포인트가 최소 사용 포인트보다 적으면 사용 불가(장바구니에서 넣어둔 값도 0 처리) */
+  const pointMinLocked = pointMinUse > 0 && pointBalance < pointMinUse;
+  const maxPoint = pointBlocked || pointMinLocked ? 0 : Math.min(pointBalance, afterCoupon);
   const appliedPoint = Math.min(pointUsed, maxPoint);
   const total = Math.max(0, afterCoupon - appliedPoint);
+  /* 적립 예정 포인트 — 상품별 이벤트 반영 (이벤트 없으면 floor(결제금액 × 적립률) 과 같음) */
+  const earnItems = items.map(i => ({ productId: i.id, amount: i.price * (i.quantity ?? 1) }));
+  const earnPreview = earnRatePct > 0 || earnEvents.length > 0 ? computePurchaseEarn(earnItems, total, earnRatePct, earnEvents) : 0;
+  const earnHasEvent = earnItems.some(i => purchaseRateFor(i.productId, earnRatePct, earnEvents).event);
+  /* 최소 사용 포인트 — 보유가 모자라면 입력 막음, 입력했는데 모자라면 결제 전에 안내 */
+  const pointBelowMin = pointMinUse > 0 && appliedPoint > 0 && appliedPoint < pointMinUse;
 
   /* 최대할인 쿠폰 ID 계산 (자동적용 체크박스용) */
   let bestCouponId = ''; let bestCouponDisc = 0;
@@ -411,6 +433,10 @@ export default function CheckoutClient() {
        받는 사람(배송지) 번호와 별개 — 선물 주문이어도 주문자 본인 번호를 확보한다. */
     if (!profileHadPhone && ordererPhone.trim().length < 10) {
       alert('알림 받을 본인 휴대폰 번호를 정확히 입력해주세요.\n(주문·배송 알림톡이 이 번호로 발송됩니다)'); return;
+    }
+
+    if (pointBelowMin) {
+      alert(`포인트는 ${fmtPrice(pointMinUse)}P 이상부터 사용할 수 있어요.\n사용할 포인트를 ${fmtPrice(pointMinUse)}P 이상으로 입력하거나 비워주세요.`); return;
     }
 
     /* 총액 검증 — 0/NaN이 결제창에 넘어가 400 나는 것 방지 */
@@ -690,15 +716,17 @@ export default function CheckoutClient() {
           {/* ⑥ 포인트 */}
           <Section title="포인트" sk="point" open={isOpen('point')} onToggle={toggleSec}>
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <input type="text" inputMode="numeric" value={pointBlocked ? '' : (pointUsed || '')} disabled={pointBlocked}
+              <input type="text" inputMode="numeric" value={pointBlocked || pointMinLocked ? '' : (pointUsed || '')} disabled={pointBlocked || pointMinLocked}
                 onChange={e => setPointUsed(Math.min(Number(e.target.value.replace(/[^0-9]/g, '')) || 0, maxPoint))} placeholder="0"
-                style={{ ...inS, flex:1, textAlign:'right', ...(pointBlocked ? { background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' } : {}) }} />
-              <button onClick={() => setPointUsed(maxPoint)} disabled={pointBlocked}
-                style={{ padding:'8px 14px', border:'none', background: pointBlocked ? '#CBD5E1' : '#1A1A1A', borderRadius:6, fontSize:14, fontWeight:700, color:'#fff', cursor: pointBlocked ? 'not-allowed' : 'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0 }}>전액사용</button>
+                style={{ ...inS, flex:1, textAlign:'right', ...(pointBlocked || pointMinLocked ? { background:'#F1F5F9', color:'#94A3B8', cursor:'not-allowed' } : {}) }} />
+              <button onClick={() => setPointUsed(maxPoint)} disabled={pointBlocked || pointMinLocked}
+                style={{ padding:'8px 14px', border:'none', background: pointBlocked || pointMinLocked ? '#CBD5E1' : '#1A1A1A', borderRadius:6, fontSize:14, fontWeight:700, color:'#fff', cursor: pointBlocked || pointMinLocked ? 'not-allowed' : 'pointer', whiteSpace:'nowrap', fontFamily:'inherit', flexShrink:0 }}>전액사용</button>
             </div>
             {pointBlocked
               ? <p style={{ fontSize:12, color:'#DC2626', margin:'8px 0 0', textAlign:'right' }}>이 쿠폰은 포인트와 함께 사용할 수 없어요</p>
-              : <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원</p>}
+              : pointBelowMin || pointMinLocked
+              ? <p style={{ fontSize:12, color:'#DC2626', margin:'8px 0 0', textAlign:'right' }}>포인트는 {fmtPrice(pointMinUse)}P 이상부터 사용할 수 있어요 (보유 {fmtPrice(pointBalance)}원)</p>
+              : <p style={{ fontSize:12, color:'#94A3B8', margin:'8px 0 0', textAlign:'right' }}>사용 가능 {fmtPrice(pointBalance)}원{pointMinUse > 0 ? ` · ${fmtPrice(pointMinUse)}P 이상부터 사용` : ''}</p>}
           </Section>
 
           {/* ② 주문하시는 분 */}
@@ -774,7 +802,7 @@ export default function CheckoutClient() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0 4px', marginTop:6, borderTop:'1.5px solid #1A1A1A', fontWeight:800 }}>
               <span style={{ fontSize:15 }}>총 결제 예정금액</span><span style={{ fontSize:18 }}>{fmtPrice(total)}원</span>
             </div>
-            {earnRatePct > 0 && <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4 }}>적립 예정 +{fmtPrice(Math.floor(total * earnRatePct / 100))}P</div>}
+            {earnPreview > 0 && <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4 }}>적립 예정 +{fmtPrice(earnPreview)}P{earnHasEvent && <span style={{ color:'#CB1D11', fontWeight:700 }}> · 적립 이벤트</span>}</div>}
           </Section>
           </div>
 
@@ -817,8 +845,8 @@ export default function CheckoutClient() {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 0 4px', marginTop:8, borderTop:'2px solid #1A1A1A' }}>
               <span style={{ fontSize:15, fontWeight:800 }}>총 결제 예정 금액</span><span style={{ fontSize:20, fontWeight:800 }}>{fmtPrice(total)}원</span>
             </div>
-            {earnRatePct > 0
-              ? <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4, marginBottom:16 }}>적립 예정 +{fmtPrice(Math.floor(total * earnRatePct / 100))}P</div>
+            {earnPreview > 0
+              ? <div style={{ fontSize:12, color:'#888', textAlign:'right', marginTop:4, marginBottom:16 }}>적립 예정 +{fmtPrice(earnPreview)}P{earnHasEvent && <span style={{ color:'#CB1D11', fontWeight:700 }}> · 적립 이벤트</span>}</div>
               : <div style={{ marginBottom:16 }} />}
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:13, color:'#333', marginBottom:12 }}>
               <input type="checkbox" checked={payAgree} onChange={e => setPayAgree(e.target.checked)} style={{ width:16, height:16, accentColor:'#1A1A1A', flexShrink:0 }} />

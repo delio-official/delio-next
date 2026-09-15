@@ -37,5 +37,28 @@ export async function POST(req: Request) {
   if (user?.id) { await admin.from('survey_results').delete().eq('user_id', user.id); }
   const { error } = await admin.from('survey_results').insert(row);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+
+  const pointGranted = user?.id ? await grantSurveyPoint(admin, user.id) : 0;
+  return NextResponse.json({ ok: true, pointGranted });
+}
+
+/* 취향 설문 완료 적립 — 로그인 회원이 처음 완료했을 때 1회 (설정 survey_point, 0이면 꺼짐)
+   '받음' 표시(survey_point_at)를 먼저 조건부로 찍어 동시 요청에도 1번만 지급.
+   다시 진단하거나 결과를 지워도 표시가 남아 다시 받지 못한다. 기존 완료 회원은 SQL로 미리 표시(소급 없음). */
+async function grantSurveyPoint(admin: ReturnType<typeof createAdminSupabaseClient>, userId: string): Promise<number> {
+  const { data: settings } = await admin.from('site_settings').select('key, value').in('key', ['survey_point', 'point_enabled']);
+  const map: Record<string, string> = {};
+  ((settings as { key: string; value: string }[]) || []).forEach(s => { map[s.key] = s.value; });
+  const amount = Math.max(0, parseInt(map.survey_point || '0') || 0);
+  if (amount <= 0 || map.point_enabled === 'false') return 0;
+
+  const { data: marked, error } = await admin.from('profiles')
+    .update({ survey_point_at: new Date().toISOString() })
+    .eq('id', userId).is('survey_point_at', null).select('point_balance').maybeSingle();
+  if (error || !marked) return 0;
+
+  const { data: prof } = await admin.from('profiles').select('point_balance').eq('id', userId).single();
+  await admin.from('profiles').update({ point_balance: (prof?.point_balance || 0) + amount }).eq('id', userId);
+  try { await admin.from('point_logs').insert({ user_id: userId, amount, description: '취향 설문 완료 적립' }); } catch { /* 원장 기록 실패는 무시 */ }
+  return amount;
 }

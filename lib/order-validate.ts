@@ -125,6 +125,10 @@ export async function validateOrderInput(admin: SupabaseClient, od: OrderInput):
   if (pointUsed > 0) {
     const { data: prof } = await admin.from('profiles').select('point_balance').eq('id', od.userId).maybeSingle();
     if (pointUsed > ((prof as { point_balance?: number } | null)?.point_balance || 0) + 1) return bad('보유 포인트를 초과했습니다.');
+    /* 최소 사용 포인트 (설정 point_min_use, 0 = 제한 없음) */
+    const { data: mu } = await admin.from('site_settings').select('value').eq('key', 'point_min_use').maybeSingle();
+    const minUse = Math.max(0, parseInt((mu as { value?: string } | null)?.value || '0') || 0);
+    if (minUse > 0 && pointUsed < minUse) return bad(`포인트는 ${minUse.toLocaleString()}P 이상부터 사용할 수 있습니다.`);
   }
 
   /* 5) 합계 = 소계 − 쿠폰 − 포인트 */

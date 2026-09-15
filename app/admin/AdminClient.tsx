@@ -11,6 +11,7 @@ import TrackingModal from '@/components/TrackingModal/TrackingModal';
 import { loadAllTabs, type FilterTab, type TabType } from '@/lib/filterTabs';
 import { effectivePointRatePct, pendingPointChange } from '@/lib/points';
 import { DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { describeEvent, POINT_EVENT_COLS, type PointEvent } from '@/lib/point-earn';
 import { parseBadges } from '@/lib/badges';
 import { isAdNightKst, nextKst9am, AD_NIGHT_MSG } from '@/lib/ad-night';
 import BadgeTagsInput from '@/components/BadgeTagsInput';
@@ -1912,6 +1913,18 @@ function BadgeColorRow({ value, presets, onPick }: {
 }
 
 /* ===== 커스텀 셀렉트 (네이티브 select 대체) ===== */
+/* 적립 이벤트 입력 폼 (날짜는 한국 날짜 YYYY-MM-DD, 끝 비우면 상시) */
+type PeForm = {
+  kind: 'purchase' | 'review'; name: string; start: string; end: string;
+  mode: 'multiply' | 'rate' | 'amount'; multiplier: string; rate: string; textAmt: string; photoAmt: string;
+  target: 'all' | 'products'; productIds: string[];
+};
+const PE_EMPTY: PeForm = { kind: 'purchase', name: '', start: '', end: '', mode: 'multiply', multiplier: '2', rate: '', textAmt: '', photoAmt: '', target: 'all', productIds: [] };
+const PE_ERR = (msg: string) =>
+  msg.includes('POINT_EVENT_STARTED') ? '이미 시작된 이벤트는 끝나는 날만 바꿀 수 있고, 삭제할 수 없어요. (바로 끝내려면 [종료])'
+  : msg.includes('POINT_EVENT_END_PAST') ? '시작된 이벤트의 끝나는 날을 지난 날짜로 바꿀 수 없어요. 바로 끝내려면 [종료]를 누르세요.'
+  : msg;
+
 type AdmOption = { value: string; label: string };
 function AdmSelect({ value, onChange, options, placeholder, className, style, disabled }: {
   value: string;
@@ -2679,6 +2692,16 @@ export default function AdminClient() {
   const [pointFilter, setPointFilter] = useState<'all' | 'has' | 'none'>('all');
   const [pointSubtab, setPointSubtab] = useState<'members' | 'history'>('members'); // 회원별 포인트 / 전체 내역
   const [earnSaving, setEarnSaving] = useState(false);
+  /* 적립 이벤트 (구매·리뷰) — 쿠폰/포인트 › 포인트 탭 */
+  const [pointEvents, setPointEvents] = useState<PointEvent[]>([]);
+  const [pointEventsLoading, setPointEventsLoading] = useState(false);
+  const [peModal, setPeModal] = useState<null | { id: string | null; locked: boolean }>(null);   // locked = 시작된 이벤트(끝나는 날만 수정)
+  const [peForm, setPeForm] = useState<PeForm>(PE_EMPTY);
+  const [peSaving, setPeSaving] = useState(false);
+  const [peProducts, setPeProducts] = useState<{ id: string; name: string; is_active: boolean }[]>([]);
+  const [peProductQ, setPeProductQ] = useState('');
+  const [mDetailRate, setMDetailRate] = useState('');           // 회원 상세: 개인 적립률(비우면 등급 적립률)
+  const [mDetailRateOrig, setMDetailRateOrig] = useState<string | null>(null);   // null = 불러오기 전/실패
   const [pointStats, setPointStats] = useState({ total: 0, monthGiven: 0, monthUsed: 0 });
   const [pointLogs, setPointLogs] = useState<{ id: string; user_id: string; amount: number; created_at: string; description?: string | null; profiles?: { name: string|null; email: string|null; grade?: string|null } | null }[]>([]);
   const [pointLogFrom, setPointLogFrom] = useState<string>(() => { const d = new Date(); d.setMonth(d.getMonth()-1); return ymd(d); });
@@ -3406,6 +3429,12 @@ export default function AdminClient() {
   /* 메뉴 순서변경 드래그 중인 행 id (훅이므로 early return 위에 선언) */
   const dragRow = useRef<string | null>(null);
   const dragImgIdx = useRef<number | null>(null); // 브랜드 소개 이미지 드래그 순서변경용
+
+  /* 포인트 탭을 열면 적립 이벤트 목록을 불러온다 (훅이므로 early return 위) */
+  useEffect(() => {
+    if (isAdmin && panel === 'coupon' && couponTab === 'tab-point') loadPointEventsAdmin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, panel, couponTab]);
 
   /* ── Early return: 모든 Hook 선언 이후에만 위치 가능 ── */
   if (!adminChecked) {
@@ -4734,6 +4763,14 @@ export default function AdminClient() {
     if (mDetailGrade && mDetailGrade !== selectedMember.grade) {
       await changeMemberGrade(selectedMember.id, mDetailGrade);
     }
+    /* 개인 적립률 — 바뀐 경우만 (비우면 등급 적립률로 복귀) */
+    if (mDetailRateOrig !== null && mDetailRate.trim() !== mDetailRateOrig) {
+      const raw = mDetailRate.trim();
+      const v = raw === '' ? null : Number(raw);
+      if (v !== null && !(v >= 0 && v <= 100)) { setMDetailSaving(false); alert('개인 적립률은 0~100 사이 숫자로 입력하세요. (비우면 등급 적립률)'); return; }
+      const { error } = await createClient().from('profiles').update({ point_rate_override: v }).eq('id', selectedMember.id);
+      if (error) { setMDetailSaving(false); alert('개인 적립률 저장 실패: ' + error.message); return; }
+    }
     setMDetailSaving(false);
     setSelectedMember(null);
   }
@@ -4752,6 +4789,14 @@ export default function AdminClient() {
   async function openMemberDetail(m: AdminProfile) {
     setSelectedMember(m);
     setMDetailGrade(m.grade);
+    setMDetailRate(''); setMDetailRateOrig(null);
+    createClient().from('profiles').select('point_rate_override').eq('id', m.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return;   // 칸 추가 전이면 입력칸 비활성
+        const v = (data as { point_rate_override?: number | null } | null)?.point_rate_override;
+        const s = v == null ? '' : String(v);
+        setMDetailRate(s); setMDetailRateOrig(s);
+      });
     setMemberMemo('');
     setMemberMemos([]);
     setMemberStats({ totalSpent: 0, orderCount: 0 });
@@ -6173,14 +6218,115 @@ export default function AdminClient() {
   /* 포인트 적립 설정 저장 — 리뷰 적립 P (site_settings). 구매 적립률은 멤버십 등급별 적립률 사용 */
   async function saveEarnSettings() {
     setEarnSaving(true);
+    const whole = (v: unknown, def: string) => String(Math.max(0, Math.floor(Number(v ?? def)) || 0));
     const rows = [
       { key: 'review_point_text',  value: String(siteSettings.review_point_text ?? '50') },
       { key: 'review_point_photo', value: String(siteSettings.review_point_photo ?? '150') },
+      { key: 'survey_point',       value: whole(siteSettings.survey_point, '0') },    // 0 = 설문 적립 꺼짐
+      { key: 'point_min_use',      value: whole(siteSettings.point_min_use, '0') },   // 0 = 최소 사용 제한 없음
     ];
     const { error } = await createClient().from('site_settings').upsert(rows, { onConflict: 'key' });
     setEarnSaving(false);
     if (error) alert('저장 실패: ' + error.message);
-    else { markSettingsSaved(rows); alert('적립 설정이 저장되었습니다.'); }
+    else { markSettingsSaved(rows); setSiteSettings(prev => ({ ...prev, ...Object.fromEntries(rows.map(x => [x.key, x.value])) })); alert('적립 설정이 저장되었습니다.'); }
+  }
+
+  /* ── 적립 이벤트 ── */
+  async function loadPointEventsAdmin() {
+    setPointEventsLoading(true);
+    const { data, error } = await createClient().from('point_events').select(POINT_EVENT_COLS)
+      .order('starts_at', { ascending: false });
+    setPointEventsLoading(false);
+    if (error) { setPointEvents([]); return; }
+    setPointEvents((data as PointEvent[] | null) || []);
+  }
+  function peStatus(e: PointEvent): 'scheduled' | 'running' | 'ended' {
+    const now = Date.now();
+    if (new Date(e.starts_at).getTime() > now) return 'scheduled';
+    if (e.ends_at && new Date(e.ends_at).getTime() <= now) return 'ended';
+    return 'running';
+  }
+  async function loadPeProducts() {
+    if (peProducts.length) return;
+    const { data } = await fetchAllRows((a, b) => createClient().from('products')
+      .select('id, name, is_active').is('deleted_at', null).order('name').order('id').range(a, b));
+    setPeProducts((data as { id: string; name: string; is_active: boolean }[]) || []);
+  }
+  function openPeNew() {
+    setPeForm({ ...PE_EMPTY, start: kstYmd(new Date().toISOString()) });
+    setPeProductQ('');
+    setPeModal({ id: null, locked: false });
+    loadPeProducts();
+  }
+  function openPeEdit(e: PointEvent) {
+    setPeForm({
+      kind: e.kind, name: e.name, start: kstYmd(e.starts_at), end: e.ends_at ? kstYmd(e.ends_at) : '',
+      mode: e.mode, multiplier: e.multiplier != null ? String(e.multiplier) : '2', rate: e.rate != null ? String(e.rate) : '',
+      textAmt: e.review_text_amount != null ? String(e.review_text_amount) : '', photoAmt: e.review_photo_amount != null ? String(e.review_photo_amount) : '',
+      target: e.target, productIds: e.product_ids || [],
+    });
+    setPeProductQ('');
+    setPeModal({ id: e.id, locked: peStatus(e) !== 'scheduled' });
+    loadPeProducts();
+  }
+  async function savePointEvent() {
+    if (!peModal) return;
+    const f = peForm;
+    const endIso = f.end ? `${f.end}T23:59:59+09:00` : null;
+    const sb = createClient();
+    if (peModal.locked) {
+      /* 시작된 이벤트: 끝나는 날만 */
+      if (endIso && new Date(endIso).getTime() < Date.now()) { alert('끝나는 날은 오늘 이후로 정해주세요. 바로 끝내려면 [종료]를 누르세요.'); return; }
+      setPeSaving(true);
+      const { error } = await sb.from('point_events').update({ ends_at: endIso }).eq('id', peModal.id!);
+      setPeSaving(false);
+      if (error) { alert('저장 실패: ' + PE_ERR(error.message)); return; }
+      setPeModal(null); loadPointEventsAdmin(); return;
+    }
+    if (!f.name.trim()) { alert('이벤트 이름을 입력하세요.'); return; }
+    if (!f.start) { alert('시작일을 선택하세요.'); return; }
+    if (f.end && f.end < f.start) { alert('끝나는 날은 시작일과 같거나 뒤여야 해요.'); return; }
+    if (endIso && new Date(endIso).getTime() < Date.now()) { alert('끝나는 날이 이미 지났어요. 날짜를 확인하세요.'); return; }
+    const row: Record<string, unknown> = {
+      kind: f.kind, name: f.name.trim(), starts_at: `${f.start}T00:00:00+09:00`, ends_at: endIso, mode: f.mode,
+      multiplier: null, rate: null, review_text_amount: null, review_photo_amount: null,
+      target: f.target, product_ids: f.target === 'products' ? f.productIds : [],
+    };
+    if (f.mode === 'multiply') {
+      const m = Number(f.multiplier);
+      if (!(m > 1 && m <= 20)) { alert('배수는 1보다 크고 20 이하로 입력하세요. (예: 2 = 2배, 1.5 = 1.5배)'); return; }
+      row.multiplier = m;
+    } else if (f.mode === 'rate') {
+      const v = Number(f.rate);
+      if (!(v > 0 && v <= 100)) { alert('적립률은 0보다 크고 100 이하로 입력하세요. (예: 3 = 3%)'); return; }
+      row.rate = v;
+    } else {
+      const t = Math.floor(Number(f.textAmt)), ph = Math.floor(Number(f.photoAmt));
+      if (!(t >= 0 && ph >= 0) || f.textAmt === '' || f.photoAmt === '' || t + ph <= 0) { alert('일반·포토 리뷰 적립 금액을 모두 입력하세요. (0 이상, 둘 다 0은 불가)'); return; }
+      row.review_text_amount = t; row.review_photo_amount = ph;
+    }
+    if (f.target === 'products' && f.productIds.length === 0) { alert('대상 상품을 1개 이상 고르세요.'); return; }
+    if (new Date(row.starts_at as string).getTime() <= Date.now()
+        && !confirm('시작일이 오늘(또는 지난 날)이라 저장하는 즉시 이벤트가 시작돼요.\n시작된 이벤트는 끝나는 날만 바꿀 수 있고 삭제할 수 없어요. 저장할까요?')) return;
+    setPeSaving(true);
+    const { error } = peModal.id
+      ? await sb.from('point_events').update(row).eq('id', peModal.id)
+      : await sb.from('point_events').insert(row);
+    setPeSaving(false);
+    if (error) { alert('저장 실패: ' + PE_ERR(error.message)); return; }
+    setPeModal(null); loadPointEventsAdmin();
+  }
+  async function endPointEvent(e: PointEvent) {
+    if (!confirm(`'${e.name}' 이벤트를 지금 종료할까요?\n지금 이후의 ${e.kind === 'purchase' ? '주문' : '리뷰'}부터 원래 적립으로 돌아가요. (이미 적용된 적립은 그대로)`)) return;
+    const { error } = await createClient().from('point_events').update({ ends_at: new Date().toISOString() }).eq('id', e.id);
+    if (error) { alert('종료 실패: ' + PE_ERR(error.message)); return; }
+    loadPointEventsAdmin();
+  }
+  async function deletePointEvent(e: PointEvent) {
+    if (!confirm(`'${e.name}' 이벤트를 삭제할까요? (시작 전 이벤트만 삭제할 수 있어요)`)) return;
+    const { error } = await createClient().from('point_events').delete().eq('id', e.id);
+    if (error) { alert('삭제 실패: ' + PE_ERR(error.message)); return; }
+    loadPointEventsAdmin();
   }
 
   /* 다른 저장 버튼으로 저장한 설정도 '저장된 값' 기준을 맞춰 둔다(불러오기 보호·변경 판별이 어긋나지 않게) */
@@ -11822,7 +11968,7 @@ export default function AdminClient() {
                       <div style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', flexDirection:'column', gap:10 }}>
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:700, color:'#1A1A1A' }}>구매 적립</div>
-                          <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4, minHeight:16 }}>회원 등급별 적립률로 적용됩니다</div>
+                          <div className="adm-muted" style={{ fontSize:11, marginTop:2, lineHeight:1.4, minHeight:16 }}>회원 등급별 적립률 (개인 적립률·구매 적립 이벤트가 있으면 더 높은 쪽)</div>
                         </div>
                         <button type="button" className="adm-btn adm-btn-outline" style={{ justifyContent:'center' }}
                           onClick={() => setCouponTab('tab-membership')}>멤버십 관리에서 설정 →</button>
@@ -11830,6 +11976,8 @@ export default function AdminClient() {
                       {([
                         { label:'일반 리뷰 적립', sub:'텍스트 리뷰 작성 시', key:'review_point_text', def:'50', unit:'P', step:1 },
                         { label:'포토 리뷰 적립', sub:'사진·영상 첨부 시', key:'review_point_photo', def:'150', unit:'P', step:1 },
+                        { label:'취향 설문 완료 적립', sub:'로그인 회원 첫 완료 1회 · 0이면 꺼짐', key:'survey_point', def:'0', unit:'P', step:1 },
+                        { label:'포인트 최소 사용', sub:'이 금액 이상부터 결제에 사용 · 0이면 제한 없음', key:'point_min_use', def:'0', unit:'P', step:1 },
                       ] as { label:string; sub:string; key:string; def:string; unit:string; step:number }[]).map(f => (
                         /* 각 박스: 위(라벨·설명)–아래(입력) 정렬을 맞추기 위해 세로 배치 + 설명 높이 통일 */
                         <div key={f.key} style={{ border:'1px solid #F0F0EE', borderRadius:10, padding:'14px 16px', background:'#FAFAF8', display:'flex', flexDirection:'column', gap:10 }}>
@@ -11850,6 +11998,53 @@ export default function AdminClient() {
                         {earnSaving ? '저장 중...' : '저장'}
                       </button>
                     </div>
+                  </div>
+
+                  {/* 적립 이벤트 (구매·리뷰) */}
+                  <div className="adm-card" style={{ marginBottom:24, padding:'18px 20px' }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexWrap:'wrap', marginBottom:14 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontWeight:700, fontSize:14 }}>적립 이벤트</div>
+                        <div className="adm-muted" style={{ fontSize:12, marginTop:3, lineHeight:1.6 }}>
+                          기간 동안 구매 적립률이나 리뷰 적립금을 올립니다. 끝나는 날이 지나면 자동으로 원래 적립으로 돌아가요.<br />
+                          같은 종류가 겹치면 상품마다 <b>가장 유리한 1개</b>만, 구매 이벤트와 리뷰 이벤트는 <b>각각</b> 적용됩니다.
+                          구매는 <b>주문 시점</b>, 리뷰는 <b>작성 시점</b> 기준이에요.
+                        </div>
+                      </div>
+                      <button className="adm-btn adm-btn-primary" onClick={openPeNew}>+ 이벤트 추가</button>
+                    </div>
+                    {pointEventsLoading ? <PanelLoading /> : (
+                      <div className="adm-table-wrap">
+                        <table className="adm-table">
+                          <thead>
+                            <tr><th>상태</th><th>종류</th><th>이름</th><th>기간</th><th>방식</th><th>대상</th><th>관리</th></tr>
+                          </thead>
+                          <tbody>
+                            {pointEvents.length === 0 ? (
+                              <tr><td colSpan={7} style={{ textAlign:'center', padding:'32px 0', color:'#94A3B8' }}>등록된 적립 이벤트가 없습니다.</td></tr>
+                            ) : pointEvents.map(e => {
+                              const st = peStatus(e);
+                              return (
+                                <tr key={e.id}>
+                                  <td><span className={`adm-badge ${st === 'running' ? 'badge-shipping' : st === 'scheduled' ? 'badge-paid' : 'badge-wait'}`}>{st === 'running' ? '진행중' : st === 'scheduled' ? '예정' : '종료'}</span></td>
+                                  <td>{e.kind === 'purchase' ? '구매 적립' : '리뷰 적립'}</td>
+                                  <td style={{ fontWeight:600 }}>{e.name}</td>
+                                  <td style={{ whiteSpace:'nowrap' }}>{kstYmd(e.starts_at)} ~ {e.ends_at ? kstYmd(e.ends_at) : '상시'}</td>
+                                  <td>{describeEvent(e)}</td>
+                                  <td>{e.target === 'all' ? '전체 상품' : `선택 상품 ${(e.product_ids || []).length}개`}</td>
+                                  <td style={{ whiteSpace:'nowrap' }}>
+                                    {st !== 'ended' && <button className="adm-row-btn" onClick={() => openPeEdit(e)}>{st === 'scheduled' ? '수정' : '끝나는 날'}</button>}
+                                    {st === 'running' && <button className="adm-row-btn" style={{ marginLeft:4, color:'#DC2626' }} onClick={() => endPointEvent(e)}>종료</button>}
+                                    {st === 'scheduled' && <button className="adm-row-btn" style={{ marginLeft:4, color:'#DC2626' }} onClick={() => deletePointEvent(e)}>삭제</button>}
+                                    {st === 'ended' && <button className="adm-row-btn" onClick={() => openPeEdit(e)}>보기</button>}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                   </>)}
 
@@ -16081,6 +16276,21 @@ export default function AdminClient() {
                 </div>
               </div>
 
+              {/* 개인 적립률 (저장 눌러야 반영) */}
+              <div>
+                <div style={secTitle}>개인 적립률</div>
+                <div className="adm-flex-center-gap" style={{ gap:8 }}>
+                  <input type="text" inputMode="decimal" className="adm-input-text" style={{ width:110, textAlign:'right' }}
+                    value={mDetailRate} disabled={mDetailRateOrig === null} placeholder="등급 기준"
+                    onChange={e => setMDetailRate(e.target.value.replace(/[^0-9.]/g, ''))} />
+                  <span className="adm-muted">%</span>
+                  {mDetailRate.trim() !== '' && <button type="button" className="adm-row-btn" onClick={() => setMDetailRate('')}>비우기</button>}
+                </div>
+                <div style={{ fontSize:11, color:'#94A3B8', marginTop:6, lineHeight:1.5 }}>
+                  비워 두면 등급 적립률로 적립됩니다. 입력하면 등급과 상관없이 이 적립률로 적립되고, 구매 적립 이벤트 기간에는 이 적립률에 배수가 적용됩니다. <b>저장</b>해야 반영돼요.
+                </div>
+              </div>
+
               {/* 포인트 */}
               <div>
                 <div style={secTitle}>포인트</div>
@@ -16683,6 +16893,141 @@ export default function AdminClient() {
       })()}
 
       {/* ===== 포인트 지급 모달 ===== */}
+      {peModal && (() => {
+        const f = peForm;
+        const lockAll = peModal.locked;
+        const ended = !!peModal.id && (() => { const e = pointEvents.find(x => x.id === peModal.id); return !!e && peStatus(e) === 'ended'; })();
+        const set = (patch: Partial<PeForm>) => setPeForm(prev => ({ ...prev, ...patch }));
+        const pill = (on: boolean, disabled: boolean): React.CSSProperties => ({
+          flex:1, height:36, borderRadius:8, fontSize:13, fontWeight:700, cursor: disabled ? 'not-allowed' : 'pointer',
+          border: on ? '1.5px solid #1A1A1A' : '1.5px solid #E5E7EB', background: on ? '#1A1A1A' : '#fff', color: on ? '#fff' : '#64748B', opacity: disabled && !on ? .5 : 1,
+        });
+        const q = peProductQ.trim().toLowerCase();
+        const picked = new Set(f.productIds);
+        const shown = peProducts.filter(pr => !q || pr.name.toLowerCase().includes(q)).slice(0, 60);
+        const pickedList = f.productIds.map(id => peProducts.find(pr => pr.id === id) || { id, name: '(삭제된 상품)', is_active: false });
+        return (
+        <div className="adm-modal-bg open" style={{ zIndex: 10001 }} onClick={() => !peSaving && setPeModal(null)}>
+          <div className="adm-modal" style={{ maxWidth:560, width:'94vw' }} onClick={e => e.stopPropagation()}>
+            <div className="adm-modal-head">
+              <span className="adm-modal-title">{!peModal.id ? '적립 이벤트 추가' : ended ? '적립 이벤트 (종료됨)' : lockAll ? '적립 이벤트 — 끝나는 날 변경' : '적립 이벤트 수정'}</span>
+            </div>
+            <div className="adm-modal-body">
+              {lockAll && !ended && (
+                <div style={{ background:'#FFFBEB', border:'1px solid #FDE68A', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#92400E', marginBottom:14, lineHeight:1.6 }}>
+                  이미 시작된 이벤트예요. 이미 적용된 주문·리뷰를 지키기 위해 <b>끝나는 날만</b> 바꿀 수 있어요.
+                </div>
+              )}
+              <div className="adm-form">
+                <div className="adm-form-row">
+                  <label className="adm-label">종류</label>
+                  <div style={{ display:'flex', gap:8, flex:1 }}>
+                    {([['purchase', '구매 적립'], ['review', '리뷰 적립']] as const).map(([v, l]) => (
+                      <button key={v} type="button" disabled={lockAll} style={pill(f.kind === v, lockAll)}
+                        onClick={() => set({ kind: v, mode: 'multiply' })}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">이름</label>
+                  <input type="text" className="adm-input-text" style={{ width:'100%' }} value={f.name} disabled={lockAll} maxLength={40}
+                    placeholder={f.kind === 'purchase' ? '예: 추석 2배 적립' : '예: 포토 리뷰 이벤트'} onChange={e => set({ name: e.target.value })} />
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">기간</label>
+                  <div className="adm-flex-center-gap" style={{ flex:1, flexWrap:'wrap', gap:6 }}>
+                    <input type="date" className="adm-input-text" style={{ width:150 }} value={f.start} disabled={lockAll} onChange={e => set({ start: e.target.value })} />
+                    <span className="adm-muted">~</span>
+                    <input type="date" className="adm-input-text" style={{ width:150 }} value={f.end} disabled={ended} min={f.start || undefined} onChange={e => set({ end: e.target.value })} />
+                    {f.end && !ended && <button type="button" className="adm-row-btn" onClick={() => set({ end: '' })}>상시로</button>}
+                  </div>
+                </div>
+                <div className="adm-muted" style={{ fontSize:11, margin:'-4px 0 10px', lineHeight:1.5 }}>
+                  시작일 0시부터 끝나는 날 23:59까지(한국 시간). 끝나는 날을 비우면 <b>상시</b> 적용이에요.
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">방식</label>
+                  <div style={{ display:'flex', gap:8, flex:1 }}>
+                    {(f.kind === 'purchase'
+                      ? [['multiply', '배수'], ['rate', '적립률 지정']] as const
+                      : [['multiply', '배수'], ['amount', '금액 지정']] as const
+                    ).map(([v, l]) => (
+                      <button key={v} type="button" disabled={lockAll} style={pill(f.mode === v, lockAll)} onClick={() => set({ mode: v })}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">{f.mode === 'multiply' ? '배수' : f.mode === 'rate' ? '적립률' : '적립 금액'}</label>
+                  {f.mode === 'multiply' ? (
+                    <div className="adm-flex-center-gap" style={{ flex:1 }}>
+                      <input type="text" inputMode="decimal" className="adm-input-text" style={{ width:90, textAlign:'right' }} value={f.multiplier} disabled={lockAll}
+                        onChange={e => set({ multiplier: e.target.value.replace(/[^0-9.]/g, '') })} />
+                      <span className="adm-muted">배 {f.kind === 'purchase' ? '(회원 적립률 × 배수)' : '(일반·포토 리뷰 적립금 × 배수)'}</span>
+                    </div>
+                  ) : f.mode === 'rate' ? (
+                    <div className="adm-flex-center-gap" style={{ flex:1 }}>
+                      <input type="text" inputMode="decimal" className="adm-input-text" style={{ width:90, textAlign:'right' }} value={f.rate} disabled={lockAll}
+                        onChange={e => set({ rate: e.target.value.replace(/[^0-9.]/g, '') })} />
+                      <span className="adm-muted">% (회원 적립률이 더 높으면 회원 적립률)</span>
+                    </div>
+                  ) : (
+                    <div className="adm-flex-center-gap" style={{ flex:1, flexWrap:'wrap', gap:6 }}>
+                      <span className="adm-muted">일반</span>
+                      <input type="text" inputMode="numeric" className="adm-input-text" style={{ width:80, textAlign:'right' }} value={f.textAmt} disabled={lockAll}
+                        onChange={e => set({ textAmt: e.target.value.replace(/[^0-9]/g, '') })} />
+                      <span className="adm-muted">P · 포토</span>
+                      <input type="text" inputMode="numeric" className="adm-input-text" style={{ width:80, textAlign:'right' }} value={f.photoAmt} disabled={lockAll}
+                        onChange={e => set({ photoAmt: e.target.value.replace(/[^0-9]/g, '') })} />
+                      <span className="adm-muted">P</span>
+                    </div>
+                  )}
+                </div>
+                <div className="adm-form-row">
+                  <label className="adm-label">대상</label>
+                  <div style={{ display:'flex', gap:8, flex:1 }}>
+                    {([['all', '전체 상품'], ['products', '상품 선택']] as const).map(([v, l]) => (
+                      <button key={v} type="button" disabled={lockAll} style={pill(f.target === v, lockAll)} onClick={() => set({ target: v })}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                {f.target === 'products' && (
+                  <div style={{ border:'1px solid #EEF2F6', borderRadius:10, padding:'10px 12px', marginBottom:6 }}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom: lockAll ? 0 : 8 }}>
+                      {pickedList.length === 0 && <span className="adm-muted" style={{ fontSize:12 }}>선택한 상품이 없어요.</span>}
+                      {pickedList.map(pr => (
+                        <span key={pr.id} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, background:'#F1F5F9', borderRadius:99, padding:'3px 10px' }}>
+                          {pr.name}
+                          {!lockAll && <button type="button" onClick={() => set({ productIds: f.productIds.filter(x => x !== pr.id) })}
+                            style={{ border:'none', background:'none', cursor:'pointer', color:'#94A3B8', fontSize:13, padding:0, lineHeight:1 }} aria-label={`${pr.name} 빼기`}>×</button>}
+                        </span>
+                      ))}
+                    </div>
+                    {!lockAll && (<>
+                      <input type="text" className="adm-input-text" style={{ width:'100%' }} placeholder="상품 이름 검색" value={peProductQ} onChange={e => setPeProductQ(e.target.value)} />
+                      <div style={{ maxHeight:180, overflowY:'auto', marginTop:6 }}>
+                        {shown.map(pr => (
+                          <label key={pr.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 2px', fontSize:13, cursor:'pointer' }}>
+                            <input type="checkbox" checked={picked.has(pr.id)} style={{ accentColor:'#1A1A1A' }}
+                              onChange={e => set({ productIds: e.target.checked ? [...f.productIds, pr.id] : f.productIds.filter(x => x !== pr.id) })} />
+                            <span style={{ color: pr.is_active ? '#1A1A1A' : '#94A3B8' }}>{pr.name}{pr.is_active ? '' : ' (판매중지)'}</span>
+                          </label>
+                        ))}
+                        {peProducts.length === 0 && <div className="adm-muted" style={{ fontSize:12, padding:'6px 2px' }}>상품 불러오는 중…</div>}
+                      </div>
+                    </>)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="adm-modal-foot">
+              <button className="adm-btn adm-btn-outline" onClick={() => setPeModal(null)} disabled={peSaving}>{ended ? '닫기' : '취소'}</button>
+              {!ended && <button className="adm-btn adm-btn-primary" onClick={savePointEvent} disabled={peSaving}>{peSaving ? '저장 중...' : '저장'}</button>}
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {givePointModal && givePointTarget && (() => {
         const raw = Math.abs(Number(givePointForm.amount)) || 0;
         const signed = givePointForm.type === 'deduct' ? -raw : raw;

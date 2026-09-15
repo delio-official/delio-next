@@ -246,6 +246,17 @@ export default function SurveyClient() {
   const [copied,       setCopied]       = useState(false);
   const [sharingInsta, setSharingInsta] = useState(false);
   const [savingImg, setSavingImg] = useState(false);
+  /* 설문 완료 적립 — 설정 금액(0이면 안내 없음)과 이번에 실제로 지급된 금액 */
+  const [surveyPointAmt,   setSurveyPointAmt]   = useState(0);
+  const [surveyPointGiven, setSurveyPointGiven] = useState(0);
+  useEffect(() => {
+    createClient().from('site_settings').select('key, value').in('key', ['survey_point', 'point_enabled'])
+      .then(({ data }) => {
+        const m: Record<string, string> = {};
+        ((data as { key: string; value: string }[] | null) || []).forEach(x => { m[x.key] = x.value; });
+        setSurveyPointAmt(m.point_enabled === 'false' ? 0 : Math.max(0, parseInt(m.survey_point || '0') || 0));
+      });
+  }, []);
   const storyCardRef = useRef<HTMLDivElement>(null);
   /* 모바일 여부 — 인트로/인포 화면을 세로 중앙 대신 위로 정렬(헤더에 밀려 내려가 보이는 문제) */
   const [isMobileView, setIsMobileView] = useState(false);
@@ -356,7 +367,7 @@ export default function SurveyClient() {
       const getOpt = (id: string) => QS.find(q => q.id === id)?.opts[ans[id]];
       /* 서버 라우트에서 저장 — 동일 회원 재검사 시 기존 기록을 확실히 지우고 1건만 유지
          (클라이언트 직접 delete는 RLS에 막혀 조용히 실패 → 중복 누적될 수 있어 서버 처리). */
-      await fetch('/api/survey/submit', {
+      const resp = await fetch('/api/survey/submit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gender:             info.gender || null,
@@ -376,6 +387,8 @@ export default function SurveyClient() {
           result_desc:        res?.tagline,
         }),
       });
+      const j = await resp.json().catch(() => null);
+      if (j?.pointGranted > 0) setSurveyPointGiven(j.pointGranted);
     } catch { /* silent */ }
   }
 
@@ -718,6 +731,11 @@ export default function SurveyClient() {
 델리오의 가이드, 추천 과일, 에너지 패턴까지<br />
               나에게 딱 맞는 분석을 확인해보세요.
             </p>
+            {surveyPointAmt > 0 && (
+              <p style={{ fontSize:13, color:'var(--color-accent, #CB1D11)', fontWeight:700, margin:'-12px 0 20px' }}>
+                로그인하고 진단하면 {surveyPointAmt.toLocaleString()}P를 적립해 드려요 (첫 진단 1회)
+              </p>
+            )}
             <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
               <Link href="/signup" style={{ padding:'12px 28px', background:'#1A1A1A', color:'#fff', borderRadius:10, fontWeight:700, fontSize:14, textDecoration:'none' }}>
                 회원가입하고 결과 보기
@@ -729,6 +747,11 @@ export default function SurveyClient() {
           </div>
         ) : (
           <>
+            {surveyPointGiven > 0 && (
+              <div style={{ marginTop:28, padding:'14px 16px', borderRadius:12, background:'#FFF4F2', border:'1px solid #F6CFC9', fontSize:14, fontWeight:700, color:'#CB1D11', textAlign:'center' }}>
+                🎉 취향 설문 완료 적립 {surveyPointGiven.toLocaleString()}P가 적립되었어요
+              </div>
+            )}
             {/* ① 당신은 이런 사람이에요 */}
             <section style={{ marginTop:36, marginBottom:28, padding:'24px', background:'#FAFAF8', borderRadius:16 }}>
               <h2 style={{ fontSize:16, fontWeight:800, marginBottom:14, color: res.color }}>당신은 이런 사람이에요</h2>

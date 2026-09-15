@@ -19,7 +19,8 @@ import { StarRating, SingleStar } from '@/components/StarRating';
 import ReviewPhotoModal from '@/components/ReviewPhotoModal/ReviewPhotoModal';
 import { imgThumb } from '@/lib/img';
 import { TASTE_AXES, SELLER_AXES, defaultSellerScore, toLevel, axisLevelLabel, agreePct, avgPct, TASTE_REVEAL_MIN, type ReviewTaste } from '@/lib/taste';
-import { normalizeGrade, effectiveRate, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { normalizeGrade, DEFAULT_TIERS, type MembershipTier } from '@/lib/membership';
+import { baseRatePct, purchaseRateFor, reviewAmountsFor, POINT_EVENT_COLS, type PointEvent } from '@/lib/point-earn';
 import { CS_PHONE, CS_HOURS_LINE } from '@/lib/company';
 
 /* ── 타입 ── */
@@ -271,6 +272,8 @@ export default function ProductClient() {
   const [claiming,            setClaiming]            = useState(false);
   const [couponRefresh,       setCouponRefresh]       = useState(0);
   const [pointRate,           setPointRate]           = useState(1);
+  const [pointRateEvent,      setPointRateEvent]      = useState<string | null>(null);   // 구매 적립 이벤트 이름(적용 중일 때)
+  const [reviewPtEvent,       setReviewPtEvent]       = useState(false);                 // 리뷰 적립 이벤트 적용 중
   const [bestCoupon,       setBestCoupon]       = useState<{
     name: string; discountAmt: number; finalPrice: number; totalRate: number; held: boolean;
   } | null | 'loading'>('loading');
@@ -806,40 +809,52 @@ export default function ProductClient() {
   const reviewQuotaLeft = purchaseCount - myReviewCount;
   const canWriteReview  = isAdmin || reviewQuotaLeft > 0;
 
-  /* 리뷰 작성 적립 포인트 (안내용) */
+  /* 리뷰 작성 적립 포인트 (안내용) — 기본 설정 + 이 상품에 진행 중인 리뷰 적립 이벤트 (적립 API 와 같은 계산) */
   useEffect(() => {
-    createClient().from('site_settings').select('key,value')
-      .in('key', ['review_point_text', 'review_point_photo', 'point_enabled'])
-      .then(({ data }) => {
-        const m: Record<string, string> = {};
-        ((data as { key: string; value: string }[]) || []).forEach(s => { m[s.key] = s.value; });
-        if (m.point_enabled === 'false') { setReviewPt({ text: 0, photo: 0 }); return; }   // 포인트 OFF → 적립 안내 숨김
-        setReviewPt({
-          text: parseInt(m.review_point_text || '50') || 0,
-          photo: parseInt(m.review_point_photo || '150') || 0,
-        });
-      });
-  }, []);
+    (async () => {
+      const sb = createClient();
+      const [{ data }, { data: ev }] = await Promise.all([
+        sb.from('site_settings').select('key,value').in('key', ['review_point_text', 'review_point_photo', 'point_enabled']),
+        sb.from('point_events').select(POINT_EVENT_COLS).eq('kind', 'review'),
+      ]);
+      const m: Record<string, string> = {};
+      ((data as { key: string; value: string }[]) || []).forEach(s => { m[s.key] = s.value; });
+      if (m.point_enabled === 'false') { setReviewPt({ text: 0, photo: 0 }); setReviewPtEvent(false); return; }   // 포인트 OFF → 적립 안내 숨김
+      const amt = reviewAmountsFor(id, {
+        text: parseInt(m.review_point_text || '50') || 0,
+        photo: parseInt(m.review_point_photo || '150') || 0,
+      }, (ev as PointEvent[] | null) || []);
+      setReviewPt({ text: amt.text, photo: amt.photo });
+      setReviewPtEvent(!!(amt.textEvent || amt.photoEvent));
+    })();
+  }, [id]);
 
-  /* 적립률: 로그인 회원 등급별(membership_tiers) — 비로그인은 비기너 기준 */
+  /* 적립률: 로그인 회원은 개인 적립률(없으면 등급 적립률), 비로그인은 비기너 기준
+     + 이 상품에 진행 중인 구매 적립 이벤트 중 가장 높은 것 (주문 적립 lib/point-earn 과 같은 계산) */
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       let grade = 'beginner';
+      let override: number | null = null;
       if (user) {
-        const { data: prof } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle();
+        let { data: prof, error } = await supabase.from('profiles').select('grade, point_rate_override').eq('id', user.id).maybeSingle();
+        if (error) ({ data: prof } = await supabase.from('profiles').select('grade').eq('id', user.id).maybeSingle());   // 칸 추가 전
         grade = normalizeGrade((prof as { grade?: string } | null)?.grade);
+        override = (prof as { point_rate_override?: number | null } | null)?.point_rate_override ?? null;
       }
-      const [{ data: tier }, { data: pe }] = await Promise.all([
+      const [{ data: tier }, { data: pe }, { data: ev }] = await Promise.all([
         supabase.from('membership_tiers').select('*').eq('grade', grade).maybeSingle(),
         supabase.from('site_settings').select('value').eq('key', 'point_enabled').maybeSingle(),
+        supabase.from('point_events').select(POINT_EVENT_COLS).eq('kind', 'purchase'),
       ]);
       /* 관리자가 포인트 시스템을 끄면 실제 적립이 0이므로 표시도 0 (주문 적립 로직과 동일 기준) */
-      if ((pe as { value?: string } | null)?.value === 'false') { setPointRate(0); return; }
+      if ((pe as { value?: string } | null)?.value === 'false') { setPointRate(0); setPointRateEvent(null); return; }
       const t = (tier as MembershipTier | null) ?? DEFAULT_TIERS.find(x => x.grade === grade)!;
-      setPointRate(effectiveRate(t));
+      const best = purchaseRateFor(id, baseRatePct(t, override), (ev as PointEvent[] | null) || []);
+      setPointRate(best.rate);
+      setPointRateEvent(best.event?.name ?? null);
     })();
-  }, [user]);
+  }, [user, id]);
 
   /* 구매 지표 — DB 함수로 집계 (add_product_buyer_stats_rpc.sql)
      여기서 order_items 를 직접 세면 안 된다: RLS가 '본인 주문만' 이라
@@ -1987,6 +2002,9 @@ export default function ProductClient() {
                     <th>포인트</th>
                     <td style={{ color:'#1A1A1A', fontWeight:700 }}>
                       {pointRate > 0 ? `${pointRate}% (${fmtPrice(Math.round(basePrice * pointRate / 100))}원)` : '적립 없음'}
+                      {pointRate > 0 && pointRateEvent && (
+                        <span title={pointRateEvent} style={{ display:'inline-block', marginLeft:6, fontSize:11, fontWeight:700, color:'#fff', background:'var(--color-accent)', padding:'1px 7px', borderRadius:4, verticalAlign:'1px' }}>이벤트</span>
+                      )}
                     </td>
                   </tr>
                 </tbody>
@@ -3193,7 +3211,7 @@ export default function ProductClient() {
                 background:'var(--color-accent-bg)', border:'1px solid var(--color-accent-soft)', textAlign:'left',
               }}>
                 <div style={{ fontSize:14, lineHeight:1.7, color:'var(--color-ink-soft)' }}>
-                  리뷰를 남기면 포인트를 드려요!<br />
+                  {reviewPtEvent ? <><b style={{ color:'var(--color-accent)' }}>리뷰 적립 이벤트 중!</b> </> : null}리뷰를 남기면 포인트를 드려요!<br />
                   <b style={{ color:'var(--color-accent)' }}>일반 리뷰 {reviewPt.text.toLocaleString()}P</b>
                   {reviewPt.photo > 0 && <>{' · '}<b style={{ color:'var(--color-accent)' }}>포토(사진·영상) 리뷰 {reviewPt.photo.toLocaleString()}P</b></>}
                 </div>
